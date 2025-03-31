@@ -7,7 +7,8 @@ import App from './App';
 import Login from './pages/Login';
 import CharacterCreation from './pages/CharacterCreation';
 import GameDemo from './components/GameDemo';
-// import ProtectedRoute from './components/ProtectedRoute';
+import ProtectedRoute from './components/ProtectedRoute';
+import { PrivyAuthProvider } from './providers/PrivyAuthProvider';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
@@ -27,16 +28,16 @@ const CharacterPage = () => (
 
 root.render(
   <React.StrictMode>
-    <RecoilRoot>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<GamePage />} />
-          <Route path="/create" element={<CharacterPage />} />
-          {/* <Route path="/" element={<Login />} />
-          <Route path="/create" element={<ProtectedRoute><CharacterCreation /></ProtectedRoute>} />
-          <Route path="/game" element={<ProtectedRoute><GameBoard /></ProtectedRoute>} /> */}
-        </Routes>
-      </BrowserRouter>
-    </RecoilRoot>
+    <PrivyAuthProvider>
+      <RecoilRoot>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Login />} />
+            <Route path="/game" element={<ProtectedRoute><GamePage /></ProtectedRoute>} />
+            <Route path="/create" element={<ProtectedRoute><CharacterPage /></ProtectedRoute>} />
+          </Routes>
+        </BrowserRouter>
+      </RecoilRoot>
+    </PrivyAuthProvider>
   </React.StrictMode>
 ); 
