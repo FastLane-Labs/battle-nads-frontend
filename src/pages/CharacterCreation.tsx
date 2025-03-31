@@ -72,22 +72,8 @@ const CharacterCreation: React.FC = () => {
     setIsCreating(true);
     
     try {
-      toast({
-        title: 'Wallet Connection Required',
-        description: 'To create a character on the Monad Testnet, you need to connect your wallet. We are upgrading this feature. Please check back soon.',
-        status: 'warning',
-        duration: 5000,
-        isClosable: true,
-      });
-      
-      // Navigate to game page (for demo purposes)
-      // In a real implementation, this would only happen after successful character creation
-      setTimeout(() => {
-        navigate('/game');
-      }, 2000);
-      
-      /* Real Implementation would be:
-      const result = await createCharacter(
+      // Call the createCharacter function from the hook
+      const characterId = await createCharacter(
         name,
         strength,
         vitality,
@@ -97,7 +83,7 @@ const CharacterCreation: React.FC = () => {
         luck
       );
       
-      if (result) {
+      if (characterId) {
         toast({
           title: 'Success',
           description: 'Character created successfully!',
@@ -106,7 +92,7 @@ const CharacterCreation: React.FC = () => {
           isClosable: true,
         });
         
-        // Navigate to game page
+        // Navigate to game page with the character ID
         navigate('/game');
       } else {
         toast({
@@ -117,11 +103,10 @@ const CharacterCreation: React.FC = () => {
           isClosable: true,
         });
       }
-      */
-    } catch (err) {
+    } catch (err: any) {
       toast({
         title: 'Error',
-        description: error || 'An unexpected error occurred',
+        description: err.message || 'An unexpected error occurred',
         status: 'error',
         duration: 5000,
         isClosable: true,
@@ -229,17 +214,6 @@ const CharacterCreation: React.FC = () => {
             onChange={setLuck} 
             label="Luck" 
           />
-          
-          <Alert status="warning">
-            <AlertIcon />
-            <VStack align="start" spacing={2}>
-              <AlertTitle>Wallet Connection Required</AlertTitle>
-              <AlertDescription>
-                To create a character on the Monad Testnet, you'll need to connect your wallet
-                and have MONAD tokens. This is a real blockchain application requiring gas fees.
-              </AlertDescription>
-            </VStack>
-          </Alert>
           
           <Button 
             colorScheme="blue" 
