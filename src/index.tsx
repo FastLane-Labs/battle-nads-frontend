@@ -6,7 +6,7 @@ import './index.css';
 import App from './App';
 import Login from './pages/Login';
 import CharacterCreation from './pages/CharacterCreation';
-import GameBoard from './pages/GameBoard';
+import GameDemo from './components/GameDemo';
 // import ProtectedRoute from './components/ProtectedRoute';
 
 const root = ReactDOM.createRoot(
@@ -15,7 +15,7 @@ const root = ReactDOM.createRoot(
 
 const GamePage = () => (
   <App>
-    <GameBoard />
+    <GameDemo />
   </App>
 );
 

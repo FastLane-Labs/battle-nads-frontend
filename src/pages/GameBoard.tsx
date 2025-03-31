@@ -32,6 +32,7 @@ const GameBoard: React.FC = () => {
   const combatants = useRecoilValue(combatantsSelector);
   
   const [selectedCharacter, setSelectedCharacter] = useState<BattleNad | null>(null);
+  const [showAttributeAllocation, setShowAttributeAllocation] = useState(false);
   
   // Simulate loading the character
   useEffect(() => {
@@ -200,10 +201,16 @@ const GameBoard: React.FC = () => {
               onEquipWeapon={handleEquipWeapon} 
               onEquipArmor={handleEquipArmor} 
             />
-            <AttributeAllocation 
-              character={character} 
-              onAllocatePoints={handleAllocatePoints} 
-            />
+            {showAttributeAllocation && (
+              <AttributeAllocation 
+                character={character} 
+                closeModal={() => setShowAttributeAllocation(false)}
+                onAllocatePoints={async (...args) => {
+                  await handleAllocatePoints(...args);
+                  setShowAttributeAllocation(false);
+                }}
+              />
+            )}
           </div>
           
           <div className="md:col-span-2 space-y-4">
