@@ -5,25 +5,49 @@ interface PrivyAuthProviderProps {
   children: ReactNode;
 }
 
+// Define Monad testnet chain
+const MONAD_TESTNET_CHAIN = {
+  name: 'Monad Testnet',
+  id: 10143,
+  rpcUrls: {
+    default: {
+      http: ['https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24']
+    }
+  },
+  nativeCurrency: {
+    name: 'Monad',
+    symbol: 'MON',
+    decimals: 18,
+  },
+  blockExplorers: {
+    default: {
+      name: 'Monad Explorer',
+      url: 'https://explorer-testnet.monadinfra.com',
+    },
+  },
+};
+
 export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
-  // The OAuth callback URL is automatically managed by Privy
-  // We just need to ensure it's configured correctly in the Privy dashboard
+  // Get the Privy App ID from environment variables
+  const appId = import.meta.env.VITE_PRIVY_APP_ID || "";
+  
+  if (!appId) {
+    console.warn("No Privy App ID found. Please set VITE_PRIVY_APP_ID in your environment variables.");
+  }
   
   return (
     <PrivyProvider
-      appId={import.meta.env.VITE_PRIVY_APP_ID || ""}
+      appId={appId}
       config={{
-        loginMethods: ["twitter"],
+        loginMethods: ["twitter", "discord", "email", "wallet"],
         embeddedWallets: {
           createOnLogin: 'all-users',
         },
         appearance: {
           theme: "dark",
           accentColor: "#4F46E5",
-          logo: "/your-logo-url.png",
         },
-        // You'll need to define MONAD_CHAIN or remove this if not needed
-        // supportedChains: [MONAD_CHAIN],
+        supportedChains: [MONAD_TESTNET_CHAIN],
       }}
     >
       {children}

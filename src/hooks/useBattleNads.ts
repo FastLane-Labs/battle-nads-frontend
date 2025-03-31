@@ -46,9 +46,9 @@ const ENTRYPOINT_ABI = [
 ];
 
 // Use environment variables for contract addresses and RPC URL
-const ENTRYPOINT_ADDRESS = "0x7b1AFC9DB10E308CA60FFA8bC5094008A638d010";
+const ENTRYPOINT_ADDRESS = "0xDA7C3498Ec071d736565EcC9595F103E1DC56d42";
 const RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";
-const CHAIN_ID = 201;
+const CHAIN_ID = 10143;
 
 export const useBattleNads = () => {
   const { user, authenticated, getEthersProvider } = usePrivy();
@@ -359,6 +359,41 @@ export const useBattleNads = () => {
     }
   }, [getContracts]);
 
+  // Get player characters
+  const getPlayerCharacters = useCallback(async (address: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+      
+      // Get character IDs owned by the player
+      const characterIds = await entrypoint.getPlayerCharacterIDs(address);
+      
+      // If no characters, return empty array
+      if (!characterIds || characterIds.length === 0) {
+        return [];
+      }
+      
+      // Get details for each character
+      const characterPromises = characterIds.map((id: string) => entrypoint.getBattleNad(id));
+      const characters = await Promise.all(characterPromises);
+      
+      return characters;
+    } catch (err: any) {
+      console.error("Error getting player characters:", err);
+      setError(err.message || "Error getting player characters");
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [getReadOnlyProvider]);
+
   return {
     createCharacter,
     getCharacter,
@@ -366,6 +401,7 @@ export const useBattleNads = () => {
     moveCharacter,
     attackTarget,
     sendChatMessage,
+    getPlayerCharacters,
     loading,
     error,
     isAuthenticated: authenticated,
