@@ -14,9 +14,10 @@ export default defineConfig({
     port: 3000,
     open: true,
     headers: {
-      'Cross-Origin-Embedder-Policy': 'require-corp',
+      'Cross-Origin-Embedder-Policy': 'credentialless',
       'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Resource-Policy': 'same-origin',
+      'Cross-Origin-Resource-Policy': 'cross-origin',
+      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://rpc-testnet.monadinfra.com https://*.privy.io; img-src 'self' data: https://*.privy.io; frame-src 'self' https://*.privy.io;",
     }
   }
 }); 
