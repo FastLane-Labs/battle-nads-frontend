@@ -46,7 +46,7 @@ const ENTRYPOINT_ABI = [
 ];
 
 // Use environment variables for contract addresses and RPC URL
-const ENTRYPOINT_ADDRESS = "0xDA7C3498Ec071d736565EcC9595F103E1DC56d42";
+const ENTRYPOINT_ADDRESS = "0xD1183C1c028E094FD839Ad508a188Cf7d26AAB48";
 const RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";
 const CHAIN_ID = 10143;
 
