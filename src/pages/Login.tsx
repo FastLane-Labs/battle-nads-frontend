@@ -1,17 +1,27 @@
-import React from 'react';
-import { useLoginWithOAuth } from '@privy-io/react-auth';
+import React, { useState } from 'react';
+import { usePrivy, useLoginWithOAuth } from '@privy-io/react-auth';
+import { Navigate } from 'react-router-dom';
 
 const Login: React.FC = () => {
+  const { login, authenticated, ready } = usePrivy();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  
+  // Only redirect if we're sure of the authentication state
+  React.useEffect(() => {
+    if (ready && authenticated && !isRedirecting) {
+      setIsRedirecting(true);
+      // Use a small delay to prevent potential loops
+      setTimeout(() => {
+        window.location.href = '/game';
+      }, 100);
+    }
+  }, [authenticated, ready, isRedirecting]);
+  
   const { initOAuth, loading: twitterLoading } = useLoginWithOAuth({
     onComplete: ({ user, isNewUser }) => {
       console.log('User logged in successfully with Twitter', user);
-      if (isNewUser) {
-        // Redirect new users to character creation
-        window.location.href = '/create';
-      } else {
-        // Redirect existing users to the game
-        window.location.href = '/game';
-      }
+      // Don't redirect here - let the authenticated state update
+      // The useEffect above will handle redirection once auth state changes
     },
     onError: (error) => {
       console.error('Twitter login failed', error);
@@ -25,6 +35,15 @@ const Login: React.FC = () => {
       console.error('Twitter login error:', err);
     }
   };
+
+  // Show loading when redirecting to prevent flicker
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-white text-xl">Loading game...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -45,7 +64,6 @@ const Login: React.FC = () => {
             </svg>
             {twitterLoading ? 'Connecting...' : 'Sign in with Twitter'}
           </button>
-          
           <div className="text-center text-sm text-gray-400 mt-8">
             <p>Connect your wallet or social account to start playing or create a character.</p>
             <p className="mt-2">This game requires a small amount of MON to play.</p>
