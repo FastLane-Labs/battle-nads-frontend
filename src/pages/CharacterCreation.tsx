@@ -20,28 +20,31 @@ import {
   AlertIcon,
   AlertTitle,
   AlertDescription,
-  Divider
+  Divider,
+  Image
 } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
 import { useBattleNads } from '../hooks/useBattleNads';
 
 const CharacterCreation: React.FC = () => {
   const [name, setName] = useState('');
-  const [strength, setStrength] = useState(5);
-  const [vitality, setVitality] = useState(5);
-  const [dexterity, setDexterity] = useState(5);
-  const [quickness, setQuickness] = useState(5);
-  const [sturdiness, setSturdiness] = useState(5);
-  const [luck, setLuck] = useState(5);
+  const [strength, setStrength] = useState(3);
+  const [vitality, setVitality] = useState(3);
+  const [dexterity, setDexterity] = useState(3);
+  const [quickness, setQuickness] = useState(3);
+  const [sturdiness, setSturdiness] = useState(3);
+  const [luck, setLuck] = useState(3);
   const [isCreating, setIsCreating] = useState(false);
   
   const navigate = useNavigate();
   const toast = useToast();
   const { createCharacter, loading, error } = useBattleNads();
   
-  const TOTAL_POINTS = 30;
+  const MIN_STAT_VALUE = 3;
+  const TOTAL_POINTS = 32;
+  const BASE_POINTS_USED = MIN_STAT_VALUE * 6; // 6 attributes starting at 3 each
   const usedPoints = strength + vitality + dexterity + quickness + sturdiness + luck;
-  const remainingPoints = TOTAL_POINTS - usedPoints;
+  const unallocatedPoints = TOTAL_POINTS - usedPoints;
   
   const handleCreateCharacter = async () => {
     if (!name) {
@@ -55,10 +58,10 @@ const CharacterCreation: React.FC = () => {
       return;
     }
     
-    if (remainingPoints !== 0) {
+    if (unallocatedPoints !== 0) {
       toast({
         title: 'Error',
-        description: `Please allocate all attribute points. You have ${remainingPoints} points remaining.`,
+        description: `Please allocate all attribute points. You have ${unallocatedPoints} points unallocated.`,
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -134,7 +137,7 @@ const CharacterCreation: React.FC = () => {
       <NumberInput 
         value={value} 
         onChange={(_, val) => onChange(val)} 
-        min={1} 
+        min={MIN_STAT_VALUE} 
         max={10}
         isDisabled={isDisabled || isCreating}
       >
@@ -162,15 +165,14 @@ const CharacterCreation: React.FC = () => {
     <Center height="100vh">
       <Box p={8} maxWidth="500px" borderWidth={1} borderRadius="lg" boxShadow="lg">
         <VStack spacing={6}>
-          <Heading as="h1" size="xl" textAlign="center">Create Character</Heading>
+          <Image 
+            src="/BattleNadsLogo.png" 
+            alt="Battle Nads Logo"
+            maxWidth="250px" 
+            mb={2}
+          />
           
-          <Alert status="info" variant="subtle">
-            <AlertIcon />
-            <AlertDescription>
-              Connected to Monad Testnet: 
-              <Text as="span" fontWeight="bold"> Real Game Data</Text>
-            </AlertDescription>
-          </Alert>
+          <Heading as="h1" size="xl" textAlign="center">Create Character</Heading>
           
           <Divider />
           
@@ -183,9 +185,14 @@ const CharacterCreation: React.FC = () => {
             />
           </FormControl>
           
-          <Text fontWeight="bold">
-            Attribute Points Remaining: {remainingPoints}
-          </Text>
+          <Alert status={unallocatedPoints > 0 ? "info" : unallocatedPoints < 0 ? "error" : "success"} variant="subtle">
+            <AlertIcon />
+            <AlertDescription>
+              <Text fontWeight="bold">
+                Unallocated Attribute Points: {unallocatedPoints}
+              </Text>
+            </AlertDescription>
+          </Alert>
           
           <AttributeInput 
             value={strength} 
@@ -238,7 +245,7 @@ const CharacterCreation: React.FC = () => {
             colorScheme="blue" 
             width="full"
             onClick={handleCreateCharacter}
-            isDisabled={remainingPoints !== 0 || !name || isCreating}
+            isDisabled={unallocatedPoints !== 0 || !name || isCreating}
           >
             Create Character
           </Button>
