@@ -543,8 +543,16 @@ const GameBoard: React.FC<GameBoardProps> = ({
       {showAttributeAllocation && (
         <AttributeAllocation 
           character={currentCharacter} 
-          onSave={handleSaveAttributes} 
-          onCancel={() => setShowAttributeAllocation(false)} 
+          onAllocatePoints={async (strength, vitality, dexterity, quickness, sturdiness, luck) => {
+            handleSaveAttributes({
+              strength,
+              vitality,
+              dexterity,
+              quickness,
+              sturdiness,
+              luck
+            });
+          }}
         />
       )}
     </div>

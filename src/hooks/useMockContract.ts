@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSetRecoilState } from 'recoil';
 import { gameStateAtom } from '../state/gameState';
 import { 
@@ -15,9 +15,9 @@ export function useMockContract() {
   const setGameState = useSetRecoilState(gameStateAtom);
   
   // Initialize the game state with mock data
-  useState(() => {
+  useEffect(() => {
     setGameState(initialGameState);
-  });
+  }, [setGameState]);
 
   // Fetch character data
   const fetchCharacter = useCallback(async (characterId: string) => {

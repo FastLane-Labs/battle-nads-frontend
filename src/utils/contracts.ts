@@ -32,7 +32,7 @@ export const CONTRACT_ADDRESS = '0xYourContractAddressHere';
 export class BattleNadsContract {
   private contract: ethers.Contract;
 
-  constructor(provider: ethers.providers.Provider, signer?: ethers.Signer) {
+  constructor(provider: ethers.Provider, signer?: ethers.Signer) {
     if (signer) {
       this.contract = new ethers.Contract(CONTRACT_ADDRESS, BattleNadsABI, signer);
     } else {
@@ -82,7 +82,7 @@ export class BattleNadsContract {
       luck,
       sessionKey,
       sessionKeyDeadline,
-      { value: ethers.utils.parseEther(value) }
+      { value: ethers.parseEther(value) }
     );
     const receipt = await tx.wait();
     
@@ -165,7 +165,7 @@ export class BattleNadsContract {
     const tx = await this.contract.updateSessionKey(
       sessionKey,
       sessionKeyDeadline,
-      { value: ethers.utils.parseEther(value) }
+      { value: ethers.parseEther(value) }
     );
     const receipt = await tx.wait();
     
@@ -177,7 +177,7 @@ export class BattleNadsContract {
   }
 
   async replenishGasBalance(value: string): Promise<void> {
-    const tx = await this.contract.replenishGasBalance({ value: ethers.utils.parseEther(value) });
+    const tx = await this.contract.replenishGasBalance({ value: ethers.parseEther(value) });
     await tx.wait();
   }
 } 

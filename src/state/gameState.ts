@@ -4,14 +4,6 @@ import { BattleNad, GameState, BattleArea, BattleInstance } from '../utils/types
 // Atoms
 
 // The main game state atom
-export interface GameState {
-  characterId: string | null;
-  character: BattleNad | null;
-  charactersInArea: BattleNad[];
-  loading: boolean;
-  error: string | null;
-}
-
 export const gameStateAtom = atom<GameState>({
   key: 'gameState',
   default: {

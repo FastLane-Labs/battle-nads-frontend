@@ -17,10 +17,11 @@ export function useContract() {
   useEffect(() => {
     if (!ready || !authenticated || !user?.wallet?.address) return;
 
-    const provider = new ethers.providers.Web3Provider(window.ethereum);
-    const signer = provider.getSigner();
-    const battleNadsContract = new BattleNadsContract(provider, signer);
-    setContract(battleNadsContract);
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    provider.getSigner().then(signer => {
+      const battleNadsContract = new BattleNadsContract(provider, signer);
+      setContract(battleNadsContract);
+    });
   }, [ready, authenticated, user]);
 
   // Fetch character data

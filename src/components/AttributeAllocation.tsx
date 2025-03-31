@@ -3,14 +3,19 @@ import { Character } from '../types';
 
 interface AttributeAllocationProps {
   character: Character;
-  onSave: (attributes: Record<string, number>) => void;
-  onCancel: () => void;
+  onAllocatePoints: (
+    strength: number,
+    vitality: number,
+    dexterity: number,
+    quickness: number,
+    sturdiness: number,
+    luck: number
+  ) => Promise<void>;
 }
 
 const AttributeAllocation: React.FC<AttributeAllocationProps> = ({ 
   character, 
-  onSave, 
-  onCancel 
+  onAllocatePoints
 }) => {
   const initialPoints = character.stats.unallocatedPoints ?? 0;
   const [pointsLeft, setPointsLeft] = useState(initialPoints);
@@ -45,8 +50,19 @@ const AttributeAllocation: React.FC<AttributeAllocationProps> = ({
     }
   };
 
-  const handleSave = () => {
-    onSave(attributes);
+  const handleSave = async () => {
+    try {
+      await onAllocatePoints(
+        attributes.strength,
+        attributes.vitality,
+        attributes.dexterity,
+        attributes.quickness,
+        attributes.sturdiness,
+        attributes.luck
+      );
+    } catch (error) {
+      console.error("Error allocating points:", error);
+    }
   };
 
   return (
@@ -85,12 +101,6 @@ const AttributeAllocation: React.FC<AttributeAllocationProps> = ({
         </div>
 
         <div className="flex justify-between mt-8">
-          <button 
-            className="btn btn-secondary px-4 py-2"
-            onClick={onCancel}
-          >
-            Cancel
-          </button>
           <button 
             className="btn btn-primary px-4 py-2"
             onClick={handleSave}
