@@ -1,0 +1,559 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-white min-h-screen;
+  }
+}
+
+/* Movement Animations */
+@keyframes move-north {
+  from { transform: translate3d(0, 100%, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+
+@keyframes move-south {
+  from { transform: translate3d(0, -100%, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+
+@keyframes move-east {
+  from { transform: translate3d(-100%, 0, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+
+@keyframes move-west {
+  from { transform: translate3d(100%, 0, 0); }
+  to { transform: translate3d(0, 0, 0); }
+}
+
+@keyframes move-up {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes move-down {
+  from {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* State Change Animations */
+@keyframes level-up {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.2);
+    filter: brightness(1.5);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes damage-taken {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(0.95) translateX(-2px);
+  }
+  75% {
+    transform: scale(0.95) translateX(2px);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes heal {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+    filter: brightness(1.3);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Existing Animations */
+@keyframes attack {
+  0% { transform: scale3d(1, 1, 1); }
+  50% { transform: scale3d(1.2, 1.2, 1); }
+  100% { transform: scale3d(1, 1, 1); }
+}
+
+@keyframes damage {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animation Classes */
+.animate-move-north {
+  animation: move-north 0.3s ease-out;
+  will-change: transform;
+}
+
+.animate-move-south {
+  animation: move-south 0.3s ease-out;
+  will-change: transform;
+}
+
+.animate-move-east {
+  animation: move-east 0.3s ease-out;
+  will-change: transform;
+}
+
+.animate-move-west {
+  animation: move-west 0.3s ease-out;
+  will-change: transform;
+}
+
+.animate-move-up {
+  animation: move-up 0.3s ease-out;
+}
+
+.animate-move-down {
+  animation: move-down 0.3s ease-out;
+}
+
+.animate-level-up {
+  animation: level-up 0.5s ease-out;
+}
+
+.animate-damage-taken {
+  animation: damage-taken 0.3s ease-out;
+}
+
+.animate-heal {
+  animation: heal 0.3s ease-out;
+}
+
+.animate-attack {
+  animation: attack 0.3s ease-in-out;
+  will-change: transform;
+}
+
+.animate-damage {
+  animation: damage 0.5s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* State Indicators */
+.state-indicator {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transform: translateZ(0);
+}
+
+.state-indicator.combat {
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.state-indicator.level-up {
+  @apply ring-2 ring-yellow-500 animate-level-up;
+}
+
+.state-indicator.heal {
+  @apply ring-2 ring-green-500 animate-heal;
+}
+
+/* Existing Styles */
+button, .tile {
+  transition: all 0.2s ease-in-out;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+:root {
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color-scheme: dark;
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-semibold transition-all duration-200;
+  }
+  
+  .btn-primary {
+    @apply bg-primary hover:bg-primary/80 text-white;
+  }
+  
+  .btn-secondary {
+    @apply bg-secondary hover:bg-secondary/80 text-white;
+  }
+  
+  .btn-accent {
+    @apply bg-accent hover:bg-accent/80 text-white;
+  }
+  
+  .btn-danger {
+    @apply bg-danger hover:bg-danger/80 text-white;
+  }
+  
+  .game-tile {
+    @apply bg-surface rounded-md p-3 border border-gray-700;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+}
+
+/* Retro Scanline Animation */
+@keyframes scanline {
+  0% {
+    transform: translateY(-100%);
+  }
+  100% {
+    transform: translateY(100%);
+  }
+}
+
+.animate-scanline {
+  animation: scanline 8s linear infinite;
+}
+
+/* Retro CRT Flicker */
+@keyframes flicker {
+  0% { opacity: 0.97; }
+  5% { opacity: 0.95; }
+  10% { opacity: 0.9; }
+  15% { opacity: 0.95; }
+  20% { opacity: 0.98; }
+  25% { opacity: 0.95; }
+  30% { opacity: 0.9; }
+  35% { opacity: 0.95; }
+  40% { opacity: 0.98; }
+  45% { opacity: 0.95; }
+  50% { opacity: 0.9; }
+  55% { opacity: 0.95; }
+  60% { opacity: 0.98; }
+  65% { opacity: 0.95; }
+  70% { opacity: 0.9; }
+  75% { opacity: 0.95; }
+  80% { opacity: 0.98; }
+  85% { opacity: 0.95; }
+  90% { opacity: 0.9; }
+  95% { opacity: 0.95; }
+  100% { opacity: 0.98; }
+}
+
+.animate-flicker {
+  animation: flicker 0.15s infinite;
+}
+
+/* Retro Button Styles */
+.btn-retro {
+  @apply px-4 py-2 bg-gray-800 text-white rounded-lg border-2 border-purple-500 
+         hover:bg-purple-900 hover:border-pink-500 transition-all duration-200
+         focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50
+         disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+/* Retro Input Styles */
+.input-retro {
+  @apply px-4 py-2 bg-gray-800 text-white rounded-lg border-2 border-purple-500 
+         focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-opacity-50
+         placeholder-gray-500;
+}
+
+/* Retro Card Styles */
+.card-retro {
+  @apply bg-gray-800 rounded-lg border-2 border-purple-500 p-4
+         hover:border-pink-500 transition-all duration-200;
+}
+
+/* Retro Text Styles */
+.text-retro {
+  @apply font-mono tracking-wider;
+}
+
+.text-glow {
+  text-shadow: 0 0 10px rgba(147, 51, 234, 0.5);
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-purple-500 rounded-lg;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-pink-500;
+}
+
+/* Screen Shake Animation */
+@keyframes shake {
+  0% { transform: translate(0, 0); }
+  10% { transform: translate(-5px, 0); }
+  20% { transform: translate(5px, 0); }
+  30% { transform: translate(-5px, 0); }
+  40% { transform: translate(5px, 0); }
+  50% { transform: translate(-5px, 0); }
+  60% { transform: translate(5px, 0); }
+  70% { transform: translate(-5px, 0); }
+  80% { transform: translate(5px, 0); }
+  90% { transform: translate(-5px, 0); }
+  100% { transform: translate(0, 0); }
+}
+
+.animate-screen-shake {
+  animation: shake 0.3s cubic-bezier(.36,.07,.19,.97) both;
+}
+
+/* Floating Text Animation */
+@keyframes float-up {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(0, -50px, 0) scale(1.2);
+    opacity: 0;
+  }
+}
+
+.animate-float-up {
+  animation: float-up 1s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+/* Enhanced Combat Animations */
+@keyframes slash {
+  0% {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: rotate(45deg) scale(1.2);
+    opacity: 0.8;
+  }
+  100% {
+    transform: rotate(0deg) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes thrust {
+  0% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: translateX(10px) scale(1.1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes weapon-trail {
+  0% {
+    width: 0;
+    opacity: 1;
+    transform: scaleX(1);
+  }
+  100% {
+    width: 100%;
+    opacity: 0;
+    transform: scaleX(0.5);
+  }
+}
+
+/* Optimized Combat Effects */
+.weapon-trail {
+  position: absolute;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255,255,255,0.8), transparent);
+  transform-origin: left;
+  animation: weapon-trail 0.3s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+.animate-slash {
+  animation: slash 0.3s ease-in-out;
+  will-change: transform, opacity;
+}
+
+.animate-thrust {
+  animation: thrust 0.3s ease-in-out;
+  will-change: transform, opacity;
+}
+
+/* Enhanced Particle Effects */
+@keyframes particle-float {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(0, -30px, 0) scale(1.2);
+    opacity: 0;
+  }
+}
+
+@keyframes particle-spread {
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(var(--spread-x, 0), var(--spread-y, -30px), 0) scale(1.2);
+    opacity: 0;
+  }
+}
+
+.animate-particle-float {
+  animation: particle-float 0.8s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+.animate-particle-spread {
+  animation: particle-spread 0.8s ease-out forwards;
+  will-change: transform, opacity;
+}
+
+/* Enhanced Health Bar */
+.health-bar {
+  position: relative;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.health-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.1) 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.1) 100%
+  );
+  animation: health-shine 2s linear infinite;
+}
+
+@keyframes health-shine {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Enhanced Combat State Indicators */
+.state-indicator.combat {
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.state-indicator.targeted {
+  box-shadow: 0 0 10px rgba(236, 72, 153, 0.5);
+  animation: pulse 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Optimized Minimap */
+.minimap-tile {
+  transition: background-color 0.2s ease-out;
+  will-change: background-color;
+}
+
+.minimap-tile.visited {
+  animation: fade-in 0.3s ease-out;
+}
+
+/* Performance Optimizations */
+.game-tile,
+.minimap-tile,
+.particle,
+.state-indicator {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+}
+
+/* Optimized Transitions */
+.transition-all {
+  transition-property: transform, opacity, background-color, border-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 200ms;
+}
+
+/* Game specific styles */
+.game-tile {
+  background-color: rgba(30, 30, 50, 0.8);
+  border-radius: 8px;
+  backdrop-filter: blur(4px);
+} 

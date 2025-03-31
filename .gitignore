@@ -1,0 +1,39 @@
+# Node dependencies
+node_modules/
+
+# Build output (Vite default)
+dist/
+
+# Vite cache
+.vite/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+!.env.production
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE directories (Optional - uncomment if needed)
+# .idea/
+# .vscode/
+# *.suo
+# *.ntvs*
+# *.njsproj
+# *.sln
+# *.sw?
+
+# Test coverage
+coverage/
