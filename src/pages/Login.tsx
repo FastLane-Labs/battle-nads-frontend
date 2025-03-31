@@ -1,5 +1,5 @@
 import React from 'react';
-import { usePrivy, useLoginWithOAuth } from '@privy-io/react-auth';
+import { useLoginWithOAuth } from '@privy-io/react-auth';
 
 const Login: React.FC = () => {
   const { initOAuth, loading: twitterLoading } = useLoginWithOAuth({
