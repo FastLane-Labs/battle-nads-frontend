@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import * as ethers from 'ethers';
 import { usePrivy } from '@privy-io/react-auth';
 
@@ -51,28 +51,54 @@ const RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCe
 const CHAIN_ID = 10143;
 
 export const useBattleNads = () => {
-  const { user, authenticated } = usePrivy();
+  const { user, authenticated, ready } = usePrivy();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [privyProvider, setPrivyProvider] = useState<ethers.Provider | null>(null);
+  const [privySigner, setPrivySigner] = useState<ethers.Signer | null>(null);
 
-  // Get contracts
+  // Set up provider and signer when user is authenticated
+  useEffect(() => {
+    const setupProvider = async () => {
+      if (ready && authenticated && user?.wallet?.address) {
+        try {
+          // For real implementation, we need to use an RPC provider since we don't have 
+          // direct access to the wallet provider in this setup
+          const provider = new ethers.JsonRpcProvider(RPC_URL);
+          setPrivyProvider(provider);
+          
+          // In a real implementation with wallet integration, we would get the signer from the wallet
+          // For now, use a read-only provider and remind the user to connect their wallet
+          console.log("Connected to Monad RPC. Please ensure your wallet is connected to use write functions.");
+          
+        } catch (err) {
+          console.error("Error setting up provider:", err);
+        }
+      }
+    };
+    
+    setupProvider();
+  }, [ready, authenticated, user]);
+
+  // Get contracts with proper signer
   const getContracts = useCallback(async () => {
     if (!authenticated || !user) {
       throw new Error("User not authenticated");
     }
 
     try {
-      // Use direct RPC connection since we're not using Privy's provider
+      // Use direct RPC connection 
       const provider = new ethers.JsonRpcProvider(RPC_URL);
-      // Note: Without signer, we can only make read-only calls
       
+      // Normally we would use the wallet's signer here
+      // For now, use a read-only provider
       const entrypoint = new ethers.Contract(
         ENTRYPOINT_ADDRESS,
         ENTRYPOINT_ABI,
         provider
       );
 
-      return { entrypoint, signer: null, provider };
+      return { entrypoint, provider };
     } catch (err) {
       console.error("Error getting contracts:", err);
       throw err;
@@ -146,42 +172,47 @@ export const useBattleNads = () => {
     setError(null);
 
     try {
-      const { entrypoint, provider } = await getContracts();
+      // Alert the user that wallet support is required
+      setError("Wallet connection required. This app needs to be connected to your Monad wallet to create a character.");
+      console.error("Wallet connection required. This app needs to be connected to your Monad wallet to create a character.");
       
-      // Use a fixed value for character creation
-      const fixedBuyInAmount = "50000000000000000"; // 0.05 MONAD
-      console.log("Using fixed buy-in amount:", fixedBuyInAmount);
+      // In a real implementation, the following code would be used:
+      /*
+      const { entrypoint, provider } = await getContracts(); 
       
-      try {
-        // Calculate sessionKeyDeadline (e.g., 1 week from now)
-        const currentBlock = await provider.getBlockNumber();
-        const sessionKeyDeadline = currentBlock + 50400; // ~1 week with 12 sec blocks
-        
-        // We're not using a session key in this example
-        const sessionKey = "0x0000000000000000000000000000000000000000";
-        
-        // Verify network connection
-        const network = await provider.getNetwork();
-        console.log("Connected to network:", network);
-        const chainId = network.chainId || Number(network.toString());
-        
-        if (chainId !== CHAIN_ID) {
-          console.error(`Wrong network detected: ${chainId}. Please switch to Monad testnet (chainId: ${CHAIN_ID})`);
-          throw new Error(`Wrong network. Please switch to Monad testnet (chainId: ${CHAIN_ID})`);
-        }
-        
-        // Since we don't have a signer, we can't actually create a character
-        // This is a mock implementation for the build to pass
-        console.log("Would create character with params:", {
-          name, strength, vitality, dexterity, quickness, sturdiness, luck,
-          sessionKey, sessionKeyDeadline
-        });
-        
-        return "mock-transaction-hash";
-      } catch (txError: any) {
-        console.error("Transaction error:", txError);
-        throw new Error(`Failed to create character: ${txError.message || "Unknown error"}`);
-      }
+      // Get the buy-in amount required to create a character
+      const buyInAmount = await entrypoint.estimateBuyInAmountInMON();
+      console.log("Required buy-in amount:", ethers.formatEther(buyInAmount), "MONAD");
+      
+      // Calculate sessionKeyDeadline (e.g., 1 week from now)
+      const currentBlock = await provider.getBlockNumber();
+      const sessionKeyDeadline = currentBlock + 50400; // ~1 week with 12 sec blocks
+      
+      // For simplicity, not using a session key in this implementation
+      const sessionKey = "0x0000000000000000000000000000000000000000";
+      
+      // Send the transaction to create a character
+      const tx = await entrypoint.createCharacter(
+        name,
+        strength,
+        vitality,
+        dexterity,
+        quickness,
+        sturdiness,
+        luck,
+        sessionKey,
+        sessionKeyDeadline,
+        { value: buyInAmount }
+      );
+      
+      console.log("Character creation transaction sent:", tx.hash);
+      const receipt = await tx.wait();
+      console.log("Character created successfully:", receipt);
+      
+      return receipt.hash;
+      */
+      
+      return null;
     } catch (err: any) {
       console.error("Error creating character:", err);
       setError(err.message || "Error creating character");
@@ -189,7 +220,7 @@ export const useBattleNads = () => {
     } finally {
       setLoading(false);
     }
-  }, [getContracts]);
+  }, []);
 
   // Add function to move character
   const moveCharacter = useCallback(async (
@@ -200,9 +231,9 @@ export const useBattleNads = () => {
     setError(null);
 
     try {
-      const { entrypoint, signer } = await getContracts();
+      const { entrypoint } = await getContracts();
       
-      if (!signer) {
+      if (!privySigner) {
         throw new Error("No signer available");
       }
       
@@ -237,7 +268,7 @@ export const useBattleNads = () => {
     } finally {
       setLoading(false);
     }
-  }, [getContracts]);
+  }, [getContracts, privySigner]);
 
   // Attack function
   const attackTarget = useCallback(async (
@@ -248,9 +279,9 @@ export const useBattleNads = () => {
     setError(null);
 
     try {
-      const { entrypoint, signer } = await getContracts();
+      const { entrypoint } = await getContracts();
       
-      if (!signer) {
+      if (!privySigner) {
         throw new Error("No signer available");
       }
       
@@ -264,7 +295,7 @@ export const useBattleNads = () => {
     } finally {
       setLoading(false);
     }
-  }, [getContracts]);
+  }, [getContracts, privySigner]);
 
   // Send area chat message
   const sendChatMessage = useCallback(async (
@@ -275,9 +306,9 @@ export const useBattleNads = () => {
     setError(null);
 
     try {
-      const { entrypoint, signer } = await getContracts();
+      const { entrypoint } = await getContracts();
       
-      if (!signer) {
+      if (!privySigner) {
         throw new Error("No signer available");
       }
       
@@ -291,7 +322,7 @@ export const useBattleNads = () => {
     } finally {
       setLoading(false);
     }
-  }, [getContracts]);
+  }, [getContracts, privySigner]);
 
   // Get player characters
   const getPlayerCharacters = useCallback(async (address: string) => {
@@ -332,12 +363,22 @@ export const useBattleNads = () => {
     createCharacter,
     getCharacter,
     getCharactersInArea,
-    moveCharacter,
-    attackTarget,
-    sendChatMessage,
+    moveCharacter: () => {
+      setError("Wallet connection required for moving characters");
+      return Promise.resolve(false);
+    },
+    attackTarget: () => {
+      setError("Wallet connection required for attacking");
+      return Promise.resolve(false);
+    },
+    sendChatMessage: () => {
+      setError("Wallet connection required for sending messages");
+      return Promise.resolve(false);
+    },
     getPlayerCharacters,
     loading,
     error,
     isAuthenticated: authenticated,
+    hasWallet: false, // We're not yet using real wallet connection
   };
 }; 
