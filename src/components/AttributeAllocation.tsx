@@ -3,6 +3,7 @@ import { Character } from '../types';
 
 interface AttributeAllocationProps {
   character: Character;
+  closeModal: () => void;
   onAllocatePoints: (
     strength: number,
     vitality: number,
@@ -15,6 +16,7 @@ interface AttributeAllocationProps {
 
 const AttributeAllocation: React.FC<AttributeAllocationProps> = ({ 
   character, 
+  closeModal,
   onAllocatePoints
 }) => {
   const initialPoints = character.stats.unallocatedPoints ?? 0;
@@ -60,6 +62,7 @@ const AttributeAllocation: React.FC<AttributeAllocationProps> = ({
         attributes.sturdiness,
         attributes.luck
       );
+      closeModal();
     } catch (error) {
       console.error("Error allocating points:", error);
     }
@@ -68,7 +71,16 @@ const AttributeAllocation: React.FC<AttributeAllocationProps> = ({
   return (
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
       <div className="bg-surface p-6 rounded-lg w-full max-w-md">
-        <h2 className="text-2xl font-semibold mb-4 text-center text-primary">Allocate Attribute Points</h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-semibold text-primary">Allocate Attribute Points</h2>
+          <button 
+            className="text-gray-400 hover:text-white" 
+            onClick={closeModal}
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </div>
         
         <div className="text-center mb-6">
           <span className="text-accent">Points Remaining: </span>
@@ -107,6 +119,12 @@ const AttributeAllocation: React.FC<AttributeAllocationProps> = ({
             disabled={pointsLeft === initialPoints}
           >
             Save Changes
+          </button>
+          <button 
+            className="btn btn-secondary px-4 py-2"
+            onClick={closeModal}
+          >
+            Cancel
           </button>
         </div>
       </div>

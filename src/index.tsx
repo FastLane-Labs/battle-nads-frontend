@@ -13,13 +13,25 @@ const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
 
+const GamePage = () => (
+  <App>
+    <GameBoard />
+  </App>
+);
+
+const CharacterPage = () => (
+  <App>
+    <CharacterCreation />
+  </App>
+);
+
 root.render(
   <React.StrictMode>
     <RecoilRoot>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<GameBoard />} />
-          <Route path="/create" element={<CharacterCreation />} />
+          <Route path="/" element={<GamePage />} />
+          <Route path="/create" element={<CharacterPage />} />
           {/* <Route path="/" element={<Login />} />
           <Route path="/create" element={<ProtectedRoute><CharacterCreation /></ProtectedRoute>} />
           <Route path="/game" element={<ProtectedRoute><GameBoard /></ProtectedRoute>} /> */}

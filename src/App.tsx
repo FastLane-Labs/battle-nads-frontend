@@ -1,10 +1,14 @@
-import React from 'react';
-import GameDemo from './components/GameDemo';
+import React, { ReactNode } from 'react';
 
-function App() {
+interface AppProps {
+  children?: ReactNode;
+}
+
+function App({ children }: AppProps) {
   return (
     <div className="min-h-screen bg-gray-900">
-      <GameDemo />
+      {/* Routing is now handled in index.tsx */}
+      {children}
     </div>
   );
 }
