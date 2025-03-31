@@ -8,6 +8,13 @@ export interface BattleNad {
   owner: string;
 }
 
+export interface Character extends BattleNad {}
+
+export interface Position {
+  x: number;
+  y: number;
+}
+
 export interface BattleNadStats {
   // Character Attributes
   strength: number;
@@ -33,6 +40,8 @@ export interface BattleNadStats {
   // Current Character Leveling Properties
   level: number;
   experience: number;
+  // Unallocated stat points
+  unallocatedPoints: number;
   // Flag for monsters
   isMonster: boolean;
 }

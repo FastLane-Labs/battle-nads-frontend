@@ -1,5 +1,4 @@
-import { BattleNad, GameState, BattleArea, BattleInstance, Character, Position } from '../types';
-import { BattleNadStats, Weapon, Armor, Inventory } from './types';
+import { BattleNad, GameState, BattleArea, BattleInstance, Character, BattleNadStats, Weapon, Armor, Inventory } from '../utils/types';
 
 // Mock character data
 export const mockCharacter: Character = {
@@ -24,6 +23,7 @@ export const mockCharacter: Character = {
     armorID: 1,
     level: 1,
     experience: 0,
+    unallocatedPoints: 0,
     isMonster: false
   },
   weapon: {
@@ -72,6 +72,7 @@ export const mockMonster: BattleNad = {
     armorID: 0,
     level: 1,
     experience: 0,
+    unallocatedPoints: 0,
     isMonster: true
   },
   weapon: {
@@ -121,6 +122,7 @@ export const mockPlayersInArea: BattleNad[] = [
       armorID: 1,
       level: 5,
       experience: 780,
+      unallocatedPoints: 0,
       isMonster: false
     },
     weapon: {
@@ -168,7 +170,8 @@ export const mockCombatCharacter: BattleNad = {
   stats: {
     ...mockCharacter.stats,
     combatants: 1,
-    combatantBitMap: 1024
+    combatantBitMap: 1024,
+    unallocatedPoints: 0
   }
 };
 
@@ -294,11 +297,11 @@ export const mockInstance: BattleInstance = {
 };
 
 interface MoveResult {
-  position: Position;
+  position: { x: number; y: number };
 }
 
 interface AttackResult {
-  target: Position;
+  target: { x: number; y: number };
   damage: number;
 }
 

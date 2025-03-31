@@ -7,7 +7,7 @@ import App from './App';
 import Login from './pages/Login';
 import CharacterCreation from './pages/CharacterCreation';
 import GameBoard from './pages/GameBoard';
-import ProtectedRoute from './components/ProtectedRoute';
+// import ProtectedRoute from './components/ProtectedRoute';
 
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
@@ -18,9 +18,11 @@ root.render(
     <RecoilRoot>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Login />} />
+          <Route path="/" element={<GameBoard />} />
+          <Route path="/create" element={<CharacterCreation />} />
+          {/* <Route path="/" element={<Login />} />
           <Route path="/create" element={<ProtectedRoute><CharacterCreation /></ProtectedRoute>} />
-          <Route path="/game" element={<ProtectedRoute><GameBoard /></ProtectedRoute>} />
+          <Route path="/game" element={<ProtectedRoute><GameBoard /></ProtectedRoute>} /> */}
         </Routes>
       </BrowserRouter>
     </RecoilRoot>

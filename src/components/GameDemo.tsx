@@ -34,14 +34,29 @@ const GameDemo: React.FC = () => {
         armorID: 0,
         level: 1,
         experience: 0,
+        unallocatedPoints: 0,
         isMonster: false
+      },
+      weapon: {
+        name: 'Basic Sword',
+        baseDamage: 10,
+        bonusDamage: 0,
+        accuracy: 80,
+        speed: 5
+      },
+      armor: {
+        name: 'Basic Armor',
+        armorFactor: 5,
+        armorQuality: 50,
+        flexibility: 5,
+        weight: 5
       },
       inventory: {
         weaponBitmap: 0,
         armorBitmap: 0,
         balance: 0
       },
-      activeTask: null,
+      activeTask: "0x0000",
       owner: '0x123'
     };
 
@@ -68,18 +83,50 @@ const GameDemo: React.FC = () => {
     setCurrentInstance(mockInstance);
   }, []);
 
-  const handleMove = (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
+  const handleMove = async (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
     if (!currentCharacter) return;
 
-    const newCharacter = moveCharacter(currentCharacter, direction);
-    setCurrentCharacter(newCharacter);
+    try {
+      // Convert direction to match what moveCharacter expects
+      let moveDirection: 'up' | 'down' | 'left' | 'right' = 'up';
+      switch (direction) {
+        case 'north': moveDirection = 'up'; break;
+        case 'south': moveDirection = 'down'; break;
+        case 'east': moveDirection = 'right'; break;
+        case 'west': moveDirection = 'left'; break;
+        case 'up': moveDirection = 'up'; break;
+        case 'down': moveDirection = 'down'; break;
+      }
+      
+      const result = await moveCharacter(moveDirection);
+      if (result && result.position) {
+        setCurrentCharacter(prev => {
+          if (!prev) return null;
+          return {
+            ...prev,
+            stats: {
+              ...prev.stats,
+              x: result.position.x,
+              y: result.position.y
+            }
+          };
+        });
+      }
+    } catch (error) {
+      console.error("Failed to move character:", error);
+    }
   };
 
-  const handleAttack = (targetId: string) => {
+  const handleAttack = async (targetId: string) => {
     if (!currentCharacter || !currentInstance) return;
 
-    const { attacker, defender } = attackCharacter(currentCharacter, currentInstance.combatants.find(c => c.id === targetId) || currentCharacter);
-    setCurrentCharacter(attacker);
+    try {
+      const result = await attackCharacter();
+      // Update character with attack results
+      console.log("Attack result:", result);
+    } catch (error) {
+      console.error("Failed to attack:", error);
+    }
   };
 
   if (!currentCharacter || !currentArea || !currentInstance) {

@@ -119,9 +119,9 @@ const EquipmentPanel: React.FC<EquipmentPanelProps> = ({
 };
 
 // Helper function to convert bitmap to array of item IDs
-function getBitmapItems(bitmap: string): number[] {
+function getBitmapItems(bitmap: number): number[] {
   const items: number[] = [];
-  const bits = BigInt(bitmap).toString(2).padStart(64, '0');
+  const bits = bitmap.toString(2).padStart(64, '0');
   
   for (let i = 0; i < 64; i++) {
     if (bits[63 - i] === '1') {
