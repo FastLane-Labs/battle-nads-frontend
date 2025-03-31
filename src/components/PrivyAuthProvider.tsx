@@ -12,7 +12,6 @@ const PrivyAuthProvider: React.FC<PrivyAuthProviderProps> = ({ children }) => {
   return (
     <PrivyProvider
       appId={PRIVY_APP_ID}
-      onSuccess={() => console.log('User authenticated')}
       config={{
         loginMethods: ['email', 'wallet'],
         appearance: {

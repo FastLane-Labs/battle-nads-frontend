@@ -140,7 +140,7 @@ const Home = () => {
       ) : (
         <VStack spacing={8} align="stretch">
           <Box borderWidth="1px" borderRadius="lg" p={4}>
-            <Heading as="h2" size="md" mb={4}>Welcome, {user?.email || user?.wallet?.address || 'Player'}</Heading>
+            <Heading as="h2" size="md" mb={4}>Welcome, {(user?.email?.toString() || user?.wallet?.address || 'Player')}</Heading>
             <Text>You are connected with a session key. Now you can play Battle-Nads!</Text>
           </Box>
 
