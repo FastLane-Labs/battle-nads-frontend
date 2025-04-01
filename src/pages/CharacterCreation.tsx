@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Heading, 
@@ -21,7 +21,15 @@ import {
   AlertTitle,
   AlertDescription,
   Divider,
-  Image
+  Image,
+  useDisclosure,
+  Modal, 
+  ModalOverlay, 
+  ModalContent, 
+  ModalHeader, 
+  ModalFooter, 
+  ModalBody, 
+  ModalCloseButton
 } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
 import { useBattleNads } from '../hooks/useBattleNads';
@@ -35,16 +43,88 @@ const CharacterCreation: React.FC = () => {
   const [sturdiness, setSturdiness] = useState(3);
   const [luck, setLuck] = useState(3);
   const [isCreating, setIsCreating] = useState(false);
+  const [transactionHash, setTransactionHash] = useState<string | null>(null);
   
   const navigate = useNavigate();
   const toast = useToast();
-  const { createCharacter, loading, error } = useBattleNads();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const { 
+    createCharacter, 
+    loading, 
+    error, 
+    characterId,
+    getCharacterIdByTransactionHash 
+  } = useBattleNads();
+  
+  // Check if character already exists and redirect if it does
+  useEffect(() => {
+    const storedCharacterId = localStorage.getItem('battleNadsCharacterId');
+    if (storedCharacterId) {
+      console.log("Found existing character, redirecting to game:", storedCharacterId);
+      navigate('/game');
+    }
+  }, [navigate]);
+  
+  // Check if character was created and redirect to game
+  useEffect(() => {
+    if (characterId) {
+      console.log("Character ID found, redirecting to game:", characterId);
+      navigate('/game');
+    }
+  }, [characterId, navigate]);
   
   const MIN_STAT_VALUE = 3;
   const TOTAL_POINTS = 32;
   const BASE_POINTS_USED = MIN_STAT_VALUE * 6; // 6 attributes starting at 3 each
   const usedPoints = strength + vitality + dexterity + quickness + sturdiness + luck;
   const unallocatedPoints = TOTAL_POINTS - usedPoints;
+  
+  const handleTransactionLookup = async () => {
+    if (!transactionHash) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a transaction hash',
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    
+    try {
+      const foundCharacterId = await getCharacterIdByTransactionHash(transactionHash);
+      
+      if (foundCharacterId) {
+        toast({
+          title: 'Success',
+          description: `Found character ID: ${foundCharacterId}`,
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
+        
+        // Should navigate automatically via useEffect
+      } else {
+        toast({
+          title: 'Error',
+          description: 'Could not find character ID for this transaction',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Error',
+        description: err.message || 'An unexpected error occurred',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+    
+    onClose();
+  };
   
   const handleCreateCharacter = async () => {
     if (!name) {
@@ -72,6 +152,7 @@ const CharacterCreation: React.FC = () => {
     setIsCreating(true);
     
     try {
+      console.log("Creating character...");
       // Call the createCharacter function from the hook
       const characterId = await createCharacter(
         name,
@@ -83,6 +164,8 @@ const CharacterCreation: React.FC = () => {
         luck
       );
       
+      console.log("Character creation result:", characterId);
+      
       if (characterId) {
         toast({
           title: 'Success',
@@ -92,8 +175,7 @@ const CharacterCreation: React.FC = () => {
           isClosable: true,
         });
         
-        // Navigate to game page with the character ID
-        navigate('/game');
+        // Navigation will happen via useEffect
       } else {
         toast({
           title: 'Error',
@@ -104,6 +186,7 @@ const CharacterCreation: React.FC = () => {
         });
       }
     } catch (err: any) {
+      console.error("Error creating character:", err);
       toast({
         title: 'Error',
         description: err.message || 'An unexpected error occurred',
@@ -223,8 +306,42 @@ const CharacterCreation: React.FC = () => {
           >
             Create Character
           </Button>
+          
+          <Button
+            variant="outline"
+            onClick={onOpen}
+            width="full"
+          >
+            Already Created? Lookup by Transaction
+          </Button>
         </VStack>
       </Box>
+      
+      {/* Transaction Lookup Modal */}
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalOverlay />
+        <ModalContent>
+          <ModalHeader>Look Up Character by Transaction</ModalHeader>
+          <ModalCloseButton />
+          <ModalBody pb={6}>
+            <FormControl>
+              <FormLabel>Transaction Hash</FormLabel>
+              <Input
+                placeholder="0x..."
+                value={transactionHash || ''}
+                onChange={(e) => setTransactionHash(e.target.value)}
+              />
+            </FormControl>
+          </ModalBody>
+
+          <ModalFooter>
+            <Button colorScheme="blue" mr={3} onClick={handleTransactionLookup}>
+              Look Up
+            </Button>
+            <Button onClick={onClose}>Cancel</Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </Center>
   );
 };
