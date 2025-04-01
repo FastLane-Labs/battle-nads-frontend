@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Heading, Button, Center, VStack, Text, Spinner, Image, Icon } from '@chakra-ui/react';
+import { Box, Heading, Button, Center, VStack, Text, Image, Icon } from '@chakra-ui/react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useNavigate } from 'react-router-dom';
 import { useBattleNads } from '../hooks/useBattleNads';
 import { FaEthereum } from 'react-icons/fa';
+import LoadingScreen from '../components/LoadingScreen';
 
 const Login: React.FC = () => {
   const { login, authenticated, ready, user } = usePrivy();
@@ -65,12 +66,13 @@ const Login: React.FC = () => {
 
   if (!ready || loading || checkingCharacter) {
     return (
-      <Center height="100vh">
-        <VStack spacing={4}>
-          <Spinner size="xl" />
-          <Text>Loading authentication and checking for existing character...</Text>
-        </VStack>
-      </Center>
+      <LoadingScreen 
+        message={
+          checkingCharacter 
+            ? "Checking for existing character..." 
+            : "Loading authentication..."
+        }
+      />
     );
   }
 
