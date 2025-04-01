@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import * as ethers from 'ethers';
 import { usePrivy } from '@privy-io/react-auth';
+import { useWallet } from '../providers/WalletProvider';
 
 // ABI snippets for the Battle-Nads contracts
 const ENTRYPOINT_ABI = [
@@ -61,179 +62,164 @@ interface CharacterCreatedEvent {
 
 export const useBattleNads = () => {
   const privy = usePrivy();
-  const { user, authenticated, ready } = privy;
+  const { currentWallet, signer, provider, address } = useWallet();
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [characterId, setCharacterId] = useState<string | null>(null);
 
-  // Load character ID from localStorage on mount
+  // Load stored characterId on mount
   useEffect(() => {
-    const storedCharacterId = localStorage.getItem('battleNadsCharacterId');
-    if (storedCharacterId) {
-      setCharacterId(storedCharacterId);
-    }
+    const storedId = localStorage.getItem('battleNadsCharacterId');
+    if (storedId) setCharacterId(storedId);
   }, []);
 
-  // Get a read-only provider (doesn't require authentication)
+  // Provide a read-only provider
   const getReadOnlyProvider = useCallback(() => {
     return new ethers.JsonRpcProvider(RPC_URL);
   }, []);
 
-  // Get Privy wallet with real signer for owner operations (createCharacter, updateSessionKey)
-  const getWalletSigner = useCallback(async () => {
-    if (!authenticated || !user?.wallet?.address) {
-      throw new Error("User not authenticated or no wallet found");
+  // Provide the signer from our new WalletProvider context
+  const getActiveSigner = useCallback(() => {
+    if (!signer || !provider || currentWallet === 'none') {
+      throw new Error('No connected wallet found. Please connect a wallet first.');
     }
+    return signer;
+  }, [signer, provider, currentWallet]);
+
+  // Replace existing createCharacter with unified approach using WalletProvider
+  const createCharacter = useCallback(async (
+    name: string,
+    strength: number,
+    vitality: number,
+    dexterity: number,
+    quickness: number,
+    sturdiness: number,
+    luck: number
+  ) => {
+    setLoading(true);
+    setError(null);
 
     try {
-      // Get an ethers-compatible provider from Privy
-      const userWallet = user.wallet;
-      console.log("Using owner wallet address:", userWallet.address);
-      
-      // Request the user to connect their wallet if not already connected
-      // This will use the Privy interface to handle wallet connection
-      await privy.connectWallet();
-      
-      // Get the provider from window.ethereum
-      // This assumes Privy has injected the provider into window.ethereum
-      const provider = new ethers.BrowserProvider(window.ethereum as any);
-      
-      // Check if we're on the correct network
-      const network = await provider.getNetwork();
-      const chainId = Number(network.chainId);
-      
-      if (chainId !== CHAIN_ID) {
-        console.log(`Wrong network detected: ${chainId}, requesting switch to ${CHAIN_ID}`);
-        try {
-          // Request network switch
-          await (window as any).ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: `0x${CHAIN_ID.toString(16)}` }]
-          });
-        } catch (switchError) {
-          throw new Error(`Please switch to Monad Testnet (chainId: ${CHAIN_ID})`);
-        }
-      }
-      
-      // Get signer from the provider
-      const signer = await provider.getSigner();
-      
-      // Check that the signer address matches the connected wallet
-      const signerAddress = await signer.getAddress();
-      console.log("Owner signer address:", signerAddress);
-      
-      if (signerAddress.toLowerCase() !== userWallet.address.toLowerCase()) {
-        console.warn("Signer address doesn't match wallet address. Using signer address.");
-      }
-      
-      // For createCharacter, we use the embedded wallet address as the session key but sign with owner EOA
-      // Try to find the embedded wallet from user's linked accounts
-      let embeddedWalletAddress: string | undefined = undefined;
-      
-      if (user.linkedAccounts) {
-        // Find embedded wallet from linked accounts, ensuring we have the correct types
-        const embeddedWallet = user.linkedAccounts.find(account => 
-          account.type === 'wallet' && 
-          'walletClientType' in account && 
-          account.walletClientType === 'privy'
-        );
-        
-        if (embeddedWallet && 'address' in embeddedWallet) {
-          embeddedWalletAddress = embeddedWallet.address;
-          console.log("Found embedded wallet to use as session key:", embeddedWalletAddress);
-        }
-      }
-      
-      // If we couldn't find an embedded wallet, fall back to using owner wallet (not ideal)
-      if (!embeddedWalletAddress) {
-        console.warn("No embedded wallet found, using EOA as session key (not recommended)");
-        embeddedWalletAddress = userWallet.address;
-      }
-      
-      return {
-        provider,
-        signer,
-        embeddedWalletAddress
-      };
-    } catch (err) {
-      console.error("Error getting wallet signer:", err);
-      throw err;
-    }
-  }, [authenticated, user, privy]);
+      const activeSigner = getActiveSigner();
+      const entrypoint = new ethers.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, activeSigner);
 
-  // Get embedded Privy wallet signer for game operations (movement, combat, etc)
-  const getEmbeddedWalletSigner = useCallback(async () => {
-    if (!authenticated || !user) {
-      throw new Error("User not authenticated");
+      const buyInAmount = await entrypoint.estimateBuyInAmountInMON();
+
+      // We'll use the same sessionKey param as the connected wallet, for demonstration
+      const sessionKey = await activeSigner.getAddress();
+      const sessionKeyDeadline = MAX_SAFE_UINT256;
+
+      const txOptions = {
+        value: buyInAmount,
+        gasLimit: 1_000_000,
+      };
+
+      const tx = await entrypoint.createCharacter(
+        name,
+        strength,
+        vitality,
+        dexterity,
+        quickness,
+        sturdiness,
+        luck,
+        sessionKey,
+        sessionKeyDeadline,
+        txOptions
+      );
+      const receipt = await tx.wait();
+
+      // Attempt to parse logs for the CharacterCreated event
+      let newCharacterId: string | null = null;
+      try {
+        const topic = ethers.id('CharacterCreated(bytes32,address)');
+        const log = receipt.logs.find(l => l.topics[0] === topic);
+        if (log) {
+          newCharacterId = ethers.zeroPadValue(log.topics[1], 32);
+        }
+      } catch (err) {
+        console.warn('Could not parse CharacterCreated event');
+      }
+
+      if (!newCharacterId) {
+        // fallback: fetch all IDs owned by current EOA
+        const walletAddress = await activeSigner.getAddress();
+        const characterIDs = await entrypoint.getPlayerCharacterIDs(walletAddress);
+        if (characterIDs.length > 0) {
+          newCharacterId = characterIDs[characterIDs.length - 1];
+        }
+      }
+
+      if (!newCharacterId) {
+        throw new Error('Unable to detect newly created character ID');
+      }
+
+      setCharacterId(newCharacterId);
+      localStorage.setItem('battleNadsCharacterId', newCharacterId);
+      return newCharacterId;
+    } catch (err: any) {
+      setError(err.message || 'Error creating character');
+      return null;
+    } finally {
+      setLoading(false);
     }
+  }, [getActiveSigner]);
+
+  // Update moveCharacter to use getActiveSigner
+  const moveCharacter = useCallback(async (characterID: string, direction: string) => {
+    setLoading(true);
+    setError(null);
 
     try {
-      // Try to find the embedded wallet from user's linked accounts
-      let embeddedWallet: any = null;
-      
-      if (user.linkedAccounts) {
-        // Find embedded wallet from linked accounts
-        const wallet = user.linkedAccounts.find(account => 
-          account.type === 'wallet' && 
-          'walletClientType' in account && 
-          account.walletClientType === 'privy'
-        );
-        
-        if (wallet && 'address' in wallet) {
-          embeddedWallet = wallet;
-        }
+      const activeSigner = getActiveSigner();
+      const entrypoint = new ethers.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, activeSigner);
+
+      let tx;
+      if (direction === 'north') {
+        tx = await entrypoint.moveNorth(characterID, { gasLimit: 500000 });
+      } else if (direction === 'south') {
+        tx = await entrypoint.moveSouth(characterID, { gasLimit: 500000 });
+      } else if (direction === 'east') {
+        tx = await entrypoint.moveEast(characterID, { gasLimit: 500000 });
+      } else if (direction === 'west') {
+        tx = await entrypoint.moveWest(characterID, { gasLimit: 500000 });
+      } else if (direction === 'up') {
+        tx = await entrypoint.moveUp(characterID, { gasLimit: 500000 });
+      } else if (direction === 'down') {
+        tx = await entrypoint.moveDown(characterID, { gasLimit: 500000 });
       }
-      
-      if (!embeddedWallet || !embeddedWallet.address) {
-        throw new Error("No embedded wallet found. Please create a character first to initialize your embedded wallet.");
+
+      if (tx) {
+        await tx.wait();
       }
-      
-      console.log("Using embedded wallet for game operations:", embeddedWallet.address);
-      
-      // Request the embedded wallet specifically
-      await privy.connectWallet({ connector: 'embedded' } as any);
-      
-      // Get the provider from window.ethereum
-      const provider = new ethers.BrowserProvider(window.ethereum as any);
-      
-      // Check if we're on the correct network
-      const network = await provider.getNetwork();
-      const chainId = Number(network.chainId);
-      
-      if (chainId !== CHAIN_ID) {
-        console.log(`Wrong network detected: ${chainId}, switching to ${CHAIN_ID}`);
-        try {
-          // Switch network (should be automatic with embedded wallet)
-          await (window as any).ethereum.request({
-            method: 'wallet_switchEthereumChain',
-            params: [{ chainId: `0x${CHAIN_ID.toString(16)}` }]
-          });
-        } catch (switchError) {
-          throw new Error(`Failed to switch to Monad Testnet (chainId: ${CHAIN_ID})`);
-        }
-      }
-      
-      // Get signer from the provider
-      const signer = await provider.getSigner();
-      
-      // Verify the signer address matches the embedded wallet
-      const signerAddress = await signer.getAddress();
-      console.log("Embedded wallet signer address:", signerAddress);
-      
-      if (signerAddress.toLowerCase() !== embeddedWallet.address.toLowerCase()) {
-        throw new Error("Signer address doesn't match embedded wallet address. Please reconnect.");
-      }
-      
-      return {
-        provider,
-        signer,
-        embeddedWalletAddress: embeddedWallet.address
-      };
-    } catch (err) {
-      console.error("Error getting embedded wallet signer:", err);
-      throw err;
+    } catch (err: any) {
+      setError(err.message || `Error moving ${direction}`);
+    } finally {
+      setLoading(false);
     }
-  }, [authenticated, user, privy]);
+  }, [getActiveSigner]);
+
+  // Update getPlayerCharacterID to use read-only provider
+  const getPlayerCharacterID = useCallback(async (ownerAddress: string) => {
+    try {
+      const roProvider = getReadOnlyProvider();
+      const gettersContract = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ["function getPlayerCharacterID(address) view returns (bytes32)"],
+        roProvider
+      );
+      const cID = await gettersContract.getPlayerCharacterID(ownerAddress);
+      if (cID === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+        return null;
+      }
+      setCharacterId(cID);
+      localStorage.setItem('battleNadsCharacterId', cID);
+      return cID;
+    } catch (err) {
+      console.error('Error in getPlayerCharacterID:', err);
+      return null;
+    }
+  }, [getReadOnlyProvider]);
 
   // Get character data
   const getCharacter = useCallback(async (characterId: string) => {
@@ -258,126 +244,6 @@ export const useBattleNads = () => {
       setLoading(false);
     }
   }, [getReadOnlyProvider]);
-
-  // Create a character with an actual blockchain transaction
-  const createCharacter = useCallback(async (
-    name: string, 
-    strength: number, 
-    vitality: number, 
-    dexterity: number, 
-    quickness: number, 
-    sturdiness: number, 
-    luck: number
-  ) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Get wallet signer
-      const { signer, provider, embeddedWalletAddress } = await getWalletSigner();
-      
-      if (!embeddedWalletAddress) {
-        throw new Error("No wallet available for session key");
-      }
-      
-      console.log("Using wallet as session key:", embeddedWalletAddress);
-      
-      // Create contract instance with signer
-      const entrypoint = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
-        signer
-      );
-      
-      // Get the buy-in amount required to create a character
-      const buyInAmount = await entrypoint.estimateBuyInAmountInMON();
-      console.log("Required buy-in amount:", ethers.formatEther(buyInAmount), "MONAD");
-      
-      // Set sessionKeyDeadline to maximum safe value
-      const sessionKeyDeadline = MAX_SAFE_UINT256;
-      console.log("Using session key deadline:", sessionKeyDeadline);
-      
-      // Create transaction options with gas limit
-      const txOptions = {
-        value: buyInAmount,
-        gasLimit: 1000000
-      };
-      
-      console.log("Sending createCharacter transaction with params:", {
-        name, strength, vitality, dexterity, quickness, sturdiness, luck,
-        sessionKey: embeddedWalletAddress,
-        sessionKeyDeadline,
-        txOptions
-      });
-      
-      // Send the actual transaction
-      const tx = await entrypoint.createCharacter(
-        name,
-        strength,
-        vitality,
-        dexterity,
-        quickness,
-        sturdiness,
-        luck,
-        embeddedWalletAddress,  // Use wallet as session key
-        sessionKeyDeadline,
-        txOptions
-      );
-      
-      console.log("Character creation transaction sent:", tx.hash);
-      
-      // Wait for transaction to be mined
-      const receipt = await tx.wait();
-      console.log("Transaction mined:", receipt);
-      
-      // Get character ID from transaction logs (if possible)
-      let newCharacterId: string | null = null;
-      
-      try {
-        // Try to parse logs for CharacterCreated event
-        const topic = ethers.id("CharacterCreated(bytes32,address)");
-        const log = receipt.logs.find(log => log.topics[0] === topic);
-        
-        if (log) {
-          const data = log.data;
-          const topics = log.topics;
-          
-          // Parse the event data
-          newCharacterId = ethers.zeroPadValue(topics[1], 32);
-          console.log("Character ID from event:", newCharacterId);
-        }
-      } catch (logError) {
-        console.warn("Could not parse CharacterCreated event:", logError);
-      }
-      
-      // If event parsing failed, try getting character IDs directly
-      if (!newCharacterId) {
-        console.log("Falling back to character ID lookup by address");
-        const walletAddress = await signer.getAddress();
-        const characterIds = await entrypoint.getPlayerCharacterIDs(walletAddress);
-        if (characterIds && characterIds.length > 0) {
-          newCharacterId = characterIds[characterIds.length - 1]; // Get the latest one
-          console.log("Character ID from lookup:", newCharacterId);
-        }
-      }
-      
-      if (!newCharacterId) {
-        throw new Error("Could not determine character ID after creation");
-      }
-      
-      // Store character ID in local state and localStorage
-      setCharacterId(newCharacterId);
-      localStorage.setItem('battleNadsCharacterId', newCharacterId);
-      
-      return newCharacterId;
-    } catch (err: any) {
-      console.error("Error creating character:", err);
-      setError(err.message || "Error creating character");
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [getWalletSigner]);
 
   // Get characters in area
   const getCharactersInArea = useCallback(async (depth: number, x: number, y: number) => {
@@ -435,107 +301,6 @@ export const useBattleNads = () => {
       return [];
     } finally {
       setLoading(false);
-    }
-  }, [getReadOnlyProvider]);
-
-  // Add debugging for errors
-  const getCharacterIdByTransactionHash = useCallback(async (txHash: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const provider = getReadOnlyProvider();
-      
-      // Get transaction receipt
-      console.log(`Fetching receipt for transaction: ${txHash}`);
-      const receipt = await provider.getTransactionReceipt(txHash);
-      
-      if (!receipt) {
-        throw new Error("Transaction receipt not found");
-      }
-      
-      console.log("Transaction receipt:", receipt);
-      
-      // Try to find the character ID from the logs
-      let foundCharacterId: string | null = null;
-      
-      try {
-        // Try to parse logs for CharacterCreated event
-        const topic = ethers.id("CharacterCreated(bytes32,address)");
-        console.log("Looking for topic:", topic);
-        
-        const log = receipt.logs.find(log => {
-          console.log("Log topic:", log.topics[0]);
-          return log.topics[0] === topic;
-        });
-        
-        if (log) {
-          console.log("Found matching log:", log);
-          const topics = log.topics;
-          
-          // Parse the event data
-          foundCharacterId = ethers.zeroPadValue(topics[1], 32);
-          console.log("Character ID from event:", foundCharacterId);
-        } else {
-          console.log("No matching log found with topic:", topic);
-          console.log("Available logs:", receipt.logs);
-        }
-      } catch (logError) {
-        console.warn("Could not parse CharacterCreated event:", logError);
-      }
-      
-      if (foundCharacterId) {
-        // Store character ID in local state and localStorage
-        setCharacterId(foundCharacterId);
-        localStorage.setItem('battleNadsCharacterId', foundCharacterId);
-      }
-      
-      return foundCharacterId;
-    } catch (err: any) {
-      console.error("Error getting character ID by transaction hash:", err);
-      setError(err.message || "Error getting character ID");
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [getReadOnlyProvider]);
-
-  // Check if an address has a character ID
-  const getPlayerCharacterID = useCallback(async (ownerAddress: string) => {
-    try {
-      const provider = getReadOnlyProvider();
-      
-      // Create a contract instance for the Getters contract
-      const gettersContract = new ethers.Contract(
-        ENTRYPOINT_ADDRESS, // Same address as entrypoint
-        ["function getPlayerCharacterID(address owner) external view returns (bytes32 characterID)"],
-        provider
-      );
-      
-      console.log(`Checking if address ${ownerAddress} has a character ID...`);
-      
-      // Call the getPlayerCharacterID function
-      const characterID = await gettersContract.getPlayerCharacterID(ownerAddress);
-      
-      console.log(`Result for ${ownerAddress}:`, characterID);
-      
-      // Check if the character ID is a zero bytes32 value (indicating no character)
-      const isZeroBytes32 = characterID === '0x0000000000000000000000000000000000000000000000000000000000000000';
-      
-      if (isZeroBytes32) {
-        console.log(`Address ${ownerAddress} has no character ID`);
-        return null;
-      }
-      
-      // Store the character ID
-      setCharacterId(characterID);
-      localStorage.setItem('battleNadsCharacterId', characterID);
-      
-      return characterID;
-    } catch (err: any) {
-      console.error(`Error checking character ID for ${ownerAddress}:`, err);
-      // If the function reverts, it probably means there's no character
-      return null;
     }
   }, [getReadOnlyProvider]);
 
@@ -611,59 +376,6 @@ export const useBattleNads = () => {
     }
   }, [getReadOnlyProvider]);
 
-  // Move character in a direction
-  const moveCharacter = useCallback(async (characterId: string, direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const { signer } = await getEmbeddedWalletSigner();
-      
-      const entrypoint = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
-        signer
-      );
-      
-      let tx;
-      
-      switch (direction) {
-        case 'north':
-          tx = await entrypoint.moveNorth(characterId, { gasLimit: 500000 });
-          break;
-        case 'south':
-          tx = await entrypoint.moveSouth(characterId, { gasLimit: 500000 });
-          break;
-        case 'east':
-          tx = await entrypoint.moveEast(characterId, { gasLimit: 500000 });
-          break;
-        case 'west':
-          tx = await entrypoint.moveWest(characterId, { gasLimit: 500000 });
-          break;
-        case 'up':
-          tx = await entrypoint.moveUp(characterId, { gasLimit: 500000 });
-          break;
-        case 'down':
-          tx = await entrypoint.moveDown(characterId, { gasLimit: 500000 });
-          break;
-      }
-      
-      console.log(`Move ${direction} transaction sent:`, tx.hash);
-      
-      // Wait for transaction to be mined
-      const receipt = await tx.wait();
-      console.log("Move transaction confirmed:", receipt);
-      
-      return receipt;
-    } catch (err: any) {
-      console.error(`Error moving character ${direction}:`, err);
-      setError(err.message || `Error moving character ${direction}`);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [getEmbeddedWalletSigner]);
-
   // Get attack options for a character
   const getAttackOptions = useCallback(async (characterId: string) => {
     setLoading(true);
@@ -694,30 +406,28 @@ export const useBattleNads = () => {
     setError(null);
 
     try {
-      const { signer } = await getEmbeddedWalletSigner();
+      const activeSigner = getActiveSigner();
       
       const entrypoint = new ethers.Contract(
         ENTRYPOINT_ADDRESS,
         ENTRYPOINT_ABI,
-        signer
+        activeSigner
       );
       
       const tx = await entrypoint.attack(characterId, targetIndex, { gasLimit: 500000 });
-      console.log("Attack transaction sent:", tx.hash);
       
       // Wait for transaction to be mined
-      const receipt = await tx.wait();
-      console.log("Attack transaction confirmed:", receipt);
+      await tx.wait();
       
-      return receipt;
+      return true;
     } catch (err: any) {
       console.error("Error attacking target:", err);
       setError(err.message || "Error attacking target");
-      return null;
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [getEmbeddedWalletSigner]);
+  }, [getActiveSigner]);
 
   // Equip a weapon
   const equipWeapon = useCallback(async (characterId: string, weaponId: number) => {
@@ -725,131 +435,125 @@ export const useBattleNads = () => {
     setError(null);
 
     try {
-      const { signer } = await getEmbeddedWalletSigner();
+      const activeSigner = getActiveSigner();
       
       const entrypoint = new ethers.Contract(
         ENTRYPOINT_ADDRESS,
         ENTRYPOINT_ABI,
-        signer
+        activeSigner
       );
       
       const tx = await entrypoint.equipWeapon(characterId, weaponId, { gasLimit: 500000 });
-      console.log("Equip weapon transaction sent:", tx.hash);
       
       // Wait for transaction to be mined
-      const receipt = await tx.wait();
-      console.log("Equip weapon transaction confirmed:", receipt);
+      await tx.wait();
       
-      return receipt;
+      return true;
     } catch (err: any) {
       console.error("Error equipping weapon:", err);
       setError(err.message || "Error equipping weapon");
-      return null;
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [getEmbeddedWalletSigner]);
-  
+  }, [getActiveSigner]);
+   
   // Equip armor
   const equipArmor = useCallback(async (characterId: string, armorId: number) => {
     setLoading(true);
     setError(null);
 
     try {
-      const { signer } = await getEmbeddedWalletSigner();
+      const activeSigner = getActiveSigner();
       
       const entrypoint = new ethers.Contract(
         ENTRYPOINT_ADDRESS,
         ENTRYPOINT_ABI,
-        signer
+        activeSigner
       );
       
       const tx = await entrypoint.equipArmor(characterId, armorId, { gasLimit: 500000 });
-      console.log("Equip armor transaction sent:", tx.hash);
       
       // Wait for transaction to be mined
-      const receipt = await tx.wait();
-      console.log("Equip armor transaction confirmed:", receipt);
+      await tx.wait();
       
-      return receipt;
+      return true;
     } catch (err: any) {
       console.error("Error equipping armor:", err);
       setError(err.message || "Error equipping armor");
-      return null;
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [getEmbeddedWalletSigner]);
-  
-  // Allocate attribute points
-  const allocatePoints = useCallback(async (
-    characterId: string,
-    newStrength: number,
-    newVitality: number,
-    newDexterity: number,
-    newQuickness: number,
-    newSturdiness: number,
-    newLuck: number
-  ) => {
+  }, [getActiveSigner]);
+
+  // Helper for debugging/migrating
+  const getCharacterIdByTransactionHash = useCallback(async (txHash: string) => {
     setLoading(true);
     setError(null);
 
     try {
-      const { signer } = await getEmbeddedWalletSigner();
+      const provider = getReadOnlyProvider();
       
-      const entrypoint = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
-        signer
-      );
+      // Get transaction receipt
+      console.log(`Fetching receipt for transaction: ${txHash}`);
+      const receipt = await provider.getTransactionReceipt(txHash);
       
-      const tx = await entrypoint.allocatePoints(
-        characterId,
-        newStrength,
-        newVitality,
-        newDexterity,
-        newQuickness,
-        newSturdiness,
-        newLuck,
-        { gasLimit: 500000 }
-      );
-      console.log("Allocate points transaction sent:", tx.hash);
+      if (!receipt) {
+        throw new Error("Transaction receipt not found");
+      }
       
-      // Wait for transaction to be mined
-      const receipt = await tx.wait();
-      console.log("Allocate points transaction confirmed:", receipt);
+      // Try to find the character ID from the logs
+      let foundCharacterId: string | null = null;
       
-      return receipt;
+      try {
+        // Try to parse logs for CharacterCreated event
+        const topic = ethers.id("CharacterCreated(bytes32,address)");
+        const log = receipt.logs.find(log => log.topics[0] === topic);
+        
+        if (log) {
+          foundCharacterId = ethers.zeroPadValue(log.topics[1], 32);
+        }
+      } catch (logError) {
+        console.warn("Could not parse CharacterCreated event:", logError);
+      }
+      
+      if (foundCharacterId) {
+        // Store character ID in local state and localStorage
+        setCharacterId(foundCharacterId);
+        localStorage.setItem('battleNadsCharacterId', foundCharacterId);
+      }
+      
+      return foundCharacterId;
     } catch (err: any) {
-      console.error("Error allocating points:", err);
-      setError(err.message || "Error allocating points");
+      console.error("Error getting character ID by transaction hash:", err);
+      setError(err.message || "Error getting character ID");
       return null;
     } finally {
       setLoading(false);
     }
-  }, [getEmbeddedWalletSigner]);
+  }, [getReadOnlyProvider]);
+
+  // Replace other methods with similar implementations using getActiveSigner()
+  // For example, attackTarget would be updated to use getActiveSigner() similar to moveCharacter
 
   return {
     createCharacter,
+    moveCharacter,
+    getPlayerCharacterID,
     getCharacter,
     getCharactersInArea,
     getPlayerCharacters,
-    getCharacterIdByTransactionHash,
-    getPlayerCharacterID,
     getAreaInfo,
     getAreaCombatState,
     getMovementOptions,
-    moveCharacter,
     getAttackOptions,
     attackTarget,
     equipWeapon,
     equipArmor,
-    allocatePoints,
-    getEmbeddedWalletSigner,
-    getWalletSigner,
-    loading,
-    error,
+    getCharacterIdByTransactionHash,
     characterId,
-    isAuthenticated: authenticated
+    loading,
+    error
   };
 }; 

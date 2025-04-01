@@ -1,16 +1,27 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Heading, Button, Center, VStack, Text, Image, Icon } from '@chakra-ui/react';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useNavigate } from 'react-router-dom';
 import { useBattleNads } from '../hooks/useBattleNads';
 import { FaEthereum } from 'react-icons/fa';
-import LoadingScreen from '../components/LoadingScreen';
+import { useWallet } from '../providers/WalletProvider';
 
 const Login: React.FC = () => {
   const { login, authenticated, ready, user } = usePrivy();
+  const { wallets, ready: walletsReady } = useWallets();
   const navigate = useNavigate();
   const { getPlayerCharacterID, loading, characterId } = useBattleNads();
+  // Get wallet state from our WalletProvider
+  const { address, loading: walletLoading } = useWallet();
   const [checkingCharacter, setCheckingCharacter] = useState(false);
+
+  // Use the Privy wallets information to set up our wallet provider
+  useEffect(() => {
+    if (ready && authenticated && walletsReady && wallets.length > 0 && !address) {
+      // Instead of manually connecting, let the WalletProvider sync with Privy's state
+      console.log("Wallet is connected via Privy:", wallets[0].address);
+    }
+  }, [ready, authenticated, walletsReady, wallets, address]);
 
   // Check if user has a character directly using the contract function
   useEffect(() => {
@@ -69,18 +80,6 @@ const Login: React.FC = () => {
     }
     // Redirect will happen in the useEffect above
   };
-
-  if (!ready || loading || checkingCharacter) {
-    return (
-      <LoadingScreen 
-        message={
-          checkingCharacter 
-            ? "Checking for existing character..." 
-            : "Loading authentication..."
-        }
-      />
-    );
-  }
 
   return (
     <Center height="100vh" bg="gray.900">
