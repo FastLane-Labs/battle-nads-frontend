@@ -14,7 +14,7 @@ const MIN_STAT_VALUE = 3;
 const STARTING_UNALLOCATED_POINTS = STARTING_STAT_SUM - (6 * MIN_STAT_VALUE); // 14
 
 const CharacterDashboard = () => {
-  const { address, embeddedWallet } = useWallet();
+  const { address, injectedWallet, embeddedWallet } = useWallet();
   const { createCharacter, getCharacter, getCharactersInArea, moveCharacter, attackTarget, loading, error } = useBattleNads();
   
   const [characterName, setCharacterName] = useState('');

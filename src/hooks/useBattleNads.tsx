@@ -34,10 +34,17 @@ const ENTRYPOINT_ABI = [
   "function getBattleNad(bytes32 characterID) public view returns (tuple(bytes32 id, tuple(uint8 strength, uint8 vitality, uint8 dexterity, uint8 quickness, uint8 sturdiness, uint8 luck, uint8 depth, uint8 x, uint8 y, uint8 index, uint16 health, uint8 sumOfCombatantLevels, uint8 combatants, uint8 nextTargetIndex, uint64 combatantBitMap, uint8 weaponID, uint8 armorID, uint8 level, uint16 experience, bool isMonster) stats, tuple(string name, uint256 baseDamage, uint256 bonusDamage, uint256 accuracy, uint256 speed) weapon, tuple(string name, uint256 armorFactor, uint256 armorQuality, uint256 flexibility, uint256 weight) armor, tuple(uint64 weaponBitmap, uint64 armorBitmap, uint128 balance) inventory, tuple(bool updateStats, bool updateInventory, bool updateActiveTask, bool updateOwner, bool died) tracker, address activeTask, address owner, string name) character)",
   "function getBattleNadsInArea(uint8 depth, uint8 x, uint8 y) public view returns (tuple(bytes32 id, tuple(uint8 strength, uint8 vitality, uint8 dexterity, uint8 quickness, uint8 sturdiness, uint8 luck, uint8 depth, uint8 x, uint8 y, uint8 index, uint16 health, uint8 sumOfCombatantLevels, uint8 combatants, uint8 nextTargetIndex, uint64 combatantBitMap, uint8 weaponID, uint8 armorID, uint8 level, uint16 experience, bool isMonster) stats, tuple(string name, uint256 baseDamage, uint256 bonusDamage, uint256 accuracy, uint256 speed) weapon, tuple(string name, uint256 armorFactor, uint256 armorQuality, uint256 flexibility, uint256 weight) armor, tuple(uint64 weaponBitmap, uint64 armorBitmap, uint128 balance) inventory, tuple(bool updateStats, bool updateInventory, bool updateActiveTask, bool updateOwner, bool died) tracker, address activeTask, address owner, string name)[] characters)",
   "function getPlayerCharacterIDs(address owner) external view returns (bytes32[] memory characterIDs)",
+  
+  // Additional view functions needed by the game
+  "function getAreaInfo(uint8 depth, uint8 x, uint8 y) external view returns (tuple(uint8 playerCount, uint32 sumOfPlayerLevels, uint64 playerBitMap, uint8 monsterCount, uint32 sumOfMonsterLevels, uint64 monsterBitMap, uint8 depth, uint8 x, uint8 y, bool update) area, uint8 playerCount, uint8 monsterCount, uint8 avgPlayerLevel, uint8 avgMonsterLevel)",
+  "function getMovementOptions(bytes32 characterID) external view returns (bool canMoveNorth, bool canMoveSouth, bool canMoveEast, bool canMoveWest, bool canMoveUp, bool canMoveDown)",
+  
+  // Comprehensive function that gets all frontend data in one call
+  "function getFrontendData(bytes32 characterID) public view returns (tuple(bytes32 id, tuple(uint8 strength, uint8 vitality, uint8 dexterity, uint8 quickness, uint8 sturdiness, uint8 luck, uint8 depth, uint8 x, uint8 y, uint8 index, uint16 health, uint8 sumOfCombatantLevels, uint8 combatants, uint8 nextTargetIndex, uint64 combatantBitMap, uint8 weaponID, uint8 armorID, uint8 level, uint16 experience, bool isMonster) stats, tuple(string name, uint256 baseDamage, uint256 bonusDamage, uint256 accuracy, uint256 speed) weapon, tuple(string name, uint256 armorFactor, uint256 armorQuality, uint256 flexibility, uint256 weight) armor, tuple(uint64 weaponBitmap, uint64 armorBitmap, uint128 balance) inventory, tuple(bool updateStats, bool updateInventory, bool updateActiveTask, bool updateOwner, bool died) tracker, address activeTask, address owner, string name) character, tuple(bytes32 id, tuple(uint8 strength, uint8 vitality, uint8 dexterity, uint8 quickness, uint8 sturdiness, uint8 luck, uint8 depth, uint8 x, uint8 y, uint8 index, uint16 health, uint8 sumOfCombatantLevels, uint8 combatants, uint8 nextTargetIndex, uint64 combatantBitMap, uint8 weaponID, uint8 armorID, uint8 level, uint16 experience, bool isMonster) stats, tuple(string name, uint256 baseDamage, uint256 bonusDamage, uint256 accuracy, uint256 speed) weapon, tuple(string name, uint256 armorFactor, uint256 armorQuality, uint256 flexibility, uint256 weight) armor, tuple(uint64 weaponBitmap, uint64 armorBitmap, uint128 balance) inventory, tuple(bool updateStats, bool updateInventory, bool updateActiveTask, bool updateOwner, bool died) tracker, address activeTask, address owner, string name)[] combatants, tuple(bytes32 id, tuple(uint8 strength, uint8 vitality, uint8 dexterity, uint8 quickness, uint8 sturdiness, uint8 luck, uint8 depth, uint8 x, uint8 y, uint8 index, uint16 health, uint8 sumOfCombatantLevels, uint8 combatants, uint8 nextTargetIndex, uint64 combatantBitMap, uint8 weaponID, uint8 armorID, uint8 level, uint16 experience, bool isMonster) stats, tuple(string name, uint256 baseDamage, uint256 bonusDamage, uint256 accuracy, uint256 speed) weapon, tuple(string name, uint256 armorFactor, uint256 armorQuality, uint256 flexibility, uint256 weight) armor, tuple(uint64 weaponBitmap, uint64 armorBitmap, uint128 balance) inventory, tuple(bool updateStats, bool updateInventory, bool updateActiveTask, bool updateOwner, bool died) tracker, address activeTask, address owner, string name)[] noncombatants, tuple(uint8 playerCount, uint32 sumOfPlayerLevels, uint64 playerBitMap, uint8 monsterCount, uint32 sumOfMonsterLevels, uint64 monsterBitMap, uint8 depth, uint8 x, uint8 y, bool update)[5][5] miniMap, uint8[] equipableWeaponIDs, string[] equipableWeaponNames, uint8[] equipableArmorIDs, string[] equipableArmorNames, uint256 unallocatedAttributePoints)",
 ];
 
 // Contract address
-const ENTRYPOINT_ADDRESS = "0x1234567890123456789012345678901234567890"; // Replace with the real address
+const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0xbD4511F188B606e5a74A62b7b0F516d0139d76D5";
 
 // RPC URL for Monad testnet
 const RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";
@@ -272,6 +279,7 @@ export const useBattleNads = () => {
           ["address"],
           [ownerAddress]
         );
+        console.log('Owner address:', ownerAddress);
         
         // Combine function selector and encoded parameters
         const callData = functionSelector + encodedParams.slice(2);
@@ -303,6 +311,100 @@ export const useBattleNads = () => {
     }
   }, [getReadOnlyProvider]);
 
+  // Add getAreaInfo
+  const getAreaInfo = useCallback(async (depth: number, x: number, y: number) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+      
+      const areaInfo = await entrypoint.getAreaInfo(depth, x, y);
+      return areaInfo;
+    } catch (err: any) {
+      console.error("Error getting area info:", err);
+      setError(err.message || "Error getting area information");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getReadOnlyProvider]);
+
+  // Add getMovementOptions
+  const getMovementOptions = useCallback(async (characterId: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+      
+      const options = await entrypoint.getMovementOptions(characterId);
+      return options;
+    } catch (err: any) {
+      console.error("Error getting movement options:", err);
+      setError(err.message || "Error getting movement options");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getReadOnlyProvider]);
+
+  // Add getFrontendData
+  const getFrontendData = useCallback(async (characterId: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      console.log("Loading frontend data for character:", characterId);
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+      
+      const frontendData = await entrypoint.getFrontendData(characterId);
+      console.log("Frontend data loaded successfully:", frontendData);
+      
+      // Return a structured object for easier use in the UI
+      return {
+        character: frontendData[0],
+        combatants: frontendData[1],
+        noncombatants: frontendData[2],
+        miniMap: frontendData[3],
+        equipment: {
+          weapons: {
+            ids: frontendData[4],
+            names: frontendData[5],
+            currentId: frontendData[6] // Assuming this is returned in the ABI
+          },
+          armor: {
+            ids: frontendData[6],
+            names: frontendData[7],
+            currentId: frontendData[8] // Assuming this is returned in the ABI
+          }
+        },
+        unallocatedAttributePoints: frontendData[8]
+      };
+    } catch (err: any) {
+      console.error("Error getting frontend data:", err);
+      setError(err.message || "Error getting game data");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getReadOnlyProvider]);
+
   return {
     createCharacter,
     moveCharacter,
@@ -310,6 +412,9 @@ export const useBattleNads = () => {
     getCharacter,
     getCharactersInArea,
     attackTarget,
+    getAreaInfo,
+    getMovementOptions,
+    getFrontendData,
     characterId,
     loading,
     error

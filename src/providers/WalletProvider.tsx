@@ -47,6 +47,8 @@ interface WalletContextValue {
   sessionKey: string | null;
   injectedWallet: WalletInfo | null;
   embeddedWallet: WalletInfo | null;
+  connectMetamask: () => Promise<void>;
+  connectPrivyEmbedded: () => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -60,6 +62,8 @@ const WalletContext = createContext<WalletContextValue>({
   sessionKey: null,
   injectedWallet: null,
   embeddedWallet: null,
+  connectMetamask: async () => undefined,
+  connectPrivyEmbedded: async () => undefined,
   logout: async () => undefined,
 });
 
@@ -167,15 +171,74 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       let foundEmbedded = false;
       let newCurrentWallet = currentWallet;
       
+      // DEBUG: List all connected wallets
+      console.log("WALLET DEBUG - Connected wallets:");
+      wallets.forEach((wallet, index) => {
+        console.log(`Wallet #${index}: Address=${wallet.address}, Type=${wallet.walletClientType}, ConnectorType=${wallet.connectorType}`);
+      });
+      
+      // Find Owner Wallet (MetaMask) if available
+      const metamaskWallet = wallets.find(w => w.walletClientType === 'metamask');
+      if (metamaskWallet) {
+        console.log("FOUND OWNER WALLET (MetaMask):", metamaskWallet.address);
+      } else {
+        console.log("No MetaMask wallet found among connected wallets");
+      }
+      
       // Process each wallet by type
       for (const wallet of wallets) {
         try {
           // Determine wallet type
-          const isInjected = wallet.walletClientType === 'injected' || wallet.walletClientType === 'metamask';
+          const isMetamask = wallet.walletClientType === 'metamask';
+          const isInjected = wallet.walletClientType === 'injected' || isMetamask;
           const isEmbedded = wallet.walletClientType === 'privy' || wallet.connectorType === 'embedded';
           
-          if (isInjected) {
-            // This is MetaMask or another injected wallet
+          // For debugging
+          console.log(`Wallet: ${wallet.address}, Type: ${wallet.walletClientType}, ConnectorType: ${wallet.connectorType}`);
+          
+          if (isMetamask) {
+            // This is specifically Metamask - prioritize this as the injected wallet
+            console.log("Found MetaMask wallet, setting as injectedWallet:", wallet.address);
+            foundInjected = true;
+            
+            // Create a provider for this wallet if possible
+            if (window.ethereum) {
+              try {
+                const ethProvider = new ethers.BrowserProvider(window.ethereum as any);
+                await checkAndSwitchChain(ethProvider);
+                const walletSigner = await ethProvider.getSigner();
+                
+                const walletInfo: WalletInfo = {
+                  type: 'injected',
+                  walletClientType: wallet.walletClientType,
+                  address: wallet.address,
+                  signer: walletSigner,
+                  provider: ethProvider,
+                  privyWallet: wallet
+                };
+                
+                setInjectedWallet(walletInfo);
+                
+                // Always make MetaMask the active wallet when available
+                newCurrentWallet = 'injected';
+                setSigner(walletSigner);
+                setProvider(ethProvider);
+                setAddress(wallet.address);
+              } catch (providerError) {
+                console.error("Error setting up MetaMask provider:", providerError);
+                setInjectedWallet({
+                  type: 'injected',
+                  walletClientType: wallet.walletClientType,
+                  address: wallet.address,
+                  signer: null,
+                  provider: null,
+                  privyWallet: wallet
+                });
+              }
+            }
+          } else if (isInjected && !isMetamask && !injectedWallet) {
+            // This is a non-MetaMask injected wallet, use only if no MetaMask found
+            console.log("Found other injected wallet:", wallet.walletClientType, wallet.address);
             foundInjected = true;
             
             // Create a provider for this wallet if possible
@@ -361,6 +424,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         sessionKey,
         injectedWallet,
         embeddedWallet,
+        connectMetamask: async () => undefined,
+        connectPrivyEmbedded: async () => undefined,
         logout: handleLogout,
       }}
     >
@@ -369,4 +434,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 };
 
-export const useWallet = () => useContext(WalletContext); 
+export const useWallet = () => useContext(WalletContext);
+
+console.log('Displaying WalletProvider content'); 

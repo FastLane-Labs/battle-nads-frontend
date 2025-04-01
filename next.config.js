@@ -2,9 +2,6 @@
 
 const nextConfig = {
   /* config options here */
-  distDir: 'out',
-  output: 'export',
-  // Remove webpack cache files that exceed Cloudflare's 25MB limit
   webpack: (config) => {
     // Don't include large cache files in the output
     config.optimization.providedExports = false;
@@ -13,5 +10,11 @@ const nextConfig = {
     return config;
   },
 };
+
+// Only use export settings in production mode
+if (process.env.NODE_ENV === 'production') {
+  nextConfig.distDir = 'out';
+  nextConfig.output = 'export';
+}
 
 module.exports = nextConfig;

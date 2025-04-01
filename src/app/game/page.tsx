@@ -18,6 +18,22 @@ export default function GamePage() {
     }
   }, [address, router]);
   
+  // Check if we're coming from character creation
+  React.useEffect(() => {
+    // Clear any cached redirect flags from character creation
+    localStorage.removeItem('justCreatedCharacter');
+    
+    // Check if we have a query parameter indicating we just created a character
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('newCharacter')) {
+      console.log("New character detected from URL parameters");
+      
+      // Clear URL parameters without triggering a page reload
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, []);
+  
   if (!address) {
     return null; // Will redirect
   }

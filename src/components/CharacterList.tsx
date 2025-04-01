@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Box, VStack, Text, Flex, Badge, Button, Heading, Spinner } from '@chakra-ui/react';
 import { useBattleNads } from '../hooks/useBattleNads';
 import { usePrivy } from '@privy-io/react-auth';
+import { useWallet } from '../providers/WalletProvider';
 
 interface CharacterListProps {
   characters?: any[]; // Now optional
@@ -15,6 +16,7 @@ export const CharacterList: React.FC<CharacterListProps> = ({
   selectedCharacterId
 }) => {
   const { user } = usePrivy();
+  const { injectedWallet } = useWallet(); // Access the injected wallet (owner wallet)
   const { getPlayerCharacters, loading } = useBattleNads();
   const [characters, setCharacters] = useState<any[]>([]);
   const [loadingCharacters, setLoadingCharacters] = useState(false);
@@ -28,7 +30,14 @@ export const CharacterList: React.FC<CharacterListProps> = ({
       const fetchCharacters = async () => {
         setLoadingCharacters(true);
         try {
-          if (user?.wallet?.address) {
+          // Use injectedWallet.address instead of user.wallet.address
+          if (injectedWallet?.address) {
+            console.log("Fetching characters for owner address:", injectedWallet.address);
+            const userCharacters = await getPlayerCharacters(injectedWallet.address);
+            setCharacters(userCharacters || []);
+          } else if (user?.wallet?.address) {
+            // Fallback to user wallet if injectedWallet is not available
+            console.log("No injected wallet, using Privy wallet address:", user.wallet.address);
             const userCharacters = await getPlayerCharacters(user.wallet.address);
             setCharacters(userCharacters || []);
           }
@@ -41,7 +50,7 @@ export const CharacterList: React.FC<CharacterListProps> = ({
 
       fetchCharacters();
     }
-  }, [externalCharacters, user, getPlayerCharacters]);
+  }, [externalCharacters, user, getPlayerCharacters, injectedWallet]);
 
   if (loadingCharacters) {
     return (
