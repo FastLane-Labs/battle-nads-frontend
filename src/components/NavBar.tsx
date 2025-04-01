@@ -1,18 +1,37 @@
 'use client';
 
 import React from 'react';
-import { Box, Flex, Button, HStack, Text, useColorMode } from '@chakra-ui/react';
+import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip, VStack } from '@chakra-ui/react';
 import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from '../providers/WalletProvider';
 
 const NavBar: React.FC = () => {
   const { colorMode, toggleColorMode } = useColorMode();
-  const { address, connectMetamask, logout } = useWallet();
+  const { login } = usePrivy();
+  const { 
+    address, 
+    logout,
+    injectedWallet,
+    embeddedWallet,
+    sessionKey
+  } = useWallet();
   const pathname = usePathname();
 
   const isActive = (path: string) => pathname === path;
+  
+  // Format wallet client type for display
+  const formatWalletType = (type?: string): string => {
+    if (!type) return '';
+    
+    // Convert snake_case to Title Case
+    return type
+      .split('_')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
   
   return (
     <Box
@@ -100,24 +119,52 @@ const NavBar: React.FC = () => {
           )}
         </HStack>
 
-        <HStack spacing={2}>
-          <Button onClick={toggleColorMode} size="sm">
-            {colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
-          </Button>
+        <HStack spacing={4}>
           {!address ? (
-            <Button colorScheme="blue" size="sm" onClick={connectMetamask}>
+            <Button colorScheme="blue" size="sm" onClick={() => login()}>
               Connect Wallet
             </Button>
           ) : (
-            <HStack>
-              <Text fontSize="sm">
-                {`${address.slice(0, 6)}...${address.slice(-4)}`}
-              </Text>
+            <HStack spacing={4}>
+              {/* Wallet Display Section - Horizontal layout */}
+              <HStack spacing={3}>
+                {/* Display Session Key (with the embedded wallet address) */}
+                {embeddedWallet && (
+                  <Tooltip label="Session Key for Account Abstraction" placement="bottom">
+                    <HStack>
+                      <Badge colorScheme="green" fontSize="xs">SESSION KEY</Badge>
+                      <Text fontSize="sm" fontFamily="monospace">
+                        {`${embeddedWallet.address?.slice(0, 6)}...${embeddedWallet.address?.slice(-4)}`}
+                      </Text>
+                    </HStack>
+                  </Tooltip>
+                )}
+
+                {/* Display Injected Wallet (e.g. MetaMask) */}
+                {injectedWallet && (
+                  <Tooltip label={`${formatWalletType(injectedWallet.walletClientType)} Wallet`} placement="bottom">
+                    <HStack>
+                      <Badge colorScheme="blue" fontSize="xs">{formatWalletType(injectedWallet.walletClientType).toUpperCase()}</Badge>
+                      <Text fontSize="sm" fontFamily="monospace">
+                        {`${injectedWallet.address?.slice(0, 6)}...${injectedWallet.address?.slice(-4)}`}
+                      </Text>
+                    </HStack>
+                  </Tooltip>
+                )}
+                
+              </HStack>
+              
+              {/* Logout Button - Next to toggle */}
               <Button colorScheme="red" size="sm" onClick={logout}>
                 Disconnect
               </Button>
             </HStack>
           )}
+          
+          {/* Darkmode Toggle - All the way to the right */}
+          <Button onClick={toggleColorMode} size="sm">
+            {colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
+          </Button>
         </HStack>
       </Flex>
     </Box>
