@@ -14,7 +14,7 @@ export default function RootLayout({
   children: ReactNode;
 }) {
   return (
-    <html lang="en" style={{ colorScheme: 'dark' }}>
+    <html lang="en" style={{ colorScheme: 'dark' }} data-theme="dark">
       <body className="chakra-ui-dark">
         <ColorModeScript initialColorMode={theme.config.initialColorMode} />
         <PrivyAuthProvider>

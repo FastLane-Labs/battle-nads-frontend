@@ -262,20 +262,36 @@ export const useBattleNads = () => {
   const getPlayerCharacterID = useCallback(async (ownerAddress: string) => {
     try {
       const roProvider = getReadOnlyProvider();
-      const gettersContract = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ["function getPlayerCharacterID(address) view returns (bytes32)"],
-        roProvider
-      );
+      
+      // Use provider.call directly to bypass ethers decoding
       try {
-        const cID = await gettersContract.getPlayerCharacterID(ownerAddress);
-        if (!cID || cID === '0x' || cID === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+        // Get function signature and encode the parameters
+        const functionSignature = "getPlayerCharacterID(address)";
+        const functionSelector = ethers.keccak256(ethers.toUtf8Bytes(functionSignature)).slice(0, 10);
+        const encodedParams = ethers.AbiCoder.defaultAbiCoder().encode(
+          ["address"],
+          [ownerAddress]
+        );
+        
+        // Combine function selector and encoded parameters
+        const callData = functionSelector + encodedParams.slice(2);
+        
+        // Make a direct call to avoid the decoding issue
+        const result = await roProvider.call({
+          to: ENTRYPOINT_ADDRESS,
+          data: callData
+        });
+        
+        // Check for empty results or all zeros
+        if (!result || result === '0x' || result === '0x0000000000000000000000000000000000000000000000000000000000000000') {
           console.log('No character found for address:', ownerAddress);
           return null;
         }
-        setCharacterId(cID);
-        localStorage.setItem('battleNadsCharacterId', cID);
-        return cID;
+        
+        // Store the character ID and return it
+        setCharacterId(result);
+        localStorage.setItem('battleNadsCharacterId', result);
+        return result;
       } catch (contractErr) {
         console.error('Contract call error in getPlayerCharacterID:', contractErr);
         // For empty response "0x", we'll just return null to indicate no character
