@@ -59,7 +59,7 @@ export interface BattleNad {
   owner: string;
 }
 
-export interface Character extends BattleNad {}
+export type Character = BattleNad;
 
 export interface Combatant {
   id: string;

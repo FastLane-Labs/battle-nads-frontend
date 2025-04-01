@@ -1,7 +1,9 @@
+'use client';
+
 import React, { useEffect, useState } from 'react';
 import { Box, Heading, Button, Center, VStack, Text, Image, Icon, Spinner } from '@chakra-ui/react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useBattleNads } from '../hooks/useBattleNads';
 import { FaEthereum } from 'react-icons/fa';
 import { useWallet } from '../providers/WalletProvider';
@@ -9,10 +11,10 @@ import { useWallet } from '../providers/WalletProvider';
 const Login: React.FC = () => {
   const { login, authenticated, ready, user } = usePrivy();
   const { wallets, ready: walletsReady } = useWallets();
-  const navigate = useNavigate();
-  const { getPlayerCharacterID, loading, characterId } = useBattleNads();
+  const router = useRouter();
+  const { getPlayerCharacterID, characterId } = useBattleNads();
   // Get wallet state from our WalletProvider
-  const { address, loading: walletLoading } = useWallet();
+  const { address } = useWallet();
   const [checkingCharacter, setCheckingCharacter] = useState(false);
   const [initialCheckComplete, setInitialCheckComplete] = useState(false);
 
@@ -39,16 +41,16 @@ const Login: React.FC = () => {
           if (characterID) {
             console.log("Found character ID:", characterID);
             // Character exists, go to game
-            navigate('/game');
+            router.push('/game');
           } else {
             console.log("No character found, redirecting to character creation");
             // No character, go to character creation
-            navigate('/create');
+            router.push('/create');
           }
         } catch (error) {
           console.error("Error checking character:", error);
           // If there's an error, default to character creation
-          navigate('/create');
+          router.push('/create');
         } finally {
           setCheckingCharacter(false);
           setInitialCheckComplete(true);
@@ -65,15 +67,15 @@ const Login: React.FC = () => {
     if (ready) {
       checkCharacter();
     }
-  }, [authenticated, ready, navigate, user, getPlayerCharacterID]);
+  }, [authenticated, ready, router, user, getPlayerCharacterID]);
 
   // Also check if characterId exists in state, but only if authenticated
   useEffect(() => {
     if (authenticated && characterId) {
       console.log("Character ID found in state, redirecting to game");
-      navigate('/game');
+      router.push('/game');
     }
-  }, [characterId, navigate, authenticated]);
+  }, [characterId, router, authenticated]);
 
   const handleLogin = () => {
     // Only attempt login if not already authenticated

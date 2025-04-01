@@ -3,9 +3,11 @@ node_modules/
 
 # Build output (Vite default)
 dist/
+out/
 
 # Vite cache
 .vite/
+.next/
 
 # Environment variables
 .env

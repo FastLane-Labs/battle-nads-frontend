@@ -167,7 +167,7 @@ export class BattleNadsContract {
       sessionKeyDeadline,
       { value: ethers.parseEther(value) }
     );
-    const receipt = await tx.wait();
+    await tx.wait();
     
     // In a real implementation, you'd parse the event logs to get the return values
     return { 
