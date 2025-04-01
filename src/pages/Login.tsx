@@ -116,7 +116,7 @@ const Login: React.FC = () => {
             }}
             leftIcon={<Icon as={FaEthereum} boxSize={5} />}
           >
-            Connect Ethereum Wallet
+            Connect Evm Wallet
           </Button>
         </VStack>
       </Box>
