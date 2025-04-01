@@ -619,28 +619,6 @@ const GameDemo: React.FC = () => {
   return (
     <Box minH="100vh" bg="#242938" py={6}>
       <Container maxW="1400px">
-        {/* Game Header */}
-        <Flex justifyContent="space-between" alignItems="center" mb={6} px={4}>
-          <Box>
-            <Heading as="h1" size="xl" color="white">Battle Nads</Heading>
-          </Box>
-          <Flex alignItems="center">
-            <Badge 
-              colorScheme="purple" 
-              fontSize="md" 
-              px={3} 
-              py={1} 
-              borderRadius="md"
-              mr={4}
-            >
-              Monad Testnet
-            </Badge>
-            <Text fontWeight="bold" fontSize="lg" color="white">
-              {user?.wallet?.address?.slice(0, 6)}...{user?.wallet?.address?.slice(-4)}
-            </Text>
-          </Flex>
-        </Flex>
-
         <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} px={4}>
           {/* Left column: Character and Controls */}
           <VStack spacing={6} align="stretch">
