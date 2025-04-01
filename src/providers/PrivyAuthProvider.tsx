@@ -40,7 +40,7 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
     <PrivyProvider
       appId={appId}
       config={{
-        loginMethods: ["twitter", "discord", "email", "wallet"],
+        loginMethods: ["wallet"],
         embeddedWallets: {
           createOnLogin: 'all-users',
         },
