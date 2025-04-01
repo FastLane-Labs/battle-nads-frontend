@@ -1,4 +1,6 @@
 import React, { ReactNode } from 'react';
+import NavBar from './components/NavBar';
+import { Box } from '@chakra-ui/react';
 
 interface AppProps {
   children?: ReactNode;
@@ -6,10 +8,13 @@ interface AppProps {
 
 function App({ children }: AppProps) {
   return (
-    <div className="min-h-screen bg-gray-900">
-      {/* Routing is now handled in index.tsx */}
-      {children}
-    </div>
+    <Box className="min-h-screen bg-gray-900">
+      <NavBar />
+      <Box pt="60px">
+        {/* Routing is now handled in index.tsx */}
+        {children}
+      </Box>
+    </Box>
   );
 }
 

@@ -28,7 +28,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           setIsLoading(false);
         }
       } else if (ready) {
+        // If user is not authenticated but ready state is available,
+        // we're either logged out or never logged in
         setIsLoading(false);
+        setHasCharacter(false);
       }
     };
 
@@ -47,7 +50,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     );
   }
 
+  // Redirect to login page if not authenticated
   if (!authenticated) {
+    console.log("User not authenticated, redirecting to login page");
     return <Navigate to="/" replace />;
   }
 
