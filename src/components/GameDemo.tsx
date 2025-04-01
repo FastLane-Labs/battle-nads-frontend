@@ -105,7 +105,24 @@ const GameDemo: React.FC = () => {
       }
     }, 8000); // Wait 8 seconds to see if authentication completes
 
-    return () => clearTimeout(checkPrivyStatus);
+    // Also actively monitor for Privy iframe loading errors
+    const handleError = (e: ErrorEvent) => {
+      if (
+        e.error && 
+        (e.error.message?.includes('Privy iframe failed to load') ||
+         e.error.message?.includes('Exceeded max attempts'))
+      ) {
+        console.error('Privy authentication error in GameDemo:', e.error);
+        setPrivyError(true);
+      }
+    };
+
+    window.addEventListener('error', handleError);
+    
+    return () => {
+      clearTimeout(checkPrivyStatus);
+      window.removeEventListener('error', handleError);
+    };
   }, [address, loading]);
 
   // Initial load of character data
@@ -519,36 +536,31 @@ const GameDemo: React.FC = () => {
     );
   }
 
-  // Handle Privy authentication error
+  // Display error UI for Privy authentication issues
   if (privyError) {
     return (
-      <Center height="100vh" bg="#242938" color="white">
-        <VStack spacing={6} maxWidth="600px" p={6}>
-          <Heading as="h2" size="lg" color="red.400" mb={2}>Authentication Error</Heading>
-          
-          <Alert status="error" borderRadius="md" color="black">
+      <Center height="100vh">
+        <VStack spacing={6} maxW="600px" p={8} borderRadius="lg" borderWidth="1px">
+          <Heading size="lg">Authentication Error</Heading>
+          <Alert status="error" variant="solid" borderRadius="md">
             <AlertIcon />
             <Box>
-              <AlertTitle>Privy Authentication Failed</AlertTitle>
+              <AlertTitle mb={1}>Failed to load authentication service</AlertTitle>
               <AlertDescription>
-                The authentication service failed to load properly. This may be due to network issues or browser security settings.
+                There was an error initializing the Privy authentication service.
+                Character data could not be retrieved.
               </AlertDescription>
             </Box>
           </Alert>
-          
-          <Box bg="#1a1f2c" p={5} borderRadius="md" w="100%">
-            <Text color="white" fontWeight="bold" mb={2}>Please try these solutions:</Text>
-            <VStack align="start" spacing={2} color="white">
-              <Text>• Disable ad blockers or security extensions</Text>
-              <Text>• Allow third-party cookies in your browser</Text>
-              <Text>• Try a different browser</Text>
-              <Text>• Check your internet connection</Text>
-            </VStack>
-          </Box>
-          
-          <Button colorScheme="blue" onClick={() => window.location.reload()} size="lg" width="100%">
-            Refresh Page
+          <Button 
+            colorScheme="blue" 
+            onClick={() => window.location.reload()}
+          >
+            Reload Page
           </Button>
+          <Text>
+            If the problem persists, try clearing your browser cache or using a different browser.
+          </Text>
         </VStack>
       </Center>
     );
@@ -846,7 +858,7 @@ const GameDemo: React.FC = () => {
                   <Text color="green.300" mt={2} fontSize="sm">Explore to find monsters and gain experience!</Text>
                 </Box>
               )}
-            </Box>
+      </Box>
             
             {/* Combat Log */}
             <Box 
@@ -906,7 +918,7 @@ const GameDemo: React.FC = () => {
                 ) : (
                   <Center h="100%">
                     <Text fontSize="md" color="gray.400">No combat activity yet.</Text>
-                  </Center>
+    </Center>
                 )}
               </Box>
             </Box>

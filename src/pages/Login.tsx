@@ -1,139 +1,308 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Heading, Button, Center, VStack, Text, Image, Icon, Spinner } from '@chakra-ui/react';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { Box, Heading, Button, Center, VStack, Text, Spinner, Alert, AlertIcon, useToast, Flex, Card, CardBody, AlertTitle, AlertDescription } from '@chakra-ui/react';
+import { usePrivy } from '@privy-io/react-auth';
 import { useNavigate } from 'react-router-dom';
 import { useBattleNads } from '../hooks/useBattleNads';
-import { FaEthereum } from 'react-icons/fa';
 import { useWallet } from '../providers/WalletProvider';
 
-const Login: React.FC = () => {
-  const { login, authenticated, ready, user } = usePrivy();
-  const { wallets, ready: walletsReady } = useWallets();
+/**
+ * Login component that handles:
+ * 1. Connecting wallets through Privy
+ * 2. Checking for an existing character
+ * 3. Navigating to the appropriate page
+ */
+const Login = () => {
+  const toast = useToast();
+  const { login, authenticated, ready: privyReady } = usePrivy();
   const navigate = useNavigate();
-  const { getPlayerCharacterID, loading, characterId } = useBattleNads();
-  // Get wallet state from our WalletProvider
-  const { address, loading: walletLoading } = useWallet();
-  const [checkingCharacter, setCheckingCharacter] = useState(false);
-  const [initialCheckComplete, setInitialCheckComplete] = useState(false);
-
-  // Use the Privy wallets information to set up our wallet provider
-  useEffect(() => {
-    if (ready && authenticated && walletsReady && wallets.length > 0 && !address) {
-      // Instead of manually connecting, let the WalletProvider sync with Privy's state
-      console.log("Wallet is connected via Privy:", wallets[0].address);
-    }
-  }, [ready, authenticated, walletsReady, wallets, address]);
-
-  // Check if user has a character directly using the contract function
-  useEffect(() => {
-    const checkCharacter = async () => {
-      // Only proceed if the user is authenticated and has a wallet
-      if (ready && authenticated && user?.wallet?.address) {
-        try {
-          setCheckingCharacter(true);
-          console.log("Checking for character using EOA address:", user.wallet.address);
-          
-          // Use the direct contract call to check if this EOA has a character
-          const characterID = await getPlayerCharacterID(user.wallet.address);
-          
-          if (characterID) {
-            console.log("Found character ID:", characterID);
-            // Character exists, go to game
-            navigate('/game');
-          } else {
-            console.log("No character found, redirecting to character creation");
-            // No character, go to character creation
-            navigate('/create');
-          }
-        } catch (error) {
-          console.error("Error checking character:", error);
-          // If there's an error, default to character creation
-          navigate('/create');
-        } finally {
-          setCheckingCharacter(false);
-          setInitialCheckComplete(true);
-        }
-      } else if (ready && !authenticated) {
-        // If user is not authenticated, make sure we stay on the login page
-        // and clear any loading state
-        setCheckingCharacter(false);
-        setInitialCheckComplete(true);
-        console.log("User not authenticated, showing login page");
-      }
-    };
-
-    if (ready) {
-      checkCharacter();
-    }
-  }, [authenticated, ready, navigate, user, getPlayerCharacterID]);
-
-  // Also check if characterId exists in state, but only if authenticated
-  useEffect(() => {
-    if (authenticated && characterId) {
-      console.log("Character ID found in state, redirecting to game");
-      navigate('/game');
-    }
-  }, [characterId, navigate, authenticated]);
-
-  const handleLogin = () => {
-    // Only attempt login if not already authenticated
-    if (!authenticated) {
-      login({
+  const { getPlayerCharacterID, loading: battleNadsLoading } = useBattleNads();
+  
+  // Get wallet information from the wallet provider
+  const { 
+    ownerWallet, 
+    sessionWallet, 
+    loading: walletLoading
+  } = useWallet();
+  
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // Connect wallet handler
+  const handleConnectWallet = async () => {
+    setError(null);
+    
+    try {
+      // Use Privy's login method to handle wallet connection
+      await login({
         loginMethods: ['wallet'],
         walletChainType: 'ethereum-only'
       });
+    } catch (err: any) {
+      console.error("Error connecting wallet:", err);
+      setError(err.message || "Failed to connect wallet");
+      toast({
+        title: "Connection Failed",
+        description: err.message || "Could not connect wallet",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
-    // Redirect will happen in the useEffect above
   };
-
-  // Show loading spinner until we've made initial authentication check
-  if (!ready || checkingCharacter || (!initialCheckComplete && authenticated)) {
-    return (
-      <Center height="100vh" bg="gray.900">
-        <Spinner size="xl" color="purple.500" thickness="4px" />
-      </Center>
-    );
-  }
-
+  
+  // Check for character when both wallets are connected
+  useEffect(() => {
+    if (!ownerWallet.connected || !sessionWallet.connected || checking) return;
+    
+    const checkForExistingCharacter = async () => {
+      setChecking(true);
+      setError(null);
+      
+      try {
+        // Make sure we have a valid address before checking
+        if (!ownerWallet.address) {
+          throw new Error("Owner wallet address is not available");
+        }
+        
+        console.log("Checking for character ID associated with owner address:", ownerWallet.address);
+        const characterID = await getPlayerCharacterID(ownerWallet.address);
+        
+        if (characterID) {
+          console.log("Character found:", characterID);
+          toast({
+            title: "Character Found",
+            description: "Entering game...",
+            status: "success",
+            duration: 3000,
+            isClosable: true,
+          });
+          navigate('/game');
+        } else {
+          console.log("No character found, navigating to character creation");
+          toast({
+            title: "No Character Found",
+            description: "Create your character to start playing",
+            status: "info",
+            duration: 3000,
+            isClosable: true,
+          });
+          navigate('/create');
+        }
+      } catch (err: any) {
+        console.error("Error checking for character:", err);
+        setError(`Character check failed: ${err.message || 'Unknown error'}`);
+        toast({
+          title: "Character Check Failed",
+          description: err.message || "Could not check for existing character",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
+      } finally {
+        setChecking(false);
+      }
+    };
+    
+    checkForExistingCharacter();
+  }, [ownerWallet.connected, sessionWallet.connected, ownerWallet.address, getPlayerCharacterID, navigate, toast]);
+  
+  // Skip to character creation (emergency fallback)
+  const handleSkipToCreation = () => {
+    console.log("User requested to skip to character creation");
+    navigate('/create');
+  };
+  
+  // Show loading during connection process
+  const isLoading = !privyReady || checking || walletLoading || battleNadsLoading;
+  
+  // Render authentication status and controls
   return (
-    <Center height="100vh" bg="gray.900">
-      <Box 
-        p={8} 
-        maxWidth="500px" 
-        borderWidth={1} 
-        borderRadius="lg" 
-        boxShadow="dark-lg"
+    <Flex
+      h="100vh"
+      direction="column"
+      justify="center"
+      align="center"
+      p={4}
+      bgGradient="linear(to-b, purple.900, blue.900)"
+    >
+      <Card
+        borderWidth="1px"
+        p={6}
+        borderRadius="xl"
+        maxW="500px"
+        w="full"
         bg="gray.800"
-        borderColor="gray.700"
+        boxShadow="2xl"
       >
-        <VStack align="center" spacing={6}>
-          <Heading as="h1" size="xl" color="white">Battle Nads</Heading>
-          <Heading as="h2" size="md" color="gray.300">Login to continue</Heading>
-          <Button 
-            colorScheme="purple" 
-            size="lg" 
-            onClick={handleLogin}
-            width="full"
-            borderRadius="md"
-            py={6}
-            fontWeight="bold"
-            bgGradient="linear(to-r, blue.400, purple.500)"
-            _hover={{
-              bgGradient: "linear(to-r, blue.500, purple.600)",
-              transform: "translateY(-2px)",
-              boxShadow: "lg"
-            }}
-            _active={{
-              bgGradient: "linear(to-r, blue.600, purple.700)",
-              transform: "translateY(0)",
-            }}
-            leftIcon={<Icon as={FaEthereum} boxSize={5} />}
-          >
-            Connect Evm Wallet
-          </Button>
-        </VStack>
-      </Box>
-    </Center>
+        <CardBody>
+          <VStack spacing={6}>
+            <Heading 
+              textAlign="center"
+              fontSize="2xl"
+              color="white"
+              mb={4}
+            >
+              Battle Nads
+            </Heading>
+            
+            {error && (
+              <Alert status="error" borderRadius="md">
+                <AlertIcon />
+                {error}
+              </Alert>
+            )}
+            
+            {isLoading ? (
+              <Center p={8}>
+                <Spinner size="xl" color="purple.500" thickness="4px" mr={4} />
+                <Text color="white">
+                  {checking ? "Checking character..." : "Loading..."}
+                </Text>
+              </Center>
+            ) : (
+              <>
+                {!authenticated ? (
+                  // Not authenticated - show connect button
+                  <VStack spacing={4} w="full">
+                    <Text color="gray.300" textAlign="center">
+                      Connect your wallet to start playing
+                    </Text>
+                    
+                    <Button
+                      onClick={handleConnectWallet}
+                      colorScheme="purple"
+                      size="lg"
+                      width="full"
+                      py={6}
+                      fontWeight="bold"
+                      bgGradient="linear(to-r, blue.400, purple.500)"
+                      _hover={{
+                        bgGradient: "linear(to-r, blue.500, purple.600)",
+                        transform: "translateY(-2px)",
+                        boxShadow: "lg"
+                      }}
+                    >
+                      Connect Wallet
+                    </Button>
+                  </VStack>
+                ) : (
+                  // Authenticated - show wallet status
+                  <VStack spacing={4} w="full">
+                    <Box w="full" p={4} borderRadius="md" borderWidth="1px" borderColor="gray.700">
+                      <VStack spacing={4} align="start">
+                        <Text color="gray.400" fontSize="sm">Connected Wallets</Text>
+                        
+                        {ownerWallet.connected && (
+                          <Box>
+                            <Text color="gray.400" fontSize="xs">Owner Wallet</Text>
+                            <Text fontFamily="mono" fontSize="sm">
+                              {ownerWallet.address?.substring(0, 10)}...{ownerWallet.address?.substring(ownerWallet.address.length - 8)}
+                            </Text>
+                          </Box>
+                        )}
+                        
+                        {sessionWallet.connected && (
+                          <Box>
+                            <Text color="gray.400" fontSize="xs">Session Wallet</Text>
+                            <Text fontFamily="mono" fontSize="sm">
+                              {sessionWallet.address?.substring(0, 10)}...{sessionWallet.address?.substring(sessionWallet.address.length - 8)}
+                            </Text>
+                          </Box>
+                        )}
+                      </VStack>
+                    </Box>
+                    
+                    {ownerWallet.connected && !sessionWallet.connected ? (
+                      // Waiting for session wallet - show status and dev bypass
+                      <VStack spacing={4} w="full">
+                        <Alert status="info" borderRadius="md">
+                          <AlertIcon />
+                          <Text>
+                            Creating session wallet for gas-free play...
+                          </Text>
+                        </Alert>
+                        
+                        {/* Development mode bypass */}
+                        {import.meta.env.DEV && (
+                          <Alert status="warning" borderRadius="md">
+                            <AlertIcon />
+                            <Box>
+                              <AlertTitle fontSize="sm">Development Mode</AlertTitle>
+                              <AlertDescription fontSize="xs">
+                                Privy embedded wallet creation is failing. A local session wallet will be created automatically.
+                              </AlertDescription>
+                            </Box>
+                          </Alert>
+                        )}
+                        
+                        {/* Local session wallet notice */}
+                        {localStorage.getItem('local_session_wallet') && (
+                          <Alert status="warning" borderRadius="md">
+                            <AlertIcon />
+                            <Box>
+                              <AlertTitle fontSize="sm">Using Local Session Wallet</AlertTitle>
+                              <AlertDescription fontSize="xs">
+                                Using a locally generated session wallet instead of Privy's embedded wallet.
+                              </AlertDescription>
+                            </Box>
+                          </Alert>
+                        )}
+                        
+                        {/* Skip button with clear development mode messaging */}
+                        {import.meta.env.DEV && (
+                          <Button 
+                            colorScheme="purple" 
+                            width="full"
+                            onClick={() => navigate('/create')}
+                            size="sm"
+                          >
+                            Development: Skip Session Wallet (Emergency)
+                          </Button>
+                        )}
+                      </VStack>
+                    ) : (
+                      // Both wallets connected - show continue button
+                      <Button
+                        colorScheme="green"
+                        width="full"
+                        onClick={() => {
+                          if (ownerWallet.address) {
+                            getPlayerCharacterID(ownerWallet.address)
+                              .then(characterID => {
+                                if (characterID) {
+                                  navigate('/game');
+                                } else {
+                                  navigate('/create');
+                                }
+                              })
+                              .catch(() => navigate('/create'));
+                          } else {
+                            navigate('/create');
+                          }
+                        }}
+                      >
+                        Continue to Game
+                      </Button>
+                    )}
+                    
+                    {/* Emergency skip button */}
+                    <Button 
+                      variant="link" 
+                      size="sm" 
+                      onClick={handleSkipToCreation}
+                      color="gray.400"
+                      mt={4}
+                    >
+                      Skip to Character Creation
+                    </Button>
+                  </VStack>
+                )}
+              </>
+            )}
+          </VStack>
+        </CardBody>
+      </Card>
+    </Flex>
   );
 };
 

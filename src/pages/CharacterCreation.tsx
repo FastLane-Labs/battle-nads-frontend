@@ -29,10 +29,14 @@ import {
   ModalHeader, 
   ModalFooter, 
   ModalBody, 
-  ModalCloseButton
+  ModalCloseButton,
+  HStack,
+  Stack
 } from '@chakra-ui/react';
 import { useNavigate } from 'react-router-dom';
 import { useBattleNads } from '../hooks/useBattleNads';
+import { useWallet } from '../providers/WalletProvider';
+import WalletConnector from '../components/WalletConnector';
 
 const CharacterCreation: React.FC = () => {
   const [name, setName] = useState('');
@@ -43,7 +47,11 @@ const CharacterCreation: React.FC = () => {
   const [sturdiness, setSturdiness] = useState(3);
   const [luck, setLuck] = useState(3);
   const [isCreating, setIsCreating] = useState(false);
-  const [transactionHash, setTransactionHash] = useState<string | null>(null);
+  const [creatingStage, setCreatingStage] = useState<'preparing' | 'transaction' | 'lookingUp' | 'complete'>('preparing');
+  const [transactionHash, setTransactionHash] = useState<string | null>(() => {
+    // Try to get from localStorage on mount
+    return localStorage.getItem('lastCharacterCreationTx') || null;
+  });
   
   const navigate = useNavigate();
   const toast = useToast();
@@ -55,6 +63,10 @@ const CharacterCreation: React.FC = () => {
     characterId,
     getCharacterIdByTransactionHash 
   } = useBattleNads();
+  
+  const { ownerWallet, sessionWallet, currentWallet } = useWallet();
+  // Check if owner wallet is connected - that's all we need for character creation
+  const isMetamaskConnected = ownerWallet.connected;
   
   // Check if character already exists and redirect if it does
   useEffect(() => {
@@ -141,7 +153,7 @@ const CharacterCreation: React.FC = () => {
     if (unallocatedPoints !== 0) {
       toast({
         title: 'Error',
-        description: `Please allocate all attribute points. You have ${unallocatedPoints} points unallocated.`,
+        description: `Character attributes must total exactly ${TOTAL_POINTS} points. You currently have ${usedPoints} allocated (${unallocatedPoints} remaining).`,
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -149,10 +161,26 @@ const CharacterCreation: React.FC = () => {
       return;
     }
     
+    if (!isMetamaskConnected) {
+      toast({
+        title: 'Error',
+        description: 'Please connect your Metamask wallet for character creation',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    
     setIsCreating(true);
+    setCreatingStage('preparing');
     
     try {
       console.log("Creating character...");
+      console.log(`Character stats: Name: ${name}, STR: ${strength}, VIT: ${vitality}, DEX: ${dexterity}, QUI: ${quickness}, STU: ${sturdiness}, LUK: ${luck}, Total: ${usedPoints}`);
+      
+      setCreatingStage('transaction');
+      
       // Call the createCharacter function from the hook
       const characterId = await createCharacter(
         name,
@@ -161,12 +189,12 @@ const CharacterCreation: React.FC = () => {
         dexterity,
         quickness,
         sturdiness,
-        luck
+        luck,
+        (stage) => setCreatingStage(stage)
       );
       
-      console.log("Character creation result:", characterId);
-      
       if (characterId) {
+        setCreatingStage('complete');
         toast({
           title: 'Success',
           description: 'Character created successfully!',
@@ -177,16 +205,30 @@ const CharacterCreation: React.FC = () => {
         
         // Navigation will happen via useEffect
       } else {
-        toast({
-          title: 'Error',
-          description: error || 'Failed to create character',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
+        // Transaction succeeded but couldn't find character ID
+        setCreatingStage('lookingUp');
+        
+        // Wait to see if the ID is found after retries
+        await new Promise(resolve => setTimeout(resolve, 21000)); // Wait for all 3 lookup attempts (20s) plus a bit more
+        
+        // If we're still on this page, character wasn't found after retries
+        if (!characterId) {
+          setIsCreating(false);
+          setCreatingStage('preparing');
+          
+          toast({
+            title: 'Character Created',
+            description: 'Your character was created, but you need to lookup the ID manually using your transaction hash.',
+            status: 'warning',
+            duration: 5000,
+            isClosable: true,
+          });
+        }
       }
     } catch (err: any) {
       console.error("Error creating character:", err);
+      
+      setCreatingStage('preparing');
       toast({
         title: 'Error',
         description: err.message || 'An unexpected error occurred',
@@ -223,7 +265,27 @@ const CharacterCreation: React.FC = () => {
       <Center height="100vh">
         <VStack spacing={4}>
           <Spinner size="xl" />
-          <Text>Creating your character on the Monad Testnet...</Text>
+          <Text fontSize="xl" fontWeight="bold">
+            {creatingStage === 'preparing' && "Preparing character creation..."}
+            {creatingStage === 'transaction' && "Creating your character on Monad Testnet..."}
+            {creatingStage === 'lookingUp' && "Character created! Looking up character ID..."}
+            {creatingStage === 'complete' && "Character created successfully!"}
+            {!isCreating && "Loading..."}
+          </Text>
+          
+          {creatingStage === 'lookingUp' && (
+            <Text color="gray.400" fontSize="sm" textAlign="center">
+              This can take up to 20 seconds while the blockchain indexes your character.
+              <br />
+              Please be patient...
+            </Text>
+          )}
+          
+          {creatingStage === 'transaction' && (
+            <Text color="gray.400" fontSize="sm" textAlign="center">
+              Please approve the transaction in your MetaMask wallet if prompted.
+            </Text>
+          )}
         </VStack>
       </Center>
     );
@@ -231,91 +293,149 @@ const CharacterCreation: React.FC = () => {
   
   return (
     <Center height="100vh">
-      <Box p={8} maxWidth="500px" borderWidth={1} borderRadius="lg" boxShadow="lg">
-        <VStack spacing={6}>
-          <Image 
-            src="/BattleNadsLogo.png" 
-            alt="Battle Nads Logo"
-            maxWidth="250px" 
-            mb={2}
-          />
-          
-          <Heading as="h1" size="xl" textAlign="center">Create Character</Heading>
-          
-          <Divider />
-          
-          <FormControl>
-            <FormLabel>Character Name</FormLabel>
-            <Input 
-              value={name} 
-              onChange={(e) => setName(e.target.value)} 
-              placeholder="Enter your character name"
+      <Stack 
+        direction={{ base: 'column', md: 'row' }} 
+        spacing={6} 
+        align="center" 
+        justify="center" 
+        width="100%"
+        maxWidth="1200px"
+        p={4}
+      >
+        <WalletConnector showTitle={true} />
+        
+        <Box p={8} maxWidth="500px" borderWidth={1} borderRadius="lg" boxShadow="lg">
+          <VStack spacing={6}>
+            <Image 
+              src="/BattleNadsLogo.png" 
+              alt="Battle Nads Logo"
+              maxWidth="250px" 
+              mb={2}
             />
-          </FormControl>
-          
-          <Alert status={unallocatedPoints > 0 ? "info" : unallocatedPoints < 0 ? "error" : "success"} variant="subtle">
-            <AlertIcon />
-            <AlertDescription>
-              <Text fontWeight="bold">
-                Unallocated Attribute Points: {unallocatedPoints}
-              </Text>
-            </AlertDescription>
-          </Alert>
-          
-          <AttributeInput 
-            value={strength} 
-            onChange={setStrength} 
-            label="Strength" 
-          />
-          
-          <AttributeInput 
-            value={vitality} 
-            onChange={setVitality} 
-            label="Vitality" 
-          />
-          
-          <AttributeInput 
-            value={dexterity} 
-            onChange={setDexterity} 
-            label="Dexterity" 
-          />
-          
-          <AttributeInput 
-            value={quickness} 
-            onChange={setQuickness} 
-            label="Quickness" 
-          />
-          
-          <AttributeInput 
-            value={sturdiness} 
-            onChange={setSturdiness} 
-            label="Sturdiness" 
-          />
-          
-          <AttributeInput 
-            value={luck} 
-            onChange={setLuck} 
-            label="Luck" 
-          />
-          
-          <Button 
-            colorScheme="blue" 
-            width="full"
-            onClick={handleCreateCharacter}
-            isDisabled={unallocatedPoints !== 0 || !name || isCreating}
-          >
-            Create Character
-          </Button>
-          
-          <Button
-            variant="outline"
-            onClick={onOpen}
-            width="full"
-          >
-            Already Created? Lookup by Transaction
-          </Button>
-        </VStack>
-      </Box>
+            
+            <Heading as="h1" size="xl" textAlign="center">Create Character</Heading>
+            
+            {!isMetamaskConnected && (
+              <Alert status="warning" borderRadius="md">
+                <AlertIcon />
+                <Box>
+                  <AlertTitle>Metamask Not Connected!</AlertTitle>
+                  <AlertDescription>
+                    Character creation requires Metamask. Please connect using the Metamask button.
+                  </AlertDescription>
+                </Box>
+              </Alert>
+            )}
+            
+            {isMetamaskConnected && localStorage.getItem('local_session_wallet') && (
+              <Alert status="info" borderRadius="md">
+                <AlertIcon />
+                <Box>
+                  <AlertTitle>Using Local Session Key</AlertTitle>
+                  <AlertDescription>
+                    You're using a local session key instead of Privy's embedded wallet.
+                    This is fine for character creation.
+                  </AlertDescription>
+                </Box>
+              </Alert>
+            )}
+            
+            {transactionHash && !characterId && (
+              <Alert status="warning" borderRadius="md">
+                <AlertIcon />
+                <Box>
+                  <AlertTitle>Previous Transaction Found</AlertTitle>
+                  <AlertDescription>
+                    We found a previous character creation transaction, but couldn't detect your character ID.
+                    Use the "Lookup by Transaction" button below to retrieve your character.
+                  </AlertDescription>
+                  <Button 
+                    size="sm" 
+                    mt={2} 
+                    colorScheme="blue" 
+                    onClick={onOpen}
+                  >
+                    Lookup Transaction Now
+                  </Button>
+                </Box>
+              </Alert>
+            )}
+            
+            <Divider />
+            
+            <FormControl>
+              <FormLabel>Character Name</FormLabel>
+              <Input 
+                value={name} 
+                onChange={(e) => setName(e.target.value)} 
+                placeholder="Enter your character name"
+              />
+            </FormControl>
+            
+            <Alert status={unallocatedPoints > 0 ? "info" : unallocatedPoints < 0 ? "error" : "success"} variant="subtle">
+              <AlertIcon />
+              <AlertDescription>
+                <Text fontWeight="bold">
+                  Unallocated Attribute Points: {unallocatedPoints}
+                </Text>
+              </AlertDescription>
+            </Alert>
+            
+            <AttributeInput 
+              value={strength} 
+              onChange={setStrength} 
+              label="Strength" 
+            />
+            
+            <AttributeInput 
+              value={vitality} 
+              onChange={setVitality} 
+              label="Vitality" 
+            />
+            
+            <AttributeInput 
+              value={dexterity} 
+              onChange={setDexterity} 
+              label="Dexterity" 
+            />
+            
+            <AttributeInput 
+              value={quickness} 
+              onChange={setQuickness} 
+              label="Quickness" 
+            />
+            
+            <AttributeInput 
+              value={sturdiness} 
+              onChange={setSturdiness} 
+              label="Sturdiness" 
+            />
+            
+            <AttributeInput 
+              value={luck} 
+              onChange={setLuck} 
+              label="Luck" 
+            />
+            
+            <Button 
+              colorScheme="blue" 
+              width="full"
+              onClick={handleCreateCharacter}
+              isDisabled={unallocatedPoints !== 0 || !name || isCreating || !isMetamaskConnected}
+            >
+              Create Character
+            </Button>
+            
+            <Button
+              variant="outline"
+              onClick={onOpen}
+              width="full"
+            >
+              Already Created? Lookup by Transaction
+            </Button>
+          </VStack>
+        </Box>
+      </Stack>
       
       {/* Transaction Lookup Modal */}
       <Modal isOpen={isOpen} onClose={onClose}>

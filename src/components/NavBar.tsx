@@ -1,148 +1,145 @@
-import { useState } from 'react';
+import React from 'react';
 import {
   Box,
   Flex,
-  Text,
-  Button,
   HStack,
-  Badge,
+  Button,
   useColorModeValue,
-  Tooltip,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  MenuDivider,
-  useToast,
+  Text,
+  Image,
+  Link,
+  useDisclosure,
+  IconButton,
+  Drawer,
+  DrawerOverlay,
+  DrawerContent,
+  DrawerCloseButton,
+  DrawerHeader,
+  DrawerBody,
+  VStack,
+  Spacer
 } from '@chakra-ui/react';
-import { ChevronDownIcon, CopyIcon } from '@chakra-ui/icons';
-import { useNavigate } from 'react-router-dom';
-import { useWallet } from '../providers/WalletProvider';
+import { HamburgerIcon } from '@chakra-ui/icons';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
+import WalletConnector from './WalletConnector';
 
-const NavBar: React.FC = () => {
-  const navigate = useNavigate();
-  const toast = useToast();
-  const {
-    currentWallet,
-    address,
-    logout,
-    sessionKey,
-  } = useWallet();
+const NavBar = () => {
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const location = useLocation();
+  const bg = useColorModeValue('gray.50', 'gray.900');
+  const borderColor = useColorModeValue('gray.200', 'gray.700');
 
-  const bgColor = useColorModeValue('gray.800', 'gray.900');
-  const borderColor = useColorModeValue('gray.700', 'gray.700');
+  // Define navigation links
+  const navLinks = [
+    { name: 'Home', path: '/' },
+    { name: 'Create Character', path: '/create' },
+    { name: 'Game', path: '/game' }
+  ];
 
-  const copyToClipboard = (text: string, type: string = 'Address') => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: `${type} copied`,
-      status: 'success',
-      duration: 2000,
-      isClosable: true,
-      position: 'top',
-    });
-  };
-
-  const shortenAddress = (addr: string) => {
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  };
-
-  const handleLogout = async () => {
-    try {
-      // Clear local storage for character
-      localStorage.removeItem('battleNadsCharacterId');
-      await logout();
-      navigate('/');
-      toast({
-        title: 'Logged out successfully',
-        status: 'success',
-        duration: 2000,
-        isClosable: true,
-        position: 'top',
-      });
-    } catch (error) {
-      console.error('Logout failed:', error);
-      toast({
-        title: 'Logout failed',
-        status: 'error',
-        duration: 2000,
-        isClosable: true,
-        position: 'top',
-      });
-    }
-  };
+  // Check if the navigation item is the current page
+  const isActive = (path: string) => location.pathname === path;
 
   return (
-    <Box
-      as="nav"
-      position="fixed"
-      w="100%"
-      zIndex={10}
-      bg={bgColor}
-      borderBottom="1px"
+    <Box 
+      px={4} 
+      py={2} 
+      position="fixed" 
+      width="100%" 
+      bg={bg} 
+      borderBottom="1px" 
       borderColor={borderColor}
-      px={4}
-      py={2}
+      zIndex={10}
     >
-      <Flex justify="space-between" align="center" maxW="1200px" mx="auto">
-        <Text
-          fontWeight="bold"
-          fontSize="xl"
-          cursor="pointer"
-          onClick={() => navigate('/game')}
-        >
-          Battle Nads
-        </Text>
-
-        {address ? (
-          <HStack spacing={4}>
-            <Tooltip label={`Connected via: ${currentWallet}`} hasArrow placement="bottom">
-              <Badge 
-                colorScheme="purple" 
-                p={1} 
-                cursor={currentWallet === 'embedded' && sessionKey ? 'pointer' : 'default'}
-                onClick={() => currentWallet === 'embedded' && sessionKey && copyToClipboard(sessionKey, 'Session Key')}
-                display="flex"
-                alignItems="center"
+      <Flex h={16} alignItems={'center'} justifyContent={'space-between'}>
+        <IconButton
+          size={'md'}
+          icon={<HamburgerIcon />}
+          aria-label={'Open Menu'}
+          display={{ md: 'none' }}
+          onClick={onOpen}
+        />
+        
+        <HStack spacing={8} alignItems={'center'}>
+          <Box>
+            <RouterLink to="/">
+              <Image 
+                src="/BattleNadsLogo.png" 
+                alt="Battle Nads" 
+                height="40px"
+              />
+            </RouterLink>
+          </Box>
+          <HStack
+            as={'nav'}
+            spacing={4}
+            display={{ base: 'none', md: 'flex' }}
+          >
+            {navLinks.map((link) => (
+              <Link
+                key={link.path}
+                as={RouterLink}
+                to={link.path}
+                px={2}
+                py={1}
+                rounded={'md'}
+                fontWeight={isActive(link.path) ? 'bold' : 'normal'}
+                color={isActive(link.path) ? 'blue.500' : 'inherit'}
+                _hover={{
+                  textDecoration: 'none',
+                  bg: useColorModeValue('gray.200', 'gray.700'),
+                }}
               >
-                {currentWallet === 'metamask' ? 'MetaMask' : currentWallet === 'embedded' && sessionKey ? (
-                  <Tooltip label="Click to copy session key" hasArrow placement="top">
-                    <Flex align="center">
-                      <Text mr={1}>Session Key:</Text>
-                      <Text>{shortenAddress(sessionKey)}</Text>
-                      <CopyIcon ml={1} fontSize="xs" />
-                    </Flex>
-                  </Tooltip>
-                ) : 'none'}
-              </Badge>
-            </Tooltip>
-            <Menu>
-              <MenuButton
-                as={Button}
-                size="sm"
-                rightIcon={<ChevronDownIcon />}
-                colorScheme="blue"
-                variant="outline"
-              >
-                {shortenAddress(address)}
-              </MenuButton>
-              <MenuList>
-                <MenuItem onClick={() => copyToClipboard(address)}>
-                  <HStack>
-                    <CopyIcon />
-                    <Text>Copy Address</Text>
-                  </HStack>
-                </MenuItem>
-
-                <MenuDivider />
-                <MenuItem onClick={handleLogout}>Logout</MenuItem>
-              </MenuList>
-            </Menu>
+                {link.name}
+              </Link>
+            ))}
           </HStack>
-        ) : (
-          <Text fontSize="sm">Not Connected</Text>
-        )}
+        </HStack>
+        
+        <Spacer />
+        
+        <WalletConnector variant="compact" />
       </Flex>
+
+      {/* Mobile navigation drawer */}
+      <Drawer
+        isOpen={isOpen}
+        placement="left"
+        onClose={onClose}
+      >
+        <DrawerOverlay />
+        <DrawerContent>
+          <DrawerCloseButton />
+          <DrawerHeader>Navigation</DrawerHeader>
+
+          <DrawerBody>
+            <VStack spacing={4} align="stretch">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.path}
+                  as={RouterLink}
+                  to={link.path}
+                  px={2}
+                  py={1}
+                  rounded={'md'}
+                  fontWeight={isActive(link.path) ? 'bold' : 'normal'}
+                  color={isActive(link.path) ? 'blue.500' : 'inherit'}
+                  _hover={{
+                    textDecoration: 'none',
+                    bg: useColorModeValue('gray.200', 'gray.700'),
+                  }}
+                  onClick={onClose}
+                >
+                  {link.name}
+                </Link>
+              ))}
+              
+              <Box pt={4}>
+                <WalletConnector />
+              </Box>
+            </VStack>
+          </DrawerBody>
+        </DrawerContent>
+      </Drawer>
     </Box>
   );
 };

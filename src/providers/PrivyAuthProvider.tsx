@@ -1,5 +1,6 @@
 import { PrivyProvider } from "@privy-io/react-auth";
 import { ReactNode } from "react";
+import { Alert, AlertIcon, AlertTitle, AlertDescription, Box, Button, Center, Heading, Link, VStack } from "@chakra-ui/react";
 
 interface PrivyAuthProviderProps {
   children: ReactNode;
@@ -28,28 +29,42 @@ const MONAD_TESTNET_CHAIN = {
 };
 
 export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
-  // Try to get the Privy App ID from environment variables, fallback to hardcoded value
-  const appId = import.meta.env.VITE_PRIVY_APP_ID || "cm8slyoyy00f99gvop4024o4m";
+  // Get the Privy App ID from environment variables with a fallback value
+  const appId = import.meta.env.VITE_PRIVY_APP_ID || "cm8y2nx5c00tqbiy22u72uzc9";
+  const walletConnectCloudProjectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || "a5b30bbd0c93590a44b3694cb75344f0";
   
-  // Hardcoded backup in case .env file doesn't load properly
-  if (!appId) {
-    console.warn("Using fallback Privy App ID - preferably set VITE_PRIVY_APP_ID in your environment variables.");
-  }
-  
+  /**
+   * Privy Configuration Guide:
+   * 
+   * 1. `loginMethods` - Specify which login methods to show in the Privy UI
+   * 2. `appearance` - Control the UI appearance including theme colors
+   * 3. `embeddedWallets` - Controls when embedded wallets are created
+   * 4. `supportedChains` - Chains that wallets can connect to
+   * 5. `defaultChain` - The default chain for wallet connections
+   */
   return (
     <PrivyProvider
       appId={appId}
       config={{
-        loginMethods: ["wallet"],
-        embeddedWallets: {
-          createOnLogin: 'all-users',
-        },
+        // Allow both wallet and email login options
+        loginMethods: ['wallet', 'email'],
+        
+        // UI appearance settings
         appearance: {
-          theme: "dark",
-          accentColor: "#4F46E5",
+          theme: 'dark',
+          accentColor: '#8a5cf6',
+          showWalletLoginFirst: true
         },
+        
+        // Embedded wallet settings - automatically create wallets for all authenticated users
+        embeddedWallets: {
+          createOnLogin: 'all-users'
+        },
+        
+        // Chain configuration
         supportedChains: [MONAD_TESTNET_CHAIN],
         defaultChain: MONAD_TESTNET_CHAIN,
+        walletConnectCloudProjectId: walletConnectCloudProjectId
       }}
     >
       {children}

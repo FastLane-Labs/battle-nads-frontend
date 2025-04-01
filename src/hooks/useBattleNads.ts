@@ -47,7 +47,7 @@ const ENTRYPOINT_ABI = [
 ];
 
 // Use environment variables for contract addresses and RPC URL
-const ENTRYPOINT_ADDRESS = "0xD1183C1c028E094FD839Ad508a188Cf7d26AAB48";
+const ENTRYPOINT_ADDRESS = "0xbD4511F188B606e5a74A62b7b0F516d0139d76D5";
 const RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";
 const CHAIN_ID = 10143;
 
@@ -62,7 +62,7 @@ interface CharacterCreatedEvent {
 
 export const useBattleNads = () => {
   const privy = usePrivy();
-  const { currentWallet, signer, provider, address } = useWallet();
+  const { currentWallet, signer, provider, address, ownerWallet, sessionWallet } = useWallet();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,15 +79,117 @@ export const useBattleNads = () => {
     return new ethers.JsonRpcProvider(RPC_URL);
   }, []);
 
-  // Provide the signer from our new WalletProvider context
-  const getActiveSigner = useCallback(() => {
-    if (!signer || !provider || currentWallet === 'none') {
-      throw new Error('No connected wallet found. Please connect a wallet first.');
+  // Provide the owner EOA signer for operations that require ownership (createCharacter, updateSessionKey)
+  const getOwnerSigner = useCallback(async () => {
+    console.log("getOwnerSigner called, ownerWallet state:", 
+      JSON.stringify({
+        connected: ownerWallet.connected,
+        address: ownerWallet.address,
+        hasSigner: !!ownerWallet.signer
+      })
+    );
+    
+    // First try to use the ownerWallet.signer if available
+    if (ownerWallet.connected && ownerWallet.signer) {
+      console.log("Using ownerWallet.signer from WalletProvider");
+      return ownerWallet.signer;
     }
-    return signer;
-  }, [signer, provider, currentWallet]);
+    
+    // If we don't have a signer but have an address, try to get a signer directly from window.ethereum
+    if (ownerWallet.connected && ownerWallet.address) {
+      console.log("Owner wallet connected but no signer, trying to get signer directly from MetaMask");
+      
+      try {
+        // Direct connection to MetaMask as fallback
+        if (window.ethereum) {
+          console.log("Found window.ethereum, creating Web3Provider");
+          const provider = new ethers.BrowserProvider(window.ethereum);
+          
+          // Request accounts access
+          console.log("Requesting accounts from MetaMask");
+          const accounts = await provider.send("eth_requestAccounts", []);
+          
+          if (accounts && accounts.length > 0) {
+            console.log("Got accounts from MetaMask:", accounts);
+            // Get the signer from the provider
+            console.log("Getting signer from provider");
+            const signer = await provider.getSigner();
+            const signerAddress = await signer.getAddress();
+            
+            console.log("Obtained signer with address:", signerAddress);
+            return signer;
+          }
+        }
+      } catch (err) {
+        console.error("Error getting signer directly from MetaMask:", err);
+      }
+    }
+    
+    // If we still don't have a signer, throw an error
+    console.error("Failed to get owner signer, ownerWallet:", ownerWallet);
+    throw new Error('No connected owner wallet found. Please connect your MetaMask wallet first.');
+  }, [ownerWallet]);
+  
+  // Provide the embedded wallet signer for game operations (movement, combat, etc.)
+  const getSessionSigner = useCallback(async () => {
+    if (!sessionWallet.connected) {
+      throw new Error('No connected session wallet found. Please connect your embedded wallet first.');
+    }
+    
+    console.log("Getting session wallet signer for game operation:", sessionWallet.address);
+    
+    // If we already have a signer with provider, use it
+    if (sessionWallet.signer && sessionWallet.provider) {
+      console.log("Using existing session wallet signer with provider");
+      return sessionWallet.signer;
+    }
+    
+    // If we have a signer but no provider, create one
+    if (sessionWallet.signer && !sessionWallet.provider) {
+      console.log("Session wallet signer has no provider, creating one");
+      
+      try {
+        // For local session wallet, we need to create a provider and connect it to the signer
+        const provider = new ethers.JsonRpcProvider(RPC_URL);
+        
+        // Create a new signer with the provider
+        const connectedSigner = new ethers.Wallet(
+          // @ts-ignore - Access private key from local wallet
+          sessionWallet.signer.privateKey, 
+          provider
+        );
+        
+        console.log("Successfully created signer with provider for session wallet");
+        return connectedSigner;
+      } catch (err) {
+        console.error("Error creating provider for session wallet:", err);
+        throw new Error("Failed to create provider for session wallet. Please try refreshing the page.");
+      }
+    }
+    
+    // If we have a local session wallet, try to recreate it from localStorage
+    try {
+      const localWalletStr = localStorage.getItem('local_session_wallet');
+      if (localWalletStr) {
+        console.log("Recreating local session wallet from localStorage");
+        const localWallet = JSON.parse(localWalletStr);
+        
+        // Create provider and wallet
+        const provider = new ethers.JsonRpcProvider(RPC_URL);
+        const wallet = new ethers.Wallet(localWallet.privateKey, provider);
+        
+        console.log("Created local wallet with provider from localStorage");
+        return wallet;
+      }
+    } catch (err) {
+      console.error("Error recreating local session wallet:", err);
+    }
+    
+    // If everything else fails, throw an error
+    throw new Error('Session wallet signer not available or missing provider. Please refresh and try again.');
+  }, [sessionWallet]);
 
-  // Replace existing createCharacter with unified approach using WalletProvider
+  // Replace existing createCharacter with version that explicitly uses owner EOA
   const createCharacter = useCallback(async (
     name: string,
     strength: number,
@@ -95,26 +197,84 @@ export const useBattleNads = () => {
     dexterity: number,
     quickness: number,
     sturdiness: number,
-    luck: number
+    luck: number,
+    onStageChange?: (stage: 'preparing' | 'transaction' | 'lookingUp' | 'complete') => void
   ) => {
     setLoading(true);
     setError(null);
+    
+    if (onStageChange) onStageChange('preparing');
 
     try {
-      const activeSigner = getActiveSigner();
-      const entrypoint = new ethers.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, activeSigner);
+      // For character creation, we need the owner wallet (typically Metamask)
+      const ownerSigner = await getOwnerSigner();
+      console.log("Character creation using owner address:", await ownerSigner.getAddress());
+      const entrypoint = new ethers.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, ownerSigner);
 
-      const buyInAmount = await entrypoint.estimateBuyInAmountInMON();
+      // Get required buy-in amount and add 10% buffer to handle gas fluctuations
+      const estimatedBuyIn = await entrypoint.estimateBuyInAmountInMON();
+      const buyInAmount = estimatedBuyIn * BigInt(110) / BigInt(100); // Add 10% buffer
+      console.log(`Required buy-in amount: ${ethers.formatEther(buyInAmount)} MON`);
 
-      // We'll use the same sessionKey param as the connected wallet, for demonstration
-      const sessionKey = await activeSigner.getAddress();
+      // Get the session wallet address (either from Privy or our local fallback)
+      let sessionKeyAddress: string | null = null;
+      
+      // First check if our sessionWallet is connected 
+      if (sessionWallet.connected && sessionWallet.address) {
+        sessionKeyAddress = sessionWallet.address;
+        console.log("Using connected session wallet as session key:", sessionKeyAddress);
+      }
+      // Then try to find an embedded wallet from Privy
+      else if (privy.user?.linkedAccounts) {
+        const embeddedWallet = privy.user.linkedAccounts.find(
+          account => account.type === 'wallet' && 
+                    'walletClientType' in account && 
+                    account.walletClientType === 'privy'
+        );
+        
+        if (embeddedWallet && 'address' in embeddedWallet) {
+          sessionKeyAddress = embeddedWallet.address;
+          console.log("Using Privy embedded wallet as session key:", sessionKeyAddress);
+        }
+      }
+      // Finally check localStorage for our local fallback wallet
+      else {
+        try {
+          const localWalletStr = localStorage.getItem('local_session_wallet');
+          if (localWalletStr) {
+            const localWallet = JSON.parse(localWalletStr);
+            sessionKeyAddress = localWallet.address;
+            console.log("Using local fallback wallet as session key:", sessionKeyAddress);
+          }
+        } catch (e) {
+          console.error("Error reading local wallet from localStorage:", e);
+        }
+      }
+      
+      // If no session key found, throw an error - we need both wallets
+      if (!sessionKeyAddress) {
+        throw new Error("No session wallet found. Please connect or create a session wallet first.");
+      }
+      
       const sessionKeyDeadline = MAX_SAFE_UINT256;
+
+      // Debug log to help diagnose issues
+      console.log("Character creation parameters:", {
+        name,
+        stats: { strength, vitality, dexterity, quickness, sturdiness, luck },
+        sum: strength + vitality + dexterity + quickness + sturdiness + luck,
+        sessionKey: sessionKeyAddress, 
+        deadline: sessionKeyDeadline
+      });
 
       const txOptions = {
         value: buyInAmount,
-        gasLimit: 1_000_000,
+        gasLimit: 3_000_000, // Increased gas limit to ensure success
       };
 
+      if (onStageChange) onStageChange('transaction');
+      console.log("Sending character creation transaction...");
+      
       const tx = await entrypoint.createCharacter(
         name,
         strength,
@@ -123,11 +283,17 @@ export const useBattleNads = () => {
         quickness,
         sturdiness,
         luck,
-        sessionKey,
+        sessionKeyAddress, // Using the session wallet address as session key
         sessionKeyDeadline,
         txOptions
       );
+      
+      console.log("Transaction sent, waiting for confirmation. Hash:", tx.hash);
       const receipt = await tx.wait();
+      console.log("Transaction confirmed in block:", receipt.blockNumber);
+
+      // Store transaction hash for fallback manual lookup if needed
+      localStorage.setItem('lastCharacterCreationTx', tx.hash);
 
       // Attempt to parse logs for the CharacterCreated event
       let newCharacterId: string | null = null;
@@ -136,87 +302,194 @@ export const useBattleNads = () => {
         const log = receipt.logs.find(l => l.topics[0] === topic);
         if (log) {
           newCharacterId = ethers.zeroPadValue(log.topics[1], 32);
+          console.log("Character ID found in logs:", newCharacterId);
         }
       } catch (err) {
-        console.warn('Could not parse CharacterCreated event');
+        console.warn('Could not parse CharacterCreated event:', err);
       }
 
+      // If we didn't find the character ID in the logs, wait and attempt multiple lookups
       if (!newCharacterId) {
-        // fallback: fetch all IDs owned by current EOA
-        const walletAddress = await activeSigner.getAddress();
-        const characterIDs = await entrypoint.getPlayerCharacterIDs(walletAddress);
-        if (characterIDs.length > 0) {
-          newCharacterId = characterIDs[characterIDs.length - 1];
+        if (onStageChange) onStageChange('lookingUp');
+        
+        // Wait periods in milliseconds for each attempt
+        const waitPeriods = [5000, 5000, 10000]; // 5sec, 10sec, 20sec total
+        const walletAddress = await ownerSigner.getAddress();
+        
+        for (let attempt = 0; attempt < waitPeriods.length; attempt++) {
+          // Log that we're waiting before the lookup attempt
+          console.log(`Character ID not found in logs. Waiting ${waitPeriods[attempt]/1000} seconds before lookup attempt ${attempt + 1}...`);
+          
+          // Wait for the specified period
+          await new Promise(resolve => setTimeout(resolve, waitPeriods[attempt]));
+          
+          // Now try to get the character ID
+          try {
+            console.log(`Lookup attempt ${attempt + 1}: Checking for character IDs owned by:`, walletAddress);
+            
+            // Use read-only provider for this query to avoid issues
+            const roProvider = getReadOnlyProvider();
+            const readContract = new ethers.Contract(
+              ENTRYPOINT_ADDRESS,
+              ["function getPlayerCharacterIDs(address) view returns (bytes32[])"],
+              roProvider
+            );
+            
+            const characterIDs = await readContract.getPlayerCharacterIDs(walletAddress);
+            console.log(`Lookup attempt ${attempt + 1}: Character IDs returned:`, characterIDs);
+            
+            if (characterIDs && characterIDs.length > 0) {
+              newCharacterId = characterIDs[characterIDs.length - 1];
+              console.log(`Lookup attempt ${attempt + 1}: Found character ID:`, newCharacterId);
+              break; // Exit the retry loop if we found the ID
+            } else {
+              console.log(`Lookup attempt ${attempt + 1}: No character IDs found for address:`, walletAddress);
+            }
+          } catch (lookupErr) {
+            console.error(`Lookup attempt ${attempt + 1} failed:`, lookupErr);
+            // Continue to the next attempt
+          }
         }
       }
 
       if (!newCharacterId) {
-        throw new Error('Unable to detect newly created character ID');
+        // If all lookup attempts failed, show helpful message but don't throw error
+        console.warn('Character created successfully but unable to detect character ID after multiple attempts. Transaction hash:', tx.hash);
+        return null;
       }
 
+      if (onStageChange) onStageChange('complete');
       setCharacterId(newCharacterId);
       localStorage.setItem('battleNadsCharacterId', newCharacterId);
       return newCharacterId;
     } catch (err: any) {
-      setError(err.message || 'Error creating character');
+      console.error("Error creating character:", err);
+      
+      // Provide more helpful error messages based on the error
+      let errorMessage = err.message || 'Error creating character';
+      
+      if (errorMessage.includes('execution reverted')) {
+        errorMessage = 'Contract rejected the transaction. Please check your character stats and ensure they meet the requirements.';
+        
+        // Add specific advice based on common issues
+        if (errorMessage.includes('require(false)')) {
+          errorMessage += ' This often means you need to have exact attribute points allocation (typically totaling 32).';
+        }
+      } else if (errorMessage.includes('insufficient funds')) {
+        errorMessage = 'Insufficient funds to create character. The contract requires additional MON for character creation.';
+      }
+      
+      setError(errorMessage);
       return null;
     } finally {
       setLoading(false);
     }
-  }, [getActiveSigner]);
+  }, [getOwnerSigner, getReadOnlyProvider, privy.user, sessionWallet]);
 
-  // Update moveCharacter to use getActiveSigner
+  // Update moveCharacter to use embedded wallet/session key
   const moveCharacter = useCallback(async (characterID: string, direction: string) => {
     setLoading(true);
     setError(null);
 
     try {
-      const activeSigner = getActiveSigner();
-      const entrypoint = new ethers.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, activeSigner);
+      // Movement should use the embedded wallet (session key)
+      console.log("Using session key for move operation");
+      const sessionSigner = await getSessionSigner();
+      const entrypoint = new ethers.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, sessionSigner);
 
       let tx;
       if (direction === 'north') {
-        tx = await entrypoint.moveNorth(characterID, { gasLimit: 500000 });
+        tx = await entrypoint.moveNorth(characterID, { gasLimit: 850000 });
       } else if (direction === 'south') {
-        tx = await entrypoint.moveSouth(characterID, { gasLimit: 500000 });
+        tx = await entrypoint.moveSouth(characterID, { gasLimit: 850000 });
       } else if (direction === 'east') {
-        tx = await entrypoint.moveEast(characterID, { gasLimit: 500000 });
+        tx = await entrypoint.moveEast(characterID, { gasLimit: 850000 });
       } else if (direction === 'west') {
-        tx = await entrypoint.moveWest(characterID, { gasLimit: 500000 });
+        tx = await entrypoint.moveWest(characterID, { gasLimit: 850000 });
       } else if (direction === 'up') {
-        tx = await entrypoint.moveUp(characterID, { gasLimit: 500000 });
+        tx = await entrypoint.moveUp(characterID, { gasLimit: 850000 });
       } else if (direction === 'down') {
-        tx = await entrypoint.moveDown(characterID, { gasLimit: 500000 });
+        tx = await entrypoint.moveDown(characterID, { gasLimit: 850000 });
       }
 
       if (tx) {
         await tx.wait();
+        return true;
       }
+      return false;
     } catch (err: any) {
+      console.error(`Error moving ${direction}:`, err);
       setError(err.message || `Error moving ${direction}`);
+      return false;
     } finally {
       setLoading(false);
     }
-  }, [getActiveSigner]);
+  }, [getSessionSigner]);
 
   // Update getPlayerCharacterID to use read-only provider
   const getPlayerCharacterID = useCallback(async (ownerAddress: string) => {
+    if (!ownerAddress || ownerAddress === '0x0000000000000000000000000000000000000000') {
+      console.warn('Invalid owner address provided to getPlayerCharacterID:', ownerAddress);
+      return null;
+    }
+
+    console.log('Starting getPlayerCharacterID call for address:', ownerAddress);
+    
+    // Create a promise that rejects after a timeout
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Timeout: getPlayerCharacterID took too long to respond'));
+      }, 10000); // 10 second timeout
+    });
+    
     try {
-      const roProvider = getReadOnlyProvider();
-      const gettersContract = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ["function getPlayerCharacterID(address) view returns (bytes32)"],
-        roProvider
-      );
-      const cID = await gettersContract.getPlayerCharacterID(ownerAddress);
-      if (cID === '0x0000000000000000000000000000000000000000000000000000000000000000') {
-        return null;
+      // Race the contract call against the timeout
+      const result = await Promise.race([
+        (async () => {
+          try {
+            const roProvider = getReadOnlyProvider();
+            
+            if (!roProvider) {
+              throw new Error('Failed to get read-only provider in getPlayerCharacterID');
+            }
+            
+            console.log('Got provider, creating contract instance with address:', ENTRYPOINT_ADDRESS);
+            const gettersContract = new ethers.Contract(
+              ENTRYPOINT_ADDRESS,
+              ["function getPlayerCharacterID(address) view returns (bytes32)"],
+              roProvider
+            );
+            
+            console.log('Making contract call to getPlayerCharacterID...');
+            const cID = await gettersContract.getPlayerCharacterID(ownerAddress);
+            console.log('Contract call complete, raw result:', cID);
+            
+            if (!cID || cID === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+              console.log('No character found for address:', ownerAddress);
+              return null;
+            }
+            
+            console.log('Character found for address:', ownerAddress, 'Character ID:', cID);
+            return cID;
+          } catch (err) {
+            console.error('Inner error in getPlayerCharacterID call:', err);
+            throw err; // Re-throw to be caught by the outer try-catch
+          }
+        })(),
+        timeoutPromise
+      ]);
+      
+      // Only update state if we got a valid result
+      if (result) {
+        setCharacterId(result);
+        localStorage.setItem('battleNadsCharacterId', result);
       }
-      setCharacterId(cID);
-      localStorage.setItem('battleNadsCharacterId', cID);
-      return cID;
+      
+      return result;
     } catch (err) {
+      // This will catch both timeout errors and contract call errors
       console.error('Error in getPlayerCharacterID:', err);
+      // Don't set global error state for this function as it's used in initialization
       return null;
     }
   }, [getReadOnlyProvider]);
@@ -400,21 +673,23 @@ export const useBattleNads = () => {
     }
   }, [getReadOnlyProvider]);
 
-  // Attack a target
+  // Attack a target - using session key/embedded wallet
   const attackTarget = useCallback(async (characterId: string, targetIndex: number) => {
     setLoading(true);
     setError(null);
 
     try {
-      const activeSigner = getActiveSigner();
+      // Combat should use the embedded wallet (session key)
+      console.log("Using session key for attack operation");
+      const sessionSigner = await getSessionSigner();
       
       const entrypoint = new ethers.Contract(
         ENTRYPOINT_ADDRESS,
         ENTRYPOINT_ABI,
-        activeSigner
+        sessionSigner
       );
       
-      const tx = await entrypoint.attack(characterId, targetIndex, { gasLimit: 500000 });
+      const tx = await entrypoint.attack(characterId, targetIndex, { gasLimit: 850000 });
       
       // Wait for transaction to be mined
       await tx.wait();
@@ -427,23 +702,25 @@ export const useBattleNads = () => {
     } finally {
       setLoading(false);
     }
-  }, [getActiveSigner]);
+  }, [getSessionSigner]);
 
-  // Equip a weapon
+  // Equip a weapon - using session key/embedded wallet
   const equipWeapon = useCallback(async (characterId: string, weaponId: number) => {
     setLoading(true);
     setError(null);
 
     try {
-      const activeSigner = getActiveSigner();
+      // Equipment changes should use the embedded wallet (session key)
+      console.log("Using session key for equip weapon operation");
+      const sessionSigner = await getSessionSigner();
       
       const entrypoint = new ethers.Contract(
         ENTRYPOINT_ADDRESS,
         ENTRYPOINT_ABI,
-        activeSigner
+        sessionSigner
       );
       
-      const tx = await entrypoint.equipWeapon(characterId, weaponId, { gasLimit: 500000 });
+      const tx = await entrypoint.equipWeapon(characterId, weaponId, { gasLimit: 850000 });
       
       // Wait for transaction to be mined
       await tx.wait();
@@ -456,23 +733,25 @@ export const useBattleNads = () => {
     } finally {
       setLoading(false);
     }
-  }, [getActiveSigner]);
+  }, [getSessionSigner]);
    
-  // Equip armor
+  // Equip armor - using session key/embedded wallet
   const equipArmor = useCallback(async (characterId: string, armorId: number) => {
     setLoading(true);
     setError(null);
 
     try {
-      const activeSigner = getActiveSigner();
+      // Equipment changes should use the embedded wallet (session key)
+      console.log("Using session key for equip armor operation");
+      const sessionSigner = await getSessionSigner();
       
       const entrypoint = new ethers.Contract(
         ENTRYPOINT_ADDRESS,
         ENTRYPOINT_ABI,
-        activeSigner
+        sessionSigner
       );
       
-      const tx = await entrypoint.equipArmor(characterId, armorId, { gasLimit: 500000 });
+      const tx = await entrypoint.equipArmor(characterId, armorId, { gasLimit: 850000 });
       
       // Wait for transaction to be mined
       await tx.wait();
@@ -485,7 +764,7 @@ export const useBattleNads = () => {
     } finally {
       setLoading(false);
     }
-  }, [getActiveSigner]);
+  }, [getSessionSigner]);
 
   // Helper for debugging/migrating
   const getCharacterIdByTransactionHash = useCallback(async (txHash: string) => {
@@ -534,10 +813,10 @@ export const useBattleNads = () => {
     }
   }, [getReadOnlyProvider]);
 
-  // Replace other methods with similar implementations using getActiveSigner()
-  // For example, attackTarget would be updated to use getActiveSigner() similar to moveCharacter
-
   return {
+    // Include both signer getters for flexibility
+    getOwnerSigner,
+    getSessionSigner,
     createCharacter,
     moveCharacter,
     getPlayerCharacterID,
