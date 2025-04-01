@@ -9,8 +9,8 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { authenticated, ready } = usePrivy();
-  const { address, loading: walletLoading } = useWallet();
+  const { authenticated, ready, user } = usePrivy();
+  const { embeddedWallet, injectedWallet, address, loading: walletLoading } = useWallet();
   const { getPlayerCharacterID } = useBattleNads();
   const [isLoading, setIsLoading] = useState(true);
   const [hasCharacter, setHasCharacter] = useState<boolean | null>(null);
@@ -19,61 +19,109 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const redirectingRef = useRef(false);
   // Track if we've completed the character check
   const [characterCheckComplete, setCharacterCheckComplete] = useState(false);
+  // Track where to redirect if needed
+  const [redirectTo, setRedirectTo] = useState<string | null>(null);
 
+  // Prefer embedded wallet address, fall back to injected, then fall back to the address property
+  const activeAddress = embeddedWallet?.address || injectedWallet?.address || address || user?.wallet?.address;
+
+  // Reset redirecting flag when location changes
   useEffect(() => {
+    redirectingRef.current = false;
+  }, [location.pathname]);
+
+  // Main effect for checking authentication and wallet state
+  useEffect(() => {
+    console.log("Wallet state in ProtectedRoute:", {
+      authenticated, 
+      ready,
+      address,
+      embeddedAddress: embeddedWallet?.address,
+      injectedAddress: injectedWallet?.address,
+      userWalletAddress: user?.wallet?.address,
+      activeAddress,
+      walletLoading
+    });
+
+    // Handle redirection for authentication
+    if (!authenticated || !ready) {
+      console.log("User not authenticated or not ready, redirecting to login page");
+      setRedirectTo("/");
+      setIsLoading(false);
+      return;
+    }
+
+    // Handle case where user is authenticated but has no wallet
+    if (authenticated && ready && !activeAddress && !walletLoading) {
+      console.log("Authenticated but no wallet detected!");
+      if (location.pathname !== "/") {
+        setRedirectTo("/");
+      }
+      setIsLoading(false);
+      return;
+    }
+
     const checkCharacter = async () => {
-      if (authenticated && ready && address) {
+      if (authenticated && ready && activeAddress) {
         try {
-          const characterID = await getPlayerCharacterID(address);
+          console.log("Checking character for address:", activeAddress);
+          const characterID = await getPlayerCharacterID(activeAddress);
+          console.log("Character check result:", characterID);
           setHasCharacter(!!characterID);
+          
+          // Handle character-based redirects
+          if (!!characterID && location.pathname === '/create') {
+            setRedirectTo('/game');
+          } else if (!characterID && location.pathname === '/game') {
+            setRedirectTo('/create');
+          } else {
+            setRedirectTo(null);
+          }
+          
+          setIsLoading(false);
+          setCharacterCheckComplete(true);
         } catch (error) {
           console.error("Error checking character:", error);
           setHasCharacter(false);
-        } finally {
           setIsLoading(false);
           setCharacterCheckComplete(true);
+          
+          // If error checking character, default to create page
+          if (location.pathname === '/game') {
+            setRedirectTo('/create');
+          }
         }
-      } else if (!walletLoading) {
-        // If user is not authenticated but wallet loading is complete,
-        // we're either logged out or never logged in
+      } else if (walletLoading) {
+        // Still loading wallet info
+        console.log("Wallet still loading...");
+        setIsLoading(true);
+        setRedirectTo(null);
+      } else {
+        // If authenticated but no address, and not still loading wallet
+        console.warn("User authenticated but no wallet address available!");
         setIsLoading(false);
         setCharacterCheckComplete(true);
         setHasCharacter(false);
+        
+        if (location.pathname !== "/") {
+          setRedirectTo("/");
+        }
       }
     };
 
     checkCharacter();
-  }, [authenticated, address, getPlayerCharacterID, walletLoading]);
+  }, [authenticated, ready, activeAddress, getPlayerCharacterID, walletLoading, user, location.pathname]);
 
-  // Redirect to login page if not authenticated
-  if (!authenticated || !ready || !address) {
-    // Only log and redirect if we're not already redirecting
-    if (!redirectingRef.current) {
-      console.log("User not authenticated, redirecting to login page");
-      redirectingRef.current = true;
-      return <Navigate to="/" replace />;
-    }
+  // Show loading indicator if we're still loading
+  if (isLoading) {
+    return <div>Loading...</div>;
   }
 
-  // Only process character-based redirects after the character check is complete
-  if (characterCheckComplete && !isLoading) {
-    // If we're on the create page and user has a character, redirect to game
-    if (location.pathname === '/create' && hasCharacter && !redirectingRef.current) {
-      redirectingRef.current = true;
-      return <Navigate to="/game" replace />;
-    }
-
-    // If we're on the game page and user has no character, redirect to create
-    if (location.pathname === '/game' && hasCharacter === false && !redirectingRef.current) {
-      redirectingRef.current = true;
-      return <Navigate to="/create" replace />;
-    }
+  // Handle redirects
+  if (redirectTo && !redirectingRef.current) {
+    redirectingRef.current = true;
+    return <Navigate to={redirectTo} replace />;
   }
-
-  // Reset redirecting flag when location changes or if rendering children
-  useEffect(() => {
-    redirectingRef.current = false;
-  }, [location.pathname]);
 
   return <>{children}</>;
 };
