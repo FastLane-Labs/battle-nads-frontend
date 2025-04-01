@@ -1,4 +1,4 @@
-import React, { useEffect, useState, ReactNode } from 'react';
+import React, { useEffect, useState, ReactNode, useRef } from 'react';
 import { 
   Box, 
   Heading, 
@@ -38,10 +38,10 @@ interface Combatant {
 }
 
 const GameDemo: React.FC = () => {
-  const { address } = useWallet();
+  const { address, injectedWallet } = useWallet();
   const { 
     getPlayerCharacterID, 
-    getCharacter, 
+    getCharacter,
     getAreaInfo, 
     getAreaCombatState,
     getMovementOptions,
@@ -49,32 +49,32 @@ const GameDemo: React.FC = () => {
     getAttackOptions,
     attackTarget,
     getCharactersInArea,
+    getFrontendData,
     loading: hookLoading, 
     error: hookError 
   } = useBattleNads();
   
-  const [character, setCharacter] = useState<any>(null);
-  const [position, setPosition] = useState({ x: 0, y: 0, depth: 0 });
+  const [characterId, setCharacterId] = useState<string | null>(null);
+  const [character, setCharacter] = useState<any | null>(null);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+  const [position, setPosition] = useState({ x: 0, y: 0, depth: 1 });
   const [combatants, setCombatants] = useState<Combatant[]>([]);
+  const [noncombatants, setNoncombatants] = useState<Combatant[]>([]);
   const [selectedCombatant, setSelectedCombatant] = useState<Combatant | null>(null);
   const [combatLog, setCombatLog] = useState<string[]>([]);
   const [isInCombat, setIsInCombat] = useState(false);
   const [isMoving, setIsMoving] = useState(false);
   const [isAttacking, setIsAttacking] = useState(false);
-  const [movementOptions, setMovementOptions] = useState({
-    canMoveNorth: false,
-    canMoveSouth: false,
-    canMoveEast: false,
-    canMoveWest: false,
-    canMoveUp: false,
-    canMoveDown: false
-  });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [characterId, setCharacterId] = useState<string | null>(null);
+  const [movementOptions, setMovementOptions] = useState<any | null>(null);
+  const [loadingComplete, setLoadingComplete] = useState<boolean>(false);
   const [areaInfo, setAreaInfo] = useState<any>(null);
+  const [equipmentInfo, setEquipmentInfo] = useState<any>(null);
   const [privyError, setPrivyError] = useState<boolean>(false);
   const [cspError, setCspError] = useState<boolean>(false);
+  
+  // Create a ref at the top level of the component to track initial load state
+  const isInitialLoadComplete = useRef(false);
   
   const toast = useToast();
 
@@ -110,79 +110,218 @@ const GameDemo: React.FC = () => {
 
   // Initial load of character data
   useEffect(() => {
-    const fetchCharacter = async () => {
-      if (address) {
-        try {
-          setLoading(true);
-          // Get character ID for this wallet address
-          const characterId = await getPlayerCharacterID(address);
-          
-          if (characterId) {
-            setCharacterId(characterId);
-            // Get full character data
-            const characterData = await getCharacter(characterId);
-            if (characterData) {
-              setCharacter(characterData);
-              // Initialize position from character data
-              const pos = {
-                x: Number(characterData.stats.x),
-                y: Number(characterData.stats.y),
-                depth: Number(characterData.stats.depth)
-              };
-              setPosition(pos);
-              
-              // Load area data for this position
-              loadAreaData(characterId, pos.depth, pos.x, pos.y);
-              
-              // Get available movement options
-              const options = await getMovementOptions(characterId);
-              if (options) {
-                setMovementOptions(options);
-              }
-            }
-          }
-        } catch (err) {
-          console.error("Error fetching character:", err);
-          setError(`Error fetching character: ${err instanceof Error ? err.message : String(err)}`);
-        } finally {
-          setLoading(false);
+    // Skip if we've already completed initial load or hooks are still loading
+    if (isInitialLoadComplete.current || hookLoading) {
+      console.log("Skipping character load - already loaded or hooks loading");
+      return;
+    }
+    
+    // First, check localStorage for existing character ID
+    const storedCharacterId = localStorage.getItem('battleNadsCharacterId');
+    if (storedCharacterId) {
+      console.log("Found character ID in localStorage, using it directly:", storedCharacterId);
+      loadCharacterData(storedCharacterId);
+      isInitialLoadComplete.current = true;
+      return;
+    }
+
+    // Only continue with owner wallet check if no character in localStorage
+    const hasOwnerWallet = injectedWallet?.address ? true : false;
+    
+    if (!hasOwnerWallet) {
+      console.log("No owner wallet connected and no character in localStorage. Please connect your wallet.");
+      setLoadingComplete(true);
+      isInitialLoadComplete.current = true;
+      return;
+    }
+
+    let retryCount = 0;
+    const maxRetries = 3;
+    let retryTimer: NodeJS.Timeout;
+
+    const fetchCharacter = async (retry = 0) => {
+      try {
+        setLoading(true);
+        console.log(`Attempt ${retry + 1} to fetch character data using owner address: ${injectedWallet?.address}`);
+        
+        // Get character ID using ONLY the owner wallet address
+        const characterId = await getPlayerCharacterID();
+        
+        if (characterId) {
+          console.log("Character ID found:", characterId);
+          loadCharacterData(characterId);
+          isInitialLoadComplete.current = true;
+        } else {
+          // No character found
+          console.log("No character found for owner address, showing creation button");
+          setLoadingComplete(true);
+          isInitialLoadComplete.current = true;
         }
+      } catch (err) {
+        console.error(`Error fetching character (attempt ${retry + 1}):`, err);
+        setError(`Error fetching character: ${err instanceof Error ? err.message : String(err)}`);
+        
+        // Retry after a short delay if we're still within retry limits
+        if (retry < maxRetries) {
+          console.log(`Will retry after error in 1.5 seconds (attempt ${retry + 1} of ${maxRetries})`);
+          retryTimer = setTimeout(() => fetchCharacter(retry + 1), 1500);
+        } else {
+          setLoadingComplete(true);
+          isInitialLoadComplete.current = true;
+        }
+      } finally {
+        setLoading(false);
       }
     };
 
-    fetchCharacter();
-  }, [address, getPlayerCharacterID, getCharacter, getMovementOptions]);
+    // Execute fetchCharacter for owner wallet check
+    fetchCharacter(retryCount);
+    
+    // Clean up any pending retries when component unmounts or dependencies change
+    return () => {
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, []);
+  
+  // Modify the loadCharacterData function to prevent reloading the same data
+  const loadCharacterData = async (characterIdParam: string) => {
+    // Skip if we're already loading or if the character ID is the same and we've already loaded it
+    if (loading || (characterId === characterIdParam && loadingComplete)) {
+      console.log("Skipping loadCharacterData - already loading or data already loaded");
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      console.log("Loading character data for ID:", characterIdParam);
+      
+      // Only update characterId state if it's actually different to prevent re-renders
+      if (characterId !== characterIdParam) {
+        setCharacterId(characterIdParam);
+        // Store in localStorage for persistence
+        localStorage.setItem('battleNadsCharacterId', characterIdParam);
+      }
+      
+      // Use getFrontendData to get all game data in one call
+      const frontendData = await getFrontendData(characterIdParam);
+      if (frontendData) {
+        console.log("Frontend data loaded successfully:", frontendData);
+        
+        // Set character data
+        setCharacter(frontendData.character);
+        
+        // Set combatants and noncombatants
+        setCombatants(frontendData.combatants || []);
+        setNoncombatants(frontendData.noncombatants || []);
+        
+        // Set equipment info
+        setEquipmentInfo(frontendData.equipment);
+        
+        // Initialize position from character data
+        const pos = {
+          x: Number(frontendData.character.stats.x),
+          y: Number(frontendData.character.stats.y),
+          depth: Number(frontendData.character.stats.depth)
+        };
+        setPosition(pos);
+        
+        // Set area info from miniMap
+        if (frontendData.miniMap && frontendData.miniMap[2] && frontendData.miniMap[2][2]) {
+          // Center of miniMap is the current area
+          setAreaInfo(frontendData.miniMap[2][2]);
+          
+          // Add to combat log
+          const currentArea = frontendData.miniMap[2][2];
+          addToCombatLog(`Area has ${currentArea.monsterCount} monsters and ${currentArea.playerCount} players.`);
+        }
+        
+        // Determine if we're in combat
+        const hasActiveCombatants = frontendData.combatants && frontendData.combatants.length > 0;
+        setIsInCombat(hasActiveCombatants);
+        
+        if (hasActiveCombatants) {
+          addToCombatLog(`You are in combat with ${frontendData.combatants.length} enemies!`);
+        } else if (frontendData.noncombatants.length > 0) {
+          // Filter monsters from noncombatants if needed
+          const monsters = frontendData.noncombatants.filter((c: any) => 
+            c.stats.isMonster && c.id !== characterIdParam
+          );
+          
+          if (monsters.length > 0) {
+            addToCombatLog(`There are ${monsters.length} monsters in this area.`);
+          } else {
+            addToCombatLog("This area is safe... for now.");
+          }
+        }
+        
+        // Set movement options based on data returned
+        // This is derived from the unallocatedAttributePoints field in getFrontendData
+        // Construct movement options from miniMap if needed
+        const mapCenter = position;
+        setMovementOptions({
+          canMoveNorth: mapCenter.y < 100, // Placeholder logic, replace with actual map bounds
+          canMoveSouth: mapCenter.y > 1,
+          canMoveEast: mapCenter.x < 100,
+          canMoveWest: mapCenter.x > 1,
+          canMoveUp: mapCenter.depth < 10,
+          canMoveDown: mapCenter.depth > 1
+        });
+        
+        console.log("Character fully loaded and ready to play!");
+        
+        // Set loading complete to prevent unnecessary reloads
+        setLoadingComplete(true);
+      } else {
+        console.error("Failed to load frontend data for ID:", characterIdParam);
+        // If we can't load character data, clear localStorage as it might be invalid
+        localStorage.removeItem('battleNadsCharacterId');
+        setError("Failed to load character data. Please try creating a new character.");
+        setLoadingComplete(true);
+      }
+    } catch (err) {
+      console.error("Error loading character data:", err);
+      setError(`Error loading character data: ${err instanceof Error ? err.message : String(err)}`);
+      setLoadingComplete(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Load area data (combatants, etc.)
-  const loadAreaData = async (characterId: string, depth: number, x: number, y: number) => {
+  // Load area data function - now using getFrontendData
+  const loadAreaData = async (characterIdParam: string, depth: number, x: number, y: number) => {
+    // Skip if already loading
+    if (loading) return;
+    
     try {
       setLoading(true);
       addToCombatLog(`Loading area data for position (${x}, ${y}, depth: ${depth})...`);
       
-      // Get info about this area
-      const areaInfo = await getAreaInfo(depth, x, y);
-      setAreaInfo(areaInfo);
+      // Use getFrontendData to get all necessary data in one call
+      const frontendData = await getFrontendData(characterIdParam);
       
-      if (areaInfo) {
-        addToCombatLog(`Area has ${areaInfo.monsterCount} monsters and ${areaInfo.playerCount} players.`);
-      }
-      
-      // Get combat state to see if we're already in combat
-      const combatState = await getAreaCombatState(characterId);
-      
-      if (combatState) {
-        setIsInCombat(combatState.inCombat);
+      if (frontendData) {
+        // Set area info from miniMap
+        if (frontendData.miniMap && frontendData.miniMap[2] && frontendData.miniMap[2][2]) {
+          // Center of miniMap is the current area
+          setAreaInfo(frontendData.miniMap[2][2]);
+          const currentArea = frontendData.miniMap[2][2];
+          addToCombatLog(`Area has ${currentArea.monsterCount} monsters and ${currentArea.playerCount} players.`);
+        }
         
-        if (combatState.inCombat) {
-          addToCombatLog(`You are in combat with ${combatState.combatantCount} enemies!`);
-          setCombatants(combatState.enemies || []);
+        // Handle combatants
+        const hasActiveCombatants = frontendData.combatants && frontendData.combatants.length > 0;
+        setIsInCombat(hasActiveCombatants);
+        
+        if (hasActiveCombatants) {
+          addToCombatLog(`You are in combat with ${frontendData.combatants.length} enemies!`);
+          setCombatants(frontendData.combatants || []);
         } else {
-          // If not in combat, get all characters in this area
-          const characters = await getCharactersInArea(depth, x, y);
+          // If not in combat, set noncombatants
+          setNoncombatants(frontendData.noncombatants || []);
           
-          // Filter out our own character and any non-monsters
-          const monsters = characters.filter((c: any) => 
-            c.stats.isMonster && c.id !== characterId
+          // Filter out monsters from noncombatants
+          const monsters = frontendData.noncombatants.filter((c: any) => 
+            c.stats.isMonster && c.id !== characterIdParam
           );
           
           setCombatants(monsters);
@@ -193,8 +332,44 @@ const GameDemo: React.FC = () => {
             addToCombatLog("This area is safe... for now.");
           }
         }
+      } else {
+        // Fallback to original method if getFrontendData fails
+        // Get info about this area
+        const areaInfo = await getAreaInfo(depth, x, y);
+        setAreaInfo(areaInfo);
+        
+        if (areaInfo) {
+          addToCombatLog(`Area has ${areaInfo.monsterCount} monsters and ${areaInfo.playerCount} players.`);
+        }
+        
+        // Get combat state to see if we're already in combat
+        const combatState = await getAreaCombatState(characterIdParam);
+        
+        if (combatState) {
+          setIsInCombat(combatState.inCombat);
+          
+          if (combatState.inCombat) {
+            addToCombatLog(`You are in combat with ${combatState.combatantCount} enemies!`);
+            setCombatants(combatState.enemies || []);
+          } else {
+            // If not in combat, get all characters in this area
+            const characters = await getCharactersInArea(depth, x, y);
+            
+            // Filter out our own character and any non-monsters
+            const monsters = characters.filter((c: any) => 
+              c.stats.isMonster && c.id !== characterIdParam
+            );
+            
+            setCombatants(monsters);
+            
+            if (monsters.length > 0) {
+              addToCombatLog(`There are ${monsters.length} monsters in this area.`);
+            } else {
+              addToCombatLog("This area is safe... for now.");
+            }
+          }
+        }
       }
-      
     } catch (err) {
       console.error("Error loading area data:", err);
       addToCombatLog(`Error loading area data: ${err instanceof Error ? err.message : String(err)}`);
@@ -242,10 +417,14 @@ const GameDemo: React.FC = () => {
       return;
     }
     
-    if (isMoving) return;
+    // Don't allow movement if we're already moving or loading
+    if (isMoving || loading) return;
     
     try {
       setIsMoving(true);
+      // Flag to prevent reloading character data while moving
+      setLoadingComplete(false);
+      
       addToCombatLog(`Attempting to move ${direction}...`);
       
       // Call the blockchain to move the character
@@ -254,26 +433,72 @@ const GameDemo: React.FC = () => {
       // No need to check receipt, just proceed
       addToCombatLog(`Successfully moved ${direction}!`);
       
-      // Refresh character data to get new position
-      const characterData = await getCharacter(characterId);
-      if (characterData) {
-        setCharacter(characterData);
-        // Update position from character data
+      // Use getFrontendData to refresh all game state at once after movement
+      const frontendData = await getFrontendData(characterId);
+      if (frontendData) {
+        // Update character
+        setCharacter(frontendData.character);
+        
+        // Update position
         const newPos = {
-          x: Number(characterData.stats.x),
-          y: Number(characterData.stats.y),
-          depth: Number(characterData.stats.depth)
+          x: Number(frontendData.character.stats.x),
+          y: Number(frontendData.character.stats.y),
+          depth: Number(frontendData.character.stats.depth)
         };
         setPosition(newPos);
         
-        // Load data for the new area
-        await loadAreaData(characterId, newPos.depth, newPos.x, newPos.y);
+        // Update combatants and area info
+        setCombatants(frontendData.combatants || []);
+        setNoncombatants(frontendData.noncombatants || []);
         
-        // Update movement options
-        const options = await getMovementOptions(characterId);
-        if (options) {
-          setMovementOptions(options);
+        // Set area info from miniMap
+        if (frontendData.miniMap && frontendData.miniMap[2] && frontendData.miniMap[2][2]) {
+          setAreaInfo(frontendData.miniMap[2][2]);
         }
+        
+        // Update combat state
+        const hasActiveCombatants = frontendData.combatants && frontendData.combatants.length > 0;
+        setIsInCombat(hasActiveCombatants);
+        
+        // Construct movement options from miniMap
+        const mapCenter = newPos;
+        setMovementOptions({
+          canMoveNorth: mapCenter.y < 100, // Placeholder logic, replace with actual map bounds
+          canMoveSouth: mapCenter.y > 1,
+          canMoveEast: mapCenter.x < 100,
+          canMoveWest: mapCenter.x > 1,
+          canMoveUp: mapCenter.depth < 10,
+          canMoveDown: mapCenter.depth > 1
+        });
+        
+        // Re-enable the loading complete flag
+        setLoadingComplete(true);
+      } else {
+        // Fallback to original implementation
+        // Refresh character data to get new position
+        const characterData = await getCharacter(characterId);
+        if (characterData) {
+          setCharacter(characterData);
+          // Update position from character data
+          const newPos = {
+            x: Number(characterData.stats.x),
+            y: Number(characterData.stats.y),
+            depth: Number(characterData.stats.depth)
+          };
+          setPosition(newPos);
+          
+          // Load data for the new area
+          await loadAreaData(characterId, newPos.depth, newPos.x, newPos.y);
+          
+          // Update movement options
+          const options = await getMovementOptions(characterId);
+          if (options) {
+            setMovementOptions(options);
+          }
+        }
+        
+        // Re-enable the loading complete flag
+        setLoadingComplete(true);
       }
     } catch (err) {
       console.error(`Error moving ${direction}:`, err);
@@ -285,6 +510,9 @@ const GameDemo: React.FC = () => {
         duration: 5000,
         isClosable: true,
       });
+      
+      // Make sure to reset the loading complete flag even on error
+      setLoadingComplete(true);
     } finally {
       setIsMoving(false);
     }
@@ -292,12 +520,12 @@ const GameDemo: React.FC = () => {
 
   const isDirectionAllowed = (direction: string) => {
     switch (direction) {
-      case 'north': return movementOptions.canMoveNorth;
-      case 'south': return movementOptions.canMoveSouth;
-      case 'east': return movementOptions.canMoveEast;
-      case 'west': return movementOptions.canMoveWest;
-      case 'up': return movementOptions.canMoveUp;
-      case 'down': return movementOptions.canMoveDown;
+      case 'north': return movementOptions?.canMoveNorth;
+      case 'south': return movementOptions?.canMoveSouth;
+      case 'east': return movementOptions?.canMoveEast;
+      case 'west': return movementOptions?.canMoveWest;
+      case 'up': return movementOptions?.canMoveUp;
+      case 'down': return movementOptions?.canMoveDown;
       default: return false;
     }
   };
@@ -595,15 +823,27 @@ const GameDemo: React.FC = () => {
     );
   }
 
-  if (!character) {
+  if (!character && !loading && !hookLoading) {
     return (
       <Center height="100vh" bg="#242938" color="white">
         <VStack spacing={6}>
           <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
           <Heading>No Character Found</Heading>
-          <Text fontSize="lg" color="white">You should be redirected to character creation.</Text>
-          <Button colorScheme="blue" onClick={() => window.location.href = '/create'}>
-            Create Character
+          <Text fontSize="lg" color="white" maxW="600px" textAlign="center" mb={4}>
+            You don't have a character yet. To play Battle Nads, you need to create a character first.
+          </Text>
+          <Text fontSize="md" color="gray.300" maxW="600px" textAlign="center" mb={4}>
+            Characters are stored on the Monad blockchain and associated with your owner wallet address ({injectedWallet?.address?.slice(0, 6)}...{injectedWallet?.address?.slice(-4)}).
+          </Text>
+          <Button 
+            colorScheme="blue" 
+            size="lg"
+            onClick={() => window.location.href = '/character/create'}
+            px={8}
+            py={6}
+            fontSize="lg"
+          >
+            Create Your Character
           </Button>
         </VStack>
       </Center>
@@ -687,9 +927,9 @@ const GameDemo: React.FC = () => {
                   aria-label="Move North" 
                   icon={<ChevronUpIcon boxSize={8} />}
                   onClick={() => handleMove('north')}
-                  isDisabled={isInCombat || !movementOptions.canMoveNorth}
+                  isDisabled={isInCombat || !movementOptions?.canMoveNorth}
                   size="lg"
-                  colorScheme={movementOptions.canMoveNorth && !isInCombat ? "blue" : "gray"}
+                  colorScheme={movementOptions?.canMoveNorth && !isInCombat ? "blue" : "gray"}
                   height="60px"
                 />
                 <HStack spacing={3}>
@@ -697,9 +937,9 @@ const GameDemo: React.FC = () => {
                     aria-label="Move West" 
                     icon={<ChevronLeftIcon boxSize={8} />}
                     onClick={() => handleMove('west')}
-                    isDisabled={isInCombat || !movementOptions.canMoveWest}
+                    isDisabled={isInCombat || !movementOptions?.canMoveWest}
                     size="lg"
-                    colorScheme={movementOptions.canMoveWest && !isInCombat ? "blue" : "gray"}
+                    colorScheme={movementOptions?.canMoveWest && !isInCombat ? "blue" : "gray"}
                     height="60px"
                     width="60px"
                   />
@@ -720,9 +960,9 @@ const GameDemo: React.FC = () => {
                     aria-label="Move East" 
                     icon={<ChevronRightIcon boxSize={8} />}
                     onClick={() => handleMove('east')}
-                    isDisabled={isInCombat || !movementOptions.canMoveEast}
+                    isDisabled={isInCombat || !movementOptions?.canMoveEast}
                     size="lg"
-                    colorScheme={movementOptions.canMoveEast && !isInCombat ? "blue" : "gray"}
+                    colorScheme={movementOptions?.canMoveEast && !isInCombat ? "blue" : "gray"}
                     height="60px"
                     width="60px"
                   />
@@ -731,9 +971,9 @@ const GameDemo: React.FC = () => {
                   aria-label="Move South" 
                   icon={<ChevronDownIcon boxSize={8} />}
                   onClick={() => handleMove('south')}
-                  isDisabled={isInCombat || !movementOptions.canMoveSouth}
+                  isDisabled={isInCombat || !movementOptions?.canMoveSouth}
                   size="lg"
-                  colorScheme={movementOptions.canMoveSouth && !isInCombat ? "blue" : "gray"}
+                  colorScheme={movementOptions?.canMoveSouth && !isInCombat ? "blue" : "gray"}
                   height="60px"
                 />
               </VStack>
@@ -749,8 +989,8 @@ const GameDemo: React.FC = () => {
                 <Button
                   leftIcon={<ChevronUpIcon />}
                   onClick={() => handleMove('up')}
-                  isDisabled={isInCombat || !movementOptions.canMoveUp}
-                  colorScheme={movementOptions.canMoveUp && !isInCombat ? "cyan" : "gray"}
+                  isDisabled={isInCombat || !movementOptions?.canMoveUp}
+                  colorScheme={movementOptions?.canMoveUp && !isInCombat ? "cyan" : "gray"}
                   size="md"
                   width="100px"
                 >
@@ -759,8 +999,8 @@ const GameDemo: React.FC = () => {
                 <Button
                   leftIcon={<ChevronDownIcon />}
                   onClick={() => handleMove('down')}
-                  isDisabled={isInCombat || !movementOptions.canMoveDown}
-                  colorScheme={movementOptions.canMoveDown && !isInCombat ? "cyan" : "gray"}
+                  isDisabled={isInCombat || !movementOptions?.canMoveDown}
+                  colorScheme={movementOptions?.canMoveDown && !isInCombat ? "cyan" : "gray"}
                   size="md"
                   width="100px"
                 >

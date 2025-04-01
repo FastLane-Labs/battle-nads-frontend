@@ -27,7 +27,7 @@ const BattleNadsABI = [
 ];
 
 // Contract address (replace with the actual contract address when deployed)
-export const CONTRACT_ADDRESS = '0xDA7C3498Ec071d736565EcC9595F103E1DC56d42';
+export const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || '0xbD4511F188B606e5a74A62b7b0F516d0139d76D5';
 
 export class BattleNadsContract {
   private contract: ethers.Contract;

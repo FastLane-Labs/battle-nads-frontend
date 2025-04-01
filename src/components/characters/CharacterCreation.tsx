@@ -35,6 +35,7 @@ import {
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import { useBattleNads } from '../../hooks/useBattleNads';
+import { useWallet } from '../../providers/WalletProvider';
 
 interface AttributeInputProps {
   value: number;
@@ -65,6 +66,9 @@ const CharacterCreation: React.FC = () => {
     getCharacterIdByTransactionHash 
   } = useBattleNads();
   
+  // Import the wallet provider to get embedded wallet address
+  const { embeddedWallet, injectedWallet } = useWallet();
+  
   // Check if character already exists and redirect if it does
   useEffect(() => {
     const storedCharacterId = localStorage.getItem('battleNadsCharacterId');
@@ -73,6 +77,19 @@ const CharacterCreation: React.FC = () => {
       router.push('/game');
     }
   }, [router]);
+  
+  // Check if we have both required wallets
+  useEffect(() => {
+    if (!injectedWallet?.address) {
+      console.warn("Owner wallet not connected for character creation");
+    }
+    
+    if (!embeddedWallet?.address) {
+      console.warn("Embedded wallet not available for use as session key");
+    } else {
+      console.log("Embedded wallet (will be used as session key):", embeddedWallet.address);
+    }
+  }, [injectedWallet, embeddedWallet]);
   
   // Check if character was created and redirect to game
   useEffect(() => {
@@ -158,10 +175,34 @@ const CharacterCreation: React.FC = () => {
       return;
     }
     
+    // Check if embedded wallet is available to use as session key
+    if (!embeddedWallet?.address) {
+      toast({
+        title: 'Error',
+        description: 'Session key wallet not available. Please ensure your embedded wallet is connected.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    
+    // Make sure owner wallet is connected
+    if (!injectedWallet?.address) {
+      toast({
+        title: 'Error',
+        description: 'Owner wallet not connected. Please connect your MetaMask wallet.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      return;
+    }
+    
     setIsCreating(true);
     
     try {
-      console.log("Creating character...");
+      console.log("Creating character with session key:", embeddedWallet.address);
       // Call the createCharacter function from the hook
       const characterId = await createCharacter(
         name,
