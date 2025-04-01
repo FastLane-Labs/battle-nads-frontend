@@ -34,7 +34,7 @@ import {
   ModalCloseButton
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
-import { useBattleNads } from '../hooks/useBattleNads';
+import { useBattleNads } from '../../hooks/useBattleNads';
 
 interface AttributeInputProps {
   value: number;

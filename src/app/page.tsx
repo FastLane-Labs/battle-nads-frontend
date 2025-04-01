@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Box } from '@chakra-ui/react';
-import Login from './Login';
+import Login from '../components/auth/Login';
 
 export default function HomePage() {
   return (

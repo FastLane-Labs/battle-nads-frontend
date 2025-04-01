@@ -3,7 +3,7 @@
 import React from 'react';
 import { Box } from '@chakra-ui/react';
 import NavBar from '../../components/NavBar';
-import CharacterCreation from '../CharacterCreation';
+import CharacterCreation from '../../components/characters/CharacterCreation';
 import { useWallet } from '../../providers/WalletProvider';
 import { useRouter } from 'next/navigation';
 
