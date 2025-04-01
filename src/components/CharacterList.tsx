@@ -47,7 +47,7 @@ export const CharacterList: React.FC<CharacterListProps> = ({
     return (
       <Box p={4} borderWidth="1px" borderRadius="lg" bg="gray.800">
         <Flex justify="center" align="center" py={4}>
-          <Spinner mr={2} />
+          <Spinner mr={2} thickness="4px" speed="0.8s" color="blue.500" />
           <Text>Loading characters...</Text>
         </Flex>
       </Box>

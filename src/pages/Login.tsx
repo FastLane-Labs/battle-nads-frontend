@@ -89,8 +89,16 @@ const Login: React.FC = () => {
   // Show loading spinner until we've made initial authentication check
   if (!ready || checkingCharacter || (!initialCheckComplete && authenticated)) {
     return (
-      <Center height="100vh" bg="gray.900">
-        <Spinner size="xl" color="purple.500" thickness="4px" />
+      <Center height="100vh" bg="#242938" color="white">
+        <VStack spacing={6}>
+          <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
+          <Spinner size="xl" thickness="4px" speed="0.8s" color="blue.500" />
+          <Text fontSize="xl" color="white">
+            {!ready ? "Loading authentication..." : 
+             checkingCharacter ? "Checking character data..." : 
+             "Preparing game..."}
+          </Text>
+        </VStack>
       </Center>
     );
   }

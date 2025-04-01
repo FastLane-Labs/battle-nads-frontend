@@ -220,10 +220,14 @@ const CharacterCreation: React.FC = () => {
   
   if (loading || isCreating) {
     return (
-      <Center height="100vh">
-        <VStack spacing={4}>
-          <Spinner size="xl" />
-          <Text>Creating your character on the Monad Testnet...</Text>
+      <Center height="100vh" bg="#242938" color="white">
+        <VStack spacing={6}>
+          <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
+          <Spinner size="xl" thickness="4px" speed="0.8s" color="blue.500" />
+          <Text fontSize="xl" color="white">
+            {isCreating ? "Creating your character on the Monad Testnet..." : 
+             "Loading character data..."}
+          </Text>
         </VStack>
       </Center>
     );

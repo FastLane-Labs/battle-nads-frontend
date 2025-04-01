@@ -2,7 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { RecoilRoot } from 'recoil';
-import { ChakraProvider, ColorModeScript } from '@chakra-ui/react';
+import { ChakraProvider, ColorModeScript, Center, VStack, Heading, Spinner, Text } from '@chakra-ui/react';
 import './index.css';
 import App from './App';
 import Login from './pages/Login';
@@ -13,18 +13,15 @@ import { PrivyAuthProvider } from './providers/PrivyAuthProvider';
 import { WalletProvider } from './providers/WalletProvider';
 import theme from './theme';
 
-// Create a simple loading indicator to test rendering
+// Create a loading indicator that matches the style of other loading screens
 const Loading = () => (
-  <div style={{ 
-    display: 'flex', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
-    height: '100vh',
-    color: 'white',
-    backgroundColor: '#1f2937'
-  }}>
-    <h1>Loading Battle Nads...</h1>
-  </div>
+  <Center height="100vh" bg="#242938" color="white">
+    <VStack spacing={6}>
+      <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
+      <Spinner size="xl" thickness="4px" speed="0.8s" color="blue.500" />
+      <Text fontSize="xl" color="white">Loading game...</Text>
+    </VStack>
+  </Center>
 );
 
 const root = ReactDOM.createRoot(
