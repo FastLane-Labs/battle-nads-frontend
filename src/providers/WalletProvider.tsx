@@ -17,6 +17,7 @@ interface WalletContextValue {
   provider: ethers.BrowserProvider | null;
   loading: boolean;
   error: string | null;
+  sessionKey: string | null;
   connectMetamask: () => Promise<void>;
   connectPrivyEmbedded: () => Promise<void>;
   logout: () => Promise<void>;
@@ -29,6 +30,7 @@ const WalletContext = createContext<WalletContextValue>({
   provider: null,
   loading: false,
   error: null,
+  sessionKey: null,
   connectMetamask: async () => undefined,
   connectPrivyEmbedded: async () => undefined,
   logout: async () => undefined,
@@ -44,6 +46,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionKey, setSessionKey] = useState<string | null>(null);
 
   const desiredChainId = 10143; // Monad Testnet
 
@@ -126,6 +129,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setProvider(embeddedProvider);
       setSigner(theSigner);
       setAddress(userAddress);
+      // Using hardcoded session key for demo
+      setSessionKey("0xD84027d83a2979c2B1072c7311e50e27e6E3f637");
     } catch (err: any) {
       setError(err.message || 'Failed to connect Privy embedded wallet');
     } finally {
@@ -144,6 +149,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setSigner(null);
       setProvider(null);
       setAddress(null);
+      setSessionKey(null);
 
       // Also call the Privy logout if user is authenticated
       if (authenticated) {
@@ -177,6 +183,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setSigner(null);
           setProvider(null);
           setAddress(null);
+          setSessionKey(null);
           setLoading(false);
           return;
         }
@@ -193,6 +200,12 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           : 'embedded';
         
         setCurrentWallet(walletType);
+        
+        // Set session key to the wallet address for embedded wallets
+        if (walletType === 'embedded') {
+          // Using hardcoded session key for demo
+          setSessionKey("0xD84027d83a2979c2B1072c7311e50e27e6E3f637");
+        }
         
         // Try to get ethereum provider
         if (window.ethereum) {
@@ -227,6 +240,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         provider,
         loading,
         error,
+        sessionKey,
         connectMetamask,
         connectPrivyEmbedded,
         logout: handleLogout,

@@ -26,15 +26,16 @@ const NavBar: React.FC = () => {
     currentWallet,
     address,
     logout,
+    sessionKey,
   } = useWallet();
 
   const bgColor = useColorModeValue('gray.800', 'gray.900');
   const borderColor = useColorModeValue('gray.700', 'gray.700');
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string, type: string = 'Address') => {
     navigator.clipboard.writeText(text);
     toast({
-      title: 'Address copied',
+      title: `${type} copied`,
       status: 'success',
       duration: 2000,
       isClosable: true,
@@ -95,6 +96,26 @@ const NavBar: React.FC = () => {
 
         {address ? (
           <HStack spacing={4}>
+            <Tooltip label={`Connected via: ${currentWallet}`} hasArrow placement="bottom">
+              <Badge 
+                colorScheme="purple" 
+                p={1} 
+                cursor={currentWallet === 'embedded' && sessionKey ? 'pointer' : 'default'}
+                onClick={() => currentWallet === 'embedded' && sessionKey && copyToClipboard(sessionKey, 'Session Key')}
+                display="flex"
+                alignItems="center"
+              >
+                {currentWallet === 'metamask' ? 'MetaMask' : currentWallet === 'embedded' && sessionKey ? (
+                  <Tooltip label="Click to copy session key" hasArrow placement="top">
+                    <Flex align="center">
+                      <Text mr={1}>Session Key:</Text>
+                      <Text>{shortenAddress(sessionKey)}</Text>
+                      <CopyIcon ml={1} fontSize="xs" />
+                    </Flex>
+                  </Tooltip>
+                ) : 'none'}
+              </Badge>
+            </Tooltip>
             <Menu>
               <MenuButton
                 as={Button}
@@ -117,11 +138,6 @@ const NavBar: React.FC = () => {
                 <MenuItem onClick={handleLogout}>Logout</MenuItem>
               </MenuList>
             </Menu>
-            <Tooltip label={`Connected via: ${currentWallet}`} hasArrow placement="bottom">
-              <Badge colorScheme="purple" p={1}>
-                {currentWallet === 'metamask' ? 'MetaMask' : currentWallet === 'embedded' ? 'Embedded' : 'none'}
-              </Badge>
-            </Tooltip>
           </HStack>
         ) : (
           <Text fontSize="sm">Not Connected</Text>
