@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { RecoilRoot } from 'recoil';
+import { ChakraProvider, ColorModeScript } from '@chakra-ui/react';
 import './index.css';
 import App from './App';
 import Login from './pages/Login';
@@ -9,6 +10,7 @@ import CharacterCreation from './pages/CharacterCreation';
 import GameDemo from './components/GameDemo';
 import ProtectedRoute from './components/ProtectedRoute';
 import { PrivyAuthProvider } from './providers/PrivyAuthProvider';
+import theme from './theme';
 
 // Create a simple loading indicator to test rendering
 const Loading = () => (
@@ -49,15 +51,18 @@ try {
       
       root.render(
         <React.StrictMode>
+          <ColorModeScript initialColorMode={theme.config.initialColorMode} />
           <PrivyAuthProvider>
             <RecoilRoot>
-              <BrowserRouter>
-                <Routes>
-                  <Route path="/" element={<Login />} />
-                  <Route path="/game" element={<ProtectedRoute><GamePage /></ProtectedRoute>} />
-                  <Route path="/create" element={<ProtectedRoute><CharacterPage /></ProtectedRoute>} />
-                </Routes>
-              </BrowserRouter>
+              <ChakraProvider theme={theme}>
+                <BrowserRouter>
+                  <Routes>
+                    <Route path="/" element={<Login />} />
+                    <Route path="/game" element={<ProtectedRoute><GamePage /></ProtectedRoute>} />
+                    <Route path="/create" element={<ProtectedRoute><CharacterPage /></ProtectedRoute>} />
+                  </Routes>
+                </BrowserRouter>
+              </ChakraProvider>
             </RecoilRoot>
           </PrivyAuthProvider>
         </React.StrictMode>
