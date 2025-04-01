@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+'use client';
+
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import * as ethers from 'ethers';
@@ -64,7 +67,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: chainIdHex }],
           });
-        } catch (switchErr: any) {
+        } catch (
+          /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
+          switchErr: any
+        ) {
           throw new Error(`Please switch to Monad Testnet (chainId: ${desiredChainId}).`);
         }
       }

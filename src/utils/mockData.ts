@@ -1,4 +1,4 @@
-import { BattleNad, GameState, BattleArea, BattleInstance, Character, BattleNadStats, Weapon, Armor, Inventory } from '../utils/types';
+import { BattleNad, GameState, BattleArea, BattleInstance, Character } from '../utils/types';
 
 // Mock character data
 export const mockCharacter: Character = {

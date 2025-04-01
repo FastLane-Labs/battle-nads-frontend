@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Heading, Text, Button, VStack, HStack, Input, Select, FormControl, FormLabel, Grid, GridItem, IconButton, NumberInput, NumberInputField, Flex, Stat, StatLabel, StatNumber, StatHelpText, Image, Center } from '@chakra-ui/react';
+'use client';
+
+import React, { useState } from 'react';
+import { Box, Heading, Text, Button, VStack, HStack, Input, FormControl, FormLabel, Grid, GridItem, IconButton, NumberInput, NumberInputField, Flex, Stat, StatLabel, StatNumber, StatHelpText, Image, Center } from '@chakra-ui/react';
 import { useWallet } from '../providers/WalletProvider';
 import { useBattleNads } from '../hooks/useBattleNads';
 import { CharacterCard } from '../components/CharacterCard';
@@ -11,7 +13,7 @@ const STARTING_STAT_SUM = 32;
 const MIN_STAT_VALUE = 3;
 const STARTING_UNALLOCATED_POINTS = STARTING_STAT_SUM - (6 * MIN_STAT_VALUE); // 14
 
-const Home = () => {
+const CharacterDashboard = () => {
   const { address, connectMetamask } = useWallet();
   const { createCharacter, getCharacter, getCharactersInArea, moveCharacter, attackTarget, loading, error } = useBattleNads();
   
@@ -130,7 +132,7 @@ const Home = () => {
         />
       </Center>
       
-      <Heading as="h1" mb={6} textAlign="center">Create Your BattleNad Character</Heading>
+      <Heading as="h1" mb={6} textAlign="center">Character Dashboard</Heading>
       
       {!address ? (
         <VStack spacing={6}>
@@ -447,4 +449,4 @@ const Home = () => {
   );
 };
 
-export default Home; 
+export default CharacterDashboard; 

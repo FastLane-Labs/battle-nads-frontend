@@ -1,5 +1,7 @@
-import { PrivyProvider } from "@privy-io/react-auth";
-import { ReactNode } from "react";
+'use client';
+
+import React, { ReactNode } from 'react';
+import { PrivyProvider } from '@privy-io/react-auth';
 
 interface PrivyAuthProviderProps {
   children: ReactNode;
@@ -29,11 +31,11 @@ const MONAD_TESTNET_CHAIN = {
 
 export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
   // Try to get the Privy App ID from environment variables, fallback to hardcoded value
-  const appId = import.meta.env.VITE_PRIVY_APP_ID || "cm8slyoyy00f99gvop4024o4m";
+  const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID || "cm8slyoyy00f99gvop4024o4m";
   
   // Hardcoded backup in case .env file doesn't load properly
   if (!appId) {
-    console.warn("Using fallback Privy App ID - preferably set VITE_PRIVY_APP_ID in your environment variables.");
+    console.warn("Using fallback Privy App ID - preferably set NEXT_PUBLIC_PRIVY_APP_ID in your environment variables.");
   }
   
   return (

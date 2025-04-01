@@ -1,147 +1,110 @@
-import { useState } from 'react';
-import {
-  Box,
-  Flex,
-  Text,
-  Button,
-  HStack,
-  Badge,
-  useColorModeValue,
-  Tooltip,
-  Menu,
-  MenuButton,
-  MenuList,
-  MenuItem,
-  MenuDivider,
-  useToast,
-} from '@chakra-ui/react';
-import { ChevronDownIcon, CopyIcon } from '@chakra-ui/icons';
-import { useNavigate } from 'react-router-dom';
+'use client';
+
+import React from 'react';
+import { Box, Flex, Button, HStack, Text, useColorMode } from '@chakra-ui/react';
+import { MoonIcon, SunIcon } from '@chakra-ui/icons';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useWallet } from '../providers/WalletProvider';
 
 const NavBar: React.FC = () => {
-  const navigate = useNavigate();
-  const toast = useToast();
-  const {
-    currentWallet,
-    address,
-    logout,
-    sessionKey,
-  } = useWallet();
+  const { colorMode, toggleColorMode } = useColorMode();
+  const { address, connectMetamask, logout } = useWallet();
+  const pathname = usePathname();
 
-  const bgColor = useColorModeValue('gray.800', 'gray.900');
-  const borderColor = useColorModeValue('gray.700', 'gray.700');
-
-  const copyToClipboard = (text: string, type: string = 'Address') => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: `${type} copied`,
-      status: 'success',
-      duration: 2000,
-      isClosable: true,
-      position: 'top',
-    });
-  };
-
-  const shortenAddress = (addr: string) => {
-    return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
-  };
-
-  const handleLogout = async () => {
-    try {
-      // Clear local storage for character
-      localStorage.removeItem('battleNadsCharacterId');
-      await logout();
-      navigate('/');
-      toast({
-        title: 'Logged out successfully',
-        status: 'success',
-        duration: 2000,
-        isClosable: true,
-        position: 'top',
-      });
-    } catch (error) {
-      console.error('Logout failed:', error);
-      toast({
-        title: 'Logout failed',
-        status: 'error',
-        duration: 2000,
-        isClosable: true,
-        position: 'top',
-      });
-    }
-  };
-
+  const isActive = (path: string) => pathname === path;
+  
   return (
     <Box
-      as="nav"
       position="fixed"
+      as="nav"
       w="100%"
+      bg={colorMode === 'dark' ? 'gray.800' : 'white'}
+      boxShadow="md"
       zIndex={10}
-      bg={bgColor}
-      borderBottom="1px"
-      borderColor={borderColor}
-      px={4}
-      py={2}
     >
-      <Flex justify="space-between" align="center" maxW="1200px" mx="auto">
-        <Text
-          fontWeight="bold"
-          fontSize="xl"
-          cursor="pointer"
-          onClick={() => navigate('/game')}
-        >
-          Battle Nads
-        </Text>
+      <Flex
+        h={16}
+        alignItems="center"
+        justifyContent="space-between"
+        maxW="7xl"
+        mx="auto"
+        px={4}
+      >
+        <HStack spacing={8} alignItems="center">
+          <Box fontWeight="bold" fontSize="xl">
+            <Link href="/">
+              <Text cursor="pointer">Battle-Nads</Text>
+            </Link>
+          </Box>
 
-        {address ? (
-          <HStack spacing={4}>
-            <Tooltip label={`Connected via: ${currentWallet}`} hasArrow placement="bottom">
-              <Badge 
-                colorScheme="purple" 
-                p={1} 
-                cursor={currentWallet === 'embedded' && sessionKey ? 'pointer' : 'default'}
-                onClick={() => currentWallet === 'embedded' && sessionKey && copyToClipboard(sessionKey, 'Session Key')}
-                display="flex"
-                alignItems="center"
-              >
-                {currentWallet === 'metamask' ? 'MetaMask' : currentWallet === 'embedded' && sessionKey ? (
-                  <Tooltip label="Click to copy session key" hasArrow placement="top">
-                    <Flex align="center">
-                      <Text mr={1}>Session Key:</Text>
-                      <Text>{shortenAddress(sessionKey)}</Text>
-                      <CopyIcon ml={1} fontSize="xs" />
-                    </Flex>
-                  </Tooltip>
-                ) : 'none'}
-              </Badge>
-            </Tooltip>
-            <Menu>
-              <MenuButton
-                as={Button}
-                size="sm"
-                rightIcon={<ChevronDownIcon />}
-                colorScheme="blue"
-                variant="outline"
-              >
-                {shortenAddress(address)}
-              </MenuButton>
-              <MenuList>
-                <MenuItem onClick={() => copyToClipboard(address)}>
-                  <HStack>
-                    <CopyIcon />
-                    <Text>Copy Address</Text>
-                  </HStack>
-                </MenuItem>
+          {address && (
+            <HStack as="nav" spacing={4} display={{ base: 'none', md: 'flex' }}>
+              <Link href="/character">
+                <Text
+                  px={2}
+                  py={1}
+                  rounded="md"
+                  fontWeight={isActive('/character') ? 'bold' : 'normal'}
+                  bg={isActive('/character') ? 'blue.500' : 'transparent'}
+                  color={isActive('/character') ? 'white' : undefined}
+                  _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
+                  cursor="pointer"
+                >
+                  Character Dashboard
+                </Text>
+              </Link>
+              <Link href="/create">
+                <Text
+                  px={2}
+                  py={1}
+                  rounded="md"
+                  fontWeight={isActive('/create') ? 'bold' : 'normal'}
+                  bg={isActive('/create') ? 'blue.500' : 'transparent'}
+                  color={isActive('/create') ? 'white' : undefined}
+                  _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
+                  cursor="pointer"
+                >
+                  Create Character
+                </Text>
+              </Link>
+              <Link href="/game">
+                <Text
+                  px={2}
+                  py={1}
+                  rounded="md"
+                  fontWeight={isActive('/game') ? 'bold' : 'normal'}
+                  bg={isActive('/game') ? 'blue.500' : 'transparent'}
+                  color={isActive('/game') ? 'white' : undefined}
+                  _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
+                  cursor="pointer"
+                >
+                  Game
+                </Text>
+              </Link>
+            </HStack>
+          )}
+        </HStack>
 
-                <MenuDivider />
-                <MenuItem onClick={handleLogout}>Logout</MenuItem>
-              </MenuList>
-            </Menu>
-          </HStack>
-        ) : (
-          <Text fontSize="sm">Not Connected</Text>
-        )}
+        <HStack spacing={2}>
+          <Button onClick={toggleColorMode} size="sm">
+            {colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
+          </Button>
+          {!address ? (
+            <Button colorScheme="blue" size="sm" onClick={connectMetamask}>
+              Connect Wallet
+            </Button>
+          ) : (
+            <HStack>
+              <Text fontSize="sm">
+                {`${address.slice(0, 6)}...${address.slice(-4)}`}
+              </Text>
+              <Button colorScheme="red" size="sm" onClick={logout}>
+                Disconnect
+              </Button>
+            </HStack>
+          )}
+        </HStack>
       </Flex>
     </Box>
   );
