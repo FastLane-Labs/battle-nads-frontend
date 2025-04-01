@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Box, Heading, Button, Center, VStack, Text, Image, Icon, Spinner } from '@chakra-ui/react';
+import { Box, Button, Center, VStack, Spinner, Icon, Text } from '@chakra-ui/react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
 import { useBattleNads } from '../hooks/useBattleNads';
@@ -18,6 +18,16 @@ const Login: React.FC = () => {
   const [checkingCharacter, setCheckingCharacter] = useState(false);
   const [initialCheckComplete, setInitialCheckComplete] = useState(false);
 
+  // Debug loading states
+  useEffect(() => {
+    console.log("Loading states:", { 
+      privyReady: ready, 
+      authenticated, 
+      checkingCharacter,
+      initialCheckComplete 
+    });
+  }, [ready, authenticated, checkingCharacter, initialCheckComplete]);
+
   // Use the Privy wallets information to set up our wallet provider
   useEffect(() => {
     if (ready && authenticated && walletsReady && wallets.length > 0 && !address) {
@@ -25,6 +35,13 @@ const Login: React.FC = () => {
       console.log("Wallet is connected via Privy:", wallets[0].address);
     }
   }, [ready, authenticated, walletsReady, wallets, address]);
+
+  // Make sure initial check is completed even if not authenticated
+  useEffect(() => {
+    if (ready && !initialCheckComplete) {
+      setInitialCheckComplete(true);
+    }
+  }, [ready, initialCheckComplete]);
 
   // Check if user has a character directly using the contract function
   useEffect(() => {
@@ -35,23 +52,10 @@ const Login: React.FC = () => {
           setCheckingCharacter(true);
           console.log("Checking for character using EOA address:", user.wallet.address);
           
-          // Use the direct contract call to check if this EOA has a character
-          const characterID = await getPlayerCharacterID(user.wallet.address);
-          
-          if (characterID) {
-            console.log("Found character ID:", characterID);
-            // Character exists, go to game
-            router.push('/game');
-          } else {
-            console.log("No character found, redirecting to character creation");
-            // No character, go to character creation
-            router.push('/create');
-          }
+          // After login, always go to dashboard which will handle redirects
+          router.push('/dashboard');
         } catch (error) {
-          console.error("Error checking character:", error);
-          // If there's an error, default to character creation
-          router.push('/create');
-        } finally {
+          console.error("Error after authentication:", error);
           setCheckingCharacter(false);
           setInitialCheckComplete(true);
         }
@@ -67,13 +71,13 @@ const Login: React.FC = () => {
     if (ready) {
       checkCharacter();
     }
-  }, [authenticated, ready, router, user, getPlayerCharacterID]);
+  }, [authenticated, ready, router, user]);
 
   // Also check if characterId exists in state, but only if authenticated
   useEffect(() => {
     if (authenticated && characterId) {
-      console.log("Character ID found in state, redirecting to game");
-      router.push('/game');
+      console.log("Character ID found in state, redirecting to dashboard");
+      router.push('/dashboard');
     }
   }, [characterId, router, authenticated]);
 
@@ -88,8 +92,8 @@ const Login: React.FC = () => {
     // Redirect will happen in the useEffect above
   };
 
-  // Show loading spinner until we've made initial authentication check
-  if (!ready || checkingCharacter || (!initialCheckComplete && authenticated)) {
+  // Simplified loading check - only show spinner when we're actively checking character
+  if (checkingCharacter) {
     return (
       <Center height="100vh" bg="gray.900">
         <Spinner size="xl" color="purple.500" thickness="4px" />
@@ -109,8 +113,6 @@ const Login: React.FC = () => {
         borderColor="gray.700"
       >
         <VStack align="center" spacing={6}>
-          <Heading as="h1" size="xl" color="white">Battle Nads</Heading>
-          <Heading as="h2" size="md" color="gray.300">Login to continue</Heading>
           <Button 
             colorScheme="purple" 
             size="lg" 
@@ -130,6 +132,8 @@ const Login: React.FC = () => {
               transform: "translateY(0)",
             }}
             leftIcon={<Icon as={FaEthereum} boxSize={5} />}
+            isLoading={!ready}
+            loadingText="Loading..."
           >
             Connect Evm Wallet
           </Button>
