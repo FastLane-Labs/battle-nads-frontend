@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { usePrivy } from '@privy-io/react-auth';
 import { useBattleNads } from '../hooks/useBattleNads';
-import { Spinner, Center, VStack, Text } from '@chakra-ui/react';
+import LoadingScreen from './LoadingScreen';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -37,12 +37,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   if (!ready || isLoading) {
     return (
-      <Center height="100vh">
-        <VStack spacing={4}>
-          <Spinner size="xl" />
-          <Text>Loading...</Text>
-        </VStack>
-      </Center>
+      <LoadingScreen 
+        message={
+          location.pathname === '/game' 
+            ? "Loading your character..." 
+            : "Checking authentication status..."
+        } 
+      />
     );
   }
 

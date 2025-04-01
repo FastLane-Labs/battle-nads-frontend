@@ -6,7 +6,6 @@ import {
   VStack, 
   HStack,
   Text, 
-  Spinner, 
   Grid, 
   GridItem,
   Badge,
@@ -24,22 +23,12 @@ import {
   Flex,
   Container,
   Code,
-  Link
+  Link,
+  Spinner
 } from '@chakra-ui/react';
 import { usePrivy } from '@privy-io/react-auth';
 import { useBattleNads } from '../hooks/useBattleNads';
 import { ChevronUpIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
-import { ExternalLinkIcon } from '@chakra-ui/icons';
-
-// Add types for error detection
-interface CSPError extends Error {
-  message: string;
-  // Properties present in CSP violation errors
-  target?: {
-    outerHTML?: string;
-  };
-}
-
 interface Combatant {
   id: string;
   stats: any;
