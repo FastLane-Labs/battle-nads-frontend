@@ -10,7 +10,7 @@ interface ProtectedRouteProps {
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { authenticated, ready, user } = usePrivy();
-  const { getPlayerCharacters } = useBattleNads();
+  const { getPlayerCharacterID } = useBattleNads();
   const [isLoading, setIsLoading] = useState(true);
   const [hasCharacter, setHasCharacter] = useState<boolean | null>(null);
   const location = useLocation();
@@ -19,8 +19,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     const checkCharacter = async () => {
       if (ready && authenticated && user?.wallet?.address) {
         try {
-          const characters = await getPlayerCharacters(user.wallet.address);
-          setHasCharacter(characters && characters.length > 0);
+          const characterID = await getPlayerCharacterID(user.wallet.address);
+          setHasCharacter(!!characterID);
         } catch (error) {
           console.error("Error checking character:", error);
           setHasCharacter(false);
@@ -33,7 +33,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     };
 
     checkCharacter();
-  }, [ready, authenticated, user, getPlayerCharacters]);
+  }, [ready, authenticated, user, getPlayerCharacterID]);
 
   if (!ready || isLoading) {
     return (

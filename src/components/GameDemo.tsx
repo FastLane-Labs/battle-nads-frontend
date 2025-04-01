@@ -21,16 +21,20 @@ import { useBattleNads } from '../hooks/useBattleNads';
 
 const GameDemo: React.FC = () => {
   const { user } = usePrivy();
-  const { getPlayerCharacters, loading, error } = useBattleNads();
+  const { getPlayerCharacterID, getCharacter, loading, error } = useBattleNads();
   const [character, setCharacter] = useState<any>(null);
 
   useEffect(() => {
     const fetchCharacter = async () => {
       if (user?.wallet?.address) {
         try {
-          const characters = await getPlayerCharacters(user.wallet.address);
-          if (characters && characters.length > 0) {
-            setCharacter(characters[0]);
+          const characterId = await getPlayerCharacterID(user.wallet.address);
+          
+          if (characterId) {
+            const characterData = await getCharacter(characterId);
+            if (characterData) {
+              setCharacter(characterData);
+            }
           }
         } catch (err) {
           console.error("Error fetching character:", err);
@@ -39,7 +43,7 @@ const GameDemo: React.FC = () => {
     };
 
     fetchCharacter();
-  }, [user, getPlayerCharacters]);
+  }, [user, getPlayerCharacterID, getCharacter]);
 
   if (loading) {
     return (

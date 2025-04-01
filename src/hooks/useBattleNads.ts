@@ -345,11 +345,114 @@ export const useBattleNads = () => {
     }
   }, [getReadOnlyProvider]);
 
+  // Add debugging for errors
+  const getCharacterIdByTransactionHash = useCallback(async (txHash: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const provider = getReadOnlyProvider();
+      
+      // Get transaction receipt
+      console.log(`Fetching receipt for transaction: ${txHash}`);
+      const receipt = await provider.getTransactionReceipt(txHash);
+      
+      if (!receipt) {
+        throw new Error("Transaction receipt not found");
+      }
+      
+      console.log("Transaction receipt:", receipt);
+      
+      // Try to find the character ID from the logs
+      let foundCharacterId: string | null = null;
+      
+      try {
+        // Try to parse logs for CharacterCreated event
+        const topic = ethers.id("CharacterCreated(bytes32,address)");
+        console.log("Looking for topic:", topic);
+        
+        const log = receipt.logs.find(log => {
+          console.log("Log topic:", log.topics[0]);
+          return log.topics[0] === topic;
+        });
+        
+        if (log) {
+          console.log("Found matching log:", log);
+          const topics = log.topics;
+          
+          // Parse the event data
+          foundCharacterId = ethers.zeroPadValue(topics[1], 32);
+          console.log("Character ID from event:", foundCharacterId);
+        } else {
+          console.log("No matching log found with topic:", topic);
+          console.log("Available logs:", receipt.logs);
+        }
+      } catch (logError) {
+        console.warn("Could not parse CharacterCreated event:", logError);
+      }
+      
+      if (foundCharacterId) {
+        // Store character ID in local state and localStorage
+        setCharacterId(foundCharacterId);
+        localStorage.setItem('battleNadsCharacterId', foundCharacterId);
+      }
+      
+      return foundCharacterId;
+    } catch (err: any) {
+      console.error("Error getting character ID by transaction hash:", err);
+      setError(err.message || "Error getting character ID");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getReadOnlyProvider]);
+
+  // Check if an address has a character ID
+  const getPlayerCharacterID = useCallback(async (ownerAddress: string) => {
+    try {
+      const provider = getReadOnlyProvider();
+      
+      // Create a contract instance for the Getters contract
+      const gettersContract = new ethers.Contract(
+        ENTRYPOINT_ADDRESS, // Same address as entrypoint
+        ["function getPlayerCharacterID(address owner) external view returns (bytes32 characterID)"],
+        provider
+      );
+      
+      console.log(`Checking if address ${ownerAddress} has a character ID...`);
+      
+      // Call the getPlayerCharacterID function
+      const characterID = await gettersContract.getPlayerCharacterID(ownerAddress);
+      
+      console.log(`Result for ${ownerAddress}:`, characterID);
+      
+      // Check if the character ID is a zero bytes32 value (indicating no character)
+      const isZeroBytes32 = characterID === '0x0000000000000000000000000000000000000000000000000000000000000000';
+      
+      if (isZeroBytes32) {
+        console.log(`Address ${ownerAddress} has no character ID`);
+        return null;
+      }
+      
+      // Store the character ID
+      setCharacterId(characterID);
+      localStorage.setItem('battleNadsCharacterId', characterID);
+      
+      return characterID;
+    } catch (err: any) {
+      console.error(`Error checking character ID for ${ownerAddress}:`, err);
+      // If the function reverts, it probably means there's no character
+      return null;
+    }
+  }, [getReadOnlyProvider]);
+
   return {
     createCharacter,
     getCharacter,
     getCharactersInArea,
     getPlayerCharacters,
+    getCharacterIdByTransactionHash,
+    getPlayerCharacterID,
     loading,
     error,
     characterId,
