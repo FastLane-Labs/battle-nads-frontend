@@ -17,7 +17,7 @@ export default defineConfig({
       'Cross-Origin-Embedder-Policy': 'credentialless',
       'Cross-Origin-Opener-Policy': 'same-origin',
       'Cross-Origin-Resource-Policy': 'cross-origin',
-      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://rpc-testnet.monadinfra.com https://*.privy.io; img-src 'self' data: https://*.privy.io; frame-src 'self' https://*.privy.io;",
+      'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://rpc-testnet.monadinfra.com https://*.privy.io https://*.walletconnect.com https://*.walletconnect.org; img-src 'self' data: https://*.privy.io; frame-src 'self' https://*.privy.io https://*.walletconnect.com https://*.walletconnect.org;",
     }
   }
 }); 
