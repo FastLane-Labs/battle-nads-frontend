@@ -33,8 +33,15 @@ import {
   ModalBody, 
   ModalCloseButton
 } from '@chakra-ui/react';
-import { useNavigate } from 'react-router-dom';
+import { useRouter } from 'next/navigation';
 import { useBattleNads } from '../hooks/useBattleNads';
+
+interface AttributeInputProps {
+  value: number;
+  onChange: (val: number) => void;
+  label: string;
+  isDisabled?: boolean;
+}
 
 const CharacterCreation: React.FC = () => {
   const [name, setName] = useState('');
@@ -47,7 +54,7 @@ const CharacterCreation: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
   
-  const navigate = useNavigate();
+  const router = useRouter();
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
   const { 
@@ -63,17 +70,17 @@ const CharacterCreation: React.FC = () => {
     const storedCharacterId = localStorage.getItem('battleNadsCharacterId');
     if (storedCharacterId) {
       console.log("Found existing character, redirecting to game:", storedCharacterId);
-      navigate('/game');
+      router.push('/game');
     }
-  }, [navigate]);
+  }, [router]);
   
   // Check if character was created and redirect to game
   useEffect(() => {
     if (characterId) {
       console.log("Character ID found, redirecting to game:", characterId);
-      navigate('/game');
+      router.push('/game');
     }
-  }, [characterId, navigate]);
+  }, [characterId, router]);
   
   const MIN_STAT_VALUE = 3;
   const TOTAL_POINTS = 32;
@@ -201,7 +208,7 @@ const CharacterCreation: React.FC = () => {
     }
   };
   
-  const AttributeInput = ({ value, onChange, label, isDisabled = false }) => (
+  const AttributeInput = ({ value, onChange, label, isDisabled = false }: AttributeInputProps) => (
     <FormControl>
       <FormLabel>{label}</FormLabel>
       <NumberInput 
@@ -234,7 +241,7 @@ const CharacterCreation: React.FC = () => {
   return (
     <Center height="100vh">
       <Box p={8} maxWidth="500px" borderWidth={1} borderRadius="lg" boxShadow="lg">
-        <VStack spacing={6}>
+        <VStack spacing={4}>
           <Image 
             src="/BattleNadsLogo.png" 
             alt="Battle Nads Logo"
