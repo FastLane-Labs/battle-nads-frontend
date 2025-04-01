@@ -15,6 +15,7 @@ const Login: React.FC = () => {
   // Check if user has a character directly using the contract function
   useEffect(() => {
     const checkCharacter = async () => {
+      // Only proceed if the user is authenticated and has a wallet
       if (ready && authenticated && user?.wallet?.address) {
         try {
           setCheckingCharacter(true);
@@ -39,19 +40,24 @@ const Login: React.FC = () => {
         } finally {
           setCheckingCharacter(false);
         }
+      } else if (ready && !authenticated) {
+        // If user is not authenticated, make sure we stay on the login page
+        // and clear any loading state
+        setCheckingCharacter(false);
+        console.log("User not authenticated, showing login page");
       }
     };
 
     checkCharacter();
   }, [authenticated, ready, navigate, user, getPlayerCharacterID]);
 
-  // Also check if characterId exists in state
+  // Also check if characterId exists in state, but only if authenticated
   useEffect(() => {
-    if (characterId) {
+    if (authenticated && characterId) {
       console.log("Character ID found in state, redirecting to game");
       navigate('/game');
     }
-  }, [characterId, navigate]);
+  }, [characterId, navigate, authenticated]);
 
   const handleLogin = () => {
     // Only attempt login if not already authenticated
