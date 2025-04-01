@@ -61,7 +61,6 @@ interface CharacterCreatedEvent {
 }
 
 export const useBattleNads = () => {
-  const privy = usePrivy();
   const { currentWallet, signer, provider, address } = useWallet();
 
   const [loading, setLoading] = useState(false);

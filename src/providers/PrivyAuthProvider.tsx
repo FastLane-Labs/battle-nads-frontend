@@ -29,7 +29,7 @@ const MONAD_TESTNET_CHAIN = {
 
 export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
   // Try to get the Privy App ID from environment variables, fallback to hardcoded value
-  const appId = import.meta.env.VITE_PRIVY_APP_ID || "cm8slyoyy00f99gvop4024o4m";
+  const appId = import.meta.env.VITE_PRIVY_APP_ID;
   
   // Hardcoded backup in case .env file doesn't load properly
   if (!appId) {
@@ -40,7 +40,7 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
     <PrivyProvider
       appId={appId}
       config={{
-        loginMethods: ["wallet"],
+        loginMethods: ["wallet", "email"],
         embeddedWallets: {
           createOnLogin: 'all-users',
         },

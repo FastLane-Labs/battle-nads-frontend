@@ -15,6 +15,8 @@ const Login: React.FC = () => {
   const { address, loading: walletLoading } = useWallet();
   const [checkingCharacter, setCheckingCharacter] = useState(false);
   const [initialCheckComplete, setInitialCheckComplete] = useState(false);
+  // Add a state to prevent multiple redirects
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   // Use the Privy wallets information to set up our wallet provider
   useEffect(() => {
@@ -28,7 +30,8 @@ const Login: React.FC = () => {
   useEffect(() => {
     const checkCharacter = async () => {
       // Only proceed if the user is authenticated and has a wallet
-      if (ready && authenticated && user?.wallet?.address) {
+      if (ready && authenticated && user?.wallet?.address && !isRedirecting) {
+        console.log("User wallet address:", user.wallet.address);
         try {
           setCheckingCharacter(true);
           console.log("Checking for character using EOA address:", user.wallet.address);
@@ -39,15 +42,18 @@ const Login: React.FC = () => {
           if (characterID) {
             console.log("Found character ID:", characterID);
             // Character exists, go to game
+            setIsRedirecting(true);
             navigate('/game');
           } else {
             console.log("No character found, redirecting to character creation");
             // No character, go to character creation
+            setIsRedirecting(true);
             navigate('/create');
           }
         } catch (error) {
           console.error("Error checking character:", error);
           // If there's an error, default to character creation
+          setIsRedirecting(true);
           navigate('/create');
         } finally {
           setCheckingCharacter(false);
@@ -65,15 +71,16 @@ const Login: React.FC = () => {
     if (ready) {
       checkCharacter();
     }
-  }, [authenticated, ready, navigate, user, getPlayerCharacterID]);
+  }, [authenticated, ready, navigate, user, getPlayerCharacterID, isRedirecting]);
 
   // Also check if characterId exists in state, but only if authenticated
   useEffect(() => {
-    if (authenticated && characterId) {
+    if (authenticated && characterId && !isRedirecting) {
       console.log("Character ID found in state, redirecting to game");
+      setIsRedirecting(true);
       navigate('/game');
     }
-  }, [characterId, navigate, authenticated]);
+  }, [characterId, navigate, authenticated, isRedirecting]);
 
   const handleLogin = () => {
     // Only attempt login if not already authenticated

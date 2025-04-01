@@ -73,40 +73,8 @@ const GameDemo: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [characterId, setCharacterId] = useState<string | null>(null);
   const [areaInfo, setAreaInfo] = useState<any>(null);
-  const [privyError, setPrivyError] = useState<boolean>(false);
-  const [cspError, setCspError] = useState<boolean>(false);
   
   const toast = useToast();
-
-  // Monitor for CSP errors
-  useEffect(() => {
-    const handleError = (event: ErrorEvent) => {
-      const errorMsg = event.message || '';
-      if (
-        errorMsg.includes('Content Security Policy') ||
-        errorMsg.includes('CSP') ||
-        errorMsg.includes('Refused to connect')
-      ) {
-        console.warn("CSP error detected:", errorMsg);
-        setCspError(true);
-      }
-    };
-
-    window.addEventListener('error', handleError);
-    return () => window.removeEventListener('error', handleError);
-  }, []);
-
-  // Handle Privy authentication errors
-  useEffect(() => {
-    const checkPrivyStatus = setTimeout(() => {
-      if (!address && !loading) {
-        console.warn("Privy authentication may have failed to load properly");
-        setPrivyError(true);
-      }
-    }, 8000); // Wait 8 seconds to see if authentication completes
-
-    return () => clearTimeout(checkPrivyStatus);
-  }, [address, loading]);
 
   // Initial load of character data
   useEffect(() => {
@@ -461,98 +429,6 @@ const GameDemo: React.FC = () => {
   const isAdjacentPosition = (x: number, y: number) => {
     return Math.abs(x - position.x) <= 1 && Math.abs(y - position.y) <= 1;
   };
-
-  // Handle Content Security Policy error
-  if (cspError) {
-    return (
-      <Center height="100vh" bg="#242938" color="white">
-        <VStack spacing={6} maxWidth="600px" p={6}>
-          <Heading as="h2" size="lg" color="red.400" mb={2}>Content Security Policy Error</Heading>
-          
-          <Alert status="error" borderRadius="md" color="black">
-            <AlertIcon />
-            <Box>
-              <AlertTitle>WalletConnect Communication Blocked</AlertTitle>
-              <AlertDescription>
-                Your browser is blocking connections to WalletConnect services due to Content Security Policy restrictions.
-              </AlertDescription>
-            </Box>
-          </Alert>
-          
-          <Box bg="#1a1f2c" p={5} borderRadius="md" w="100%">
-            <Text color="white" fontWeight="bold" mb={2}>How to fix this issue:</Text>
-            <VStack align="start" spacing={3} color="white">
-              <Text>1. The server needs to be configured to allow connections to WalletConnect domains.</Text>
-              <Text>2. Until then, you can try these options to connect:</Text>
-              <Box pl={4}>
-                <VStack align="start" spacing={2}>
-                  <Text>• Use email login instead of wallet connection</Text>
-                  <Text>• Try a different browser</Text>
-                  <Text>• Disable any content blocking extensions</Text>
-                </VStack>
-              </Box>
-              <Divider borderColor="gray.600" />
-              <Text fontWeight="bold">For Developers:</Text>
-              <Code p={3} borderRadius="md" fontSize="sm" bg="#333" color="white" width="100%">
-                Add WalletConnect domains to your CSP:<br/>
-                https://*.walletconnect.com<br/>
-                https://*.walletconnect.org
-              </Code>
-            </VStack>
-          </Box>
-          
-          <HStack spacing={4} width="100%">
-            <Button colorScheme="blue" onClick={() => window.location.reload()} size="lg" width="50%">
-              Refresh Page
-            </Button>
-            <Button 
-              colorScheme="green" 
-              onClick={() => window.location.href = '/login'} 
-              size="lg" 
-              width="50%"
-            >
-              Back to Login
-            </Button>
-          </HStack>
-        </VStack>
-      </Center>
-    );
-  }
-
-  // Handle Privy authentication error
-  if (privyError) {
-    return (
-      <Center height="100vh" bg="#242938" color="white">
-        <VStack spacing={6} maxWidth="600px" p={6}>
-          <Heading as="h2" size="lg" color="red.400" mb={2}>Authentication Error</Heading>
-          
-          <Alert status="error" borderRadius="md" color="black">
-            <AlertIcon />
-            <Box>
-              <AlertTitle>Privy Authentication Failed</AlertTitle>
-              <AlertDescription>
-                The authentication service failed to load properly. This may be due to network issues or browser security settings.
-              </AlertDescription>
-            </Box>
-          </Alert>
-          
-          <Box bg="#1a1f2c" p={5} borderRadius="md" w="100%">
-            <Text color="white" fontWeight="bold" mb={2}>Please try these solutions:</Text>
-            <VStack align="start" spacing={2} color="white">
-              <Text>• Disable ad blockers or security extensions</Text>
-              <Text>• Allow third-party cookies in your browser</Text>
-              <Text>• Try a different browser</Text>
-              <Text>• Check your internet connection</Text>
-            </VStack>
-          </Box>
-          
-          <Button colorScheme="blue" onClick={() => window.location.reload()} size="lg" width="100%">
-            Refresh Page
-          </Button>
-        </VStack>
-      </Center>
-    );
-  }
 
   if (loading || hookLoading || isMoving || isAttacking) {
     return (

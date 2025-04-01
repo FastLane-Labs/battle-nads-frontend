@@ -18,6 +18,7 @@ interface WalletContextValue {
   loading: boolean;
   error: string | null;
   sessionKey: string | null;
+  wallets: any[];
   connectMetamask: () => Promise<void>;
   connectPrivyEmbedded: () => Promise<void>;
   logout: () => Promise<void>;
@@ -31,6 +32,7 @@ const WalletContext = createContext<WalletContextValue>({
   loading: false,
   error: null,
   sessionKey: null,
+  wallets: [],
   connectMetamask: async () => undefined,
   connectPrivyEmbedded: async () => undefined,
   logout: async () => undefined,
@@ -117,26 +119,15 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       // This triggers the embedded wallet flow
       await privyConnectWallet({ connector: 'embedded' } as any);
-
-      // Now, window.ethereum should be the embedded wallet provider
-      const embeddedProvider = new ethers.BrowserProvider(window.ethereum as any);
-      await checkAndSwitchChain(embeddedProvider);
-
-      const theSigner = await embeddedProvider.getSigner();
-      const userAddress = await theSigner.getAddress();
-
-      setCurrentWallet('embedded');
-      setProvider(embeddedProvider);
-      setSigner(theSigner);
-      setAddress(userAddress);
-      // Using hardcoded session key for demo
-      setSessionKey("0xD84027d83a2979c2B1072c7311e50e27e6E3f637");
+      
+      // After connecting, we'll let the useEffect handle the wallet setup
+      // since Privy will update the wallets array with the new embedded wallet
+      
     } catch (err: any) {
       setError(err.message || 'Failed to connect Privy embedded wallet');
-    } finally {
       setLoading(false);
     }
-  }, [authenticated, user, privyConnectWallet, checkAndSwitchChain]);
+  }, [authenticated, user, privyConnectWallet]);
 
   /**
    * Logout from Privy (if authenticated) and clear wallet states.
@@ -162,23 +153,56 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [authenticated, privyLogout]);
 
+  // Setup a wallet using provider and address
+  const setupWallet = useCallback(async (walletProvider: any, walletAddress: string, walletType: WalletType) => {
+    try {
+      const ethProvider = new ethers.BrowserProvider(walletProvider);
+      await checkAndSwitchChain(ethProvider);
+      const walletSigner = await ethProvider.getSigner();
+      
+      setCurrentWallet(walletType);
+      setProvider(ethProvider);
+      setSigner(walletSigner);
+      setAddress(walletAddress);
+      
+      // Set session key for embedded wallets
+      if (walletType === 'embedded') {
+        try {
+          // For embedded wallets, the session key is the wallet address itself in this implementation
+          // In a real implementation, we would get this from a smart contract or backend
+          setSessionKey(walletAddress);
+        } catch (err) {
+          console.error('Error getting session key:', err);
+        }
+      }
+    } catch (err) {
+      console.error('Error setting up wallet:', err);
+      // Don't clear address - we still want to show the connected wallet
+      // even if we can't get the signer
+    }
+  }, [checkAndSwitchChain]);
+
   // Automatically detect and sync with Privy wallets
   useEffect(() => {
     const syncWithPrivyWallets = async () => {
       try {
-        // Wait until wallets are ready and we have authentication
+        // Only proceed if we have wallets ready and authentication
         if (!walletsReady || !authenticated) {
+          if (!walletsReady) {
+            console.log("Waiting for wallets to be ready...");
+          }
+          if (!authenticated) {
+            console.log("User not authenticated");
+            setLoading(false);
+          }
           return;
         }
         
-        // If we already have an address set, no need to re-sync
-        if (address) {
-          setLoading(false);
-          return;
-        }
+        console.log("Syncing with wallets:", wallets);
         
         // If we have no wallets connected, clear state and return
         if (wallets.length === 0) {
+          console.log("No wallets connected");
           setCurrentWallet('none');
           setSigner(null);
           setProvider(null);
@@ -188,37 +212,31 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return;
         }
         
-        // Get the first connected wallet
-        const activeWallet = wallets[0];
+        // Prioritize embedded wallet if available, otherwise use the first injected wallet
+        const embeddedWallet = wallets.find(wallet => wallet.walletClientType === 'privy');
+        const injectedWallet = wallets.find(wallet => wallet.walletClientType === 'injected');
         
-        // Set the address immediately
+        const activeWallet = embeddedWallet || injectedWallet || wallets[0];
+        console.log("Selected active wallet:", activeWallet);
+        
+        // Set the address immediately so UI can show it
         setAddress(activeWallet.address);
         
         // Determine wallet type
-        const walletType: WalletType = activeWallet.walletClientType === 'injected' 
-          ? 'metamask' 
-          : 'embedded';
+        const walletType: WalletType = 
+          activeWallet.walletClientType === 'injected' ? 'metamask' :
+          activeWallet.walletClientType === 'privy' ? 'embedded' : 'none';
         
-        setCurrentWallet(walletType);
-        
-        // Set session key to the wallet address for embedded wallets
-        if (walletType === 'embedded') {
-          // Using hardcoded session key for demo
-          setSessionKey("0xD84027d83a2979c2B1072c7311e50e27e6E3f637");
-        }
-        
-        // Try to get ethereum provider
-        if (window.ethereum) {
-          try {
-            const ethProvider = new ethers.BrowserProvider(window.ethereum);
-            await checkAndSwitchChain(ethProvider);
-            const walletSigner = await ethProvider.getSigner();
-            
-            setProvider(ethProvider);
-            setSigner(walletSigner);
-          } catch (err) {
-            console.error('Error getting provider/signer:', err);
-            // Still keep the address even if we can't get a signer
+        // Set up the provider and signer
+        if (activeWallet && window.ethereum) {
+          await setupWallet(window.ethereum, activeWallet.address, walletType);
+        } else {
+          console.log("No provider available for wallet, setting address only");
+          setCurrentWallet(walletType);
+          
+          // Even without provider, set session key for embedded wallets
+          if (walletType === 'embedded') {
+            setSessionKey(activeWallet.address);
           }
         }
       } catch (err) {
@@ -229,7 +247,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
     
     syncWithPrivyWallets();
-  }, [walletsReady, authenticated, wallets, address, checkAndSwitchChain]);
+  }, [walletsReady, authenticated, wallets, setupWallet]);
 
   return (
     <WalletContext.Provider
@@ -241,6 +259,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         loading,
         error,
         sessionKey,
+        wallets,
         connectMetamask,
         connectPrivyEmbedded,
         logout: handleLogout,
