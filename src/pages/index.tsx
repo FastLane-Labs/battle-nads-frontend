@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Heading, Text, Button, VStack, HStack, Input, Select, FormControl, FormLabel, Grid, GridItem, IconButton, NumberInput, NumberInputField, Flex, Stat, StatLabel, StatNumber, StatHelpText, Image, Center } from '@chakra-ui/react';
-import { usePrivy } from '@privy-io/react-auth';
+import { useWallet } from '../providers/WalletProvider';
 import { useBattleNads } from '../hooks/useBattleNads';
 import { CharacterCard } from '../components/CharacterCard';
 import { CharacterList } from '../components/CharacterList';
@@ -12,7 +12,7 @@ const MIN_STAT_VALUE = 3;
 const STARTING_UNALLOCATED_POINTS = STARTING_STAT_SUM - (6 * MIN_STAT_VALUE); // 14
 
 const Home = () => {
-  const { login, authenticated, user } = usePrivy();
+  const { address, connectMetamask } = useWallet();
   const { createCharacter, getCharacter, getCharactersInArea, moveCharacter, attackTarget, loading, error } = useBattleNads();
   
   const [characterName, setCharacterName] = useState('');
@@ -132,16 +132,16 @@ const Home = () => {
       
       <Heading as="h1" mb={6} textAlign="center">Create Your BattleNad Character</Heading>
       
-      {!authenticated ? (
+      {!address ? (
         <VStack spacing={6}>
-          <Text>Please sign in to play Battle-Nads</Text>
-          <Button colorScheme="blue" onClick={login}>Sign In with Privy</Button>
+          <Text>Please connect your wallet to play Battle-Nads</Text>
+          <Button colorScheme="blue" onClick={connectMetamask}>Connect MetaMask</Button>
         </VStack>
       ) : (
         <VStack spacing={8} align="stretch">
           <Box borderWidth="1px" borderRadius="lg" p={4}>
-            <Heading as="h2" size="md" mb={4}>Welcome, {(user?.email?.toString() || user?.wallet?.address || 'Player')}</Heading>
-            <Text>You are connected with a session key. Now you can play Battle-Nads!</Text>
+            <Heading as="h2" size="md" mb={4}>Welcome, {address.slice(0, 6)}...{address.slice(-4)}</Heading>
+            <Text>You are connected with your wallet. Now you can play Battle-Nads!</Text>
           </Box>
 
           {/* Character Creation Form */}

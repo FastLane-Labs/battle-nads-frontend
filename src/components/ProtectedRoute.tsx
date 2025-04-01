@@ -2,14 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { usePrivy } from '@privy-io/react-auth';
 import { useBattleNads } from '../hooks/useBattleNads';
-import LoadingScreen from './LoadingScreen';
+import { useWallet } from '../providers/WalletProvider';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { authenticated, ready, user } = usePrivy();
+  const { authenticated } = usePrivy();
+  const { address, loading: walletLoading } = useWallet();
   const { getPlayerCharacterID } = useBattleNads();
   const [isLoading, setIsLoading] = useState(true);
   const [hasCharacter, setHasCharacter] = useState<boolean | null>(null);
@@ -17,9 +18,9 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
 
   useEffect(() => {
     const checkCharacter = async () => {
-      if (ready && authenticated && user?.wallet?.address) {
+      if (authenticated && address) {
         try {
-          const characterID = await getPlayerCharacterID(user.wallet.address);
+          const characterID = await getPlayerCharacterID(address);
           setHasCharacter(!!characterID);
         } catch (error) {
           console.error("Error checking character:", error);
@@ -27,8 +28,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
         } finally {
           setIsLoading(false);
         }
-      } else if (ready) {
-        // If user is not authenticated but ready state is available,
+      } else if (!walletLoading) {
+        // If user is not authenticated but wallet loading is complete,
         // we're either logged out or never logged in
         setIsLoading(false);
         setHasCharacter(false);
@@ -36,22 +37,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     };
 
     checkCharacter();
-  }, [ready, authenticated, user, getPlayerCharacterID]);
-
-  if (!ready || isLoading) {
-    return (
-      <LoadingScreen 
-        message={
-          location.pathname === '/game' 
-            ? "Loading your character..." 
-            : "Checking authentication status..."
-        } 
-      />
-    );
-  }
+  }, [authenticated, address, getPlayerCharacterID, walletLoading]);
 
   // Redirect to login page if not authenticated
-  if (!authenticated) {
+  if (!authenticated || !address) {
     console.log("User not authenticated, redirecting to login page");
     return <Navigate to="/" replace />;
   }

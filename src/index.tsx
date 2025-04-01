@@ -10,6 +10,7 @@ import CharacterCreation from './pages/CharacterCreation';
 import GameDemo from './components/GameDemo';
 import ProtectedRoute from './components/ProtectedRoute';
 import { PrivyAuthProvider } from './providers/PrivyAuthProvider';
+import { WalletProvider } from './providers/WalletProvider';
 import theme from './theme';
 
 // Create a simple loading indicator to test rendering
@@ -53,21 +54,22 @@ try {
         <React.StrictMode>
           <ColorModeScript initialColorMode={theme.config.initialColorMode} />
           <PrivyAuthProvider>
-            <RecoilRoot>
-              <ChakraProvider theme={theme}>
-                <BrowserRouter>
-                  <Routes>
-                    <Route path="/" element={<Login />} />
-                    <Route path="/game" element={<ProtectedRoute><GamePage /></ProtectedRoute>} />
-                    <Route path="/create" element={<ProtectedRoute><CharacterPage /></ProtectedRoute>} />
-                  </Routes>
-                </BrowserRouter>
-              </ChakraProvider>
-            </RecoilRoot>
+            <WalletProvider>
+              <RecoilRoot>
+                <ChakraProvider theme={theme}>
+                  <BrowserRouter>
+                    <Routes>
+                      <Route path="/" element={<Login />} />
+                      <Route path="/game" element={<ProtectedRoute><GamePage /></ProtectedRoute>} />
+                      <Route path="/create" element={<ProtectedRoute><CharacterPage /></ProtectedRoute>} />
+                    </Routes>
+                  </BrowserRouter>
+                </ChakraProvider>
+              </RecoilRoot>
+            </WalletProvider>
           </PrivyAuthProvider>
         </React.StrictMode>
       );
-      console.log("Full app rendered successfully");
     } catch (error) {
       console.error("Error rendering full app:", error);
       // If full app fails, show error message
@@ -99,7 +101,6 @@ try {
     }
   }, 1000);
 } catch (error) {
-  console.error("Critical error during initial render:", error);
   document.body.innerHTML = `
     <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: white; background-color: #1f2937; padding: 20px;">
       <h1>Critical Error</h1>

@@ -26,7 +26,7 @@ import {
   Link,
   Spinner
 } from '@chakra-ui/react';
-import { usePrivy } from '@privy-io/react-auth';
+import { useWallet } from '../providers/WalletProvider';
 import { useBattleNads } from '../hooks/useBattleNads';
 import { ChevronUpIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
 interface Combatant {
@@ -38,7 +38,7 @@ interface Combatant {
 }
 
 const GameDemo: React.FC = () => {
-  const { user } = usePrivy();
+  const { address } = useWallet();
   const { 
     getPlayerCharacterID, 
     getCharacter, 
@@ -99,23 +99,23 @@ const GameDemo: React.FC = () => {
   // Handle Privy authentication errors
   useEffect(() => {
     const checkPrivyStatus = setTimeout(() => {
-      if (!user?.wallet?.address && !loading) {
+      if (!address && !loading) {
         console.warn("Privy authentication may have failed to load properly");
         setPrivyError(true);
       }
     }, 8000); // Wait 8 seconds to see if authentication completes
 
     return () => clearTimeout(checkPrivyStatus);
-  }, [user, loading]);
+  }, [address, loading]);
 
   // Initial load of character data
   useEffect(() => {
     const fetchCharacter = async () => {
-      if (user?.wallet?.address) {
+      if (address) {
         try {
           setLoading(true);
           // Get character ID for this wallet address
-          const characterId = await getPlayerCharacterID(user.wallet.address);
+          const characterId = await getPlayerCharacterID(address);
           
           if (characterId) {
             setCharacterId(characterId);
@@ -151,7 +151,7 @@ const GameDemo: React.FC = () => {
     };
 
     fetchCharacter();
-  }, [user, getPlayerCharacterID, getCharacter, getMovementOptions]);
+  }, [address, getPlayerCharacterID, getCharacter, getMovementOptions]);
 
   // Load area data (combatants, etc.)
   const loadAreaData = async (characterId: string, depth: number, x: number, y: number) => {
@@ -249,34 +249,31 @@ const GameDemo: React.FC = () => {
       addToCombatLog(`Attempting to move ${direction}...`);
       
       // Call the blockchain to move the character
-      const receipt = await moveCharacter(characterId, direction);
+      await moveCharacter(characterId, direction);
       
-      if (receipt) {
-        addToCombatLog(`Successfully moved ${direction}!`);
+      // No need to check receipt, just proceed
+      addToCombatLog(`Successfully moved ${direction}!`);
+      
+      // Refresh character data to get new position
+      const characterData = await getCharacter(characterId);
+      if (characterData) {
+        setCharacter(characterData);
+        // Update position from character data
+        const newPos = {
+          x: Number(characterData.stats.x),
+          y: Number(characterData.stats.y),
+          depth: Number(characterData.stats.depth)
+        };
+        setPosition(newPos);
         
-        // Refresh character data to get new position
-        const characterData = await getCharacter(characterId);
-        if (characterData) {
-          setCharacter(characterData);
-          // Update position from character data
-          const newPos = {
-            x: Number(characterData.stats.x),
-            y: Number(characterData.stats.y),
-            depth: Number(characterData.stats.depth)
-          };
-          setPosition(newPos);
-          
-          // Load data for the new area
-          await loadAreaData(characterId, newPos.depth, newPos.x, newPos.y);
-          
-          // Update movement options
-          const options = await getMovementOptions(characterId);
-          if (options) {
-            setMovementOptions(options);
-          }
+        // Load data for the new area
+        await loadAreaData(characterId, newPos.depth, newPos.x, newPos.y);
+        
+        // Update movement options
+        const options = await getMovementOptions(characterId);
+        if (options) {
+          setMovementOptions(options);
         }
-      } else {
-        addToCombatLog(`Failed to move ${direction}.`);
       }
     } catch (err) {
       console.error(`Error moving ${direction}:`, err);
@@ -351,34 +348,31 @@ const GameDemo: React.FC = () => {
       }
       
       // Call the blockchain to attack
-      const receipt = await attackTarget(characterId, targetIndex);
+      await attackTarget(characterId, targetIndex);
       
-      if (receipt) {
-        addToCombatLog(`Attack against ${selectedCombatant.name || "enemy"} was successful!`);
+      // No need to check receipt, just proceed
+      addToCombatLog(`Attack against ${selectedCombatant.name || "enemy"} was successful!`);
+      
+      // Refresh character and combat data
+      const characterData = await getCharacter(characterId);
+      if (characterData) {
+        setCharacter(characterData);
+      }
+      
+      // Get updated combat state
+      const combatState = await getAreaCombatState(characterId);
+      
+      if (combatState) {
+        setIsInCombat(combatState.inCombat);
         
-        // Refresh character and combat data
-        const characterData = await getCharacter(characterId);
-        if (characterData) {
-          setCharacter(characterData);
+        if (combatState.inCombat) {
+          addToCombatLog(`Combat continues with ${combatState.combatantCount} enemies.`);
+          setCombatants(combatState.enemies || []);
+        } else {
+          addToCombatLog("Combat has ended! You can now move again.");
+          setCombatants([]);
+          setSelectedCombatant(null);
         }
-        
-        // Get updated combat state
-        const combatState = await getAreaCombatState(characterId);
-        
-        if (combatState) {
-          setIsInCombat(combatState.inCombat);
-          
-          if (combatState.inCombat) {
-            addToCombatLog(`Combat continues with ${combatState.combatantCount} enemies.`);
-            setCombatants(combatState.enemies || []);
-          } else {
-            addToCombatLog("Combat has ended! You can now move again.");
-            setCombatants([]);
-            setSelectedCombatant(null);
-          }
-        }
-      } else {
-        addToCombatLog(`Attack against ${selectedCombatant.name || "enemy"} failed.`);
       }
     } catch (err) {
       console.error("Error attacking:", err);
