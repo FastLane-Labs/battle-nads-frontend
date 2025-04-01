@@ -40,6 +40,20 @@ const NavBar: React.FC = () => {
 
           {address && (
             <HStack as="nav" spacing={4} display={{ base: 'none', md: 'flex' }}>
+              <Link href="/dashboard">
+                <Text
+                  px={2}
+                  py={1}
+                  rounded="md"
+                  fontWeight={isActive('/dashboard') ? 'bold' : 'normal'}
+                  bg={isActive('/dashboard') ? 'blue.500' : 'transparent'}
+                  color={isActive('/dashboard') ? 'white' : undefined}
+                  _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
+                  cursor="pointer"
+                >
+                  Dashboard
+                </Text>
+              </Link>
               <Link href="/character">
                 <Text
                   px={2}
