@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Heading, Button, Center, VStack, Text, Image, Icon } from '@chakra-ui/react';
+import { Box, Heading, Button, Center, VStack, Text, Image, Icon, Spinner } from '@chakra-ui/react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useNavigate } from 'react-router-dom';
 import { useBattleNads } from '../hooks/useBattleNads';
@@ -14,6 +14,7 @@ const Login: React.FC = () => {
   // Get wallet state from our WalletProvider
   const { address, loading: walletLoading } = useWallet();
   const [checkingCharacter, setCheckingCharacter] = useState(false);
+  const [initialCheckComplete, setInitialCheckComplete] = useState(false);
 
   // Use the Privy wallets information to set up our wallet provider
   useEffect(() => {
@@ -50,16 +51,20 @@ const Login: React.FC = () => {
           navigate('/create');
         } finally {
           setCheckingCharacter(false);
+          setInitialCheckComplete(true);
         }
       } else if (ready && !authenticated) {
         // If user is not authenticated, make sure we stay on the login page
         // and clear any loading state
         setCheckingCharacter(false);
+        setInitialCheckComplete(true);
         console.log("User not authenticated, showing login page");
       }
     };
 
-    checkCharacter();
+    if (ready) {
+      checkCharacter();
+    }
   }, [authenticated, ready, navigate, user, getPlayerCharacterID]);
 
   // Also check if characterId exists in state, but only if authenticated
@@ -80,6 +85,15 @@ const Login: React.FC = () => {
     }
     // Redirect will happen in the useEffect above
   };
+
+  // Show loading spinner until we've made initial authentication check
+  if (!ready || checkingCharacter || (!initialCheckComplete && authenticated)) {
+    return (
+      <Center height="100vh" bg="gray.900">
+        <Spinner size="xl" color="purple.500" thickness="4px" />
+      </Center>
+    );
+  }
 
   return (
     <Center height="100vh" bg="gray.900">
