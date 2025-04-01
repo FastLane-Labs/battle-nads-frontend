@@ -79,7 +79,7 @@ export const useBattleNads = () => {
     return new ethers.JsonRpcProvider(RPC_URL);
   }, []);
 
-  // Get Privy wallet with real signer
+  // Get Privy wallet with real signer for owner operations (createCharacter, updateSessionKey)
   const getWalletSigner = useCallback(async () => {
     if (!authenticated || !user?.wallet?.address) {
       throw new Error("User not authenticated or no wallet found");
@@ -88,7 +88,7 @@ export const useBattleNads = () => {
     try {
       // Get an ethers-compatible provider from Privy
       const userWallet = user.wallet;
-      console.log("Using wallet address:", userWallet.address);
+      console.log("Using owner wallet address:", userWallet.address);
       
       // Request the user to connect their wallet if not already connected
       // This will use the Privy interface to handle wallet connection
@@ -96,7 +96,7 @@ export const useBattleNads = () => {
       
       // Get the provider from window.ethereum
       // This assumes Privy has injected the provider into window.ethereum
-      const provider = new ethers.BrowserProvider(window.ethereum);
+      const provider = new ethers.BrowserProvider(window.ethereum as any);
       
       // Check if we're on the correct network
       const network = await provider.getNetwork();
@@ -106,7 +106,7 @@ export const useBattleNads = () => {
         console.log(`Wrong network detected: ${chainId}, requesting switch to ${CHAIN_ID}`);
         try {
           // Request network switch
-          await window.ethereum.request({
+          await (window as any).ethereum.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: `0x${CHAIN_ID.toString(16)}` }]
           });
@@ -120,16 +120,35 @@ export const useBattleNads = () => {
       
       // Check that the signer address matches the connected wallet
       const signerAddress = await signer.getAddress();
-      console.log("Signer address:", signerAddress);
+      console.log("Owner signer address:", signerAddress);
       
       if (signerAddress.toLowerCase() !== userWallet.address.toLowerCase()) {
         console.warn("Signer address doesn't match wallet address. Using signer address.");
       }
       
-      // Get embedded wallet address for session key
-      // For now, using the primary wallet address as session key
-      // This should be replaced with actual embedded wallet when available
-      const embeddedWalletAddress = userWallet.address;
+      // For createCharacter, we use the embedded wallet address as the session key but sign with owner EOA
+      // Try to find the embedded wallet from user's linked accounts
+      let embeddedWalletAddress: string | undefined = undefined;
+      
+      if (user.linkedAccounts) {
+        // Find embedded wallet from linked accounts, ensuring we have the correct types
+        const embeddedWallet = user.linkedAccounts.find(account => 
+          account.type === 'wallet' && 
+          'walletClientType' in account && 
+          account.walletClientType === 'privy'
+        );
+        
+        if (embeddedWallet && 'address' in embeddedWallet) {
+          embeddedWalletAddress = embeddedWallet.address;
+          console.log("Found embedded wallet to use as session key:", embeddedWalletAddress);
+        }
+      }
+      
+      // If we couldn't find an embedded wallet, fall back to using owner wallet (not ideal)
+      if (!embeddedWalletAddress) {
+        console.warn("No embedded wallet found, using EOA as session key (not recommended)");
+        embeddedWalletAddress = userWallet.address;
+      }
       
       return {
         provider,
@@ -138,6 +157,80 @@ export const useBattleNads = () => {
       };
     } catch (err) {
       console.error("Error getting wallet signer:", err);
+      throw err;
+    }
+  }, [authenticated, user, privy]);
+
+  // Get embedded Privy wallet signer for game operations (movement, combat, etc)
+  const getEmbeddedWalletSigner = useCallback(async () => {
+    if (!authenticated || !user) {
+      throw new Error("User not authenticated");
+    }
+
+    try {
+      // Try to find the embedded wallet from user's linked accounts
+      let embeddedWallet: any = null;
+      
+      if (user.linkedAccounts) {
+        // Find embedded wallet from linked accounts
+        const wallet = user.linkedAccounts.find(account => 
+          account.type === 'wallet' && 
+          'walletClientType' in account && 
+          account.walletClientType === 'privy'
+        );
+        
+        if (wallet && 'address' in wallet) {
+          embeddedWallet = wallet;
+        }
+      }
+      
+      if (!embeddedWallet || !embeddedWallet.address) {
+        throw new Error("No embedded wallet found. Please create a character first to initialize your embedded wallet.");
+      }
+      
+      console.log("Using embedded wallet for game operations:", embeddedWallet.address);
+      
+      // Request the embedded wallet specifically
+      await privy.connectWallet({ connector: 'embedded' } as any);
+      
+      // Get the provider from window.ethereum
+      const provider = new ethers.BrowserProvider(window.ethereum as any);
+      
+      // Check if we're on the correct network
+      const network = await provider.getNetwork();
+      const chainId = Number(network.chainId);
+      
+      if (chainId !== CHAIN_ID) {
+        console.log(`Wrong network detected: ${chainId}, switching to ${CHAIN_ID}`);
+        try {
+          // Switch network (should be automatic with embedded wallet)
+          await (window as any).ethereum.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: `0x${CHAIN_ID.toString(16)}` }]
+          });
+        } catch (switchError) {
+          throw new Error(`Failed to switch to Monad Testnet (chainId: ${CHAIN_ID})`);
+        }
+      }
+      
+      // Get signer from the provider
+      const signer = await provider.getSigner();
+      
+      // Verify the signer address matches the embedded wallet
+      const signerAddress = await signer.getAddress();
+      console.log("Embedded wallet signer address:", signerAddress);
+      
+      if (signerAddress.toLowerCase() !== embeddedWallet.address.toLowerCase()) {
+        throw new Error("Signer address doesn't match embedded wallet address. Please reconnect.");
+      }
+      
+      return {
+        provider,
+        signer,
+        embeddedWalletAddress: embeddedWallet.address
+      };
+    } catch (err) {
+      console.error("Error getting embedded wallet signer:", err);
       throw err;
     }
   }, [authenticated, user, privy]);
@@ -446,6 +539,296 @@ export const useBattleNads = () => {
     }
   }, [getReadOnlyProvider]);
 
+  // Get area information including monsters, players, etc.
+  const getAreaInfo = useCallback(async (depth: number, x: number, y: number) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+      
+      const areaInfo = await entrypoint.getAreaInfo(depth, x, y);
+      return areaInfo;
+    } catch (err: any) {
+      console.error("Error getting area info:", err);
+      setError(err.message || "Error getting area information");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getReadOnlyProvider]);
+
+  // Get combat state for a character (enemies, target index, etc.)
+  const getAreaCombatState = useCallback(async (characterId: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+      
+      const combatState = await entrypoint.getAreaCombatState(characterId);
+      return combatState;
+    } catch (err: any) {
+      console.error("Error getting combat state:", err);
+      setError(err.message || "Error getting combat state");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getReadOnlyProvider]);
+
+  // Get movement options for a character
+  const getMovementOptions = useCallback(async (characterId: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+      
+      const options = await entrypoint.getMovementOptions(characterId);
+      return options;
+    } catch (err: any) {
+      console.error("Error getting movement options:", err);
+      setError(err.message || "Error getting movement options");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getReadOnlyProvider]);
+
+  // Move character in a direction
+  const moveCharacter = useCallback(async (characterId: string, direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { signer } = await getEmbeddedWalletSigner();
+      
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        signer
+      );
+      
+      let tx;
+      
+      switch (direction) {
+        case 'north':
+          tx = await entrypoint.moveNorth(characterId, { gasLimit: 500000 });
+          break;
+        case 'south':
+          tx = await entrypoint.moveSouth(characterId, { gasLimit: 500000 });
+          break;
+        case 'east':
+          tx = await entrypoint.moveEast(characterId, { gasLimit: 500000 });
+          break;
+        case 'west':
+          tx = await entrypoint.moveWest(characterId, { gasLimit: 500000 });
+          break;
+        case 'up':
+          tx = await entrypoint.moveUp(characterId, { gasLimit: 500000 });
+          break;
+        case 'down':
+          tx = await entrypoint.moveDown(characterId, { gasLimit: 500000 });
+          break;
+      }
+      
+      console.log(`Move ${direction} transaction sent:`, tx.hash);
+      
+      // Wait for transaction to be mined
+      const receipt = await tx.wait();
+      console.log("Move transaction confirmed:", receipt);
+      
+      return receipt;
+    } catch (err: any) {
+      console.error(`Error moving character ${direction}:`, err);
+      setError(err.message || `Error moving character ${direction}`);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getEmbeddedWalletSigner]);
+
+  // Get attack options for a character
+  const getAttackOptions = useCallback(async (characterId: string) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+      
+      const options = await entrypoint.getAttackOptions(characterId);
+      return options;
+    } catch (err: any) {
+      console.error("Error getting attack options:", err);
+      setError(err.message || "Error getting attack options");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getReadOnlyProvider]);
+
+  // Attack a target
+  const attackTarget = useCallback(async (characterId: string, targetIndex: number) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { signer } = await getEmbeddedWalletSigner();
+      
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        signer
+      );
+      
+      const tx = await entrypoint.attack(characterId, targetIndex, { gasLimit: 500000 });
+      console.log("Attack transaction sent:", tx.hash);
+      
+      // Wait for transaction to be mined
+      const receipt = await tx.wait();
+      console.log("Attack transaction confirmed:", receipt);
+      
+      return receipt;
+    } catch (err: any) {
+      console.error("Error attacking target:", err);
+      setError(err.message || "Error attacking target");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getEmbeddedWalletSigner]);
+
+  // Equip a weapon
+  const equipWeapon = useCallback(async (characterId: string, weaponId: number) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { signer } = await getEmbeddedWalletSigner();
+      
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        signer
+      );
+      
+      const tx = await entrypoint.equipWeapon(characterId, weaponId, { gasLimit: 500000 });
+      console.log("Equip weapon transaction sent:", tx.hash);
+      
+      // Wait for transaction to be mined
+      const receipt = await tx.wait();
+      console.log("Equip weapon transaction confirmed:", receipt);
+      
+      return receipt;
+    } catch (err: any) {
+      console.error("Error equipping weapon:", err);
+      setError(err.message || "Error equipping weapon");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getEmbeddedWalletSigner]);
+  
+  // Equip armor
+  const equipArmor = useCallback(async (characterId: string, armorId: number) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { signer } = await getEmbeddedWalletSigner();
+      
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        signer
+      );
+      
+      const tx = await entrypoint.equipArmor(characterId, armorId, { gasLimit: 500000 });
+      console.log("Equip armor transaction sent:", tx.hash);
+      
+      // Wait for transaction to be mined
+      const receipt = await tx.wait();
+      console.log("Equip armor transaction confirmed:", receipt);
+      
+      return receipt;
+    } catch (err: any) {
+      console.error("Error equipping armor:", err);
+      setError(err.message || "Error equipping armor");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getEmbeddedWalletSigner]);
+  
+  // Allocate attribute points
+  const allocatePoints = useCallback(async (
+    characterId: string,
+    newStrength: number,
+    newVitality: number,
+    newDexterity: number,
+    newQuickness: number,
+    newSturdiness: number,
+    newLuck: number
+  ) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { signer } = await getEmbeddedWalletSigner();
+      
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        signer
+      );
+      
+      const tx = await entrypoint.allocatePoints(
+        characterId,
+        newStrength,
+        newVitality,
+        newDexterity,
+        newQuickness,
+        newSturdiness,
+        newLuck,
+        { gasLimit: 500000 }
+      );
+      console.log("Allocate points transaction sent:", tx.hash);
+      
+      // Wait for transaction to be mined
+      const receipt = await tx.wait();
+      console.log("Allocate points transaction confirmed:", receipt);
+      
+      return receipt;
+    } catch (err: any) {
+      console.error("Error allocating points:", err);
+      setError(err.message || "Error allocating points");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getEmbeddedWalletSigner]);
+
   return {
     createCharacter,
     getCharacter,
@@ -453,6 +836,17 @@ export const useBattleNads = () => {
     getPlayerCharacters,
     getCharacterIdByTransactionHash,
     getPlayerCharacterID,
+    getAreaInfo,
+    getAreaCombatState,
+    getMovementOptions,
+    moveCharacter,
+    getAttackOptions,
+    attackTarget,
+    equipWeapon,
+    equipArmor,
+    allocatePoints,
+    getEmbeddedWalletSigner,
+    getWalletSigner,
     loading,
     error,
     characterId,
