@@ -132,7 +132,7 @@ export const useBattleNads = () => {
       let newCharacterId: string | null = null;
       try {
         const topic = ethers.id('CharacterCreated(bytes32,address)');
-        const log = receipt.logs.find(l => l.topics[0] === topic);
+        const log = receipt.logs.find((l: any) => l.topics[0] === topic);
         if (log) {
           newCharacterId = ethers.zeroPadValue(log.topics[1], 32);
         }
