@@ -4,9 +4,9 @@ import React, { useEffect, useState } from 'react';
 import { Box, Button, Center, VStack, Spinner, Icon, Text } from '@chakra-ui/react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useRouter } from 'next/navigation';
-import { useBattleNads } from '../hooks/useBattleNads';
+import { useBattleNads } from '../../hooks/useBattleNads';
 import { FaEthereum } from 'react-icons/fa';
-import { useWallet } from '../providers/WalletProvider';
+import { useWallet } from '../../providers/WalletProvider';
 
 const Login: React.FC = () => {
   const { login, authenticated, ready, user } = usePrivy();

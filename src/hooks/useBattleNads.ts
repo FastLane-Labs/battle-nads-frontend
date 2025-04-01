@@ -49,7 +49,6 @@ const ENTRYPOINT_ABI = [
 // Use environment variables for contract addresses and RPC URL
 const ENTRYPOINT_ADDRESS = "0xD1183C1c028E094FD839Ad508a188Cf7d26AAB48";
 const RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";
-const CHAIN_ID = 10143;
 
 // Maximum safe integer for uint256 in Solidity
 const MAX_SAFE_UINT256 = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
