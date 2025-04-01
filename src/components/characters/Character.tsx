@@ -14,7 +14,7 @@ const MIN_STAT_VALUE = 3;
 const STARTING_UNALLOCATED_POINTS = STARTING_STAT_SUM - (6 * MIN_STAT_VALUE); // 14
 
 const CharacterDashboard = () => {
-  const { address, connectMetamask } = useWallet();
+  const { address, embeddedWallet } = useWallet();
   const { createCharacter, getCharacter, getCharactersInArea, moveCharacter, attackTarget, loading, error } = useBattleNads();
   
   const [characterName, setCharacterName] = useState('');
@@ -134,15 +134,10 @@ const CharacterDashboard = () => {
       
       <Heading as="h1" mb={6} textAlign="center">Character Dashboard</Heading>
       
-      {!address ? (
-        <VStack spacing={6}>
-          <Text>Please connect your wallet to play Battle-Nads</Text>
-          <Button colorScheme="blue" onClick={connectMetamask}>Connect MetaMask</Button>
-        </VStack>
-      ) : (
+
         <VStack spacing={8} align="stretch">
           <Box borderWidth="1px" borderRadius="lg" p={4}>
-            <Heading as="h2" size="md" mb={4}>Welcome, {address.slice(0, 6)}...{address.slice(-4)}</Heading>
+            <Heading as="h2" size="md" mb={4}>Welcome, {address?.slice(0, 6)}...{address?.slice(-4)}</Heading>
             <Text>You are connected with your wallet. Now you can play Battle-Nads!</Text>
           </Box>
 
@@ -248,7 +243,7 @@ const CharacterDashboard = () => {
           {/* Character List */}
           <Box borderWidth="1px" borderRadius="lg" p={4}>
             <Heading as="h2" size="md" mb={4}>Your Characters</Heading>
-            <CharacterList onCharacterSelect={handleLoadCharacter} />
+            <CharacterList onSelectCharacter={handleLoadCharacter} />
           </Box>
 
           {/* Selected Character Details */}
@@ -311,7 +306,6 @@ const CharacterDashboard = () => {
             </Box>
           )}
         </VStack>
-      )}
     </Box>
   );
 };
