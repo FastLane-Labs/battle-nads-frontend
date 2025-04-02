@@ -1,0 +1,16 @@
+# Exclude development files
+.git
+.github
+node_modules
+tests
+**/*.test.*
+**/*.spec.*
+
+# Exclude source maps in production
+**/*.js.map
+**/*.css.map
+
+# Exclude development configs
+.prettierrc
+.eslintrc
+.vscode 
