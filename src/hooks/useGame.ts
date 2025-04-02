@@ -219,6 +219,12 @@ export const useGame = () => {
     return false;
   }, []);
   
+  // Function to reset session key warning
+  const resetSessionKeyWarning = useCallback(() => {
+    console.log("Resetting session key warning state");
+    setSessionKeyWarning(null);
+  }, []);
+  
   // Main initialization function
   const initializeGame = useCallback(async () => {
     // Don't re-initialize if already processing or transaction was sent
@@ -306,6 +312,7 @@ export const useGame = () => {
     } : null,
     initializeGame,
     resetTransactionFlags,
+    resetSessionKeyWarning,
     isProcessing: processingRef.current,
     isTransactionSent: transactionSentRef.current,
     checkOwnerWallet,

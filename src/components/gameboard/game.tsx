@@ -53,7 +53,9 @@ const Game: React.FC = () => {
     getCharactersInArea,
     getFrontendData,
     loading: hookLoading, 
-    error: hookError 
+    error: hookError,
+    setSessionKeyToEmbeddedWallet,
+    characterId: battleNadsCharacterId  // Get characterId from hook
   } = useBattleNads();
   
   // Use our new game initialization hook
@@ -64,6 +66,7 @@ const Game: React.FC = () => {
     sessionKeyStatus,
     initializeGame,
     resetTransactionFlags,
+    resetSessionKeyWarning,
     isProcessing,
     isTransactionSent
   } = useGame();
@@ -536,17 +539,47 @@ const Game: React.FC = () => {
   };
 
   // Add a handler for updating session key
-  const handleUpdateSessionKey = async () => {
-    if (!sessionKeyStatus || !characterId) return;
+  const handleUpdateSessionKey = async (passedCharacterId?: string) => {
+    // Use passed character ID if provided, otherwise use the one from state
+    const currentCharacterId = passedCharacterId || characterId || battleNadsCharacterId;
+    
+    console.log("=== HANDLE UPDATE SESSION KEY FUNCTION STARTED ===");
+    console.log("Character ID:", currentCharacterId);
+    console.log("Session key status:", sessionKeyStatus);
+    
+    // Log wallet information
+    console.log("Wallet information:");
+    console.log("- injectedWallet:", {
+      address: injectedWallet?.address,
+      type: injectedWallet?.walletClientType,
+      hasSigner: !!injectedWallet?.signer
+    });
+    console.log("- embeddedWallet:", {
+      address: embeddedWallet?.address,
+      type: embeddedWallet?.walletClientType,
+      hasSigner: !!embeddedWallet?.signer
+    });
+    console.log("- address from context:", address);
+    
+    if (!sessionKeyStatus || !currentCharacterId) {
+      console.error("Missing required data:", { 
+        hasSessionKeyStatus: !!sessionKeyStatus, 
+        hasCharacterId: !!currentCharacterId,
+        stateCharacterId: characterId,
+        hookCharacterId: battleNadsCharacterId
+      });
+      return;
+    }
     
     try {
       setLoading(true);
-      console.log("Starting session key update process for character:", characterId);
+      console.log("Starting session key update process for character:", currentCharacterId);
       console.log("Session key status object:", {
         isSessionKeyMismatch: sessionKeyStatus.isSessionKeyMismatch,
         embeddedWalletAddress: sessionKeyStatus.embeddedWalletAddress,
         hasCurrentSessionKeyFn: !!sessionKeyStatus.currentSessionKey,
-        hasUpdateSessionKeyFn: !!sessionKeyStatus.updateSessionKey
+        hasUpdateSessionKeyFn: !!sessionKeyStatus.updateSessionKey,
+        updateSessionKeyType: typeof sessionKeyStatus.updateSessionKey
       });
       
       toast({
@@ -559,7 +592,8 @@ const Game: React.FC = () => {
       
       // First get the current session key
       try {
-        const currentKey = await sessionKeyStatus.currentSessionKey(characterId);
+        console.log("Calling currentSessionKey with characterId:", currentCharacterId);
+        const currentKey = await sessionKeyStatus.currentSessionKey(currentCharacterId);
         console.log("Current session key before update:", currentKey);
         console.log("Embedded wallet address:", sessionKeyStatus.embeddedWalletAddress);
         console.log("Do they match?", currentKey?.toLowerCase() === sessionKeyStatus.embeddedWalletAddress?.toLowerCase());
@@ -567,54 +601,111 @@ const Game: React.FC = () => {
         console.warn("Error getting current session key:", err);
       }
       
-      // Call updateSessionKey with characterId - this will update to the embedded wallet address
-      console.log("Calling updateSessionKey with characterId:", characterId);
-      const result = await sessionKeyStatus.updateSessionKey(characterId);
-      console.log("Result from updateSessionKey:", result);
-      
-      if (result && result.success) {
-        toast({
-          title: "Success",
-          description: result.transactionHash 
-            ? `Session key updated successfully! Tx: ${result.transactionHash.slice(0, 10)}...` 
-            : "Session key updated successfully!",
-          status: "success",
-          duration: 5000,
-          isClosable: true,
-        });
-        
-        // Verify the update by getting the session key again
+      // Try direct call to setSessionKeyToEmbeddedWallet as a fallback if available
+      if (setSessionKeyToEmbeddedWallet) {
+        console.log("Trying direct call to setSessionKeyToEmbeddedWallet function");
         try {
-          const updatedKey = await sessionKeyStatus.currentSessionKey(characterId);
-          console.log("Session key after update:", updatedKey);
-          console.log("Should match wallet address:", sessionKeyStatus.embeddedWalletAddress);
-          console.log("Do they match now?", updatedKey?.toLowerCase() === sessionKeyStatus.embeddedWalletAddress?.toLowerCase());
-        } catch (err) {
-          console.warn("Error verifying updated session key:", err);
+          const directResult = await setSessionKeyToEmbeddedWallet(currentCharacterId);
+          console.log("Direct setSessionKeyToEmbeddedWallet result:", directResult);
+          
+          if (directResult && directResult.success) {
+            toast({
+              title: "Success",
+              description: directResult.transactionHash 
+                ? `Session key updated successfully! Tx: ${directResult.transactionHash.slice(0, 10)}...` 
+                : "Session key updated successfully!",
+              status: "success",
+              duration: 5000,
+              isClosable: true,
+            });
+            
+            // Explicitly reset the session key warning state
+            resetSessionKeyWarning();
+            
+            // Reset the game initialization to refresh session key status
+            console.log("Reinitializing game after session key update");
+            await initializeGame();
+            
+            setTimeout(() => {
+              console.log("Reloading character data after direct session key update");
+              loadCharacterData();
+            }, 1000);
+            
+            return; // Skip the regular flow if direct call succeeded
+          }
+        } catch (directErr) {
+          console.error("Error in direct setSessionKeyToEmbeddedWallet call:", directErr);
         }
+      }
+      
+      // Call updateSessionKey with characterId - this will update to the embedded wallet address
+      console.log("About to call updateSessionKey with characterId:", currentCharacterId);
+      console.log("updateSessionKey function:", sessionKeyStatus.updateSessionKey);
+      console.log("updateSessionKey function stringified:", String(sessionKeyStatus.updateSessionKey));
+      
+      try {
+        const result = await sessionKeyStatus.updateSessionKey(currentCharacterId);
+        console.log("Result from updateSessionKey:", result);
         
-        // Wait a moment before reloading
-        setTimeout(() => {
-          console.log("Reloading character data after session key update");
-          // Reload character data after session key update
-          loadCharacterData();
-        }, 1000);
-      } else {
-        const errorMessage = result?.error || (result?.alreadySet ? "Session key already matches" : "Unknown error");
-        console.error("Failed to update session key:", errorMessage);
-        
-        toast({
-          title: result?.alreadySet ? "Info" : "Error",
-          description: result?.alreadySet 
-            ? "Session key already matches your wallet" 
-            : `Failed to update session key: ${errorMessage}`,
-          status: result?.alreadySet ? "info" : "error",
-          duration: 5000,
-          isClosable: true,
-        });
+        if (result && result.success) {
+          toast({
+            title: "Success",
+            description: result.transactionHash 
+              ? `Session key updated successfully! Tx: ${result.transactionHash.slice(0, 10)}...` 
+              : "Session key updated successfully!",
+            status: "success",
+            duration: 5000,
+            isClosable: true,
+          });
+          
+          // Verify the update by getting the session key again
+          try {
+            const updatedKey = await sessionKeyStatus.currentSessionKey(currentCharacterId);
+            console.log("Session key after update:", updatedKey);
+            console.log("Should match wallet address:", sessionKeyStatus.embeddedWalletAddress);
+            console.log("Do they match now?", updatedKey?.toLowerCase() === sessionKeyStatus.embeddedWalletAddress?.toLowerCase());
+          } catch (err) {
+            console.warn("Error verifying updated session key:", err);
+          }
+          
+          // Explicitly reset the session key warning state
+          resetSessionKeyWarning();
+          
+          // Reset the game initialization to refresh session key status
+          console.log("Reinitializing game after session key update");
+          await initializeGame();
+          
+          // Wait a moment before reloading
+          setTimeout(() => {
+            console.log("Reloading character data after session key update");
+            // Reload character data after session key update
+            loadCharacterData();
+          }, 1000);
+        } else {
+          const errorMessage = result?.error || (result?.alreadySet ? "Session key already matches" : "Unknown error");
+          console.error("Failed to update session key:", errorMessage);
+          console.error("Full result object:", result);
+          
+          toast({
+            title: result?.alreadySet ? "Info" : "Error",
+            description: result?.alreadySet 
+              ? "Session key already matches your wallet" 
+              : `Failed to update session key: ${errorMessage}`,
+            status: result?.alreadySet ? "info" : "error",
+            duration: 5000,
+            isClosable: true,
+          });
+        }
+      } catch (updateErr) {
+        console.error("Exception during updateSessionKey call:", updateErr);
+        throw updateErr;
       }
     } catch (err) {
       console.error("Error updating session key:", err);
+      // Log the full error
+      console.error("Full error object:", err);
+      console.error("Error stack:", err instanceof Error ? err.stack : 'No stack trace');
+      
       toast({
         title: "Error",
         description: `Failed to update session key: ${err instanceof Error ? err.message : String(err)}`,
@@ -623,6 +714,7 @@ const Game: React.FC = () => {
         isClosable: true,
       });
     } finally {
+      console.log("=== HANDLE UPDATE SESSION KEY FUNCTION FINISHED ===");
       setLoading(false);
     }
   };
@@ -659,6 +751,9 @@ const Game: React.FC = () => {
 
   // Show session key warning if needed, after the game is loaded
   if (sessionKeyWarning && sessionKeyStatus?.isSessionKeyMismatch && !loading) {
+    // Use character ID from either state or useBattleNads hook
+    const currentCharacterId = characterId || battleNadsCharacterId;
+    
     return (
       <Center height="100vh" className="bg-gray-900" color="white">
         <VStack spacing={6} maxWidth="600px" p={6}>
@@ -682,7 +777,27 @@ const Game: React.FC = () => {
           <HStack spacing={4}>
             <Button 
               colorScheme="yellow" 
-              onClick={handleUpdateSessionKey} 
+              onClick={() => {
+                console.log("UPDATE SESSION KEY BUTTON CLICKED");
+                console.log("Character ID from state:", characterId);
+                console.log("Character ID from useBattleNads:", battleNadsCharacterId);
+                console.log("Using character ID:", currentCharacterId);
+                console.log("Session key status available:", !!sessionKeyStatus);
+                
+                // Pass the current character ID directly to avoid the early return
+                if (currentCharacterId) {
+                  setCharacterId(currentCharacterId); // Update state if needed
+                  handleUpdateSessionKey(currentCharacterId);
+                } else {
+                  toast({
+                    title: "Error",
+                    description: "Could not find your character ID. Please reload the page.",
+                    status: "error",
+                    duration: 5000,
+                    isClosable: true,
+                  });
+                }
+              }} 
               isLoading={loading}
               loadingText="Updating..."
             >
