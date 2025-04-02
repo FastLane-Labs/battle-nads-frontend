@@ -21,9 +21,9 @@ export function convertCharacterData(rawCharacter: any): Character {
   let stats: CharacterStats = {
     level: Number(rawCharacter.stats?.level || 1),
     hp: Number(rawCharacter.stats?.hp || rawCharacter.stats?.health || 0),
-    maxHp: Number(rawCharacter.stats?.maxHp || 100),
+    maxHp: 100 + (Number(rawCharacter.stats?.vitality || 0) * 100) + (Number(rawCharacter.stats?.level || 1) * 50),
     mp: Number(rawCharacter.stats?.mp || 0),
-    maxMp: Number(rawCharacter.stats?.maxMp || 100),
+    maxMp: 100 + (Number(rawCharacter.stats?.level || 1) * 20),
     strength: Number(rawCharacter.stats?.strength || 0),
     vitality: Number(rawCharacter.stats?.vitality || 0),
     dexterity: Number(rawCharacter.stats?.dexterity || 0),
@@ -37,6 +37,10 @@ export function convertCharacterData(rawCharacter: any): Character {
     index: Number(rawCharacter.stats?.index || 0),
     isMonster: Boolean(rawCharacter.stats?.isMonster || false)
   };
+  
+  // Apply caps to both HP and MP
+  stats.hp = Math.min(stats.hp, stats.maxHp);
+  stats.mp = Math.min(stats.mp, stats.maxMp);
   
   // Extract weapon equipment
   const weapon: Equipment | undefined = rawCharacter.weapon ? {
