@@ -87,7 +87,21 @@ export const useGame = () => {
         return false;
       }
       
+      // Also check if the embedded wallet has a signer - crucial for operations
+      if (!embeddedWallet.signer) {
+        console.error("Embedded wallet has no signer");
+        console.error("Embedded wallet details:", {
+          address: embeddedWallet.address,
+          type: embeddedWallet.walletClientType,
+          hasProvider: !!embeddedWallet.provider
+        });
+        setStatus('need-embedded-wallet');
+        processingRef.current = false;
+        return false;
+      }
+      
       console.log("Embedded wallet available:", embeddedWallet.address);
+      console.log("Embedded wallet has signer:", !!embeddedWallet.signer);
       return true;
     } catch (error) {
       console.error("Error checking embedded wallet:", error);

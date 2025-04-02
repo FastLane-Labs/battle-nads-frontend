@@ -532,16 +532,68 @@ const Game: React.FC = () => {
       }
     } catch (err) {
       console.error(`Error moving ${direction}:`, err);
-      // Don't set local error for movement errors - use toast instead
-      toast({
-        title: `Movement failed`,
-        description: `Could not move ${direction}: ${err instanceof Error ? err.message : String(err)}`,
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
       
-      addToCombatLog(`Failed to move ${direction}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      // Check if this is a session key related error
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      const isSessionKeyError = errorMessage.includes('Session key') || 
+                               errorMessage.includes('session key') ||
+                               errorMessage.includes('Movement must use session key');
+      
+      if (isSessionKeyError && sessionKeyStatus) {
+        // Show a special toast with an action button to update session key
+        toast({
+          title: "Session key issue detected",
+          description: "Your session key needs to be updated. Click 'Update Session Key' to fix this.",
+          status: "warning",
+          duration: 10000,
+          isClosable: true,
+          render: ({ onClose }) => (
+            <Alert
+              status="warning"
+              variant="solid"
+              flexDirection="column"
+              alignItems="center"
+              justifyContent="center"
+              textAlign="center"
+              borderRadius="md"
+              p={4}
+            >
+              <AlertIcon boxSize="40px" mr={0} />
+              <AlertTitle mt={4} mb={1} fontSize="lg">
+                Session Key Issue
+              </AlertTitle>
+              <AlertDescription maxWidth="sm">
+                {errorMessage}
+                <Button 
+                  colorScheme="blue" 
+                  mt={4}
+                  onClick={() => {
+                    onClose();
+                    if (characterId) {
+                      handleUpdateSessionKey(characterId);
+                    }
+                  }}
+                >
+                  Update Session Key
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ),
+        });
+        
+        addToCombatLog(`Failed to move ${direction}: Session key issue detected. Please update your session key.`);
+      } else {
+        // Don't set local error for movement errors - use toast instead
+        toast({
+          title: `Movement failed`,
+          description: errorMessage,
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+        
+        addToCombatLog(`Failed to move ${direction}: ${errorMessage}`);
+      }
     } finally {
       setIsMoving(false);
     }
