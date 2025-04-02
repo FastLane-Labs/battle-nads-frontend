@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   Box, 
   Grid, 
@@ -35,6 +35,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   isMoving = false,
   isAttacking = false
 }) => {
+  // Add lastMove state to track movement direction for animations
+  const [lastMove, setLastMove] = useState<string | null>(null);
+  
   if (!character) {
     return <Center>Loading character data...</Center>;
   }
@@ -95,7 +98,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             border="1px solid"
             borderColor="gray.600"
             borderRadius="md"
-            className="game-tile"
+            className={`game-tile ${lastMove && isPlayerPosition ? `animate-move-${lastMove}` : ''}`}
             position="relative"
             onClick={() => {
               if (isAttackable && !isMoving && !isAttacking) {
@@ -190,6 +193,14 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   // Render movement controls
   const renderControls = () => {
+    // Function to handle movement with animation
+    const handleMovement = (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
+      if (!isMoving && !isAttacking) {
+        setLastMove(direction);
+        onMove(direction);
+      }
+    };
+
     return (
       <Grid
         templateAreas={`
@@ -208,7 +219,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             <IconButton
               aria-label="Move North"
               icon={isMoving ? <Spinner size="sm" /> : <ChevronUpIcon />}
-              onClick={() => !isMoving && !isAttacking && onMove('north')}
+              onClick={() => handleMovement('north')}
               size="md"
               isDisabled={isMoving || isAttacking}
               opacity={isMoving || isAttacking ? 0.6 : 1}
@@ -220,7 +231,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             <IconButton
               aria-label="Move West"
               icon={isMoving ? <Spinner size="sm" /> : <ChevronLeftIcon />}
-              onClick={() => !isMoving && !isAttacking && onMove('west')}
+              onClick={() => handleMovement('west')}
               size="md"
               isDisabled={isMoving || isAttacking}
               opacity={isMoving || isAttacking ? 0.6 : 1}
@@ -232,7 +243,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             <IconButton
               aria-label="Move East"
               icon={isMoving ? <Spinner size="sm" /> : <ChevronRightIcon />}
-              onClick={() => !isMoving && !isAttacking && onMove('east')}
+              onClick={() => handleMovement('east')}
               size="md"
               isDisabled={isMoving || isAttacking}
               opacity={isMoving || isAttacking ? 0.6 : 1}
@@ -244,7 +255,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             <IconButton
               aria-label="Move South"
               icon={isMoving ? <Spinner size="sm" /> : <ChevronDownIcon />}
-              onClick={() => !isMoving && !isAttacking && onMove('south')}
+              onClick={() => handleMovement('south')}
               size="md"
               isDisabled={isMoving || isAttacking}
               opacity={isMoving || isAttacking ? 0.6 : 1}
@@ -256,7 +267,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             <IconButton
               aria-label="Move Up"
               icon={isMoving ? <Spinner size="sm" /> : <ChevronUpIcon />}
-              onClick={() => !isMoving && !isAttacking && onMove('up')}
+              onClick={() => handleMovement('up')}
               size="md"
               isDisabled={isMoving || isAttacking}
               opacity={isMoving || isAttacking ? 0.6 : 1}
@@ -268,7 +279,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             <IconButton
               aria-label="Move Down"
               icon={isMoving ? <Spinner size="sm" /> : <ChevronDownIcon />}
-              onClick={() => !isMoving && !isAttacking && onMove('down')}
+              onClick={() => handleMovement('down')}
               size="md"
               isDisabled={isMoving || isAttacking}
               opacity={isMoving || isAttacking ? 0.6 : 1}
