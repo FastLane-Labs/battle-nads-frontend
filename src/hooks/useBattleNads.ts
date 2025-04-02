@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect } from 'react';
 import * as ethers from 'ethers';
 import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from '../providers/WalletProvider';
+import { parseFrontendData, createGameState } from '../utils/gameDataConverters';
+import { GameState } from '../types/gameTypes';
 
 // ABI snippets for the Battle-Nads contracts
 const ENTRYPOINT_ABI = [
@@ -617,18 +619,6 @@ export const useBattleNads = () => {
       setLoading(false);
     }
   }, [getSigner, getReadOnlyProvider, characterId]);
-
-  // Try to estimate gas for the transaction
-  const estimateGas = useCallback(async (transaction: any) => {
-    try {
-      console.log("Estimating gas for transaction...");
-      // Your gas estimation logic here
-      return 1_000_000; // Default gas limit
-    } catch (err) {
-      console.error("Error estimating gas:", err);
-      return 1_000_000; // Default to safe value
-    }
-  }, []);
   
   // Add a function to check for characters from contract logs as a last resort
   const getCharacterIdFromLogs = useCallback(async (ownerAddress: string) => {
@@ -1076,35 +1066,25 @@ export const useBattleNads = () => {
     try {
       console.log("Loading frontend data for character:", characterId);
       const provider = getReadOnlyProvider();
-          const entrypoint = new ethers.Contract(
-            ENTRYPOINT_ADDRESS,
-            ENTRYPOINT_ABI,
-            provider
-          );
-      const frontendData = await entrypoint.getFrontendData(characterId);
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
       
-      console.log("Frontend data loaded successfully:", frontendData);
+      // Get raw data from blockchain
+      const frontendDataRaw = await entrypoint.getFrontendData(characterId);
       
-      // Return a structured object for easier use in the UI
-      return {
-        character: frontendData[0],
-        combatants: frontendData[1],
-        noncombatants: frontendData[2],
-        miniMap: frontendData[3],
-        equipment: {
-          weapons: {
-            ids: frontendData[4],
-            names: frontendData[5],
-            currentId: frontendData[6] // Assuming this is returned in the ABI
-          },
-          armor: {
-            ids: frontendData[6],
-            names: frontendData[7],
-            currentId: frontendData[8] // Assuming this is returned in the ABI
-          }
-        },
-        unallocatedAttributePoints: frontendData[8]
-      };
+      console.log("Frontend data loaded successfully");
+      
+      // Parse the raw blockchain data into a consistent format
+      const parsedData = parseFrontendData(frontendDataRaw);
+      
+      // Convert to our structured game state (optional, can be done at component level)
+      const gameState = createGameState(parsedData);
+      
+      // For backward compatibility, also return the parsed object structure
+      return parsedData;
     } catch (err: any) {
       console.error("Error getting frontend data after retries:", err);
       setError(err.message || "Error getting game data");
@@ -1113,6 +1093,33 @@ export const useBattleNads = () => {
       setLoading(false);
     }
   }, [getReadOnlyProvider]);
+
+  // Also add a new method to get the structured game state directly
+  const getGameState = useCallback(async (characterId: string): Promise<GameState | null> => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      console.log("Loading game state for character:", characterId);
+      
+      // Get the raw frontend data
+      const frontendDataRaw = await getFrontendData(characterId);
+      
+      if (!frontendDataRaw) {
+        throw new Error("Failed to load game data");
+      }
+      
+      // Convert to our structured game state
+      const gameState = createGameState(frontendDataRaw);
+      return gameState;
+    } catch (err: any) {
+      console.error("Error getting game state:", err);
+      setError(err.message || "Error getting game state");
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getFrontendData]);
 
   // Set the session key to the current embedded wallet address
   const setSessionKeyToEmbeddedWallet = useCallback(async (characterId: string) => {
@@ -1221,6 +1228,7 @@ export const useBattleNads = () => {
     getCharacterIdByTransactionHash,
     getCharacterIdFromLogs,
     getFrontendData,
+    getGameState,
     characterId,
     loading,
     error,

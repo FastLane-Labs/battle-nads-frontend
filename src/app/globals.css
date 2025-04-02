@@ -556,4 +556,11 @@ button:hover:not(:disabled) {
   background-color: rgba(30, 30, 50, 0.8);
   border-radius: 8px;
   backdrop-filter: blur(4px);
+  transition: transform 0.2s ease-in-out, background-color 0.2s ease-out;
+}
+
+.game-tile:hover {
+  transform: scale(1.05);
+  background-color: rgba(50, 50, 70, 0.9);
+  box-shadow: 0 0 8px rgba(120, 120, 255, 0.5);
 } 
