@@ -1,9 +1,9 @@
-import { Character, CharacterStats, Equipment, GameState, AreaInfo, MovementOptions } from '../types/gameTypes';
+import { BattleNad, CharacterStats, Weapon, Armor, GameState, AreaInfo, MovementOptions, Position } from '../types/gameTypes';
 
 /**
  * Converts raw character data from the blockchain into a structured Character object
  */
-export function convertCharacterData(rawCharacter: any): Character {
+export function convertCharacterData(rawCharacter: any): BattleNad {
   // Extract the character ID (usually at index 0)
   const id = rawCharacter[0] || rawCharacter.id || '';
   
@@ -11,7 +11,7 @@ export function convertCharacterData(rawCharacter: any): Character {
   const name = rawCharacter[8] || rawCharacter.name || 'Unknown Character';
   
   // Extract position data
-  const position = {
+  const position: Position = {
     x: Number(rawCharacter.x || (rawCharacter.stats && rawCharacter.stats.x) || 0),
     y: Number(rawCharacter.y || (rawCharacter.stats && rawCharacter.stats.y) || 0),
     depth: Number(rawCharacter.depth || (rawCharacter.stats && rawCharacter.stats.depth) || 1)
@@ -20,10 +20,8 @@ export function convertCharacterData(rawCharacter: any): Character {
   // Extract stats
   let stats: CharacterStats = {
     level: Number(rawCharacter.stats?.level || 1),
-    hp: Number(rawCharacter.stats?.hp || rawCharacter.stats?.health || 0),
-    maxHp: 100 + (Number(rawCharacter.stats?.vitality || 0) * 100) + (Number(rawCharacter.stats?.level || 1) * 50),
-    mp: Number(rawCharacter.stats?.mp || 0),
-    maxMp: 100 + (Number(rawCharacter.stats?.level || 1) * 20),
+    health: Number(rawCharacter.stats?.health || rawCharacter.stats?.hp || 0),
+    maxHealth: 100 + (Number(rawCharacter.stats?.vitality || 0) * 100) + (Number(rawCharacter.stats?.level || 1) * 50),
     strength: Number(rawCharacter.stats?.strength || 0),
     vitality: Number(rawCharacter.stats?.vitality || 0),
     dexterity: Number(rawCharacter.stats?.dexterity || 0),
@@ -34,27 +32,58 @@ export function convertCharacterData(rawCharacter: any): Character {
     y: position.y,
     depth: position.depth,
     experience: Number(rawCharacter.stats?.experience || 0),
+    unallocatedPoints: Number(rawCharacter.stats?.unallocatedPoints || 0),
     index: Number(rawCharacter.stats?.index || 0),
-    isMonster: Boolean(rawCharacter.stats?.isMonster || false)
+    isMonster: Boolean(rawCharacter.stats?.isMonster || false),
+    combatantBitMap: Number(rawCharacter.stats?.combatantBitMap || 0),
+    sumOfCombatantLevels: Number(rawCharacter.stats?.sumOfCombatantLevels || 0),
+    combatants: Number(rawCharacter.stats?.combatants || 0),
+    nextTargetIndex: Number(rawCharacter.stats?.nextTargetIndex || 0)
   };
   
-  // Apply caps to both HP and MP
-  stats.hp = Math.min(stats.hp, stats.maxHp);
-  stats.mp = Math.min(stats.mp, stats.maxMp);
+  // Apply cap to health
+  stats.health = Math.min(stats.health, stats.maxHealth);
   
   // Extract weapon equipment
-  const weapon: Equipment | undefined = rawCharacter.weapon ? {
+  const weapon: Weapon = rawCharacter.weapon ? {
     id: rawCharacter.weapon.id || '',
     name: rawCharacter.weapon.name || 'Unknown Weapon',
-    stats: rawCharacter.weapon.stats
-  } : undefined;
+    baseDamage: Number(rawCharacter.weapon.baseDamage || 0),
+    bonusDamage: Number(rawCharacter.weapon.bonusDamage || 0),
+    accuracy: Number(rawCharacter.weapon.accuracy || 0),
+    speed: Number(rawCharacter.weapon.speed || 0)
+  } : {
+    id: '0',
+    name: 'Fists',
+    baseDamage: 1,
+    bonusDamage: 0,
+    accuracy: 90,
+    speed: 100
+  };
   
   // Extract armor equipment
-  const armor: Equipment | undefined = rawCharacter.armor ? {
+  const armor: Armor = rawCharacter.armor ? {
     id: rawCharacter.armor.id || '',
     name: rawCharacter.armor.name || 'Unknown Armor',
-    stats: rawCharacter.armor.stats
-  } : undefined;
+    armorFactor: Number(rawCharacter.armor.armorFactor || 0),
+    armorQuality: Number(rawCharacter.armor.armorQuality || 0),
+    flexibility: Number(rawCharacter.armor.flexibility || 0),
+    weight: Number(rawCharacter.armor.weight || 0)
+  } : {
+    id: '0',
+    name: 'Clothes',
+    armorFactor: 1,
+    armorQuality: 0,
+    flexibility: 100,
+    weight: 1
+  };
+
+  // Extract inventory
+  const inventory = {
+    weaponBitmap: Number(rawCharacter.inventory?.weaponBitmap || 0),
+    armorBitmap: Number(rawCharacter.inventory?.armorBitmap || 0),
+    balance: Number(rawCharacter.inventory?.balance || 0)
+  };
   
   return {
     id,
@@ -62,7 +91,11 @@ export function convertCharacterData(rawCharacter: any): Character {
     stats,
     weapon,
     armor,
+    inventory,
     position,
+    owner: rawCharacter.owner || '',
+    activeTask: rawCharacter.activeTask || '',
+    isMonster: Boolean(stats.isMonster),
     isPlayer: !stats.isMonster
   };
 }
@@ -76,6 +109,14 @@ export function convertAreaInfo(rawAreaInfo: any): AreaInfo | null {
   return {
     playerCount: Number(rawAreaInfo.playerCount || 0),
     monsterCount: Number(rawAreaInfo.monsterCount || 0),
+    sumOfPlayerLevels: Number(rawAreaInfo.sumOfPlayerLevels || 0),
+    sumOfMonsterLevels: Number(rawAreaInfo.sumOfMonsterLevels || 0),
+    playerBitMap: Number(rawAreaInfo.playerBitMap || 0),
+    monsterBitMap: Number(rawAreaInfo.monsterBitMap || 0),
+    depth: Number(rawAreaInfo.depth || 0),
+    x: Number(rawAreaInfo.x || 0),
+    y: Number(rawAreaInfo.y || 0),
+    update: Boolean(rawAreaInfo.update || false),
     description: rawAreaInfo.description || ''
   };
 }
@@ -83,7 +124,7 @@ export function convertAreaInfo(rawAreaInfo: any): AreaInfo | null {
 /**
  * Converts raw movement options
  */
-export function createMovementOptions(position: { x: number, y: number, depth: number }): MovementOptions {
+export function createMovementOptions(position: Position): MovementOptions {
   // Default movement options based on position
   // These can be refined based on actual game rules
   return {

@@ -31,7 +31,7 @@ import { useBattleNads } from '../../hooks/useBattleNads';
 import { useGame } from '../../hooks/useGame';
 import { usePrivy } from '@privy-io/react-auth';
 import GameBoard from './GameBoard'; // Import the new GameBoard component
-import { Character, GameState } from '../../types/gameTypes';
+import { BattleNad, GameState } from '../../types/gameTypes';
 import { convertCharacterData, createGameState, parseFrontendData } from '../../utils/gameDataConverters';
 
 interface Combatant {
@@ -78,15 +78,15 @@ const Game: React.FC = () => {
   } = useGame();
   
   const [characterId, setCharacterId] = useState<string | null>(null);
-  const [character, setCharacter] = useState<Character | null>(null);
+  const [character, setCharacter] = useState<BattleNad | null>(null);
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isMoving, setIsMoving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [position, setPosition] = useState({ x: 0, y: 0, depth: 1 });
-  const [combatants, setCombatants] = useState<Character[]>([]);
-  const [noncombatants, setNoncombatants] = useState<Character[]>([]);
-  const [selectedCombatant, setSelectedCombatant] = useState<Character | null>(null);
+  const [combatants, setCombatants] = useState<BattleNad[]>([]);
+  const [noncombatants, setNoncombatants] = useState<BattleNad[]>([]);
+  const [selectedCombatant, setSelectedCombatant] = useState<BattleNad | null>(null);
   const [combatLog, setCombatLog] = useState<string[]>([]);
   const [isInCombat, setIsInCombat] = useState(false);
   const [isAttacking, setIsAttacking] = useState(false);
@@ -1068,17 +1068,17 @@ const Game: React.FC = () => {
                   </HStack>
                   
                   <Box mb={4}>
-                    <Text color="gray.400" fontSize="sm">HP: {character.stats.hp || 0}/{character.stats.maxHp || 0}</Text>
+                    <Text color="gray.400" fontSize="sm">HP: {character.stats.health || 0}/{character.stats.maxHealth || 0}</Text>
                     <Progress 
-                      value={(character.stats.hp / character.stats.maxHp) * 100} 
+                      value={(character.stats.health / character.stats.maxHealth) * 100} 
                       colorScheme="red" 
                       size="sm" 
                       mb={2} 
                     />
                     
-                    <Text color="gray.400" fontSize="sm">MP: {character.stats.mp || 0}/{character.stats.maxMp || 0}</Text>
+                    <Text color="gray.400" fontSize="sm">Energy: {character.stats.experience || 0}</Text>
                     <Progress 
-                      value={(character.stats.mp / character.stats.maxMp) * 100} 
+                      value={(character.stats.experience / (character.stats.level * 100)) * 100} 
                       colorScheme="blue" 
                       size="sm" 
                     />
@@ -1193,7 +1193,7 @@ const Game: React.FC = () => {
                               Lvl {enemy.stats.level || '?'}
                             </Text>
                             <Text color="red.300" fontSize="xs">
-                              HP: {enemy.stats.hp || '?'}/{enemy.stats.maxHp || '?'}
+                              HP: {enemy.stats.health || '?'}/{enemy.stats.maxHealth || '?'}
                             </Text>
                           </HStack>
                         </HStack>

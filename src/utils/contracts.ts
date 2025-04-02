@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import { BattleNad } from './types';
+import { BattleNad } from '../types/gameTypes';
 
 // ABI for the BattleNadsEntrypoint contract
 // This is a simplified ABI focused on the functions we need
