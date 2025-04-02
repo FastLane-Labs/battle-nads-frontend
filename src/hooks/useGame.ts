@@ -148,7 +148,9 @@ export const useGame = () => {
       }
       
       setStatus('checking-session-key');
+      console.log("=== SESSION KEY CHECK STARTED ===");
       console.log("Checking session key for character:", charId);
+      console.log("Embedded wallet address:", embeddedWallet?.address);
       
       // Use the getCurrentSessionKey function from useBattleNads hook
       try {
@@ -156,6 +158,7 @@ export const useGame = () => {
         console.log("Session key info from useBattleNads:", sessionKeyInfo);
         
         if (!sessionKeyInfo) {
+          console.error("Session key info is null or undefined");
           setError("Failed to get current session key");
           setStatus('error');
           processingRef.current = false;
@@ -172,6 +175,7 @@ export const useGame = () => {
         
         // Make sure embedded wallet is defined
         if (!embeddedWallet?.address) {
+          console.error("Embedded wallet address is null or undefined");
           setError("Embedded wallet not available");
           setStatus('error');
           processingRef.current = false;
@@ -179,17 +183,20 @@ export const useGame = () => {
         }
         
         // Check if current session key matches the embedded wallet
-        if (currentSessionKey.toLowerCase() !== embeddedWallet.address.toLowerCase()) {
+        const sessionKeyMatches = currentSessionKey.toLowerCase() === embeddedWallet.address.toLowerCase();
+        console.log("Session key matches embedded wallet:", sessionKeyMatches);
+        
+        if (!sessionKeyMatches) {
           console.log("Session key mismatch. Needs update.");
           console.log("Current session key:", currentSessionKey);
           console.log("Embedded wallet address:", embeddedWallet.address);
           
           // Set a warning that session keys don't match
-          setSessionKeyWarning("Your session key doesn't match your embedded wallet. Some game actions may fail. Session key updates are currently disabled.");
+          const warningMessage = "Your session key doesn't match your embedded wallet. Some game actions may fail.";
+          console.log("Setting session key warning:", warningMessage);
+          setSessionKeyWarning(warningMessage);
           
-          // Note: We're not going to update the session key since it's causing issues
-          // Instead, we'll consider this a success to allow the game to continue
-          console.log("Skipping session key update as requested");
+          console.log("Skipping session key update and continuing");
           return true;
         } else {
           console.log("Session key already matches embedded wallet!");
@@ -209,6 +216,8 @@ export const useGame = () => {
       setStatus('error');
       processingRef.current = false;
       return false;
+    } finally {
+      console.log("=== SESSION KEY CHECK COMPLETED ===");
     }
   }, [embeddedWallet, getCurrentSessionKey]);
   
