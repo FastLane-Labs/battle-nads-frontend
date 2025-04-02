@@ -201,85 +201,79 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             console.log("Found MetaMask wallet, setting as injectedWallet:", wallet.address);
             foundInjected = true;
             
-            // Create a provider for this wallet if possible
-            if (window.ethereum) {
-              try {
-                const ethProvider = new ethers.BrowserProvider(window.ethereum as any);
-                await checkAndSwitchChain(ethProvider);
-                const walletSigner = await ethProvider.getSigner();
-                
-                const walletInfo: WalletInfo = {
-                  type: 'injected',
-                  walletClientType: wallet.walletClientType,
-                  address: wallet.address,
-                  signer: walletSigner,
-                  provider: ethProvider,
-                  privyWallet: wallet
-                };
-                
-                setInjectedWallet(walletInfo);
-                
-                // Always make MetaMask the active wallet when available
-                newCurrentWallet = 'injected';
-                setSigner(walletSigner);
-                setProvider(ethProvider);
-                setAddress(wallet.address);
-              } catch (providerError) {
-                console.error("Error setting up MetaMask provider:", providerError);
-                setInjectedWallet({
-                  type: 'injected',
-                  walletClientType: wallet.walletClientType,
-                  address: wallet.address,
-                  signer: null,
-                  provider: null,
-                  privyWallet: wallet
-                });
-              }
+            try {
+              // Follow Privy documentation for ethers v6
+              const privyProvider = await wallet.getEthereumProvider();
+              const ethProvider = new ethers.BrowserProvider(privyProvider);
+              await checkAndSwitchChain(ethProvider);
+              const walletSigner = await ethProvider.getSigner();
+              
+              console.log("[WalletProvider] Successfully created MetaMask wallet signer:", 
+                        { address: wallet.address, hasProvider: !!ethProvider, hasSigner: !!walletSigner });
+              
+              const walletInfo: WalletInfo = {
+                type: 'injected',
+                walletClientType: wallet.walletClientType,
+                address: wallet.address,
+                signer: walletSigner,
+                provider: ethProvider,
+                privyWallet: wallet
+              };
+              
+              setInjectedWallet(walletInfo);
+              
+              // Always make MetaMask the active wallet when available
+              newCurrentWallet = 'injected';
+              setSigner(walletSigner);
+              setProvider(ethProvider);
+              setAddress(wallet.address);
+            } catch (providerError) {
+              console.error("Error setting up MetaMask provider:", providerError);
+              setInjectedWallet({
+                type: 'injected',
+                walletClientType: wallet.walletClientType,
+                address: wallet.address,
+                signer: null,
+                provider: null,
+                privyWallet: wallet
+              });
             }
           } else if (isInjected && !isMetamask && !injectedWallet) {
             // This is a non-MetaMask injected wallet, use only if no MetaMask found
             console.log("Found other injected wallet:", wallet.walletClientType, wallet.address);
             foundInjected = true;
             
-            // Create a provider for this wallet if possible
-            if (window.ethereum) {
-              try {
-                const ethProvider = new ethers.BrowserProvider(window.ethereum as any);
-                await checkAndSwitchChain(ethProvider);
-                const walletSigner = await ethProvider.getSigner();
-                
-                const walletInfo: WalletInfo = {
-                  type: 'injected',
-                  walletClientType: wallet.walletClientType,
-                  address: wallet.address,
-                  signer: walletSigner,
-                  provider: ethProvider,
-                  privyWallet: wallet
-                };
-                
-                setInjectedWallet(walletInfo);
-                
-                // If no active wallet set, make this the active one
-                if (newCurrentWallet === 'none') {
-                  newCurrentWallet = 'injected';
-                  setSigner(walletSigner);
-                  setProvider(ethProvider);
-                  setAddress(wallet.address);
-                }
-              } catch (providerError) {
-                console.error("Error setting up injected wallet provider:", providerError);
-                // Create wallet info without provider/signer
-                setInjectedWallet({
-                  type: 'injected',
-                  walletClientType: wallet.walletClientType,
-                  address: wallet.address,
-                  signer: null,
-                  provider: null,
-                  privyWallet: wallet
-                });
+            try {
+              // Follow Privy documentation for ethers v6
+              const privyProvider = await wallet.getEthereumProvider();
+              const ethProvider = new ethers.BrowserProvider(privyProvider);
+              await checkAndSwitchChain(ethProvider);
+              const walletSigner = await ethProvider.getSigner();
+              
+              console.log("[WalletProvider] Successfully created injected wallet signer:", 
+                        { address: wallet.address, type: wallet.walletClientType, hasProvider: !!ethProvider, hasSigner: !!walletSigner });
+              
+              const walletInfo: WalletInfo = {
+                type: 'injected',
+                walletClientType: wallet.walletClientType,
+                address: wallet.address,
+                signer: walletSigner,
+                provider: ethProvider,
+                privyWallet: wallet
+              };
+              
+              setInjectedWallet(walletInfo);
+              
+              // If no active wallet set, make this the active one
+              if (newCurrentWallet === 'none') {
+                newCurrentWallet = 'injected';
+                setSigner(walletSigner);
+                setProvider(ethProvider);
+                setAddress(wallet.address);
               }
-            } else {
-              // No window.ethereum, just record the address
+            } catch (providerError) {
+              console.error("Error setting up injected wallet provider:", providerError);
+              // Create wallet info without provider/signer
               setInjectedWallet({
                 type: 'injected',
                 walletClientType: wallet.walletClientType,
@@ -301,16 +295,17 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             let embeddedSigner = null;
             
             try {
-              // For embedded wallets, we'd need to use their specific provider
-              // This might need adjustment based on how Privy exposes the embedded wallet's provider
-              if (window.ethereum) {
-                const ethProvider = new ethers.BrowserProvider(window.ethereum as any);
-                await checkAndSwitchChain(ethProvider);
-                embeddedProvider = ethProvider;
-                embeddedSigner = await ethProvider.getSigner();
-              }
+              // For embedded wallets, use the Privy API to get the provider
+              // Following Privy documentation for ethers v6
+              const privyProvider = await wallet.getEthereumProvider();
+              const ethProvider = new ethers.BrowserProvider(privyProvider);
+              embeddedProvider = ethProvider;
+              embeddedSigner = await ethProvider.getSigner();
+              
+              console.log("[WalletProvider] Successfully created embedded wallet signer:", 
+                          { address: wallet.address, hasProvider: !!embeddedProvider, hasSigner: !!embeddedSigner });
             } catch (providerError) {
-              console.warn("Could not get provider for embedded wallet:", providerError);
+              console.error("Could not get provider for embedded wallet:", providerError);
             }
             
             // Create and store the wallet info

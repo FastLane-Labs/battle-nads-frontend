@@ -186,6 +186,17 @@ export const useBattleNads = () => {
         return embeddedWallet.signer;
       } else {
         console.warn(`[getSigner] WARNING: Embedded wallet not available for ${operationType}, falling back to injected wallet`);
+        // Check exactly why the embedded wallet isn't available
+        if (!embeddedWallet) {
+          console.error('[getSigner] ERROR: embeddedWallet is null or undefined');
+        } else if (!embeddedWallet.signer) {
+          console.error('[getSigner] ERROR: embeddedWallet.signer is null or undefined');
+          console.error('[getSigner] embeddedWallet details:', {
+            address: embeddedWallet.address,
+            walletClientType: embeddedWallet.walletClientType,
+            hasProvider: !!embeddedWallet.provider
+          });
+        }
       }
     }
     
@@ -332,23 +343,41 @@ export const useBattleNads = () => {
     try {
       console.log(`[moveCharacter] Starting movement ${direction} for character ${characterID}`);
       
+      // Verify that embedded wallet is available before proceeding
+      if (!embeddedWallet?.address) {
+        console.error('[moveCharacter] No embedded wallet available, movement requires a session key');
+        throw new Error('Session key wallet not available. Please refresh the page and try again.');
+      }
+      
+      if (!embeddedWallet.signer) {
+        console.error('[moveCharacter] Embedded wallet has no signer, movement requires an active session key');
+        console.error('[moveCharacter] Embedded wallet details:', {
+          address: embeddedWallet.address,
+          walletClientType: embeddedWallet.walletClientType,
+          hasProvider: !!embeddedWallet.provider
+        });
+        throw new Error('Session key wallet has no signer. Please refresh the page and try again.');
+      }
+      
       // Check if the session key is properly set before moving
       try {
-        if (embeddedWallet?.address) {
-          const currentSessionKey = await getCurrentSessionKey(characterID);
-          console.log(`[moveCharacter] Current session key from contract: ${currentSessionKey}`);
-          console.log(`[moveCharacter] Session key matches embedded wallet: ${embeddedWallet.address.toLowerCase() === currentSessionKey?.toLowerCase()}`);
-          
-          if (!currentSessionKey || currentSessionKey.toLowerCase() !== embeddedWallet.address.toLowerCase()) {
-            console.warn(`[moveCharacter] Session key mismatch - should update session key first!`);
-            console.warn(`[moveCharacter] Embedded wallet: ${embeddedWallet.address}`);
-            console.warn(`[moveCharacter] Current session key: ${currentSessionKey}`);
-          }
-        } else {
-          console.warn('[moveCharacter] No embedded wallet available for session key');
+        const currentSessionKey = await getCurrentSessionKey(characterID);
+        console.log(`[moveCharacter] Current session key from contract: ${currentSessionKey}`);
+        console.log(`[moveCharacter] Session key matches embedded wallet: ${embeddedWallet.address.toLowerCase() === currentSessionKey?.toLowerCase()}`);
+        
+        if (!currentSessionKey || currentSessionKey.toLowerCase() !== embeddedWallet.address.toLowerCase()) {
+          console.warn(`[moveCharacter] Session key mismatch - should update session key first!`);
+          console.warn(`[moveCharacter] Embedded wallet: ${embeddedWallet.address}`);
+          console.warn(`[moveCharacter] Current session key: ${currentSessionKey}`);
+          throw new Error('Session key mismatch. Please update your session key before moving.');
         }
       } catch (error) {
         console.error('[moveCharacter] Error checking session key:', error);
+        // Only throw if this is a session key mismatch error we caught above
+        if (error instanceof Error && error.message.includes('Session key mismatch')) {
+          throw error;
+        }
+        // Otherwise continue and hope for the best
       }
       
       // Use session key (embedded wallet) for movement
@@ -365,7 +394,16 @@ export const useBattleNads = () => {
         const isOwnerWallet = injectedWallet?.address === signerAddress;
         console.log(`[moveCharacter] Is using session key wallet: ${isSessionKey}`);
         console.log(`[moveCharacter] Is using owner wallet: ${isOwnerWallet}`);
+        
+        // Extra safety check - if we're not using the session key wallet, throw an error
+        if (!isSessionKey) {
+          console.error('[moveCharacter] Not using session key wallet for movement!');
+          throw new Error('Movement must use session key wallet. Please update your session key and try again.');
+        }
       } catch (error) {
+        if (error instanceof Error && error.message.includes('Movement must use session key wallet')) {
+          throw error; // Rethrow our explicit error
+        }
         console.error('[moveCharacter] Failed to get signer information:', error);
       }
       
