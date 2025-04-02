@@ -29,6 +29,7 @@ import { ChevronUpIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } fro
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from '../../hooks/useBattleNads';
 import { useGame } from '../../hooks/useGame';
+import { usePrivy } from '@privy-io/react-auth';
 
 interface Combatant {
   id: string;
@@ -83,7 +84,6 @@ const Game: React.FC = () => {
   const [selectedCombatant, setSelectedCombatant] = useState<Combatant | null>(null);
   const [combatLog, setCombatLog] = useState<string[]>([]);
   const [isInCombat, setIsInCombat] = useState(false);
-  const [isMoving, setIsMoving] = useState(false);
   const [isAttacking, setIsAttacking] = useState(false);
   const [movementOptions, setMovementOptions] = useState<any | null>(null);
   const [loadingComplete, setLoadingComplete] = useState<boolean>(false);
@@ -96,6 +96,9 @@ const Game: React.FC = () => {
   const hasInitialized = useRef(false);
   
   const toast = useToast();
+
+  // Use the Privy hooks for showing UI during transactions
+  const privy = usePrivy();
 
   // Helper function to add messages to combat log
   const addToCombatLog = (message: string) => {
@@ -480,14 +483,14 @@ const Game: React.FC = () => {
       return;
     }
     
-    // Don't allow movement if we're already moving or loading
-    if (isMoving || loading) return;
+    // Don't allow movement if we're already loading
+    if (loading) return;
     
     try {
-      setIsMoving(true);
+      // Add to combat log but don't use local isMoving state
       addToCombatLog(`Attempting to move ${direction}...`);
       
-      // Call the blockchain to move the character
+      // Call the blockchain to move the character - Privy will automatically show its own loading UI
       await moveCharacter(characterId, direction);
       
       addToCombatLog(`Successfully moved ${direction}!`);
@@ -594,8 +597,6 @@ const Game: React.FC = () => {
         
         addToCombatLog(`Failed to move ${direction}: ${errorMessage}`);
       }
-    } finally {
-      setIsMoving(false);
     }
   };
 
@@ -955,7 +956,8 @@ const Game: React.FC = () => {
   };
 
   // Show loading state during initialization
-  if (loading || isMoving || isAttacking || status.startsWith('checking') || status === 'updating-session-key') {
+  if (loading || isAttacking || status.startsWith('checking') || status === 'updating-session-key') {
+    // Map of status messages for different loading states
     const messageMap: Record<string, string> = {
       'checking': 'Initializing game...',
       'checking-owner-wallet': 'Checking if owner wallet is connected...',
@@ -965,13 +967,14 @@ const Game: React.FC = () => {
       'updating-session-key': 'Updating session key...',
     };
     
-    const loadingMessage = isMoving 
-      ? "Moving..." 
-      : isAttacking 
-        ? "Attacking..." 
-        : status.startsWith('checking') || status === 'updating-session-key'
-          ? messageMap[status] || 'Loading Battle-Nads game data...'
-          : 'Loading Battle-Nads game data...';
+    // Generate the loading message based on current state
+    let loadingMessage = 'Loading Battle-Nads game data...';
+    
+    if (isAttacking) {
+      loadingMessage = "Attacking...";
+    } else if (status.startsWith('checking') || status === 'updating-session-key') {
+      loadingMessage = messageMap[status] || 'Loading Battle-Nads game data...';
+    }
     
     return (
       <Center height="100vh" className="bg-gray-900" color="white">
