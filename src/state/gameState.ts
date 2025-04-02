@@ -6,9 +6,7 @@ import {
   Position
 } from '../types/gameTypes';
 
-// Atoms
-
-// The main game state atom
+// Main GameState atom - single source of truth for all blockchain state
 export const gameStateAtom = atom<GameState>({
   key: 'gameState',
   default: {
@@ -43,15 +41,11 @@ export const playerLocationSelector = selector<Position | null>({
     const character = get(playerCharacterSelector);
     if (!character) return null;
     
-    return {
-      depth: character.stats.depth,
-      x: character.stats.x,
-      y: character.stats.y,
-    };
+    return character.position;
   },
 });
 
-// Get the characters in the current area
+// Get all characters in the current area
 export const charactersInAreaSelector = selector<BattleNad[]>({
   key: 'charactersInArea',
   get: ({ get }) => {
@@ -60,7 +54,7 @@ export const charactersInAreaSelector = selector<BattleNad[]>({
   }
 });
 
-// Get the monsters in the current area
+// Get all monsters in the current area
 export const monstersInAreaSelector = selector<BattleNad[]>({
   key: 'monstersInArea',
   get: ({ get }) => {
@@ -69,7 +63,7 @@ export const monstersInAreaSelector = selector<BattleNad[]>({
   },
 });
 
-// Get the players in the current area
+// Get all players in the current area
 export const playersInAreaSelector = selector<BattleNad[]>({
   key: 'playersInArea',
   get: ({ get }) => {
@@ -82,24 +76,75 @@ export const playersInAreaSelector = selector<BattleNad[]>({
 export const combatantsSelector = selector<BattleNad[]>({
   key: 'combatants',
   get: ({ get }) => {
-    const character = get(playerCharacterSelector);
-    const charactersInArea = get(charactersInAreaSelector);
-    
-    if (!character || character.stats.combatants === 0) {
-      return [];
-    }
-    
-    // Convert combatantBitMap to a binary string for bit checking
-    const combatantBitMap = character.stats.combatantBitMap.toString(2).padStart(64, '0');
-    
-    return charactersInArea.filter((c, index) => {
-      // Check if the bit at position 'index' is set in the bitmap
-      return combatantBitMap[63 - index] === '1';
-    });
+    const state = get(gameStateAtom);
+    return state.combatants;
   },
 });
 
-// Combat state selectors
+// Get non-combatants in the area
+export const noncombatantsSelector = selector<BattleNad[]>({
+  key: 'noncombatants',
+  get: ({ get }) => {
+    const state = get(gameStateAtom);
+    return state.noncombatants;
+  },
+});
+
+// Get area information
+export const areaInfoSelector = selector<AreaInfo | null>({
+  key: 'areaInfo',
+  get: ({ get }) => {
+    const state = get(gameStateAtom);
+    return state.areaInfo;
+  },
+});
+
+// Get movement options
+export const movementOptionsSelector = selector({
+  key: 'movementOptions',
+  get: ({ get }) => {
+    const state = get(gameStateAtom);
+    return state.movementOptions;
+  },
+});
+
+// Get combat status
+export const isInCombatSelector = selector<boolean>({
+  key: 'isInCombat',
+  get: ({ get }) => {
+    const state = get(gameStateAtom);
+    return state.isInCombat;
+  },
+});
+
+// Get equipment information
+export const equipmentInfoSelector = selector({
+  key: 'equipmentInfo',
+  get: ({ get }) => {
+    const state = get(gameStateAtom);
+    return state.equipmentInfo;
+  },
+});
+
+// Get loading state
+export const loadingSelector = selector<boolean>({
+  key: 'loading',
+  get: ({ get }) => {
+    const state = get(gameStateAtom);
+    return state.loading || false;
+  },
+});
+
+// Get error state
+export const errorSelector = selector<string | null>({
+  key: 'error',
+  get: ({ get }) => {
+    const state = get(gameStateAtom);
+    return state.error || null;
+  },
+});
+
+// Combat stats selector
 export const combatStatsSelector = selector({
   key: 'combatStats',
   get: ({ get }) => {
@@ -118,6 +163,7 @@ export const combatStatsSelector = selector({
   },
 });
 
+// Helper functions (no changes needed, as they operate on state but don't manage it)
 export const selectCombatants = (combatants: BattleNad[]): BattleNad[] => 
   combatants.filter((character: BattleNad | null) => character !== null);
 
@@ -135,77 +181,3 @@ export const selectCombatantById = (combatants: BattleNad[], id: string): Battle
 
 export const selectCombatantIndex = (combatants: BattleNad[], id: string): number =>
   combatants.findIndex((character: BattleNad | null) => character && character.id === id);
-
-// Error handling
-export class GameError extends Error {
-  constructor(message: string, public code: string) {
-    super(message);
-    this.name = 'GameError';
-  }
-}
-
-export const validateMove = (
-  character: BattleNad,
-  targetX: number,
-  targetY: number,
-  area: AreaInfo
-): void => {
-  if (targetX < 0 || targetX > 50 || targetY < 0 || targetY > 50) {
-    throw new GameError('Move out of bounds', 'OUT_OF_BOUNDS');
-  }
-  if (area.monsterCount > 0) {
-    throw new GameError('Cannot move while in combat', 'IN_COMBAT');
-  }
-};
-
-export const validateAttack = (
-  attacker: BattleNad,
-  target: BattleNad,
-  area: AreaInfo
-): void => {
-  if (!target) {
-    throw new GameError('No target selected', 'NO_TARGET');
-  }
-  if (target.stats.isMonster === attacker.stats.isMonster) {
-    throw new GameError('Cannot attack same type', 'INVALID_TARGET');
-  }
-  if (area.monsterCount === 0) {
-    throw new GameError('No monsters in area', 'NO_MONSTERS');
-  }
-};
-
-// Combat calculations
-export const calculateDamage = (attacker: BattleNad, defender: BattleNad): number => {
-  const baseDamage = attacker.weapon.baseDamage;
-  const strengthBonus = attacker.stats.strength * 2;
-  const dexterityBonus = attacker.stats.dexterity;
-  const armorReduction = defender.armor.armorFactor;
-  
-  let damage = baseDamage + strengthBonus + dexterityBonus;
-  damage = Math.max(0, damage - armorReduction);
-  
-  return Math.floor(damage);
-};
-
-export const calculateHitChance = (attacker: BattleNad, defender: BattleNad): number => {
-  const baseHitChance = 75; // 75% base hit chance
-  const attackerBonus = attacker.stats.dexterity * 2;
-  const defenderBonus = defender.stats.quickness;
-  
-  return Math.min(95, Math.max(5, baseHitChance + attackerBonus - defenderBonus));
-};
-
-// State updates
-export const updateCombatState = (
-  attacker: BattleNad,
-  defender: BattleNad,
-  damage: number
-): { attacker: BattleNad; defender: BattleNad } => {
-  const newDefender = { ...defender };
-  newDefender.stats.health = Math.max(0, defender.stats.health - damage);
-  
-  return {
-    attacker,
-    defender: newDefender
-  };
-}; 

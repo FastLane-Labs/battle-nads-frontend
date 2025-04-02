@@ -30,9 +30,21 @@ import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from '../../hooks/useBattleNads';
 import { useGame } from '../../hooks/useGame';
 import { usePrivy } from '@privy-io/react-auth';
-import GameBoard from './GameBoard'; // Import the new GameBoard component
+import GameBoard from './GameBoard';
 import { BattleNad, GameState } from '../../types/gameTypes';
 import { convertCharacterData, createGameState, parseFrontendData } from '../../utils/gameDataConverters';
+import { useRecoilValue, useSetRecoilState } from 'recoil';
+import { 
+  gameStateAtom, 
+  playerCharacterSelector, 
+  combatantsSelector, 
+  noncombatantsSelector,
+  areaInfoSelector,
+  movementOptionsSelector,
+  isInCombatSelector,
+  loadingSelector,
+  errorSelector
+} from '../../state/gameState';
 
 interface Combatant {
   id: string;
@@ -56,10 +68,11 @@ const Game: React.FC = () => {
     attackTarget,
     getCharactersInArea,
     getFrontendData,
+    getGameState,
     loading: hookLoading, 
     error: hookError,
     setSessionKeyToEmbeddedWallet,
-    characterId: battleNadsCharacterId  // Get characterId from hook
+    characterId: battleNadsCharacterId
   } = useBattleNads();
   
   // Use our new game initialization hook
@@ -77,23 +90,25 @@ const Game: React.FC = () => {
     checkEmbeddedWallet
   } = useGame();
   
+  // Recoil state
+  const setGameState = useSetRecoilState(gameStateAtom);
+  const character = useRecoilValue(playerCharacterSelector);
+  const combatants = useRecoilValue(combatantsSelector);
+  const noncombatants = useRecoilValue(noncombatantsSelector);
+  const areaInfo = useRecoilValue(areaInfoSelector);
+  const movementOptions = useRecoilValue(movementOptionsSelector);
+  const isInCombat = useRecoilValue(isInCombatSelector);
+  const loading = useRecoilValue(loadingSelector);
+  const error = useRecoilValue(errorSelector);
+  
+  // Local component state (not blockchain related)
   const [characterId, setCharacterId] = useState<string | null>(null);
-  const [character, setCharacter] = useState<BattleNad | null>(null);
-  const [gameState, setGameState] = useState<GameState | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
   const [isMoving, setIsMoving] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
   const [position, setPosition] = useState({ x: 0, y: 0, depth: 1 });
-  const [combatants, setCombatants] = useState<BattleNad[]>([]);
-  const [noncombatants, setNoncombatants] = useState<BattleNad[]>([]);
   const [selectedCombatant, setSelectedCombatant] = useState<BattleNad | null>(null);
   const [combatLog, setCombatLog] = useState<string[]>([]);
-  const [isInCombat, setIsInCombat] = useState(false);
   const [isAttacking, setIsAttacking] = useState(false);
-  const [movementOptions, setMovementOptions] = useState<any | null>(null);
   const [loadingComplete, setLoadingComplete] = useState<boolean>(false);
-  const [areaInfo, setAreaInfo] = useState<any>(null);
-  const [equipmentInfo, setEquipmentInfo] = useState<any>(null);
   const [miniMap, setMiniMap] = useState<any[][]>([]);
 
   // Reference to track initial load state
@@ -111,18 +126,18 @@ const Game: React.FC = () => {
     setCombatLog(prev => [message, ...prev].slice(0, 20));
   };
 
-  // Load character data from chain
+  // Load character data from chain using centralized state
   const loadCharacterData = async () => {
-    // Only show the full loading screen if not during a movement action
+    // Track moving state locally for UI purposes
     if (!isMoving) {
-      setLoading(true);
+      setGameState(current => ({ ...current, loading: true }));
     }
     
     try {
       console.log("==========================================");
       console.log("LOADING CHARACTER DATA STARTED");
       
-      // First check if the game status is ready (meaning initialization completed)
+      // First check if the game status is ready
       console.log("Current game status:", status);
       console.log("Wallet state:", { 
         address, 
@@ -130,17 +145,14 @@ const Game: React.FC = () => {
         embeddedWallet: embeddedWallet?.address
       });
       
-      // IMPORTANT: Clear local error state if status is ready
-      // This prevents showing error screen if status transitions to ready
+      // Clear error state if status is ready
       if (status === 'ready' && error) {
-        console.log("Status is ready, clearing local error state");
-        setError(null);
+        setGameState(current => ({ ...current, error: null }));
       }
       
-      // IMPORTANT: Try to ensure wallet connection even if status is ready
-      // Sometimes wallet can disconnect but status remains ready
+      // Ensure wallet connection
       if (!injectedWallet?.address && !address) {
-        console.log("No wallet detected but status is ready - attempting to reconnect wallet...");
+        console.log("No wallet detected - attempting to reconnect wallet...");
         const walletConnected = await checkOwnerWallet();
         console.log("Wallet reconnection result:", walletConnected);
         
@@ -151,7 +163,7 @@ const Game: React.FC = () => {
       
       // Make sure embedded wallet is available for session key operations
       if (!embeddedWallet?.address) {
-        console.log("No embedded wallet detected but status is ready - attempting to reconnect...");
+        console.log("No embedded wallet detected - attempting to reconnect...");
         const embeddedConnected = await checkEmbeddedWallet();
         console.log("Embedded wallet reconnection result:", embeddedConnected);
         
@@ -160,7 +172,7 @@ const Game: React.FC = () => {
         }
       }
       
-      // Now check actual game status
+      // Check game status
       if (status !== 'ready') {
         console.log("Game not ready (status:", status, ") - cannot load character data");
         throw new Error(`Game not initialized properly (status: ${status})`);
@@ -168,14 +180,14 @@ const Game: React.FC = () => {
       
       console.log("Game status is ready, proceeding to load character data");
       
-      // Now get the character ID - either from state or from useBattleNads
+      // Get the character ID
       console.log("Looking for character ID");
       const existingCharId = characterId || battleNadsCharacterId;
       
       if (!existingCharId) {
-        // If no character ID in state, try to get it from the player's address
+        // If no character ID in state, get it from the player's address
         const ownerAddress = injectedWallet?.address || address;
-        console.log("No character ID in state, checking for character ID using address:", ownerAddress);
+        console.log("No character ID in state, checking using address:", ownerAddress);
         
         if (ownerAddress) {
           const charId = await getPlayerCharacterID(ownerAddress);
@@ -194,7 +206,7 @@ const Game: React.FC = () => {
         setCharacterId(existingCharId);
       }
       
-      // Now load the actual character data using getFrontendData
+      // Get character data using centralized state management
       const charToUse = characterId || existingCharId;
       console.log("Loading data for character ID:", charToUse);
       
@@ -202,78 +214,43 @@ const Game: React.FC = () => {
         throw new Error("No character ID available");
       }
       
-      // Use getFrontendData to get all game data in one call
-      console.log("Calling getFrontendData...");
-      const frontendDataRaw = await getFrontendData(charToUse);
-      console.log("getFrontendData response received:", !!frontendDataRaw);
+      // Use the centralized getGameState function that updates Recoil atom
+      await getGameState(charToUse);
       
-      if (!frontendDataRaw) {
-        throw new Error("Failed to load game data");
-      }
-      
-      console.log("Frontend data loaded successfully");
-      console.log("Frontend data type:", typeof frontendDataRaw);
-      console.log("Frontend data structure:", Object.keys(frontendDataRaw));
-      
-      // Parse the raw data into a consistent format
-      const parsedData = parseFrontendData(frontendDataRaw);
-      
-      // Convert to our structured game state
-      const gameState = createGameState(parsedData);
-      setGameState(gameState);
-      
-      // Update individual state values for backward compatibility
-      if (gameState.character) {
-        setCharacter(gameState.character);
-        
-        // Update position from the character data
-        setPosition(gameState.character.position);
-      }
-      
-      setCombatants(gameState.combatants);
-      setNoncombatants(gameState.noncombatants);
-      setIsInCombat(gameState.isInCombat);
-      setAreaInfo(gameState.areaInfo);
-      setEquipmentInfo(gameState.equipmentInfo);
-      setMovementOptions(gameState.movementOptions);
-      
-      // Store miniMap data from frontend data if available
-      if (parsedData.miniMap) {
-        setMiniMap(parsedData.miniMap);
+      // Update position from the character data if available
+      if (character) {
+        setPosition(character.position);
       }
       
       // Add log entries based on the state
-      if (gameState.areaInfo) {
-        addToCombatLog(`Area has ${gameState.areaInfo.playerCount || 0} players and ${gameState.areaInfo.monsterCount || 0} monsters.`);
+      if (areaInfo) {
+        addToCombatLog(`Area has ${areaInfo.playerCount || 0} players and ${areaInfo.monsterCount || 0} monsters.`);
       }
       
-      if (gameState.isInCombat) {
-        addToCombatLog(`You are in combat with ${gameState.combatants.length} enemies!`);
+      if (isInCombat) {
+        addToCombatLog(`You are in combat with ${combatants.length} enemies.`);
       }
       
+      console.log("Character data loaded successfully");
+      isInitialLoadComplete.current = true;
+      hasLoadedData.current = true;
       setLoadingComplete(true);
-      console.log("Character loading complete!");
     } catch (err) {
       console.error("Error loading character data:", err);
-      // Only set local error if the game's status isn't ready
-      // This prevents getting stuck in error state if the game is actually ready
-      if (status !== 'ready') {
-        setError(`Error loading character data: ${err instanceof Error ? err.message : String(err)}`);
-      } else {
-        console.log("Not setting local error because status is ready");
-        // Show a toast instead of setting error state
-        toast({
-          title: "Error loading data",
-          description: `${err instanceof Error ? err.message : String(err)}`,
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
-      }
+      const errorMessage = (err as Error)?.message || "Unknown error loading character data";
+      setGameState(current => ({ ...current, error: errorMessage }));
+      toast({
+        title: "Error",
+        description: errorMessage,
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
     } finally {
-      console.log("LOADING CHARACTER DATA COMPLETED OR FAILED");
-      console.log("==========================================");
-      setLoading(false);
+      // Only update loading state if not during movement
+      if (!isMoving) {
+        setGameState(current => ({ ...current, loading: false }));
+      }
     }
   };
 
@@ -342,12 +319,12 @@ const Game: React.FC = () => {
         console.error("Error during initialization:", err);
         // Only set local error if we don't have a better status from useGame
         if (status === 'checking' || status === 'ready') {
-          setError(`Error during initialization: ${err instanceof Error ? err.message : String(err)}`);
+          setGameState(current => ({ ...current, error: err instanceof Error ? err.message : String(err) }));
         } else {
           // If we have a more specific status like 'need-owner-wallet', don't set error
           console.log(`Not setting local error because status is: ${status}`);
         }
-        setLoading(false);
+        setGameState(current => ({ ...current, loading: false }));
       }
     };
     
@@ -363,7 +340,7 @@ const Game: React.FC = () => {
       // Clear any local error state when status transitions to ready
       if (error) {
         console.log("Status transitioned to ready, clearing local error state");
-        setError(null);
+        setGameState(current => ({ ...current, error: null }));
       }
       
       if (!loadingComplete && !loading && !hasLoadedData.current) {
@@ -403,7 +380,7 @@ const Game: React.FC = () => {
       addToCombatLog(`Moved ${direction}`);
     } catch (err: any) {
       console.error('Error during movement:', err);
-      setError(err.message || `Error moving ${direction}`);
+      setGameState(current => ({ ...current, error: err.message || `Error moving ${direction}` }));
       addToCombatLog(`Failed to move ${direction}: ${err.message}`);
     } finally {
       setIsMoving(false);
@@ -436,7 +413,7 @@ const Game: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error during attack:', err);
-      setError(err.message || 'Error attacking target');
+      setGameState(current => ({ ...current, error: err.message || 'Error attacking target' }));
       addToCombatLog(`Attack failed: ${err.message}`);
     } finally {
       setIsAttacking(false);
@@ -463,7 +440,7 @@ const Game: React.FC = () => {
         
         // Determine if monsters are at this position based on area info
         const hasMonsters = isValid && areaInfo && isAdjacentPosition(mapX, mapY) && 
-                           Number(areaInfo.area?.monsterCount) > 0;
+                           Number(areaInfo.monsterCount) > 0;
         
         // Square style
         let bgColor = "gray.300";
@@ -545,7 +522,7 @@ const Game: React.FC = () => {
     }
     
     try {
-      setLoading(true);
+      setGameState(current => ({ ...current, loading: true }));
       console.log("Starting session key update process for character:", currentCharacterId);
       console.log("Session key status object:", {
         isSessionKeyMismatch: sessionKeyStatus.isSessionKeyMismatch,
@@ -688,21 +665,21 @@ const Game: React.FC = () => {
       });
     } finally {
       console.log("=== HANDLE UPDATE SESSION KEY FUNCTION FINISHED ===");
-      setLoading(false);
+      setGameState(current => ({ ...current, loading: false }));
     }
   };
 
   // Debug function called in a useEffect
   const debugGameData = () => {
-    if (gameState && gameState.character) {
-      console.log("Game state:", gameState);
+    if (character) {
+      console.log("Game state:", character);
     }
   };
   
   // Call debug function when relevant data changes
   useEffect(() => {
     debugGameData();
-  }, [gameState]);
+  }, [character]);
 
   // Show loading state during initialization but NOT during movement/attacks
   if ((loading && !isMoving) || (status.startsWith('checking') || status === 'updating-session-key')) {
@@ -889,7 +866,7 @@ const Game: React.FC = () => {
             <Button colorScheme="green" onClick={() => {
               console.log("Manual initialization attempt");
               // Clear local error before attempting initialization
-              setError(null);
+              setGameState(current => ({ ...current, error: null }));
               initializeGame().then(result => {
                 console.log("Manual initializeGame result:", result);
                 if (result.success) {
@@ -954,7 +931,7 @@ const Game: React.FC = () => {
             colorScheme="blue" 
             onClick={async () => {
               console.log("Manual data load triggered");
-              setLoading(true);
+              setGameState(current => ({ ...current, loading: true }));
               
               try {
                 // Try direct frontend data load
@@ -962,20 +939,20 @@ const Game: React.FC = () => {
                 
                 if (frontendData && frontendData.character) {
                   console.log("Frontend data loaded through manual action");
-                  setCharacter(frontendData.character);
-                  setCombatants(frontendData.combatants || []);
-                  setNoncombatants(frontendData.noncombatants || []);
-                  setEquipmentInfo(frontendData.equipment);
+                  setGameState(current => ({ ...current, character: frontendData.character }));
+                  setGameState(current => ({ ...current, combatants: frontendData.combatants || [] }));
+                  setGameState(current => ({ ...current, noncombatants: frontendData.noncombatants || [] }));
+                  setGameState(current => ({ ...current, equipment: frontendData.equipment }));
                   
                   // Initialize position
-                  setPosition({
+                  setGameState(current => ({ ...current, position: {
                     x: Number(frontendData.character.stats.x),
                     y: Number(frontendData.character.stats.y),
                     depth: Number(frontendData.character.stats.depth)
-                  });
+                  } }));
                   
                   if (frontendData.miniMap?.[2]?.[2]) {
-                    setAreaInfo(frontendData.miniMap[2][2]);
+                    setGameState(current => ({ ...current, areaInfo: frontendData.miniMap[2][2] }));
                   }
                   
                   setLoadingComplete(true);
@@ -984,9 +961,9 @@ const Game: React.FC = () => {
                 }
               } catch (err) {
                 console.error("Error in manual data load:", err);
-                setError(`Error loading game data: ${err instanceof Error ? err.message : String(err)}`);
+                setGameState(current => ({ ...current, error: `Error loading game data: ${err instanceof Error ? err.message : String(err)}` }));
               } finally {
-                setLoading(false);
+                setGameState(current => ({ ...current, loading: false }));
               }
             }}
           >

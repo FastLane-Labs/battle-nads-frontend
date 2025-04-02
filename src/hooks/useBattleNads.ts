@@ -4,6 +4,8 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from '../providers/WalletProvider';
 import { parseFrontendData, createGameState } from '../utils/gameDataConverters';
 import { GameState } from '../types/gameTypes';
+import { useSetRecoilState } from 'recoil';
+import { gameStateAtom } from '../state/gameState';
 
 // ABI snippets for the Battle-Nads contracts
 const ENTRYPOINT_ABI = [
@@ -79,6 +81,7 @@ export const useBattleNads = () => {
   console.log("useBattleNads hook initialized");
   const privy = usePrivy();
   const { currentWallet, signer, provider, address, injectedWallet, embeddedWallet } = useWallet();
+  const setGameState = useSetRecoilState(gameStateAtom);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1058,68 +1061,92 @@ export const useBattleNads = () => {
     }
   }, [getReadOnlyProvider]);
 
-  // Get all frontend data in one call - most efficient way to load game state
+  // Get frontend data (unified function to get all game state)
   const getFrontendData = useCallback(async (characterId: string) => {
+    if (!characterId) {
+      console.error("getFrontendData called without characterId");
+      return null;
+    }
+    
     setLoading(true);
-    setError(null);
-
     try {
-      console.log("Loading frontend data for character:", characterId);
+      // Get a read-only provider
       const provider = getReadOnlyProvider();
-      const entrypoint = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
-        provider
-      );
+      const entrypoint = new ethers.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, provider);
       
-      // Get raw data from blockchain
-      const frontendDataRaw = await entrypoint.getFrontendData(characterId);
+      console.log(`[getFrontendData] Fetching data for character ${characterId}`);
+      const frontendData = await entrypoint.getFrontendData(characterId);
+      console.log(`[getFrontendData] Data received:`, !!frontendData);
       
-      console.log("Frontend data loaded successfully");
+      if (!frontendData) {
+        throw new Error("Failed to fetch frontend data");
+      }
       
-      // Parse the raw blockchain data into a consistent format
-      const parsedData = parseFrontendData(frontendDataRaw);
-      
-      // Convert to our structured game state (optional, can be done at component level)
-      const gameState = createGameState(parsedData);
-      
-      // For backward compatibility, also return the parsed object structure
-      return parsedData;
-    } catch (err: any) {
-      console.error("Error getting frontend data after retries:", err);
-      setError(err.message || "Error getting game data");
+      return frontendData;
+    } catch (err) {
+      console.error(`[getFrontendData] Error:`, err);
+      setError(`Failed to load game data: ${(err as Error)?.message || "Unknown error"}`);
       return null;
     } finally {
       setLoading(false);
     }
-  }, [getReadOnlyProvider]);
+  }, [getReadOnlyProvider, setError, setLoading]);
 
-  // Also add a new method to get the structured game state directly
+  // Updated getGameState to set the centralized Recoil atom
   const getGameState = useCallback(async (characterId: string): Promise<GameState | null> => {
-    setLoading(true);
-    setError(null);
-
+    if (!characterId) {
+      console.error("getGameState called without characterId");
+      return null;
+    }
+    
+    // Start with loading state
+    setGameState(currentState => ({
+      ...currentState,
+      loading: true,
+      error: null
+    }));
+    
     try {
-      console.log("Loading game state for character:", characterId);
-      
-      // Get the raw frontend data
       const frontendDataRaw = await getFrontendData(characterId);
       
       if (!frontendDataRaw) {
-        throw new Error("Failed to load game data");
+        setGameState(currentState => ({
+          ...currentState,
+          loading: false,
+          error: "Failed to load game data"
+        }));
+        return null;
       }
       
-      // Convert to our structured game state
-      const gameState = createGameState(frontendDataRaw);
+      // Parse the raw data
+      const parsedData = parseFrontendData(frontendDataRaw);
+      
+      // Create a structured game state
+      const gameState = createGameState(parsedData);
+      
+      // Update the centralized state using Recoil
+      setGameState({
+        ...gameState,
+        loading: false,
+        error: null
+      });
+      
+      console.log("[getGameState] Game state updated successfully");
       return gameState;
-    } catch (err: any) {
-      console.error("Error getting game state:", err);
-      setError(err.message || "Error getting game state");
+    } catch (err) {
+      console.error("[getGameState] Error:", err);
+      const errorMsg = `Failed to load game state: ${(err as Error)?.message || "Unknown error"}`;
+      
+      // Update error state in Recoil
+      setGameState(currentState => ({
+        ...currentState,
+        loading: false,
+        error: errorMsg
+      }));
+      
       return null;
-    } finally {
-      setLoading(false);
     }
-  }, [getFrontendData]);
+  }, [getFrontendData, setGameState]);
 
   // Set the session key to the current embedded wallet address
   const setSessionKeyToEmbeddedWallet = useCallback(async (characterId: string) => {
