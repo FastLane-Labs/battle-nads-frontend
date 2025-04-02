@@ -4,7 +4,7 @@ import React from 'react';
 import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip, VStack } from '@chakra-ui/react';
 import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from '../providers/WalletProvider';
 
@@ -19,6 +19,7 @@ const NavBar: React.FC = () => {
     sessionKey
   } = useWallet();
   const pathname = usePathname();
+  const router = useRouter();
 
   const isActive = (path: string) => pathname === path;
   
@@ -31,6 +32,12 @@ const NavBar: React.FC = () => {
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
+  };
+  
+  // Handle logout and redirect to home
+  const handleLogout = async () => {
+    await logout();
+    router.push('/');
   };
   
   return (
@@ -59,10 +66,25 @@ const NavBar: React.FC = () => {
 
           {address && (
             <HStack as="nav" spacing={4} display={{ base: 'none', md: 'flex' }}>
+              <Link href="/game">
+                <Text
+                  px={3}
+                  py={2}
+                  rounded="md"
+                  fontWeight={isActive('/game') ? 'bold' : 'normal'}
+                  bg={isActive('/game') ? 'blue.500' : 'transparent'}
+                  color={isActive('/game') ? 'white' : undefined}
+                  _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
+                  cursor="pointer"
+                  fontSize="md"
+                >
+                  Game
+                </Text>
+              </Link>
               <Link href="/dashboard">
                 <Text
-                  px={2}
-                  py={1}
+                  px={3}
+                  py={2}
                   rounded="md"
                   fontWeight={isActive('/dashboard') ? 'bold' : 'normal'}
                   bg={isActive('/dashboard') ? 'blue.500' : 'transparent'}
@@ -73,24 +95,10 @@ const NavBar: React.FC = () => {
                   Dashboard
                 </Text>
               </Link>
-              <Link href="/character">
-                <Text
-                  px={2}
-                  py={1}
-                  rounded="md"
-                  fontWeight={isActive('/character') ? 'bold' : 'normal'}
-                  bg={isActive('/character') ? 'blue.500' : 'transparent'}
-                  color={isActive('/character') ? 'white' : undefined}
-                  _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
-                  cursor="pointer"
-                >
-                  Character Dashboard
-                </Text>
-              </Link>
               <Link href="/create">
                 <Text
-                  px={2}
-                  py={1}
+                  px={3}
+                  py={2}
                   rounded="md"
                   fontWeight={isActive('/create') ? 'bold' : 'normal'}
                   bg={isActive('/create') ? 'blue.500' : 'transparent'}
@@ -98,21 +106,7 @@ const NavBar: React.FC = () => {
                   _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
                   cursor="pointer"
                 >
-                  Create Character
-                </Text>
-              </Link>
-              <Link href="/game">
-                <Text
-                  px={2}
-                  py={1}
-                  rounded="md"
-                  fontWeight={isActive('/game') ? 'bold' : 'normal'}
-                  bg={isActive('/game') ? 'blue.500' : 'transparent'}
-                  color={isActive('/game') ? 'white' : undefined}
-                  _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
-                  cursor="pointer"
-                >
-                  Game
+                  Create
                 </Text>
               </Link>
             </HStack>
@@ -155,7 +149,7 @@ const NavBar: React.FC = () => {
               </HStack>
               
               {/* Logout Button - Next to toggle */}
-              <Button colorScheme="red" size="sm" onClick={logout}>
+              <Button colorScheme="red" size="sm" onClick={handleLogout}>
                 Disconnect
               </Button>
             </HStack>

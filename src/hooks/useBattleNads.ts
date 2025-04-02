@@ -53,9 +53,13 @@ const ENTRYPOINT_ABI = [
   "function shortfallToRecommendedBalanceInShMON(bytes32 characterID) external view returns (uint256 minBondedShares)"
 ];
 
-// Use environment variables for contract addresses and RPC URL
+// Use environment variables for contract addresses and RPC URLs
 const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0xbD4511F188B606e5a74A62b7b0F516d0139d76D5";
-const RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";
+
+// Primary and fallback RPC URLs
+const PRIMARY_RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";
+const FALLBACK_RPC_URL = "https://monad-testnet-rpc.dwellir.com";
+const RPC_URL = process.env.NEXT_PUBLIC_MONAD_RPC_URL || PRIMARY_RPC_URL;
 
 // Maximum safe integer for uint256 in Solidity
 const MAX_SAFE_UINT256 = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
@@ -84,9 +88,71 @@ export const useBattleNads = () => {
     if (storedId) setCharacterId(storedId);
   }, []);
 
-  // Get a read-only provider
+  // Get a read-only provider with fallback
   const getReadOnlyProvider = useCallback(() => {
-    return new ethers.JsonRpcProvider(RPC_URL);
+    // Track if we've already tried the fallback
+    let usesPrimaryUrl = true;
+    let usedFallback = false;
+    const primaryUrl = RPC_URL;
+    const fallbackUrl = FALLBACK_RPC_URL;
+    
+    const createProvider = (url: string) => {
+      console.log(`[getReadOnlyProvider] Connecting to Monad Testnet at: ${url}`);
+      try {
+        const provider = new ethers.JsonRpcProvider(url);
+        
+        // Add network listener to detect disconnection issues
+        provider.on("error", (error) => {
+          console.error(`[getReadOnlyProvider] Provider error event on ${usesPrimaryUrl ? 'primary' : 'fallback'} URL:`, error);
+          
+          // If this is the primary URL failing, don't set error yet as we'll try the fallback
+          if (!usesPrimaryUrl || usedFallback) {
+            setError(`Network connection error: ${error.message || "Failed to connect to Monad Testnet"}`);
+          }
+        });
+        
+        return provider;
+      } catch (error) {
+        console.error(`[getReadOnlyProvider] Failed to create provider with ${url}:`, error);
+        
+        // If this is the primary URL failing, we'll try the fallback
+        if (usesPrimaryUrl && !usedFallback) {
+          usesPrimaryUrl = false;
+          usedFallback = true;
+          console.log("[getReadOnlyProvider] Trying fallback RPC URL");
+          return createProvider(fallbackUrl);
+        }
+        
+        setError(`Failed to connect to Monad Testnet: ${(error as Error)?.message || "Unknown error"}`);
+        throw new Error(`RPC connection failed: ${(error as Error)?.message || "Unknown error"}`);
+      }
+    };
+    
+    const provider = createProvider(primaryUrl);
+    
+    // Test the connection by making a simple call
+    provider.getBlockNumber().then(blockNumber => {
+      console.log(`[getReadOnlyProvider] Successfully connected to Monad Testnet. Current block: ${blockNumber}`);
+    }).catch(error => {
+      console.error("[getReadOnlyProvider] Failed to get block number:", error);
+      
+      // If primary failed, try fallback
+      if (usesPrimaryUrl && !usedFallback) {
+        console.log("[getReadOnlyProvider] Primary RPC failed to get block number, trying fallback");
+        usesPrimaryUrl = false;
+        usedFallback = true;
+        
+        try {
+          const fallbackProvider = createProvider(fallbackUrl);
+          return fallbackProvider;
+        } catch (fallbackError) {
+          console.error("[getReadOnlyProvider] Fallback provider also failed:", fallbackError);
+          setError("Failed to connect to any Monad Testnet RPC endpoint. Please check your network connection.");
+        }
+      }
+    });
+    
+    return provider;
   }, []);
 
   // Get the appropriate signer based on operation type
@@ -137,15 +203,6 @@ export const useBattleNads = () => {
     
     throw new Error('No connected wallet found. Please connect a wallet first.');
   }, [injectedWallet, embeddedWallet, signer]);
-
-  // For backward compatibility - use the appropriate signer based on operation
-  const getActiveSigner = useCallback(() => {
-    // Default to using owner wallet for all operations (for backward compatibility)
-    if (!signer || !provider || currentWallet === 'none') {
-      throw new Error('No connected wallet found. Please connect a wallet first.');
-    }
-    return signer;
-  }, [signer, provider, currentWallet]);
 
   // Replace existing createCharacter with unified approach using WalletProvider
   const createCharacter = useCallback(async (
@@ -229,16 +286,16 @@ export const useBattleNads = () => {
   // Get current session key for a character
   const getCurrentSessionKey = useCallback(async (characterId: string) => {
     try {
+      console.log(`[getCurrentSessionKey] Getting session key for character ${characterId}`);
+      
       const provider = getReadOnlyProvider();
-      const entrypoint = new ethers.Contract(
+      const contract = new ethers.Contract(
         ENTRYPOINT_ADDRESS,
         ENTRYPOINT_ABI,
         provider
       );
-      
-      console.log(`[getCurrentSessionKey] Getting session key for character ${characterId}`);
-      const sessionKeyResponse = await entrypoint.getCurrentSessionKey(characterId);
-      
+      // Use retry mechanism for better resilience
+      const sessionKeyResponse = await contract.getCurrentSessionKey(characterId);
       // The response is a tuple containing (address key, uint64 expiration)
       // We need to handle both possible return formats
       let sessionKeyAddress = null;
@@ -261,9 +318,9 @@ export const useBattleNads = () => {
       
       console.log(`[getCurrentSessionKey] Found session key: ${sessionKeyAddress}`);
       return sessionKeyAddress;
-    } catch (err: any) {
-      console.error(`[getCurrentSessionKey] Error getting current session key:`, err);
-      return null;
+    } catch (err) {
+      console.error(`[getCurrentSessionKey] Failed after retries:`, err);
+      throw new Error(`Failed to get session key: ${(err as Error)?.message || "Unknown error"}`);
     }
   }, [getReadOnlyProvider]);
 
@@ -639,18 +696,17 @@ export const useBattleNads = () => {
         return null;
       }
       
-      // Use the getPlayerCharacterID function from the smart contract
+      // Use the getPlayerCharacterID function from the smart contract with retry
       if (ownerAddress) {
         try {
           console.debug("Checking for character with the getPlayerCharacterID function");
-          
+
           const provider = getReadOnlyProvider();
-          const contract = new ethers.Contract(
-            ENTRYPOINT_ADDRESS,
-            ["function getPlayerCharacterID(address) view returns (bytes32)"],
+              const contract = new ethers.Contract(
+                ENTRYPOINT_ADDRESS,
+                ["function getPlayerCharacterID(address) view returns (bytes32)"],
             provider
           );
-          
           const characterId = await contract.getPlayerCharacterID(ownerAddress);
           
           // Check if character exists (not zero bytes)
@@ -667,7 +723,7 @@ export const useBattleNads = () => {
             return null;
           }
         } catch (err) {
-          console.error("Error calling getPlayerCharacterID:", err);
+          console.error("Error calling getPlayerCharacterID after retries:", err);
           return null;
         }
       }
@@ -936,6 +992,8 @@ export const useBattleNads = () => {
       // Get transaction receipt
       console.log(`Fetching receipt for transaction: ${txHash}`);
       const receipt = await provider.getTransactionReceipt(txHash);
+
+      console.log(`Transaction receipt: ${JSON.stringify(receipt)}`);
       
       if (!receipt) {
         throw new Error("Transaction receipt not found");
@@ -980,13 +1038,13 @@ export const useBattleNads = () => {
     try {
       console.log("Loading frontend data for character:", characterId);
       const provider = getReadOnlyProvider();
-      const entrypoint = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
-        provider
-      );
-      
+          const entrypoint = new ethers.Contract(
+            ENTRYPOINT_ADDRESS,
+            ENTRYPOINT_ABI,
+            provider
+          );
       const frontendData = await entrypoint.getFrontendData(characterId);
+      
       console.log("Frontend data loaded successfully:", frontendData);
       
       // Return a structured object for easier use in the UI
@@ -1010,7 +1068,7 @@ export const useBattleNads = () => {
         unallocatedAttributePoints: frontendData[8]
       };
     } catch (err: any) {
-      console.error("Error getting frontend data:", err);
+      console.error("Error getting frontend data after retries:", err);
       setError(err.message || "Error getting game data");
       return null;
     } finally {

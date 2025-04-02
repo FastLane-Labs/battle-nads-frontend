@@ -20,7 +20,6 @@ import {
   useToast,
   Alert,
   AlertIcon,
-  AlertTitle,
   AlertDescription,
   Divider,
   Image,
@@ -44,7 +43,11 @@ interface AttributeInputProps {
   isDisabled?: boolean;
 }
 
-const CharacterCreation: React.FC = () => {
+interface CharacterCreationProps {
+  onCharacterCreated?: () => void;
+}
+
+const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreated }) => {
   const [name, setName] = useState('');
   const [strength, setStrength] = useState(3);
   const [vitality, setVitality] = useState(3);
@@ -119,7 +122,6 @@ const CharacterCreation: React.FC = () => {
     
     try {
       const foundCharacterId = await getCharacterIdByTransactionHash(transactionHash);
-      
       if (foundCharacterId) {
         toast({
           title: 'Success',
@@ -224,6 +226,11 @@ const CharacterCreation: React.FC = () => {
           duration: 3000,
           isClosable: true,
         });
+        
+        // Call the callback if provided
+        if (onCharacterCreated) {
+          onCharacterCreated();
+        }
         
         // Navigation will happen via useEffect
       } else {
