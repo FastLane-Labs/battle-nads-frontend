@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
-import * as ethers from 'ethers';
+import { ethers } from 'ethers';
 
 // Define wallet client types based on Privy's supported wallets
 type InjectedWalletClientType = 
