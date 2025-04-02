@@ -1,7 +1,7 @@
 import { atom } from 'recoil';
-import { Character } from '../types';
+import { BattleNad } from '../types/gameTypes';
 
-export const characterState = atom<Character | null>({
+export const characterState = atom<BattleNad | null>({
   key: 'characterState',
   default: null,
 }); 

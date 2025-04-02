@@ -1,16 +1,17 @@
 import React from 'react';
 import { Box, Heading, Text, Badge, Flex, Progress, VStack, HStack, Divider } from '@chakra-ui/react';
+import { BattleNad } from '../types/gameTypes';
 
 // Character component for displaying BattleNad information
 interface CharacterCardProps {
-  character: any; // Using 'any' for simplicity, ideally we'd have a properly typed interface
+  character: BattleNad; // Properly typed with BattleNad interface
 }
 
 export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
   if (!character) return null;
 
   const { id, stats, weapon, armor, name } = character;
-  const healthPercentage = (stats.health / 100) * 100; // Assuming max health is 100 for now
+  const healthPercentage = (stats.health / stats.maxHealth) * 100;
 
   return (
     <Box borderWidth="1px" borderRadius="lg" p={4} boxShadow="md" bg="white">
@@ -31,7 +32,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
         <Box>
           <Flex justify="space-between" mb={1}>
             <Text fontSize="sm">Health</Text>
-            <Text fontSize="sm">{stats.health}</Text>
+            <Text fontSize="sm">{stats.health} / {stats.maxHealth}</Text>
           </Flex>
           <Progress value={healthPercentage} colorScheme="green" size="sm" />
         </Box>

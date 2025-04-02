@@ -1,5 +1,10 @@
 import { atom, selector } from 'recoil';
-import { BattleNad, GameState, BattleArea, BattleInstance } from '../utils/types';
+import { 
+  BattleNad, 
+  GameState, 
+  AreaInfo, 
+  Position
+} from '../types/gameTypes';
 
 // Atoms
 
@@ -7,9 +12,14 @@ import { BattleNad, GameState, BattleArea, BattleInstance } from '../utils/types
 export const gameStateAtom = atom<GameState>({
   key: 'gameState',
   default: {
-    characterId: null,
     character: null,
+    combatants: [],
+    noncombatants: [],
     charactersInArea: [],
+    areaInfo: null,
+    movementOptions: null,
+    isInCombat: false,
+    equipmentInfo: null,
     loading: false,
     error: null
   }
@@ -27,7 +37,7 @@ export const playerCharacterSelector = selector<BattleNad | null>({
 });
 
 // Get the current player location
-export const playerLocationSelector = selector<{ depth: number; x: number; y: number } | null>({
+export const playerLocationSelector = selector<Position | null>({
   key: 'playerLocation',
   get: ({ get }) => {
     const character = get(playerCharacterSelector);
@@ -46,7 +56,7 @@ export const charactersInAreaSelector = selector<BattleNad[]>({
   key: 'charactersInArea',
   get: ({ get }) => {
     const state = get(gameStateAtom);
-    return state.charactersInArea;
+    return state.charactersInArea || [];
   }
 });
 
@@ -98,7 +108,7 @@ export const combatStatsSelector = selector({
 
     return {
       health: character.stats.health,
-      maxHealth: 1000 + (character.stats.vitality * 100) + (character.stats.sturdiness * 20),
+      maxHealth: character.stats.maxHealth,
       level: character.stats.level,
       experience: character.stats.experience,
       experienceToNextLevel: (character.stats.level * 100) + (character.stats.level * character.stats.level * 5),
@@ -108,23 +118,23 @@ export const combatStatsSelector = selector({
   },
 });
 
-export const selectCombatants = (instance: BattleInstance): BattleNad[] => 
-  instance.combatants.filter((id: BattleNad | null) => id !== null);
+export const selectCombatants = (combatants: BattleNad[]): BattleNad[] => 
+  combatants.filter((character: BattleNad | null) => character !== null);
 
-export const selectMonsters = (instance: BattleInstance): BattleNad[] =>
-  instance.combatants.filter((id: BattleNad | null) => id && id.stats.isMonster);
+export const selectMonsters = (combatants: BattleNad[]): BattleNad[] =>
+  combatants.filter((character: BattleNad | null) => character && character.stats.isMonster);
 
-export const selectPlayers = (instance: BattleInstance): BattleNad[] =>
-  instance.combatants.filter((id: BattleNad | null) => id && !id.stats.isMonster);
+export const selectPlayers = (combatants: BattleNad[]): BattleNad[] =>
+  combatants.filter((character: BattleNad | null) => character && !character.stats.isMonster);
 
-export const selectCombatantAtPosition = (instance: BattleInstance, x: number, y: number): BattleNad | undefined =>
-  instance.combatants.find((id: BattleNad | null) => id && id.stats.x === x && id.stats.y === y);
+export const selectCombatantAtPosition = (combatants: BattleNad[], x: number, y: number): BattleNad | undefined =>
+  combatants.find((character: BattleNad | null) => character && character.stats.x === x && character.stats.y === y);
 
-export const selectCombatantById = (instance: BattleInstance, id: string): BattleNad | undefined =>
-  instance.combatants.find((combatant: BattleNad | null) => combatant && combatant.id === id);
+export const selectCombatantById = (combatants: BattleNad[], id: string): BattleNad | undefined =>
+  combatants.find((character: BattleNad | null) => character && character.id === id);
 
-export const selectCombatantIndex = (instance: BattleInstance, id: string): number =>
-  instance.combatants.findIndex((combatant: BattleNad | null) => combatant && combatant.id === id);
+export const selectCombatantIndex = (combatants: BattleNad[], id: string): number =>
+  combatants.findIndex((character: BattleNad | null) => character && character.id === id);
 
 // Error handling
 export class GameError extends Error {
@@ -138,7 +148,7 @@ export const validateMove = (
   character: BattleNad,
   targetX: number,
   targetY: number,
-  area: BattleArea
+  area: AreaInfo
 ): void => {
   if (targetX < 0 || targetX > 50 || targetY < 0 || targetY > 50) {
     throw new GameError('Move out of bounds', 'OUT_OF_BOUNDS');
@@ -151,7 +161,7 @@ export const validateMove = (
 export const validateAttack = (
   attacker: BattleNad,
   target: BattleNad,
-  area: BattleArea
+  area: AreaInfo
 ): void => {
   if (!target) {
     throw new GameError('No target selected', 'NO_TARGET');
