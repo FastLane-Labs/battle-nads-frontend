@@ -2,10 +2,10 @@ import { useState, useCallback, useEffect } from 'react';
 import * as ethers from 'ethers';
 import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from '../providers/WalletProvider';
-import { parseFrontendData, createGameState } from '../utils/gameDataConverters';
-import { GameState } from '../types/gameTypes';
 import { useSetRecoilState } from 'recoil';
 import { gameStateAtom } from '../state/gameState';
+import { parseFrontendData, createGameState } from '../utils/gameDataConverters';
+import { GameState } from '../types/gameTypes';
 
 // ABI snippets for the Battle-Nads contracts
 const ENTRYPOINT_ABI = [
@@ -79,13 +79,16 @@ interface CharacterCreatedEvent {
 
 export const useBattleNads = () => {
   console.log("useBattleNads hook initialized");
-  const privy = usePrivy();
-  const { currentWallet, signer, provider, address, injectedWallet, embeddedWallet } = useWallet();
-  const setGameState = useSetRecoilState(gameStateAtom);
+  const {signer, injectedWallet, embeddedWallet } = useWallet();
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Keep minimal state for the hook itself
   const [characterId, setCharacterId] = useState<string | null>(null);
+  // Add loading and error states for backward compatibility
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Move this to the top level of the hook
+  const setGameState = useSetRecoilState(gameStateAtom);
 
   // Load stored characterId on mount
   useEffect(() => {
@@ -109,11 +112,6 @@ export const useBattleNads = () => {
         // Add network listener to detect disconnection issues
         provider.on("error", (error) => {
           console.error(`[getReadOnlyProvider] Provider error event on ${usesPrimaryUrl ? 'primary' : 'fallback'} URL:`, error);
-          
-          // If this is the primary URL failing, don't set error yet as we'll try the fallback
-          if (!usesPrimaryUrl || usedFallback) {
-            setError(`Network connection error: ${error.message || "Failed to connect to Monad Testnet"}`);
-          }
         });
         
         return provider;
@@ -128,7 +126,6 @@ export const useBattleNads = () => {
           return createProvider(fallbackUrl);
         }
         
-        setError(`Failed to connect to Monad Testnet: ${(error as Error)?.message || "Unknown error"}`);
         throw new Error(`RPC connection failed: ${(error as Error)?.message || "Unknown error"}`);
       }
     };
@@ -152,7 +149,6 @@ export const useBattleNads = () => {
           return fallbackProvider;
         } catch (fallbackError) {
           console.error("[getReadOnlyProvider] Fallback provider also failed:", fallbackError);
-          setError("Failed to connect to any Monad Testnet RPC endpoint. Please check your network connection.");
         }
       }
     });
@@ -211,16 +207,345 @@ export const useBattleNads = () => {
       return injectedWallet.signer;
     }
     
-    // Last resort fallback
-    if (signer) {
-      console.log(`[getSigner] Using active wallet signer for operation: ${operationType}`);
-      return signer;
+    throw new Error('No connected wallet found. Please connect a wallet first.');
+  }, [injectedWallet, embeddedWallet]);
+
+  // Get current session key for a character
+  const getCurrentSessionKey = useCallback(async (characterId: string) => {
+    try {
+      console.log(`[getCurrentSessionKey] Getting session key for character ${characterId}`);
+      
+      const provider = getReadOnlyProvider();
+      const contract = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+
+      const sessionKeyResponse = await contract.getCurrentSessionKey(characterId);
+      // The response is a tuple containing (address key, uint64 expiration)
+      // We need to handle both possible return formats
+      let sessionKeyAddress = null;
+      
+      if (typeof sessionKeyResponse === 'string') {
+        // Simple string address is returned
+        sessionKeyAddress = sessionKeyResponse;
+      } else if (Array.isArray(sessionKeyResponse)) {
+        // Array format is returned (first element is the key)
+        sessionKeyAddress = sessionKeyResponse[0];
+      } else if (sessionKeyResponse && typeof sessionKeyResponse === 'object') {
+        // Object format with named fields
+        sessionKeyAddress = sessionKeyResponse.key || sessionKeyResponse[0];
+      }
+      
+      if (!sessionKeyAddress) {
+        console.warn(`[getCurrentSessionKey] Could not parse session key from response:`, sessionKeyResponse);
+        return null;
+      }
+      
+      console.log(`[getCurrentSessionKey] Found session key: ${sessionKeyAddress}`);
+      return sessionKeyAddress;
+    } catch (err) {
+      console.error(`[getCurrentSessionKey] Failed:`, err);
+      throw new Error(`Failed to get session key: ${(err as Error)?.message || "Unknown error"}`);
+    }
+  }, [getReadOnlyProvider]);
+
+  // Directly ensure we're prioritizing the true owner wallet (MetaMask) by checking wallet type
+  const getOwnerWalletAddress = useCallback(() => {
+    // Check for MetaMask directly first - this is the most reliable way to get the owner address
+    if (window.ethereum && (window.ethereum as any).isMetaMask && (window.ethereum as any).selectedAddress) {
+      console.log("Found owner address directly from MetaMask:", (window.ethereum as any).selectedAddress);
+      return (window.ethereum as any).selectedAddress;
     }
     
-    throw new Error('No connected wallet found. Please connect a wallet first.');
-  }, [injectedWallet, embeddedWallet, signer]);
+    // Default to the injectedWallet from context
+    let ownerAddress = injectedWallet?.address;
+    
+    // If the injectedWallet appears to be a session key (has walletClientType 'privy'), log warning
+    if (injectedWallet?.walletClientType === 'privy') {
+      console.warn("Warning: injectedWallet appears to be a Privy session key, not the owner wallet");
+      
+      // Try to get signer address directly from window.ethereum as backup
+      if (window.ethereum && (window.ethereum as any).selectedAddress) {
+        console.log("Found owner address from window.ethereum:", (window.ethereum as any).selectedAddress);
+        ownerAddress = (window.ethereum as any).selectedAddress;
+      }
+    }
+    
+    return ownerAddress;
+  }, [injectedWallet]);
+  
+  // Get player character ID - pure blockchain call
+  const getPlayerCharacterID = useCallback(async (addressToCheck?: string) => {
+    try {
+      // FIRST PRIORITY: Always use localStorage if available
+      const storedCharacterId = localStorage.getItem(LOCALSTORAGE_KEY);
+      if (storedCharacterId) {
+        console.log("Using stored character ID from localStorage:", storedCharacterId);
+        setCharacterId(storedCharacterId);
+        return storedCharacterId;
+      }
+      
+      // SECOND PRIORITY: Only if no localStorage value, check the blockchain using owner address
+      console.log("No stored character ID in localStorage, checking blockchain");
+      
+      // Get the true owner wallet address (MetaMask)
+      const ownerAddress = addressToCheck || getOwnerWalletAddress();
+      
+      console.log("Owner address:", ownerAddress);
+      console.log("Injected wallet details:", 
+                 "Address:", injectedWallet?.address, 
+                 "Type:", injectedWallet?.walletClientType);
+      
+      if (!ownerAddress || !ethers.isAddress(ownerAddress)) {
+        console.warn("No valid owner address available to check for character ID");
+        return null;
+      }
+      
+      // Use the getPlayerCharacterID function from the smart contract
+      if (ownerAddress) {
+        try {
+          console.debug("Checking for character with the getPlayerCharacterID function");
 
-  // Replace existing createCharacter with unified approach using WalletProvider
+          const provider = getReadOnlyProvider();
+          const contract = new ethers.Contract(
+            ENTRYPOINT_ADDRESS,
+            ["function getPlayerCharacterID(address) view returns (bytes32)"],
+            provider
+          );
+          const characterId = await contract.getPlayerCharacterID(ownerAddress);
+          
+          // Check if character exists (not zero bytes)
+          const isZeroBytes = characterId === "0x0000000000000000000000000000000000000000000000000000000000000000";
+          console.debug("Character ID from contract call:", characterId, "Is zero bytes:", isZeroBytes);
+          
+          if (!isZeroBytes) {
+            console.log("Character found:", characterId);
+            setCharacterId(characterId);
+            localStorage.setItem(LOCALSTORAGE_KEY, characterId);
+            return characterId;
+          } else {
+            console.log("No character found for address:", ownerAddress);
+            return null;
+          }
+        } catch (err) {
+          console.error("Error calling getPlayerCharacterID:", err);
+          return null;
+        }
+      }
+      
+      console.log("No character found for owner address");
+      return null;
+    } catch (err) {
+      console.error('Error in getPlayerCharacterID:', err);
+      return null;
+    }
+  }, [getReadOnlyProvider, getOwnerWalletAddress, injectedWallet]);
+
+  // Get character data - pure blockchain call
+  const getCharacter = useCallback(async (characterId: string) => {
+    try {
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+      
+      const character = await entrypoint.getBattleNad(characterId);
+      return character;
+    } catch (err: any) {
+      console.error("Error getting character:", err);
+      throw new Error(err.message || "Error getting character");
+    }
+  }, [getReadOnlyProvider]);
+
+  // Get characters in area - pure blockchain call
+  const getCharactersInArea = useCallback(async (depth: number, x: number, y: number) => {
+    try {
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+      
+      const characters = await entrypoint.getBattleNadsInArea(depth, x, y);
+      return characters;
+    } catch (err: any) {
+      console.error("Error getting characters in area:", err);
+      throw new Error(err.message || "Error getting characters in area");
+    }
+  }, [getReadOnlyProvider]);
+
+  // Get area information including monsters, players, etc. - pure blockchain call
+  const getAreaInfo = useCallback(async (depth: number, x: number, y: number) => {
+    try {
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+      
+      const areaInfo = await entrypoint.getAreaInfo(depth, x, y);
+      return areaInfo;
+    } catch (err: any) {
+      console.error("Error getting area info:", err);
+      throw new Error(err.message || "Error getting area information");
+    }
+  }, [getReadOnlyProvider]);
+
+  // Get combat state for a character - pure blockchain call
+  const getAreaCombatState = useCallback(async (characterId: string) => {
+    try {
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+      
+      const combatState = await entrypoint.getAreaCombatState(characterId);
+      return combatState;
+    } catch (err: any) {
+      console.error("Error getting combat state:", err);
+      throw new Error(err.message || "Error getting combat state");
+    }
+  }, [getReadOnlyProvider]);
+
+  // Get movement options for a character - pure blockchain call
+  const getMovementOptions = useCallback(async (characterId: string) => {
+    try {
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+      
+      const options = await entrypoint.getMovementOptions(characterId);
+      return options;
+    } catch (err: any) {
+      console.error("Error getting movement options:", err);
+      throw new Error(err.message || "Error getting movement options");
+    }
+  }, [getReadOnlyProvider]);
+
+  // Get attack options for a character - pure blockchain call
+  const getAttackOptions = useCallback(async (characterId: string) => {
+    try {
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+      
+      const options = await entrypoint.getAttackOptions(characterId);
+      return options;
+    } catch (err: any) {
+      console.error("Error getting attack options:", err);
+      throw new Error(err.message || "Error getting attack options");
+    }
+  }, [getReadOnlyProvider]);
+
+  // Get frontend data (unified function to get all game state) - pure blockchain call
+  const getFrontendData = useCallback(async (characterId: string) => {
+    if (!characterId) {
+      console.error("getFrontendData called without characterId");
+      return null;
+    }
+    
+    try {
+      // Get a read-only provider
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, provider);
+      
+      console.log(`[getFrontendData] Fetching data for character ${characterId}`);
+      const frontendData = await entrypoint.getFrontendData(characterId);
+      console.log(`[getFrontendData] Data received:`, !!frontendData);
+      
+      if (!frontendData) {
+        throw new Error("Failed to fetch frontend data");
+      }
+      
+      return frontendData;
+    } catch (err) {
+      console.error(`[getFrontendData] Error:`, err);
+      throw new Error(`Failed to load game data: ${(err as Error)?.message || "Unknown error"}`);
+    }
+  }, [getReadOnlyProvider]);
+
+  // Get full game state and update the Recoil atom - hybrid function (backward compatibility)
+  const getGameState = useCallback(async (characterId: string): Promise<GameState | null> => {
+    if (!characterId) {
+      console.error("getGameState called without characterId");
+      return null;
+    }
+    
+    // Use the setGameState from the component's top level (properly declared)
+    // NOT calling useSetRecoilState here!
+    
+    // Start with loading state
+    setGameState(currentState => ({
+      ...currentState,
+      loading: true,
+      error: null
+    }));
+    
+    try {
+      // Set loading state for backward compatibility
+      setLoading(true);
+      
+      const frontendDataRaw = await getFrontendData(characterId);
+      
+      if (!frontendDataRaw) {
+        setGameState(currentState => ({
+          ...currentState,
+          loading: false,
+          error: "Failed to load game data"
+        }));
+        setError("Failed to load game data");
+        return null;
+      }
+      
+      // Parse the raw data
+      const parsedData = parseFrontendData(frontendDataRaw);
+      
+      // Create a structured game state
+      const gameState = createGameState(parsedData);
+      
+      // Update the centralized state using Recoil
+      setGameState({
+        ...gameState,
+        loading: false,
+        error: null
+      });
+      
+      console.log("[getGameState] Game state updated successfully");
+      return gameState;
+    } catch (err) {
+      console.error("[getGameState] Error:", err);
+      const errorMsg = `Failed to load game state: ${(err as Error)?.message || "Unknown error"}`;
+      
+      // Update error state in Recoil
+      setGameState(currentState => ({
+        ...currentState,
+        loading: false,
+        error: errorMsg
+      }));
+      
+      // Also set local error state for backward compatibility
+      setError(errorMsg);
+      return null;
+    } finally {
+      setLoading(false);
+    }
+  }, [getFrontendData, setGameState]);
+
+  // Create character - pure blockchain call
   const createCharacter = useCallback(async (
     name: string,
     strength: number,
@@ -230,9 +555,6 @@ export const useBattleNads = () => {
     sturdiness: number,
     luck: number
   ) => {
-    setLoading(true);
-    setError(null);
-
     try {
       // Use owner wallet for character creation
       const ownerSigner = getSigner('creation');
@@ -292,59 +614,13 @@ export const useBattleNads = () => {
       localStorage.setItem(LOCALSTORAGE_KEY, newCharacterId);
       return newCharacterId;
     } catch (err: any) {
-      setError(err.message || 'Error creating character');
-      return null;
-    } finally {
-      setLoading(false);
+      console.error("Error creating character:", err);
+      throw new Error(err.message || 'Error creating character');
     }
   }, [getSigner]);
 
-  // Get current session key for a character
-  const getCurrentSessionKey = useCallback(async (characterId: string) => {
-    try {
-      console.log(`[getCurrentSessionKey] Getting session key for character ${characterId}`);
-      
-      const provider = getReadOnlyProvider();
-      const contract = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
-        provider
-      );
-      // Use retry mechanism for better resilience
-      const sessionKeyResponse = await contract.getCurrentSessionKey(characterId);
-      // The response is a tuple containing (address key, uint64 expiration)
-      // We need to handle both possible return formats
-      let sessionKeyAddress = null;
-      
-      if (typeof sessionKeyResponse === 'string') {
-        // Simple string address is returned
-        sessionKeyAddress = sessionKeyResponse;
-      } else if (Array.isArray(sessionKeyResponse)) {
-        // Array format is returned (first element is the key)
-        sessionKeyAddress = sessionKeyResponse[0];
-      } else if (sessionKeyResponse && typeof sessionKeyResponse === 'object') {
-        // Object format with named fields
-        sessionKeyAddress = sessionKeyResponse.key || sessionKeyResponse[0];
-      }
-      
-      if (!sessionKeyAddress) {
-        console.warn(`[getCurrentSessionKey] Could not parse session key from response:`, sessionKeyResponse);
-        return null;
-      }
-      
-      console.log(`[getCurrentSessionKey] Found session key: ${sessionKeyAddress}`);
-      return sessionKeyAddress;
-    } catch (err) {
-      console.error(`[getCurrentSessionKey] Failed after retries:`, err);
-      throw new Error(`Failed to get session key: ${(err as Error)?.message || "Unknown error"}`);
-    }
-  }, [getReadOnlyProvider]);
-
-  // Now declare moveCharacter AFTER getCurrentSessionKey
-  const moveCharacterImpl = useCallback(async (characterID: string, direction: string) => {
-    setLoading(true);
-    setError(null);
-
+  // Move character - pure blockchain call
+  const moveCharacter = useCallback(async (characterID: string, direction: string) => {
     try {
       console.log(`[moveCharacter] Starting movement ${direction} for character ${characterID}`);
       
@@ -426,22 +702,6 @@ export const useBattleNads = () => {
       
       console.log(`[moveCharacter] Using formatted characterID: ${formattedCharacterID}`);
       
-      // Debug the contract interface to verify it's constructed properly
-      const iface = new ethers.Interface(ENTRYPOINT_ABI);
-      const encodedData = direction === 'north' 
-        ? iface.encodeFunctionData("moveNorth", [formattedCharacterID])
-        : direction === 'south'
-        ? iface.encodeFunctionData("moveSouth", [formattedCharacterID])
-        : direction === 'east'
-        ? iface.encodeFunctionData("moveEast", [formattedCharacterID])
-        : direction === 'west'
-        ? iface.encodeFunctionData("moveWest", [formattedCharacterID])
-        : direction === 'up'
-        ? iface.encodeFunctionData("moveUp", [formattedCharacterID])
-        : iface.encodeFunctionData("moveDown", [formattedCharacterID]);
-      
-      console.log(`[moveCharacter] Encoded movement data: ${encodedData}`);
-      
       let tx;
       const gasLimit = 850000;
       if (direction === 'north') {
@@ -463,7 +723,10 @@ export const useBattleNads = () => {
         const receipt = await tx.wait();
         console.log(`[moveCharacter] Movement transaction completed: ${receipt.hash}`);
         console.log(`[moveCharacter] Gas used: ${receipt.gasUsed.toString()}`);
+        return true;
       }
+      
+      return false;
     } catch (err: any) {
       console.error('[moveCharacter] Error during movement:', err);
       
@@ -484,41 +747,36 @@ export const useBattleNads = () => {
         });
       }
       
-      setError(err.message || `Error moving ${direction}`);
-    } finally {
-      setLoading(false);
+      throw new Error(err.message || `Error moving ${direction}`);
     }
   }, [getSigner, embeddedWallet, injectedWallet, getCurrentSessionKey]);
 
-  // Get character data - moved before getPlayerCharacterID to resolve dependency
-  const getCharacter = useCallback(async (characterId: string) => {
-    setLoading(true);
-    setError(null);
-
+  // Attack a target - pure blockchain call
+  const attackTarget = useCallback(async (characterId: string, targetIndex: number) => {
     try {
-      const provider = getReadOnlyProvider();
+      // Use session key (embedded wallet) for combat
+      const combatSigner = getSigner('combat');
+      
       const entrypoint = new ethers.Contract(
         ENTRYPOINT_ADDRESS,
         ENTRYPOINT_ABI,
-        provider
+        combatSigner
       );
       
-      const character = await entrypoint.getBattleNad(characterId);
-      return character;
+      const tx = await entrypoint.attack(characterId, targetIndex, { gasLimit: 850000 });
+      
+      // Wait for transaction to be mined
+      await tx.wait();
+      
+      return true;
     } catch (err: any) {
-      console.error("Error getting character:", err);
-      setError(err.message || "Error getting character");
-      return null;
-    } finally {
-      setLoading(false);
+      console.error("Error attacking target:", err);
+      throw new Error(err.message || "Error attacking target");
     }
-  }, [getReadOnlyProvider]);
+  }, [getSigner]);
 
-  // Update session key for a character
+  // Update session key - pure blockchain call
   const updateSessionKey = useCallback(async (newSessionKey: string, sessionKeyDeadline: string = MAX_SAFE_UINT256) => {
-    setLoading(true);
-    setError(null);
-
     try {
       // Must use the owner wallet (injected wallet) to update session keys
       const ownerSigner = getSigner('creation');
@@ -531,46 +789,8 @@ export const useBattleNads = () => {
       console.log(`[updateSessionKey] Setting session key to ${newSessionKey}`);
       console.log(`[updateSessionKey] Session key deadline: ${sessionKeyDeadline}`);
       
-      // First, try to estimate the gas required to better understand requirements
-      try {
-        console.log(`[updateSessionKey] Attempting to estimate gas for transaction...`);
-        const gasEstimate = await entrypoint.updateSessionKey.estimateGas(
-          newSessionKey,
-          sessionKeyDeadline,
-          { value: ethers.parseEther("0.0001") } // Adding small value to ensure estimation works
-        );
-        console.log(`[updateSessionKey] Estimated gas required: ${gasEstimate.toString()}`);
-        console.log(`[updateSessionKey] Using 3x the estimated gas as safety margin`);
-      } catch (estimateErr) {
-        console.error(`[updateSessionKey] Failed to estimate gas:`, estimateErr);
-        console.log(`[updateSessionKey] Will use high fixed gas limit instead`);
-      }
-      
       // Try to get recommended balance for funding the session key
       let valueToSend = ethers.parseEther("0.0001"); // Default small amount
-      try {
-        const provider = getReadOnlyProvider();
-        const readContract = new ethers.Contract(
-          ENTRYPOINT_ADDRESS,
-          ["function shortfallToRecommendedBalanceInMON(bytes32 characterID) external view returns (uint256 minAmount)"],
-          provider
-        );
-        
-        // If we have a character ID, get recommended balance
-        if (characterId) {
-          console.log(`[updateSessionKey] Getting recommended balance for character: ${characterId}`);
-          const recommendedBalance = await readContract.shortfallToRecommendedBalanceInMON(characterId);
-          console.log(`[updateSessionKey] Recommended balance from contract: ${recommendedBalance.toString()}`);
-          
-          if (recommendedBalance > BigInt(0)) {
-            valueToSend = recommendedBalance;
-          }
-        }
-      } catch (balanceErr) {
-        console.error(`[updateSessionKey] Error getting recommended balance:`, balanceErr);
-      }
-      
-      console.log(`[updateSessionKey] Using value for transaction: ${ethers.formatEther(valueToSend)} ETH`);
       
       // Use a very high gas limit to ensure the transaction has enough gas
       const highGasLimit = 2000000; // Use 2 million as a very high gas limit
@@ -613,546 +833,15 @@ export const useBattleNads = () => {
         console.error(`[updateSessionKey] Gas-related error detected. Transaction needs more gas or funds.`);
       }
       
-      setError(errorMessage || "Error updating session key");
       return {
         success: false,
         error: errorMessage
       };
-    } finally {
-      setLoading(false);
-    }
-  }, [getSigner, getReadOnlyProvider, characterId]);
-  
-  // Add a function to check for characters from contract logs as a last resort
-  const getCharacterIdFromLogs = useCallback(async (ownerAddress: string) => {
-    console.log("Checking for character creation events from contract logs...");
-    
-    try {
-      const provider = getReadOnlyProvider();
-      
-      // Define the CharacterCreated event topic
-      const characterCreatedTopic = ethers.id('CharacterCreated(bytes32,address)');
-      
-      // Filter configuration
-      const filter = {
-        address: ENTRYPOINT_ADDRESS,
-        topics: [
-          characterCreatedTopic,
-          null,  // Any character ID
-          ethers.zeroPadValue(ownerAddress.toLowerCase(), 32)  // Owner address as the indexed parameter
-        ],
-        fromBlock: 0,
-        toBlock: 'latest'
-      };
-      
-      console.log("Querying logs with filter:", filter);
-      
-      // Query the logs
-      const logs = await provider.getLogs(filter);
-      console.log("Logs found:", logs.length);
-      
-      if (logs.length > 0) {
-        // Get the most recent character creation event
-        const latestLog = logs[logs.length - 1];
-        console.log("Latest character creation log:", latestLog);
-        
-        // Character ID is in the first indexed parameter
-        const characterId = logs[0].topics[1];
-        console.log("Character ID from logs:", characterId);
-        
-        if (characterId) {
-          // Store it in localStorage for future use
-          localStorage.setItem(LOCALSTORAGE_KEY, characterId);
-          setCharacterId(characterId);
-          return characterId;
-        }
-      }
-      
-      return null;
-    } catch (err) {
-      console.error("Error querying contract logs:", err);
-      return null;
-    }
-  }, [getReadOnlyProvider]);
-  
-  // Directly ensure we're prioritizing the true owner wallet (MetaMask) by checking wallet type
-  const getOwnerWalletAddress = useCallback(() => {
-    // Check for MetaMask directly first - this is the most reliable way to get the owner address
-    if (window.ethereum && (window.ethereum as any).isMetaMask && (window.ethereum as any).selectedAddress) {
-      console.log("Found owner address directly from MetaMask:", (window.ethereum as any).selectedAddress);
-      return (window.ethereum as any).selectedAddress;
-    }
-    
-    // Default to the injectedWallet from context
-    let ownerAddress = injectedWallet?.address;
-    
-    // If the injectedWallet appears to be a session key (has walletClientType 'privy'), log warning
-    if (injectedWallet?.walletClientType === 'privy') {
-      console.warn("Warning: injectedWallet appears to be a Privy session key, not the owner wallet");
-      
-      // Try to get signer address directly from window.ethereum as backup
-      if (window.ethereum && (window.ethereum as any).selectedAddress) {
-        console.log("Found owner address from window.ethereum:", (window.ethereum as any).selectedAddress);
-        ownerAddress = (window.ethereum as any).selectedAddress;
-      }
-    }
-    
-    return ownerAddress;
-  }, [injectedWallet]);
-  
-  // Update getPlayerCharacterID to use the smart contract function directly without logs fallback
-  const getPlayerCharacterID = useCallback(async (addressToCheck?: string) => {
-    try {
-      // FIRST PRIORITY: Always use localStorage if available
-      const storedCharacterId = localStorage.getItem(LOCALSTORAGE_KEY);
-      if (storedCharacterId) {
-        console.log("Using stored character ID from localStorage:", storedCharacterId);
-        setCharacterId(storedCharacterId);
-        return storedCharacterId;
-      }
-      
-      // SECOND PRIORITY: Only if no localStorage value, check the blockchain using owner address
-      console.log("No stored character ID in localStorage, checking blockchain");
-      
-      // Get the true owner wallet address (MetaMask)
-      const ownerAddress = addressToCheck || getOwnerWalletAddress();
-      
-      console.log("Owner address:", ownerAddress);
-      console.log("Injected wallet details:", 
-                 "Address:", injectedWallet?.address, 
-                 "Type:", injectedWallet?.walletClientType);
-      
-      if (!ownerAddress || !ethers.isAddress(ownerAddress)) {
-        console.warn("No valid owner address available to check for character ID");
-        return null;
-      }
-      
-      // Use the getPlayerCharacterID function from the smart contract with retry
-      if (ownerAddress) {
-        try {
-          console.debug("Checking for character with the getPlayerCharacterID function");
-
-          const provider = getReadOnlyProvider();
-              const contract = new ethers.Contract(
-                ENTRYPOINT_ADDRESS,
-                ["function getPlayerCharacterID(address) view returns (bytes32)"],
-            provider
-          );
-          const characterId = await contract.getPlayerCharacterID(ownerAddress);
-          
-          // Check if character exists (not zero bytes)
-          const isZeroBytes = characterId === "0x0000000000000000000000000000000000000000000000000000000000000000";
-          console.debug("Character ID from contract call:", characterId, "Is zero bytes:", isZeroBytes);
-          
-          if (!isZeroBytes) {
-            console.log("Character found:", characterId);
-            setCharacterId(characterId);
-            localStorage.setItem(LOCALSTORAGE_KEY, characterId);
-            return characterId;
-          } else {
-            console.log("No character found for address:", ownerAddress);
-            return null;
-          }
-        } catch (err) {
-          console.error("Error calling getPlayerCharacterID after retries:", err);
-          return null;
-        }
-      }
-      
-      console.log("No character found for owner address");
-      return null;
-    } catch (err) {
-      console.error('Error in getPlayerCharacterID:', err);
-      return null;
-    }
-  }, [getReadOnlyProvider, getOwnerWalletAddress, injectedWallet]);
-
-  // Get characters in area
-  const getCharactersInArea = useCallback(async (depth: number, x: number, y: number) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const provider = getReadOnlyProvider();
-      const entrypoint = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
-        provider
-      );
-      
-      const characters = await entrypoint.getBattleNadsInArea(depth, x, y);
-      return characters;
-    } catch (err: any) {
-      console.error("Error getting characters in area:", err);
-      setError(err.message || "Error getting characters in area");
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }, [getReadOnlyProvider]);
-
-  // Get player characters
-  const getPlayerCharacters = useCallback(async (address: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const provider = getReadOnlyProvider();
-      const entrypoint = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
-        provider
-      );
-      
-      // Get character IDs owned by the player
-      const characterIds = await entrypoint.getPlayerCharacterIDs(address);
-      
-      // If no characters, return empty array
-      if (!characterIds || characterIds.length === 0) {
-        return [];
-      }
-      
-      // Get details for each character
-      const characterPromises = characterIds.map((id: string) => entrypoint.getBattleNad(id));
-      const characters = await Promise.all(characterPromises);
-      
-      return characters;
-    } catch (err: any) {
-      console.error("Error getting player characters:", err);
-      setError(err.message || "Error getting player characters");
-      return [];
-    } finally {
-      setLoading(false);
-    }
-  }, [getReadOnlyProvider]);
-
-  // Get area information including monsters, players, etc.
-  const getAreaInfo = useCallback(async (depth: number, x: number, y: number) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const provider = getReadOnlyProvider();
-      const entrypoint = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
-        provider
-      );
-      
-      const areaInfo = await entrypoint.getAreaInfo(depth, x, y);
-      return areaInfo;
-    } catch (err: any) {
-      console.error("Error getting area info:", err);
-      setError(err.message || "Error getting area information");
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [getReadOnlyProvider]);
-
-  // Get combat state for a character (enemies, target index, etc.)
-  const getAreaCombatState = useCallback(async (characterId: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const provider = getReadOnlyProvider();
-      const entrypoint = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
-        provider
-      );
-      
-      const combatState = await entrypoint.getAreaCombatState(characterId);
-      return combatState;
-    } catch (err: any) {
-      console.error("Error getting combat state:", err);
-      setError(err.message || "Error getting combat state");
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [getReadOnlyProvider]);
-
-  // Get movement options for a character
-  const getMovementOptions = useCallback(async (characterId: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const provider = getReadOnlyProvider();
-      const entrypoint = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
-        provider
-      );
-      
-      const options = await entrypoint.getMovementOptions(characterId);
-      return options;
-    } catch (err: any) {
-      console.error("Error getting movement options:", err);
-      setError(err.message || "Error getting movement options");
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [getReadOnlyProvider]);
-
-  // Get attack options for a character
-  const getAttackOptions = useCallback(async (characterId: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const provider = getReadOnlyProvider();
-      const entrypoint = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
-        provider
-      );
-      
-      const options = await entrypoint.getAttackOptions(characterId);
-      return options;
-    } catch (err: any) {
-      console.error("Error getting attack options:", err);
-      setError(err.message || "Error getting attack options");
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [getReadOnlyProvider]);
-
-  // Attack a target - use session key
-  const attackTarget = useCallback(async (characterId: string, targetIndex: number) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Use session key (embedded wallet) for combat
-      const combatSigner = getSigner('combat');
-      
-      const entrypoint = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
-        combatSigner
-      );
-      
-      const tx = await entrypoint.attack(characterId, targetIndex, { gasLimit: 850000 });
-      
-      // Wait for transaction to be mined
-      await tx.wait();
-      
-      return true;
-    } catch (err: any) {
-      console.error("Error attacking target:", err);
-      setError(err.message || "Error attacking target");
-      return false;
-    } finally {
-      setLoading(false);
     }
   }, [getSigner]);
-
-  // Equip a weapon - use session key
-  const equipWeapon = useCallback(async (characterId: string, weaponId: number) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Use session key (embedded wallet) for equipment
-      const equipmentSigner = getSigner('equipment');
-      
-      const entrypoint = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
-        equipmentSigner
-      );
-      
-      const tx = await entrypoint.equipWeapon(characterId, weaponId, { gasLimit: 850000 });
-      
-      // Wait for transaction to be mined
-      await tx.wait();
-      
-      return true;
-    } catch (err: any) {
-      console.error("Error equipping weapon:", err);
-      setError(err.message || "Error equipping weapon");
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, [getSigner]);
-   
-  // Equip armor - use session key
-  const equipArmor = useCallback(async (characterId: string, armorId: number) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      // Use session key (embedded wallet) for equipment
-      const equipmentSigner = getSigner('equipment');
-      
-      const entrypoint = new ethers.Contract(
-        ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
-        equipmentSigner
-      );
-      
-      const tx = await entrypoint.equipArmor(characterId, armorId, { gasLimit: 850000 });
-      
-      // Wait for transaction to be mined
-      await tx.wait();
-      
-      return true;
-    } catch (err: any) {
-      console.error("Error equipping armor:", err);
-      setError(err.message || "Error equipping armor");
-      return false;
-    } finally {
-      setLoading(false);
-    }
-  }, [getSigner]);
-
-  // Helper for debugging/migrating
-  const getCharacterIdByTransactionHash = useCallback(async (txHash: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const provider = getReadOnlyProvider();
-      
-      // Get transaction receipt
-      console.log(`Fetching receipt for transaction: ${txHash}`);
-      const receipt = await provider.getTransactionReceipt(txHash);
-
-      console.log(`Transaction receipt: ${JSON.stringify(receipt)}`);
-      
-      if (!receipt) {
-        throw new Error("Transaction receipt not found");
-      }
-      
-      // Try to find the character ID from the logs
-      let foundCharacterId: string | null = null;
-      
-      try {
-        // Try to parse logs for CharacterCreated event
-        const topic = ethers.id("CharacterCreated(bytes32,address)");
-        const log = receipt.logs.find(log => log.topics[0] === topic);
-        
-        if (log) {
-          foundCharacterId = ethers.zeroPadValue(log.topics[1], 32);
-        }
-      } catch (logError) {
-        console.warn("Could not parse CharacterCreated event:", logError);
-      }
-      
-      if (foundCharacterId) {
-        // Store character ID in local state and localStorage
-        setCharacterId(foundCharacterId);
-        localStorage.setItem(LOCALSTORAGE_KEY, foundCharacterId);
-      }
-      
-      return foundCharacterId;
-    } catch (err: any) {
-      console.error("Error getting character ID by transaction hash:", err);
-      setError(err.message || "Error getting character ID");
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [getReadOnlyProvider]);
-
-  // Get frontend data (unified function to get all game state)
-  const getFrontendData = useCallback(async (characterId: string) => {
-    if (!characterId) {
-      console.error("getFrontendData called without characterId");
-      return null;
-    }
-    
-    setLoading(true);
-    try {
-      // Get a read-only provider
-      const provider = getReadOnlyProvider();
-      const entrypoint = new ethers.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, provider);
-      
-      console.log(`[getFrontendData] Fetching data for character ${characterId}`);
-      const frontendData = await entrypoint.getFrontendData(characterId);
-      console.log(`[getFrontendData] Data received:`, !!frontendData);
-      
-      if (!frontendData) {
-        throw new Error("Failed to fetch frontend data");
-      }
-      
-      return frontendData;
-    } catch (err) {
-      console.error(`[getFrontendData] Error:`, err);
-      setError(`Failed to load game data: ${(err as Error)?.message || "Unknown error"}`);
-      return null;
-    } finally {
-      setLoading(false);
-    }
-  }, [getReadOnlyProvider, setError, setLoading]);
-
-  // Updated getGameState to set the centralized Recoil atom
-  const getGameState = useCallback(async (characterId: string): Promise<GameState | null> => {
-    if (!characterId) {
-      console.error("getGameState called without characterId");
-      return null;
-    }
-    
-    // Start with loading state
-    setGameState(currentState => ({
-      ...currentState,
-      loading: true,
-      error: null
-    }));
-    
-    try {
-      const frontendDataRaw = await getFrontendData(characterId);
-      
-      if (!frontendDataRaw) {
-        setGameState(currentState => ({
-          ...currentState,
-          loading: false,
-          error: "Failed to load game data"
-        }));
-        return null;
-      }
-      
-      // Parse the raw data
-      const parsedData = parseFrontendData(frontendDataRaw);
-      
-      // Create a structured game state
-      const gameState = createGameState(parsedData);
-      
-      // Update the centralized state using Recoil
-      setGameState({
-        ...gameState,
-        loading: false,
-        error: null
-      });
-      
-      console.log("[getGameState] Game state updated successfully");
-      return gameState;
-    } catch (err) {
-      console.error("[getGameState] Error:", err);
-      const errorMsg = `Failed to load game state: ${(err as Error)?.message || "Unknown error"}`;
-      
-      // Update error state in Recoil
-      setGameState(currentState => ({
-        ...currentState,
-        loading: false,
-        error: errorMsg
-      }));
-      
-      return null;
-    }
-  }, [getFrontendData, setGameState]);
 
   // Set the session key to the current embedded wallet address
   const setSessionKeyToEmbeddedWallet = useCallback(async (characterId: string) => {
-    setLoading(true);
-    setError(null);
-
     try {
       if (!embeddedWallet?.address) {
         throw new Error("No embedded wallet available to use as session key");
@@ -1219,28 +908,91 @@ export const useBattleNads = () => {
       }
     } catch (err: any) {
       console.error(`[setSessionKeyToEmbeddedWallet] Error setting session key to embedded wallet:`, err);
-      setError(err.message || "Error setting session key");
       return {
         success: false,
         error: err.message
       };
-    } finally {
-      setLoading(false);
     }
   }, [embeddedWallet, updateSessionKey, getCurrentSessionKey]);
 
-  // Debug what functions were created
-  console.log("useBattleNads exporting with functions:", {
-    updateSessionKey: typeof updateSessionKey === 'function',
-    getCurrentSessionKey: typeof getCurrentSessionKey === 'function',
-    setSessionKeyToEmbeddedWallet: typeof setSessionKeyToEmbeddedWallet === 'function'
-  });
+  // Get player characters - pure blockchain call
+  const getPlayerCharacters = useCallback(async (address: string) => {
+    try {
+      const provider = getReadOnlyProvider();
+      const entrypoint = new ethers.Contract(
+        ENTRYPOINT_ADDRESS,
+        ENTRYPOINT_ABI,
+        provider
+      );
+      
+      // Get character IDs owned by the player
+      const characterIds = await entrypoint.getPlayerCharacterIDs(address);
+      
+      // If no characters, return empty array
+      if (!characterIds || characterIds.length === 0) {
+        return [];
+      }
+      
+      // Get details for each character
+      const characterPromises = characterIds.map((id: string) => entrypoint.getBattleNad(id));
+      const characters = await Promise.all(characterPromises);
+      
+      return characters;
+    } catch (err: any) {
+      console.error("Error getting player characters:", err);
+      throw new Error(err.message || "Error getting player characters");
+    }
+  }, [getReadOnlyProvider]);
 
+  // Helper for debugging/migrating
+  const getCharacterIdByTransactionHash = useCallback(async (txHash: string) => {
+    try {
+      const provider = getReadOnlyProvider();
+      
+      // Get transaction receipt
+      console.log(`Fetching receipt for transaction: ${txHash}`);
+      const receipt = await provider.getTransactionReceipt(txHash);
+
+      console.log(`Transaction receipt: ${JSON.stringify(receipt)}`);
+      
+      if (!receipt) {
+        throw new Error("Transaction receipt not found");
+      }
+      
+      // Try to find the character ID from the logs
+      let foundCharacterId: string | null = null;
+      
+      try {
+        // Try to parse logs for CharacterCreated event
+        const topic = ethers.id("CharacterCreated(bytes32,address)");
+        const log = receipt.logs.find(log => log.topics[0] === topic);
+        
+        if (log) {
+          foundCharacterId = ethers.zeroPadValue(log.topics[1], 32);
+        }
+      } catch (logError) {
+        console.warn("Could not parse CharacterCreated event:", logError);
+      }
+      
+      if (foundCharacterId) {
+        // Store character ID in local state and localStorage
+        setCharacterId(foundCharacterId);
+        localStorage.setItem(LOCALSTORAGE_KEY, foundCharacterId);
+      }
+      
+      return foundCharacterId;
+    } catch (err: any) {
+      console.error("Error getting character ID by transaction hash:", err);
+      return null;
+    }
+  }, [getReadOnlyProvider]);
+
+  // Return only contract interaction functions
   return {
     createCharacter,
-    moveCharacter: moveCharacterImpl,
+    moveCharacter,
     getPlayerCharacterID,
-    getCharacter,
+    getCharacter, 
     getCharactersInArea,
     getPlayerCharacters,
     getAreaInfo,
@@ -1248,17 +1000,15 @@ export const useBattleNads = () => {
     getMovementOptions,
     getAttackOptions,
     attackTarget,
-    equipWeapon,
-    equipArmor,
     updateSessionKey,
     getCurrentSessionKey,
-    getCharacterIdByTransactionHash,
-    getCharacterIdFromLogs,
     getFrontendData,
     getGameState,
+    getCharacterIdByTransactionHash,
     characterId,
+    setSessionKeyToEmbeddedWallet,
+    // Include loading and error for backward compatibility
     loading,
-    error,
-    setSessionKeyToEmbeddedWallet
+    error
   };
-}; 
+};
