@@ -30,6 +30,9 @@ import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from '../../hooks/useBattleNads';
 import { useGame } from '../../hooks/useGame';
 import { usePrivy } from '@privy-io/react-auth';
+import GameBoard from './GameBoard'; // Import the new GameBoard component
+import { Character, GameState } from '../../types/gameTypes';
+import { convertCharacterData, createGameState, parseFrontendData } from '../../utils/gameDataConverters';
 
 interface Combatant {
   id: string;
@@ -75,13 +78,15 @@ const Game: React.FC = () => {
   } = useGame();
   
   const [characterId, setCharacterId] = useState<string | null>(null);
-  const [character, setCharacter] = useState<any | null>(null);
+  const [character, setCharacter] = useState<Character | null>(null);
+  const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
+  const [isMoving, setIsMoving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [position, setPosition] = useState({ x: 0, y: 0, depth: 1 });
-  const [combatants, setCombatants] = useState<Combatant[]>([]);
-  const [noncombatants, setNoncombatants] = useState<Combatant[]>([]);
-  const [selectedCombatant, setSelectedCombatant] = useState<Combatant | null>(null);
+  const [combatants, setCombatants] = useState<Character[]>([]);
+  const [noncombatants, setNoncombatants] = useState<Character[]>([]);
+  const [selectedCombatant, setSelectedCombatant] = useState<Character | null>(null);
   const [combatLog, setCombatLog] = useState<string[]>([]);
   const [isInCombat, setIsInCombat] = useState(false);
   const [isAttacking, setIsAttacking] = useState(false);
@@ -89,6 +94,7 @@ const Game: React.FC = () => {
   const [loadingComplete, setLoadingComplete] = useState<boolean>(false);
   const [areaInfo, setAreaInfo] = useState<any>(null);
   const [equipmentInfo, setEquipmentInfo] = useState<any>(null);
+  const [miniMap, setMiniMap] = useState<any[][]>([]);
 
   // Reference to track initial load state
   const isInitialLoadComplete = useRef(false);
@@ -107,8 +113,12 @@ const Game: React.FC = () => {
 
   // Load character data from chain
   const loadCharacterData = async () => {
-    try {
+    // Only show the full loading screen if not during a movement action
+    if (!isMoving) {
       setLoading(true);
+    }
+    
+    try {
       console.log("==========================================");
       console.log("LOADING CHARACTER DATA STARTED");
       
@@ -205,120 +215,41 @@ const Game: React.FC = () => {
       console.log("Frontend data type:", typeof frontendDataRaw);
       console.log("Frontend data structure:", Object.keys(frontendDataRaw));
       
-      // Handle frontend data based on its structure
-      if (typeof frontendDataRaw === 'object') {
-        // Access as an object with named properties
-        if (frontendDataRaw.character) {
-          // It's a structured object with named properties
-          console.log("Setting character data from object structure");
-          setCharacter(frontendDataRaw.character);
-          setCombatants(frontendDataRaw.combatants || []);
-          setNoncombatants(frontendDataRaw.noncombatants || []);
-          
-          // Set equipment
-          if (frontendDataRaw.equipment) {
-            setEquipmentInfo(frontendDataRaw.equipment);
-          }
-          
-          // Set position based on character stats
-          if (frontendDataRaw.character?.stats) {
-            const pos = {
-              x: Number(frontendDataRaw.character.stats.x || 0),
-              y: Number(frontendDataRaw.character.stats.y || 0),
-              depth: Number(frontendDataRaw.character.stats.depth || 1),
-            };
-            setPosition(pos);
-          }
-          
-          // Process miniMap if available
-          if (frontendDataRaw.miniMap && frontendDataRaw.miniMap[2] && frontendDataRaw.miniMap[2][2]) {
-            const currentArea = frontendDataRaw.miniMap[2][2];
-            setAreaInfo(currentArea);
-            addToCombatLog(`Area has ${currentArea.playerCount || 0} players and ${currentArea.monsterCount || 0} monsters.`);
-          }
-          
-          // Check if in combat
-          const hasActiveCombatants = frontendDataRaw.combatants && frontendDataRaw.combatants.length > 0;
-          setIsInCombat(hasActiveCombatants);
-          
-          if (hasActiveCombatants) {
-            addToCombatLog(`You are in combat with ${frontendDataRaw.combatants.length} enemies!`);
-          }
-        } else if (Array.isArray(frontendDataRaw)) {
-          // It's an array structure (tuple return from contract)
-          console.log("Setting character data from array structure");
-          
-          // Typically index 0 is character data
-          if (frontendDataRaw[0]) {
-            setCharacter(frontendDataRaw[0]);
-            
-            // Set position based on character stats
-            if (frontendDataRaw[0].stats) {
-              const pos = {
-                x: Number(frontendDataRaw[0].stats.x || 0),
-                y: Number(frontendDataRaw[0].stats.y || 0),
-                depth: Number(frontendDataRaw[0].stats.depth || 1),
-              };
-              setPosition(pos);
-            }
-          }
-          
-          // Index 1 is usually combatants, index 2 is noncombatants
-          setCombatants(Array.isArray(frontendDataRaw[1]) ? frontendDataRaw[1] : []);
-          setNoncombatants(Array.isArray(frontendDataRaw[2]) ? frontendDataRaw[2] : []);
-          
-          // Process miniMap if available at index 3
-          if (frontendDataRaw[3] && frontendDataRaw[3][2] && frontendDataRaw[3][2][2]) {
-            const currentArea = frontendDataRaw[3][2][2];
-            setAreaInfo(currentArea);
-            addToCombatLog(`Area has ${currentArea.playerCount || 0} players and ${currentArea.monsterCount || 0} monsters.`);
-          }
-          
-          // Equipment info - depends on contract format
-          const equipmentInfo = {
-            weapons: {
-              ids: frontendDataRaw[4] || [],
-              names: frontendDataRaw[5] || [],
-              currentId: 0
-            },
-            armor: {
-              ids: frontendDataRaw[6] || [],
-              names: frontendDataRaw[7] || [],
-              currentId: 0
-            }
-          };
-          setEquipmentInfo(equipmentInfo);
-          
-          // Check if in combat
-          const hasActiveCombatants = Array.isArray(frontendDataRaw[1]) && frontendDataRaw[1].length > 0;
-          setIsInCombat(hasActiveCombatants);
-          
-          if (hasActiveCombatants) {
-            addToCombatLog(`You are in combat with ${frontendDataRaw[1].length} enemies!`);
-          } else if (Array.isArray(frontendDataRaw[2]) && frontendDataRaw[2].length > 0) {
-            // Filter monsters from noncombatants
-            const monsters = frontendDataRaw[2].filter((c: any) => 
-              c?.stats?.isMonster && c.id !== charToUse
-            );
-            
-            if (monsters.length > 0) {
-              addToCombatLog(`There are ${monsters.length} monsters in this area.`);
-            } else {
-              addToCombatLog("This area is safe... for now.");
-            }
-          }
-        }
+      // Parse the raw data into a consistent format
+      const parsedData = parseFrontendData(frontendDataRaw);
+      
+      // Convert to our structured game state
+      const gameState = createGameState(parsedData);
+      setGameState(gameState);
+      
+      // Update individual state values for backward compatibility
+      if (gameState.character) {
+        setCharacter(gameState.character);
+        
+        // Update position from the character data
+        setPosition(gameState.character.position);
       }
       
-      // Set movement options based on position
-      setMovementOptions({
-        canMoveNorth: position.y < 100,
-        canMoveSouth: position.y > 1,
-        canMoveEast: position.x < 100,
-        canMoveWest: position.x > 1,
-        canMoveUp: position.depth < 10,
-        canMoveDown: position.depth > 1
-      });
+      setCombatants(gameState.combatants);
+      setNoncombatants(gameState.noncombatants);
+      setIsInCombat(gameState.isInCombat);
+      setAreaInfo(gameState.areaInfo);
+      setEquipmentInfo(gameState.equipmentInfo);
+      setMovementOptions(gameState.movementOptions);
+      
+      // Store miniMap data from frontend data if available
+      if (parsedData.miniMap) {
+        setMiniMap(parsedData.miniMap);
+      }
+      
+      // Add log entries based on the state
+      if (gameState.areaInfo) {
+        addToCombatLog(`Area has ${gameState.areaInfo.playerCount || 0} players and ${gameState.areaInfo.monsterCount || 0} monsters.`);
+      }
+      
+      if (gameState.isInCombat) {
+        addToCombatLog(`You are in combat with ${gameState.combatants.length} enemies!`);
+      }
       
       setLoadingComplete(true);
       console.log("Character loading complete!");
@@ -447,263 +378,69 @@ const Game: React.FC = () => {
     }
   }, [status, loadingComplete, loading]);
 
-  // Handle player movement
+  // Handle movement with centralized function
   const handleMove = async (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
-    if (!characterId) {
-      toast({
-        title: "No character found",
-        description: "Character ID not found",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    
-    if (isInCombat) {
-      toast({
-        title: "Cannot move",
-        description: "You can't move while in combat. Defeat all enemies first!",
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    
-    // Check if movement in this direction is allowed
-    if (!isDirectionAllowed(direction)) {
-      toast({
-        title: "Cannot move " + direction,
-        description: `Movement ${direction} is not possible from your current position.`,
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    
-    // Don't allow movement if we're already loading
-    if (loading) return;
+    if (isAttacking || isMoving) return;
     
     try {
-      // Add to combat log but don't use local isMoving state
-      addToCombatLog(`Attempting to move ${direction}...`);
+      setIsMoving(true);
+      // Don't set loading to true here, let Privy handle the UI overlay
       
-      // Call the blockchain to move the character - Privy will automatically show its own loading UI
+      if (!characterId) {
+        throw new Error('No character ID available');
+      }
+      
+      // Clear any selected combatant when moving
+      setSelectedCombatant(null);
+      
+      // Check which direction we're moving and use the appropriate move function
+      // Privy will automatically show its loading UI during this blockchain transaction
       await moveCharacter(characterId, direction);
       
-      addToCombatLog(`Successfully moved ${direction}!`);
+      // Reload character data after movement
+      await loadCharacterData();
       
-      // Use getFrontendData to refresh all game state at once after movement
-      const frontendData = await getFrontendData(characterId);
-      if (frontendData) {
-        // Update character
-        setCharacter(frontendData.character);
-        
-        // Update position
-        const newPos = {
-          x: Number(frontendData.character.stats.x),
-          y: Number(frontendData.character.stats.y),
-          depth: Number(frontendData.character.stats.depth)
-        };
-        setPosition(newPos);
-        
-        // Update combatants and area info
-        setCombatants(frontendData.combatants || []);
-        setNoncombatants(frontendData.noncombatants || []);
-        
-        // Set area info from miniMap
-        if (frontendData.miniMap && frontendData.miniMap[2] && frontendData.miniMap[2][2]) {
-          setAreaInfo(frontendData.miniMap[2][2]);
-        }
-        
-        // Update combat state
-        const hasActiveCombatants = frontendData.combatants && frontendData.combatants.length > 0;
-        setIsInCombat(hasActiveCombatants);
-        
-        // Construct movement options from miniMap
-        const mapCenter = newPos;
-        setMovementOptions({
-          canMoveNorth: mapCenter.y < 100, // Placeholder logic, replace with actual map bounds
-          canMoveSouth: mapCenter.y > 1,
-          canMoveEast: mapCenter.x < 100,
-          canMoveWest: mapCenter.x > 1,
-          canMoveUp: mapCenter.depth < 10,
-          canMoveDown: mapCenter.depth > 1
-        });
-      }
-    } catch (err) {
-      console.error(`Error moving ${direction}:`, err);
-      
-      // Check if this is a session key related error
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      const isSessionKeyError = errorMessage.includes('Session key') || 
-                               errorMessage.includes('session key') ||
-                               errorMessage.includes('Movement must use session key');
-      
-      if (isSessionKeyError && sessionKeyStatus) {
-        // Show a special toast with an action button to update session key
-        toast({
-          title: "Session key issue detected",
-          description: "Your session key needs to be updated. Click 'Update Session Key' to fix this.",
-          status: "warning",
-          duration: 10000,
-          isClosable: true,
-          render: ({ onClose }) => (
-            <Alert
-              status="warning"
-              variant="solid"
-              flexDirection="column"
-              alignItems="center"
-              justifyContent="center"
-              textAlign="center"
-              borderRadius="md"
-              p={4}
-            >
-              <AlertIcon boxSize="40px" mr={0} />
-              <AlertTitle mt={4} mb={1} fontSize="lg">
-                Session Key Issue
-              </AlertTitle>
-              <AlertDescription maxWidth="sm">
-                {errorMessage}
-                <Button 
-                  colorScheme="blue" 
-                  mt={4}
-                  onClick={() => {
-                    onClose();
-                    if (characterId) {
-                      handleUpdateSessionKey(characterId);
-                    }
-                  }}
-                >
-                  Update Session Key
-                </Button>
-              </AlertDescription>
-            </Alert>
-          ),
-        });
-        
-        addToCombatLog(`Failed to move ${direction}: Session key issue detected. Please update your session key.`);
-      } else {
-        // Don't set local error for movement errors - use toast instead
-        toast({
-          title: `Movement failed`,
-          description: errorMessage,
-          status: "error",
-          duration: 3000,
-          isClosable: true,
-        });
-        
-        addToCombatLog(`Failed to move ${direction}: ${errorMessage}`);
-      }
+      addToCombatLog(`Moved ${direction}`);
+    } catch (err: any) {
+      console.error('Error during movement:', err);
+      setError(err.message || `Error moving ${direction}`);
+      addToCombatLog(`Failed to move ${direction}: ${err.message}`);
+    } finally {
+      setIsMoving(false);
     }
   };
-
-  // Check if movement in a direction is allowed
-  const isDirectionAllowed = (direction: string) => {
-    switch (direction) {
-      case 'north': return movementOptions?.canMoveNorth;
-      case 'south': return movementOptions?.canMoveSouth;
-      case 'east': return movementOptions?.canMoveEast;
-      case 'west': return movementOptions?.canMoveWest;
-      case 'up': return movementOptions?.canMoveUp;
-      case 'down': return movementOptions?.canMoveDown;
-      default: return false;
-    }
-  };
-
-  // Handle attack action
-  const handleAttack = async () => {
-    if (!characterId) {
-      toast({
-        title: "No character found",
-        description: "Character ID not found",
-        status: "error",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    
-    if (!selectedCombatant) {
-      toast({
-        title: "No target",
-        description: "You need to select a target to attack",
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    
-    if (isAttacking) return;
+  
+  // Handle attacks with centralized function
+  const handleAttack = async (targetIndex: number) => {
+    if (isAttacking || isMoving) return;
     
     try {
       setIsAttacking(true);
-      addToCombatLog(`Attacking ${selectedCombatant.name || "enemy"}...`);
+      // Don't set loading to true here, let Privy handle the UI overlay
       
-      // First get attack options to find the target index
-      const attackOptions = await getAttackOptions(characterId);
-      
-      if (!attackOptions || !attackOptions.canAttack) {
-        addToCombatLog("You cannot attack at this time.");
-        return;
+      if (!characterId) {
+        throw new Error('No character ID available');
       }
       
-      // Find the target index for the selected combatant
-      const targetIndex = findTargetIndex(attackOptions.targets, selectedCombatant.id);
-      
-      if (targetIndex === -1) {
-        addToCombatLog(`Cannot find target index for ${selectedCombatant.name || "enemy"}.`);
-        return;
-      }
-      
-      // Call the blockchain to attack
+      // Execute the attack
+      // Privy will automatically show its loading UI during this blockchain transaction
       await attackTarget(characterId, targetIndex);
       
-      addToCombatLog(`Attack against ${selectedCombatant.name || "enemy"} was successful!`);
+      // Reload character data after attack
+      await loadCharacterData();
       
-      // Refresh character and combat data
-      const frontendData = await getFrontendData(characterId);
-      if (frontendData) {
-        // Update character
-        setCharacter(frontendData.character);
-        
-        // Update combatants and area info
-        setCombatants(frontendData.combatants || []);
-        setNoncombatants(frontendData.noncombatants || []);
-        
-        // Update combat state
-        const hasActiveCombatants = frontendData.combatants && frontendData.combatants.length > 0;
-        setIsInCombat(hasActiveCombatants);
-        
-        if (hasActiveCombatants) {
-          addToCombatLog(`Combat continues with ${frontendData.combatants.length} enemies.`);
-        } else {
-          addToCombatLog("Combat has ended! You can now move again.");
-          setSelectedCombatant(null);
-        }
+      if (selectedCombatant) {
+        addToCombatLog(`Attacked ${selectedCombatant.name}`);
+      } else {
+        addToCombatLog(`Attacked target`);
       }
-    } catch (err) {
-      console.error("Error attacking:", err);
-      addToCombatLog(`Error attacking: ${err instanceof Error ? err.message : String(err)}`);
-      toast({
-        title: "Attack Error",
-        description: `Failed to attack: ${err instanceof Error ? err.message : String(err)}`,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
+    } catch (err: any) {
+      console.error('Error during attack:', err);
+      setError(err.message || 'Error attacking target');
+      addToCombatLog(`Attack failed: ${err.message}`);
     } finally {
       setIsAttacking(false);
     }
-  };
-
-  // Helper function to find target index from target IDs
-  const findTargetIndex = (targets: string[], targetId: string) => {
-    if (!targets || targets.length === 0) return -1;
-    return targets.findIndex(id => id === targetId);
   };
 
   // Render minimap (5x5 grid centered on player)
@@ -955,8 +692,20 @@ const Game: React.FC = () => {
     }
   };
 
-  // Show loading state during initialization
-  if (loading || isAttacking || status.startsWith('checking') || status === 'updating-session-key') {
+  // Debug function called in a useEffect
+  const debugGameData = () => {
+    if (gameState && gameState.character) {
+      console.log("Game state:", gameState);
+    }
+  };
+  
+  // Call debug function when relevant data changes
+  useEffect(() => {
+    debugGameData();
+  }, [gameState]);
+
+  // Show loading state during initialization but NOT during movement/attacks
+  if ((loading && !isMoving) || (status.startsWith('checking') || status === 'updating-session-key')) {
     // Map of status messages for different loading states
     const messageMap: Record<string, string> = {
       'checking': 'Initializing game...',
@@ -970,9 +719,7 @@ const Game: React.FC = () => {
     // Generate the loading message based on current state
     let loadingMessage = 'Loading Battle-Nads game data...';
     
-    if (isAttacking) {
-      loadingMessage = "Attacking...";
-    } else if (status.startsWith('checking') || status === 'updating-session-key') {
+    if (status.startsWith('checking') || status === 'updating-session-key') {
       loadingMessage = messageMap[status] || 'Loading Battle-Nads game data...';
     }
     
@@ -1252,309 +999,244 @@ const Game: React.FC = () => {
 
   // Main game UI - only render when we have a character and initialization is complete
   return (
-    <Box minH="100vh" className="bg-gray-900" py={6}>
-      <Container maxW="1400px">
-        <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} px={4}>
-          {/* Left column: Character and Controls */}
-          <VStack spacing={6} align="stretch">
-            <Box p={6} borderRadius="lg" boxShadow="lg" bg="#2e354c" borderWidth={1} borderColor="gray.600">
-              <Heading as="h2" size="lg" mb={4} display="flex" alignItems="center" justifyContent="space-between" color="white">
-                <Box>{character.name}</Box>
-                <Badge colorScheme="green" fontSize="md" py={1} px={3} borderRadius="md">Level {character.stats.level}</Badge>
-              </Heading>
+    <Container maxW="container.xl" p={4} className="game-container">
+      {error && (
+        <Alert status="error" mb={4}>
+          <AlertIcon />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+      
+      {sessionKeyWarning && (
+        <Alert status="warning" mb={4}>
+          <AlertIcon />
+          <AlertTitle>Session Key Warning</AlertTitle>
+          <AlertDescription>
+            {sessionKeyWarning}
+            <Button 
+              size="sm" 
+              ml={4} 
+              colorScheme="yellow" 
+              onClick={() => handleUpdateSessionKey()}
+            >
+              Update Session Key
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {status !== 'ready' ? (
+        <VStack spacing={4} align="center" justify="center" minH="50vh">
+          <Heading>Setting Up</Heading>
+          <Spinner size="xl" />
+          <Text>{status === 'initializing' ? 'Initializing game...' : 'Please wait...'}</Text>
+          {gameError && (
+            <Alert status="error">
+              <AlertIcon />
+              <AlertDescription>{gameError}</AlertDescription>
+            </Alert>
+          )}
+          <Button 
+            colorScheme="blue" 
+            onClick={initializeGame}
+            isLoading={status === 'initializing'}
+            loadingText="Initializing"
+          >
+            Initialize Game
+          </Button>
+        </VStack>
+      ) : loading && !loadingComplete ? (
+        <VStack spacing={4} align="center" justify="center" minH="50vh">
+          <Heading>Loading Game</Heading>
+          <Spinner size="xl" />
+          <Text>Please wait...</Text>
+        </VStack>
+      ) : (
+        <Box>
+          {/* Character Info and Combat Log Section */}
+          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mb={6}>
+            {/* Character Info */}
+            <Box bg="gray.800" p={4} borderRadius="md">
+              <Heading size="md" mb={4} color="white">Character Info</Heading>
               
-              <VStack spacing={4} align="stretch">
-                <Box>
-                  <Flex justify="space-between" mb={1}>
-                    <Text fontWeight="bold" color="white">Health:</Text>
-                    <Text color="white">{character.stats.health} / {(Number(character.stats.vitality) * 10)}</Text>
-                  </Flex>
-                  <Progress 
-                    value={(Number(character.stats.health) / (Number(character.stats.vitality) * 10)) * 100} 
-                    colorScheme="green" 
-                    size="md"
-                    borderRadius="md" 
-                  />
-                </Box>
-                
-                <SimpleGrid columns={2} spacing={4} mt={2}>
-                  <Box>
-                    <Text fontSize="sm" color="gray.300">Experience</Text>
-                    <Text fontWeight="bold" fontSize="lg" color="white">{character.stats.experience}</Text>
-                  </Box>
-                  <Box>
-                    <Text fontSize="sm" color="gray.300">Position</Text>
-                    <Text fontWeight="bold" fontSize="lg" color="white">{`(${position.x}, ${position.y}) D:${position.depth}`}</Text>
-                  </Box>
-                  <Box>
-                    <Text fontSize="sm" color="gray.300">Strength</Text>
-                    <Text fontWeight="bold" fontSize="lg" color="white">{character.stats.strength}</Text>
-                  </Box>
-                  <Box>
-                    <Text fontSize="sm" color="gray.300">Dexterity</Text>
-                    <Text fontWeight="bold" fontSize="lg" color="white">{character.stats.dexterity}</Text>
-                  </Box>
-                  <Box>
-                    <Text fontSize="sm" color="gray.300">Vitality</Text>
-                    <Text fontWeight="bold" fontSize="lg" color="white">{character.stats.vitality}</Text>
-                  </Box>
-                  <Box>
-                    <Text fontSize="sm" color="gray.300">Luck</Text>
-                    <Text fontWeight="bold" fontSize="lg" color="white">{character.stats.luck}</Text>
-                  </Box>
-                </SimpleGrid>
-                
-                <Divider borderColor="gray.500" />
-                
-                <SimpleGrid columns={2} spacing={4}>
-                  <Box bg="#1e3a5f" p={2} borderRadius="md">
-                    <Text fontSize="sm" color="gray.300">Weapon</Text>
-                    <Text fontWeight="bold" color="white">{character.weapon.name}</Text>
-                  </Box>
-                  <Box bg="#3c2f5a" p={2} borderRadius="md">
-                    <Text fontSize="sm" color="gray.300">Armor</Text>
-                    <Text fontWeight="bold" color="white">{character.armor.name}</Text>
-                  </Box>
-                </SimpleGrid>
-              </VStack>
-            </Box>
-            
-            {/* Movement Controls */}
-            <Box p={6} borderRadius="lg" boxShadow="lg" bg="#2e354c" borderWidth={1} borderColor="gray.600">
-              <Heading as="h3" size="md" mb={4} color="white">Movement</Heading>
-              
-              <VStack spacing={3}>
-                <IconButton 
-                  aria-label="Move North" 
-                  icon={<ChevronUpIcon boxSize={8} />}
-                  onClick={() => handleMove('north')}
-                  isDisabled={isInCombat || !movementOptions?.canMoveNorth}
-                  size="lg"
-                  colorScheme={movementOptions?.canMoveNorth && !isInCombat ? "blue" : "gray"}
-                  height="60px"
-                />
-                <HStack spacing={3}>
-                  <IconButton 
-                    aria-label="Move West" 
-                    icon={<ChevronLeftIcon boxSize={8} />}
-                    onClick={() => handleMove('west')}
-                    isDisabled={isInCombat || !movementOptions?.canMoveWest}
-                    size="lg"
-                    colorScheme={movementOptions?.canMoveWest && !isInCombat ? "blue" : "gray"}
-                    height="60px"
-                    width="60px"
-                  />
-                  <Box
-                    w="60px"
-                    h="60px"
-                    borderRadius="md"
-                    bg="blue.600"
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    border="3px solid"
-                    borderColor="blue.300"
-                  >
-                    <Text fontWeight="bold" fontSize="2xl" color="white">@</Text>
-                  </Box>
-                  <IconButton 
-                    aria-label="Move East" 
-                    icon={<ChevronRightIcon boxSize={8} />}
-                    onClick={() => handleMove('east')}
-                    isDisabled={isInCombat || !movementOptions?.canMoveEast}
-                    size="lg"
-                    colorScheme={movementOptions?.canMoveEast && !isInCombat ? "blue" : "gray"}
-                    height="60px"
-                    width="60px"
-                  />
-                </HStack>
-                <IconButton 
-                  aria-label="Move South" 
-                  icon={<ChevronDownIcon boxSize={8} />}
-                  onClick={() => handleMove('south')}
-                  isDisabled={isInCombat || !movementOptions?.canMoveSouth}
-                  size="lg"
-                  colorScheme={movementOptions?.canMoveSouth && !isInCombat ? "blue" : "gray"}
-                  height="60px"
-                />
-              </VStack>
-              
-              {isInCombat && (
-                <Alert status="warning" mt={4} borderRadius="md" color="black">
-                  <AlertIcon />
-                  <Text>You must defeat all enemies before moving</Text>
-                </Alert>
-              )}
-
-              <HStack spacing={4} mt={5} justifyContent="center">
-                <Button
-                  leftIcon={<ChevronUpIcon />}
-                  onClick={() => handleMove('up')}
-                  isDisabled={isInCombat || !movementOptions?.canMoveUp}
-                  colorScheme={movementOptions?.canMoveUp && !isInCombat ? "cyan" : "gray"}
-                  size="md"
-                  width="100px"
-                >
-                  Up
-                </Button>
-                <Button
-                  leftIcon={<ChevronDownIcon />}
-                  onClick={() => handleMove('down')}
-                  isDisabled={isInCombat || !movementOptions?.canMoveDown}
-                  colorScheme={movementOptions?.canMoveDown && !isInCombat ? "cyan" : "gray"}
-                  size="md"
-                  width="100px"
-                >
-                  Down
-                </Button>
-              </HStack>
-            </Box>
-            
-            {/* Minimap */}
-            <Box p={6} borderRadius="lg" boxShadow="lg" bg="#2e354c" borderWidth={1} borderColor="gray.600">
-              <Heading as="h3" size="md" mb={4} color="white">Minimap</Heading>
-              <Box height="180px">
-                {renderMinimap()}
-              </Box>
-              <Flex justify="center" mt={3} fontSize="sm">
-                <Badge colorScheme="blue" mx={1}>You</Badge>
-                <Badge colorScheme="red" mx={1}>Monsters</Badge>
-                <Badge colorScheme="gray" mx={1}>Out of bounds</Badge>
-              </Flex>
-            </Box>
-          </VStack>
-          
-          {/* Right column: Combat and Logs */}
-          <VStack spacing={6} align="stretch">
-            {/* Combat section */}
-            <Box p={6} borderRadius="lg" boxShadow="lg" bg="#2e354c" borderWidth={1} borderColor="gray.600">
-              <Heading as="h3" size="md" mb={4} color="white">Combat</Heading>
-              
-              {combatants.length > 0 ? (
-                <VStack spacing={4} align="stretch">
-                  <Text fontWeight="bold" fontSize="lg" color="red.300">
-                    {combatants.length} {combatants.length === 1 ? 'Enemy' : 'Enemies'} in this area:
-                  </Text>
+              {character ? (
+                <>
+                  <HStack mb={2}>
+                    <Text color="white" fontWeight="bold">{character.name}</Text>
+                    <Badge colorScheme="green">Level {character.stats.level || 1}</Badge>
+                  </HStack>
                   
-                  {combatants.map(combatant => (
-                    <Box 
-                      key={combatant.id}
-                      p={3}
-                      borderWidth={2}
-                      borderRadius="md"
-                      borderColor={selectedCombatant?.id === combatant.id ? "red.500" : "gray.600"}
-                      bg={selectedCombatant?.id === combatant.id ? "rgba(229, 62, 62, 0.2)" : "#1a1f2c"}
-                      onClick={() => setSelectedCombatant(combatant)}
-                      cursor="pointer"
-                      _hover={{ bg: "rgba(229, 62, 62, 0.1)" }}
-                      transition="all 0.2s"
-                    >
-                      <Flex justify="space-between" align="center" mb={1}>
-                        <Text fontWeight="bold" fontSize="lg" color={selectedCombatant?.id === combatant.id ? "red.300" : "white"}>
-                          {combatant.name || `Monster #${combatant.stats.index}`}
-                        </Text>
-                        <Badge colorScheme="purple">Level {combatant.stats.level}</Badge>
-                      </Flex>
-                      <Flex justify="space-between" fontSize="sm" mb={1}>
-                        <Text color="white">Health: {combatant.stats.health}</Text>
-                        <Text color="white">Strength: {combatant.stats.strength}</Text>
-                      </Flex>
-                      <Progress 
-                        value={(Number(combatant.stats.health) / (100 + Number(combatant.stats.level) * 50)) * 100} 
-                        colorScheme="red" 
-                        size="sm" 
-                        mt={1}
-                        borderRadius="full"
-                      />
+                  <Box mb={4}>
+                    <Text color="gray.400" fontSize="sm">HP: {character.stats.hp || 0}/{character.stats.maxHp || 0}</Text>
+                    <Progress 
+                      value={(character.stats.hp / character.stats.maxHp) * 100} 
+                      colorScheme="red" 
+                      size="sm" 
+                      mb={2} 
+                    />
+                    
+                    <Text color="gray.400" fontSize="sm">MP: {character.stats.mp || 0}/{character.stats.maxMp || 0}</Text>
+                    <Progress 
+                      value={(character.stats.mp / character.stats.maxMp) * 100} 
+                      colorScheme="blue" 
+                      size="sm" 
+                    />
+                  </Box>
+                  
+                  <SimpleGrid columns={2} spacing={2} mb={4}>
+                    <Box>
+                      <Text color="gray.400" fontSize="xs">Strength</Text>
+                      <Text color="white">{character.stats.strength || 0}</Text>
                     </Box>
-                  ))}
+                    <Box>
+                      <Text color="gray.400" fontSize="xs">Vitality</Text>
+                      <Text color="white">{character.stats.vitality || 0}</Text>
+                    </Box>
+                    <Box>
+                      <Text color="gray.400" fontSize="xs">Dexterity</Text>
+                      <Text color="white">{character.stats.dexterity || 0}</Text>
+                    </Box>
+                    <Box>
+                      <Text color="gray.400" fontSize="xs">Quickness</Text>
+                      <Text color="white">{character.stats.quickness || 0}</Text>
+                    </Box>
+                    <Box>
+                      <Text color="gray.400" fontSize="xs">Sturdiness</Text>
+                      <Text color="white">{character.stats.sturdiness || 0}</Text>
+                    </Box>
+                    <Box>
+                      <Text color="gray.400" fontSize="xs">Luck</Text>
+                      <Text color="white">{character.stats.luck || 0}</Text>
+                    </Box>
+                  </SimpleGrid>
                   
-                  <Button 
-                    colorScheme="red" 
-                    onClick={handleAttack}
-                    isDisabled={!selectedCombatant || isAttacking}
-                    mt={2}
-                    size="lg"
-                    height="60px"
-                    leftIcon={<Box as="span" fontSize="2xl">⚔️</Box>}
-                  >
-                    Attack {selectedCombatant ? (selectedCombatant.name || "Selected Target") : ""}
-                  </Button>
-                </VStack>
+                  {/* Equipment Section */}
+                  <Box mb={4}>
+                    <Text color="gray.300" fontSize="sm" fontWeight="bold" mb={1}>Equipment</Text>
+                    <HStack>
+                      <Text color="gray.400" fontSize="xs">Weapon:</Text>
+                      <Text color="white" fontSize="xs">{character.weapon?.name || 'None'}</Text>
+                    </HStack>
+                    <HStack>
+                      <Text color="gray.400" fontSize="xs">Armor:</Text>
+                      <Text color="white" fontSize="xs">{character.armor?.name || 'None'}</Text>
+                    </HStack>
+                  </Box>
+                </>
               ) : (
-                <Box bg="#1a1f2c" p={5} borderRadius="md" textAlign="center">
-                  <Text fontSize="lg" color="white">No enemies in this area. You are safe to move.</Text>
-                  <Text color="green.300" mt={2} fontSize="sm">Explore to find monsters and gain experience!</Text>
-                </Box>
+                <Text color="gray.400">No character data available</Text>
               )}
             </Box>
             
             {/* Combat Log */}
-            <Box 
-              p={6} 
-              borderRadius="lg" 
-              boxShadow="lg" 
-              bg="#2e354c" 
-              borderWidth={1} 
-              borderColor="gray.600" 
-              flex="1" 
-              minH="350px"
-              display="flex"
-              flexDirection="column"
-            >
-              <Heading as="h3" size="md" mb={4} color="white">Combat Log</Heading>
+            <Box bg="gray.800" p={4} borderRadius="md" maxH="300px" overflow="auto">
+              <Heading size="md" mb={4} color="white">Combat Log</Heading>
               
-              <Box 
-                flex="1" 
-                bg="#1a1f2c" 
-                borderRadius="md" 
-                p={3} 
-                overflowY="auto" 
-                css={{
-                  '&::-webkit-scrollbar': {
-                    width: '8px',
-                  },
-                  '&::-webkit-scrollbar-track': {
-                    background: '#2D3748',
-                  },
-                  '&::-webkit-scrollbar-thumb': {
-                    background: '#4A5568',
-                    borderRadius: '4px',
-                  },
-                }}
-              >
-                {combatLog.length > 0 ? (
-                  <VStack spacing={0} align="stretch">
-                    {combatLog.map((log, i) => (
-                      <Text 
-                        key={i} 
-                        fontSize="md" 
+              {combatLog.length > 0 ? (
+                <VStack align="stretch" spacing={1}>
+                  {combatLog.map((log, index) => (
+                    <Text key={index} color="gray.300" fontSize="sm">{log}</Text>
+                  ))}
+                </VStack>
+              ) : (
+                <Text color="gray.400">No combat actions yet</Text>
+              )}
+            </Box>
+          </SimpleGrid>
+          
+          {/* Game Board Section */}
+          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+            {/* Game Board - Use our new GameBoard component with structured data */}
+            <Box>
+              {character && (
+                <GameBoard
+                  character={character}
+                  areaCharacters={[...combatants, ...noncombatants]}
+                  miniMap={miniMap}
+                  onMove={handleMove}
+                  onAttack={(targetIndex: number) => handleAttack(targetIndex)}
+                  isMoving={isMoving}
+                  isAttacking={isAttacking}
+                />
+              )}
+            </Box>
+            
+            {/* Combatants in Area */}
+            <Box bg="gray.800" p={4} borderRadius="md">
+              <Heading size="md" mb={4} color="white">
+                {isInCombat ? 'Combat' : 'Area'} ({combatants.length + noncombatants.length} entities)
+              </Heading>
+              
+              {combatants.length > 0 && (
+                <Box mb={4}>
+                  <Text color="red.300" fontSize="sm" fontWeight="bold" mb={2}>
+                    Combatants ({combatants.length})
+                  </Text>
+                  
+                  <VStack align="stretch" spacing={2}>
+                    {combatants.map((enemy, index) => (
+                      <Box 
+                        key={index} 
                         p={2} 
-                        borderBottom="1px solid" 
-                        borderColor="gray.700"
-                        color={
-                          log.includes("Error") ? "red.300" :
-                          log.includes("success") ? "green.300" :
-                          log.includes("combat") ? "orange.300" :
-                          log.includes("move") ? "blue.300" :
-                          "white"
-                        }
+                        bg="gray.700" 
+                        borderRadius="md"
+                        cursor="pointer"
+                        onClick={() => setSelectedCombatant(enemy)}
+                        borderWidth={selectedCombatant?.id === enemy.id ? 2 : 0}
+                        borderColor="yellow.400"
                       >
-                        {log}
-                      </Text>
+                        <HStack justify="space-between">
+                          <Text color="white" fontSize="sm">{enemy.name || 'Unknown'}</Text>
+                          <HStack>
+                            <Text color="gray.400" fontSize="xs">
+                              Lvl {enemy.stats.level || '?'}
+                            </Text>
+                            <Text color="red.300" fontSize="xs">
+                              HP: {enemy.stats.hp || '?'}/{enemy.stats.maxHp || '?'}
+                            </Text>
+                          </HStack>
+                        </HStack>
+                      </Box>
                     ))}
                   </VStack>
-                ) : (
-                  <Center h="100%">
-                    <Text fontSize="md" color="gray.400">No combat activity yet.</Text>
-                  </Center>
-                )}
-              </Box>
+                </Box>
+              )}
+              
+              {noncombatants.length > 0 && (
+                <Box>
+                  <Text color="green.300" fontSize="sm" fontWeight="bold" mb={2}>
+                    Non-Combatants ({noncombatants.length})
+                  </Text>
+                  
+                  <VStack align="stretch" spacing={2}>
+                    {noncombatants.map((entity, index) => (
+                      <Box 
+                        key={index} 
+                        p={2} 
+                        bg="gray.700" 
+                        borderRadius="md"
+                      >
+                        <HStack justify="space-between">
+                          <Text color="white" fontSize="sm">{entity.name || 'Unknown'}</Text>
+                          <Text color="gray.400" fontSize="xs">
+                            Lvl {entity.stats.level || '?'}
+                          </Text>
+                        </HStack>
+                      </Box>
+                    ))}
+                  </VStack>
+                </Box>
+              )}
+              
+              {combatants.length === 0 && noncombatants.length === 0 && (
+                <Text color="gray.400">No entities in this area</Text>
+              )}
             </Box>
-          </VStack>
-        </SimpleGrid>
-      </Container>
-    </Box>
+          </SimpleGrid>
+        </Box>
+      )}
+    </Container>
   );
 };
 
