@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Heading, Text, Badge, Flex, Progress, VStack, HStack, Divider } from '@chakra-ui/react';
+import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider } from '@chakra-ui/react';
 import { BattleNad } from '../types/gameTypes';
 
 // Character component for displaying BattleNad information

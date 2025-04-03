@@ -23,8 +23,6 @@ export const gameStateAtom = atom<GameState>({
   }
 });
 
-// Selectors
-
 // Get the player character
 export const playerCharacterSelector = selector<BattleNad | null>({
   key: 'playerCharacter',

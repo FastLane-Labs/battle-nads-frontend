@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect } from 'react';
 import * as ethers from 'ethers';
 import { useWallet } from '../providers/WalletProvider';
 import ENTRYPOINT_ABI from '../abis/battleNads.json';
-import { BattleNad, AreaInfo, MovementOptions, GameState } from '../types/gameTypes';
+import { MovementOptions } from '../types/gameTypes';
 
 // Define transaction options type
 export interface TransactionOptions {
