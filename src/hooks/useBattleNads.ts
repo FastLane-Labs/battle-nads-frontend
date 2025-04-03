@@ -161,21 +161,26 @@ export const useBattleNads = () => {
         try {
           console.debug("Checking for character with the getPlayerCharacterID function");
 
-          const characterId = await readContract.getPlayerCharacterIDs(ownerAddress);
+          const characterIds = await readContract.getPlayerCharacterIDs(ownerAddress);
           
-          // Check if character exists (not zero bytes)
-          const isZeroBytes = characterId === "0x0000000000000000000000000000000000000000000000000000000000000000";
-          console.debug("Character ID from contract call:", characterId, "Is zero bytes:", isZeroBytes);
-          
-          if (!isZeroBytes) {
-            console.log("Character found:", characterId);
-            setCharacterId(characterId);
-            localStorage.setItem(LOCALSTORAGE_KEY, characterId);
-            return characterId;
-          } else {
-            console.log("No character found for address:", ownerAddress);
-            return null;
+          // Check if we got an array and take the first ID if available
+          if (Array.isArray(characterIds) && characterIds.length > 0) {
+            const firstCharacterId = characterIds[0];
+            
+            // Check if character exists (not zero bytes)
+            const isZeroBytes = firstCharacterId === "0x0000000000000000000000000000000000000000000000000000000000000000";
+            console.debug("Character ID from contract call:", firstCharacterId, "Is zero bytes:", isZeroBytes);
+            
+            if (!isZeroBytes) {
+              console.log("Character found:", firstCharacterId);
+              setCharacterId(firstCharacterId);
+              localStorage.setItem(LOCALSTORAGE_KEY, firstCharacterId);
+              return firstCharacterId;
+            }
           }
+          
+          console.log("No character found for address:", ownerAddress);
+          return null;
         } catch (err) {
           console.error("Error calling getPlayerCharacterID:", err);
           return null;
@@ -364,7 +369,11 @@ export const useBattleNads = () => {
         sessionKeyDeadline,
         txOptions
       );
+      
       const receipt = await tx.wait();
+      if (!receipt) {
+        throw new Error("Transaction failed: no receipt returned");
+      }
 
       // Attempt to parse logs for the CharacterCreated event
       let newCharacterId: string | null = null;
@@ -426,7 +435,12 @@ export const useBattleNads = () => {
       }
 
       console.log(`[moveCharacter] Transaction sent: ${tx.hash}`);
+      
       const receipt = await tx.wait();
+      if (!receipt) {
+        throw new Error("Transaction failed: no receipt returned");
+      }
+      
       console.log(`[moveCharacter] Movement completed: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
       return true;
     } catch (err: any) {
@@ -434,6 +448,14 @@ export const useBattleNads = () => {
       throw new Error(err.message || `Error moving ${direction}`);
     }
   }, [embeddedContract]);
+
+  // Add null check helper function to reuse in all transaction functions
+  const ensureReceipt = (receipt: ethers.TransactionReceipt | null, operation: string): ethers.TransactionReceipt => {
+    if (!receipt) {
+      throw new Error(`${operation} transaction failed: no receipt returned`);
+    }
+    return receipt;
+  }
 
   // Attack a target - pure blockchain call
   const attackTarget = useCallback(async (characterId: string, targetIndex: number) => {
@@ -449,7 +471,7 @@ export const useBattleNads = () => {
       console.log(`[attackTarget] Transaction sent: ${tx.hash}`);
       
       // Wait for transaction to be mined
-      const receipt = await tx.wait();
+      const receipt = ensureReceipt(await tx.wait(), "Attack");
       console.log(`[attackTarget] Attack completed: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
       return true;
     } catch (err: any) {
@@ -488,8 +510,8 @@ export const useBattleNads = () => {
       console.log(`[updateSessionKey] Transaction sent with hash: ${tx.hash}`);
       console.log(`[updateSessionKey] Waiting for transaction to be mined...`);
       
-      // Wait for transaction to be mined
-      const receipt = await tx.wait();
+      // Wait for transaction to be mined and ensure receipt exists
+      const receipt = ensureReceipt(await tx.wait(), "Update session key");
       console.log(`[updateSessionKey] Session key updated successfully:`, receipt);
       console.log(`[updateSessionKey] Gas used: ${receipt.gasUsed.toString()}`);
       
@@ -533,7 +555,7 @@ export const useBattleNads = () => {
         const currentSessionKey = await getCurrentSessionKey(characterId);
         console.log(`[setSessionKeyToEmbeddedWallet] Current session key before update: ${currentSessionKey}`);
         
-        if (currentSessionKey?.toLowerCase() === embeddedWallet.address.toLowerCase()) {
+        if (currentSessionKey && currentSessionKey.toLowerCase() === embeddedWallet.address.toLowerCase()) {
           console.log(`[setSessionKeyToEmbeddedWallet] Session key is already set to the embedded wallet`);
           return {
             success: true,
@@ -565,12 +587,18 @@ export const useBattleNads = () => {
         try {
           const updatedSessionKey = await getCurrentSessionKey(characterId);
           console.log(`[setSessionKeyToEmbeddedWallet] Updated session key from contract: ${updatedSessionKey}`);
-          console.log(`[setSessionKeyToEmbeddedWallet] Session key matches embedded wallet: ${updatedSessionKey?.toLowerCase() === embeddedWallet.address.toLowerCase()}`);
           
-          if (updatedSessionKey?.toLowerCase() !== embeddedWallet.address.toLowerCase()) {
-            console.warn(`[setSessionKeyToEmbeddedWallet] WARNING: Session key was not updated correctly`);
-            console.warn(`[setSessionKeyToEmbeddedWallet] Expected: ${embeddedWallet.address.toLowerCase()}`);
-            console.warn(`[setSessionKeyToEmbeddedWallet] Actual: ${updatedSessionKey?.toLowerCase()}`);
+          if (updatedSessionKey) {
+            // Only perform comparison if we got a valid session key
+            console.log(`[setSessionKeyToEmbeddedWallet] Session key matches embedded wallet: ${updatedSessionKey.toLowerCase() === embeddedWallet.address.toLowerCase()}`);
+            
+            if (updatedSessionKey.toLowerCase() !== embeddedWallet.address.toLowerCase()) {
+              console.warn(`[setSessionKeyToEmbeddedWallet] WARNING: Session key was not updated correctly`);
+              console.warn(`[setSessionKeyToEmbeddedWallet] Expected: ${embeddedWallet.address.toLowerCase()}`);
+              console.warn(`[setSessionKeyToEmbeddedWallet] Actual: ${updatedSessionKey.toLowerCase()}`);
+            }
+          } else {
+            console.warn(`[setSessionKeyToEmbeddedWallet] Could not verify session key update - null response from contract`);
           }
         } catch (err) {
           console.warn(`[setSessionKeyToEmbeddedWallet] Error verifying updated session key:`, err);
@@ -676,7 +704,7 @@ export const useBattleNads = () => {
       const tx = await embeddedContract.equipWeapon(characterId, weaponId, { gasLimit: 500000 });
       console.log(`[equipWeapon] Transaction sent: ${tx.hash}`);
       
-      const receipt = await tx.wait();
+      const receipt = ensureReceipt(await tx.wait(), "Equip weapon");
       console.log(`[equipWeapon] Weapon equipped: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
       return true;
     } catch (err: any) {
@@ -698,7 +726,7 @@ export const useBattleNads = () => {
       const tx = await embeddedContract.equipArmor(characterId, armorId, { gasLimit: 500000 });
       console.log(`[equipArmor] Transaction sent: ${tx.hash}`);
       
-      const receipt = await tx.wait();
+      const receipt = ensureReceipt(await tx.wait(), "Equip armor");
       console.log(`[equipArmor] Armor equipped: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
       return true;
     } catch (err: any) {
@@ -737,7 +765,7 @@ export const useBattleNads = () => {
       );
       console.log(`[allocatePoints] Transaction sent: ${tx.hash}`);
       
-      const receipt = await tx.wait();
+      const receipt = ensureReceipt(await tx.wait(), "Allocate points");
       console.log(`[allocatePoints] Points allocated: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
       return true;
     } catch (err: any) {
@@ -764,7 +792,7 @@ export const useBattleNads = () => {
       });
       console.log(`[replenishGasBalance] Transaction sent: ${tx.hash}`);
       
-      const receipt = await tx.wait();
+      const receipt = ensureReceipt(await tx.wait(), "Replenish gas balance");
       console.log(`[replenishGasBalance] Gas balance replenished: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
       return true;
     } catch (err: any) {

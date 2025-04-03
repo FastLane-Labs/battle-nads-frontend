@@ -113,6 +113,18 @@ export type BattleNadsContract = ethers.Contract & {
     equipableArmorIDs: number[];
     equipableArmorNames: string[];
     unallocatedAttributePoints: number;
+    equipment?: { // Optional equipment data
+      weapons?: {
+        ids: number[];
+        names: string[];
+        currentId?: number;
+      };
+      armor?: {
+        ids: number[];
+        names: string[];
+        currentId?: number;
+      };
+    };
   }>;
   
   // Estimation methods

@@ -407,13 +407,25 @@ export const useGame = () => {
         
         // Verify the update
         const updatedKey = await getCurrentSessionKey(characterId);
-        const keyMatches = updatedKey.toLowerCase() === embeddedWallet.address.toLowerCase();
+        
+        // Check if updatedKey is null before using toLowerCase()
+        const keyMatches = updatedKey ? 
+          updatedKey.toLowerCase() === embeddedWallet.address.toLowerCase() : 
+          false;
         
         // Reset loading state
         setGameState(prev => ({ ...prev, loading: false }));
         
         if (!keyMatches) {
           console.warn(`[updateSessionKey] Session key still doesn't match after update`);
+          
+          // Add more detailed logging for debugging
+          if (updatedKey === null) {
+            console.warn(`[updateSessionKey] Failed to retrieve session key after update (null)`);
+          } else {
+            console.warn(`[updateSessionKey] Actual: ${updatedKey}, Expected: ${embeddedWallet.address}`);
+          }
+          
           setSessionKeyWarning("Session key update may have failed. Some game actions may not work.");
           return { success: false, error: "Session key update verification failed" };
         }
