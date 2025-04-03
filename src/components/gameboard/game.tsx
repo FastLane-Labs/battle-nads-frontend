@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Box, 
   Heading, 
@@ -25,13 +25,12 @@ import {
   Spinner
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
-import { ChevronUpIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from '../../hooks/useBattleNads';
 import { useGame } from '../../hooks/useGame';
 import { usePrivy } from '@privy-io/react-auth';
 import GameBoard from './GameBoard';
-import { BattleNad, GameState } from '../../types/gameTypes';
+import { BattleNad, GameState, GameUIState } from '../../types/gameTypes';
 import { convertCharacterData, createGameState, parseFrontendData } from '../../utils/gameDataConverters';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 import { 
@@ -120,6 +119,58 @@ const Game: React.FC = () => {
 
   // Use the Privy hooks for showing UI during transactions
   const privy = usePrivy();
+
+  // Derive a unified UI state from all the state variables
+  const gameUIState = useMemo<GameUIState>(() => {
+    // Show loading during any loading operation or status check
+    if (loading || hookLoading || status.startsWith('checking') || status === 'updating-session-key') {
+      return 'loading';
+    }
+    
+    // Show errors only for actual errors, not expected states
+    if (error || gameError || hookError) {
+      return 'error';
+    }
+    
+    // Handle all the special states
+    if (status === 'need-owner-wallet') {
+      return 'need-wallet';
+    }
+    
+    if (status === 'need-embedded-wallet') {
+      return 'need-embedded-wallet';
+    }
+    
+    if (status === 'need-character' || !character) {
+      return 'need-character';
+    }
+    
+    if (sessionKeyWarning) {
+      return 'session-key-warning';
+    }
+    
+    // If everything is ready, show the game
+    if (status === 'ready' && character) {
+      return 'ready';
+    }
+    
+    // Fallback - if we somehow get here, show an error
+    return 'error';
+  }, [loading, hookLoading, status, error, gameError, hookError, sessionKeyWarning, character]);
+  
+  // Helper function to get loading messages based on status
+  const getLoadingMessage = (status: string): string => {
+    const messages: Record<string, string> = {
+      'checking-owner-wallet': 'Connecting to your wallet...',
+      'checking-embedded-wallet': 'Verifying session wallet...',
+      'checking-character': 'Loading character data...',
+      'checking-session-key': 'Validating session key...',
+      'loading-game-data': 'Loading game world...',
+      'updating-session-key': 'Updating session key...',
+    };
+    
+    return messages[status] || 'Initializing Battle Nads...';
+  };
 
   // Helper function to add messages to combat log
   const addToCombatLog = (message: string) => {
@@ -681,540 +732,345 @@ const Game: React.FC = () => {
     debugGameData();
   }, [character]);
 
-  // Show loading state during initialization but NOT during movement/attacks
-  if ((loading && !isMoving) || (status.startsWith('checking') || status === 'updating-session-key')) {
-    // Map of status messages for different loading states
-    const messageMap: Record<string, string> = {
-      'checking': 'Initializing game...',
-      'checking-owner-wallet': 'Checking if owner wallet is connected...',
-      'checking-embedded-wallet': 'Checking if session key is available...',
-      'checking-character': 'Checking if character exists...',
-      'checking-session-key': 'Verifying session key...',
-      'updating-session-key': 'Updating session key...',
-    };
-    
-    // Generate the loading message based on current state
-    let loadingMessage = 'Loading Battle-Nads game data...';
-    
-    if (status.startsWith('checking') || status === 'updating-session-key') {
-      loadingMessage = messageMap[status] || 'Loading Battle-Nads game data...';
-    }
-    
-    return (
-      <Center height="100vh" className="bg-gray-900" color="white">
-        <VStack spacing={6}>
-          <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
-          <Spinner size="xl" thickness="4px" speed="0.8s" color="blue.500" />
-          <Text fontSize="xl" color="white">{loadingMessage}</Text>
-        </VStack>
-      </Center>
-    );
-  }
-
-  // Show session key warning if needed, after the game is loaded
-  if (sessionKeyWarning && sessionKeyStatus?.isSessionKeyMismatch && !loading) {
-    // Use character ID from either state or useBattleNads hook
-    const currentCharacterId = characterId || battleNadsCharacterId;
-    
-    return (
-      <Center height="100vh" className="bg-gray-900" color="white">
-        <VStack spacing={6} maxWidth="600px" p={6}>
-          <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
-          <Heading size="md" color="yellow.400">Session Key Warning</Heading>
-          <Alert status="warning" borderRadius="md" color="black">
-            <AlertIcon />
-            <Box>
-              <AlertTitle>Session Key Mismatch</AlertTitle>
-              <AlertDescription>{sessionKeyWarning}</AlertDescription>
-            </Box>
-          </Alert>
-          <Text color="white">
-            Your session key needs to be updated to match your current wallet. 
-            This is required for game actions to work properly.
-          </Text>
-          <Text fontSize="sm" color="gray.400">
-            Current wallet address: {sessionKeyStatus?.embeddedWalletAddress ? 
-              `${sessionKeyStatus.embeddedWalletAddress.slice(0, 6)}...${sessionKeyStatus.embeddedWalletAddress.slice(-4)}` : 'Unknown'}
-          </Text>
-          <HStack spacing={4}>
-            <Button 
-              colorScheme="yellow" 
-              onClick={() => {
-                console.log("UPDATE SESSION KEY BUTTON CLICKED");
-                console.log("Character ID from state:", characterId);
-                console.log("Character ID from useBattleNads:", battleNadsCharacterId);
-                console.log("Using character ID:", currentCharacterId);
-                console.log("Session key status available:", !!sessionKeyStatus);
-                
-                // Pass the current character ID directly to avoid the early return
-                if (currentCharacterId) {
-                  setCharacterId(currentCharacterId); // Update state if needed
-                  handleUpdateSessionKey(currentCharacterId);
-                } else {
-                  toast({
-                    title: "Error",
-                    description: "Could not find your character ID. Please reload the page.",
-                    status: "error",
-                    duration: 5000,
-                    isClosable: true,
-                  });
-                }
-              }} 
-              isLoading={loading}
-              loadingText="Updating..."
-            >
-              Update Session Key
-            </Button>
-            <Button colorScheme="blue" onClick={() => window.location.reload()}>
-              Retry
-            </Button>
-          </HStack>
-        </VStack>
-      </Center>
-    );
-  }
-
-  // Show error state
-  if (error || gameError || hookError) {
-    return (
-      <Center height="100vh" className="bg-gray-900" color="white">
-        <VStack spacing={6} maxWidth="600px" p={6}>
-          <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
-          <Heading color="red.400">Error</Heading>
-          <Alert status="error" borderRadius="md" color="black">
-            <AlertIcon />
-            <Box>
-              <AlertTitle>Connection Error</AlertTitle>
-              <AlertDescription>{error || gameError || hookError}</AlertDescription>
-            </Box>
-          </Alert>
-          <Text color="white">
-            There was an error connecting to the Battle Nads contract on Monad Testnet.
-            Please check your network connection and try again.
-          </Text>
-          <Box bg="gray.800" p={4} borderRadius="md" width="100%" mb={4}>
-            <Text color="white" fontWeight="bold" mb={2}>Debug Information:</Text>
-            <Text fontSize="sm" color="gray.300">Initialization Status: {status}</Text>
-            <Text fontSize="sm" color="gray.300">
-              Wallet Connected: {injectedWallet?.address ? `Yes (${injectedWallet.address.slice(0, 6)}...${injectedWallet.address.slice(-4)})` : 'No'}
-            </Text>
-            <Text fontSize="sm" color="gray.300">
-              Embedded Wallet: {embeddedWallet?.address ? `Yes (${embeddedWallet.address.slice(0, 6)}...${embeddedWallet.address.slice(-4)})` : 'No'}
-            </Text>
-            <Text fontSize="sm" color="gray.300">Character ID: {characterId || battleNadsCharacterId || 'Not Found'}</Text>
-            <Text fontSize="sm" color="gray.300">Session Key Warning: {sessionKeyWarning || 'None'}</Text>
-          </Box>
-          <HStack spacing={4}>
-            <Button colorScheme="blue" onClick={() => window.location.reload()}>
-              Retry
-            </Button>
-            <Button colorScheme="green" onClick={() => {
-              console.log("Manual initialization attempt");
-              initializeGame().then(result => {
-                console.log("Manual initializeGame result:", result);
-                if (result.success) {
-                  loadCharacterData().catch(err => {
-                    console.error("Error in manual loadCharacterData:", err);
-                  });
-                }
-              }).catch(err => {
-                console.error("Error in manual initializeGame:", err);
-              });
-            }}>
-              Manual Init
-            </Button>
-          </HStack>
-        </VStack>
-      </Center>
-    );
-  }
-
-  // Show error state
-  if (status === "error") {
-    return (
-      <Center height="100vh" className="bg-gray-900" color="white">
-        <VStack spacing={6} maxWidth="600px" p={6}>
-          <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
-          <Heading color="red.400">Error</Heading>
-          <Alert status="error" borderRadius="md" color="black">
-            <AlertIcon />
-            <Box>
-              <AlertTitle>Connection Error</AlertTitle>
-              <AlertDescription>{gameError || hookError}</AlertDescription>
-            </Box>
-          </Alert>
-          <Text color="white">
-            There was an error connecting to the Battle Nads contract on Monad Testnet.
-            Please check your network connection and try again.
-          </Text>
-          <Box bg="gray.800" p={4} borderRadius="md" width="100%" mb={4}>
-            <Text color="white" fontWeight="bold" mb={2}>Debug Information:</Text>
-            <Text fontSize="sm" color="gray.300">Initialization Status: {status}</Text>
-            <Text fontSize="sm" color="gray.300">
-              Wallet Connected: {injectedWallet?.address ? `Yes (${injectedWallet.address.slice(0, 6)}...${injectedWallet.address.slice(-4)})` : 'No'}
-            </Text>
-            <Text fontSize="sm" color="gray.300">
-              Embedded Wallet: {embeddedWallet?.address ? `Yes (${embeddedWallet.address.slice(0, 6)}...${embeddedWallet.address.slice(-4)})` : 'No'}
-            </Text>
-            <Text fontSize="sm" color="gray.300">Character ID: {characterId || battleNadsCharacterId || 'Not Found'}</Text>
-            <Text fontSize="sm" color="gray.300">Session Key Warning: {sessionKeyWarning || 'None'}</Text>
-          </Box>
-          <HStack spacing={4}>
-            <Button colorScheme="blue" onClick={() => window.location.reload()}>
-              Retry
-            </Button>
-            <Button colorScheme="green" onClick={() => {
-              console.log("Manual initialization attempt");
-              // Clear local error before attempting initialization
-              setGameState(current => ({ ...current, error: null }));
-              initializeGame().then(result => {
-                console.log("Manual initializeGame result:", result);
-                if (result.success) {
-                  loadCharacterData().catch(err => {
-                    console.error("Error in manual loadCharacterData:", err);
-                  });
-                }
-              }).catch(err => {
-                console.error("Error in manual initializeGame:", err);
-              });
-            }}>
-              Manual Init
-            </Button>
-          </HStack>
-        </VStack>
-      </Center>
-    );
-  }
-
-  // Show "no character" state if needed
-  if (status === 'need-character' || !character) {
-    return (
-      <Center height="100vh" className="bg-gray-900" color="white">
-        <VStack spacing={6}>
-          <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
-          <Heading>No Character Found</Heading>
-          <Text fontSize="lg" color="white" maxW="600px" textAlign="center" mb={4}>
-            You don't have a character yet. To play Battle Nads, you need to create a character first.
-          </Text>
-          <Text fontSize="md" color="gray.300" maxW="600px" textAlign="center" mb={4}>
-            Characters are stored on the Monad blockchain and associated with your owner wallet address ({injectedWallet?.address?.slice(0, 6)}...{injectedWallet?.address?.slice(-4)}).
-          </Text>
-          <Button 
-            colorScheme="blue" 
-            size="lg"
-            onClick={() => router.push('/create')}
-            px={8}
-            py={6}
-            fontSize="lg"
-          >
-            Create Your Character
-          </Button>
-        </VStack>
-      </Center>
-    );
-  }
-
-  // Show a fallback if we have initialization but no character data yet
-  if (!character && characterId && status === 'ready' && !loading) {
-    console.log("Data inconsistency detected: Initialization complete but character data missing");
-    
-    return (
-      <Center height="100vh" className="bg-gray-900" color="white">
-        <VStack spacing={6} maxWidth="600px" p={6}>
-          <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
-          <Heading size="md" color="orange.400">Loading Game Data</Heading>
-          <Text color="white">
-            Character ID found but data still loading. Manually loading game data...
-          </Text>
-          <Spinner size="xl" thickness="4px" speed="0.8s" color="blue.500" />
-          <Button 
-            colorScheme="blue" 
-            onClick={async () => {
-              console.log("Manual data load triggered");
-              setGameState(current => ({ ...current, loading: true }));
-              
-              try {
-                // Try direct frontend data load
-                const frontendData = await getFrontendData(characterId);
-                
-                if (frontendData && frontendData.character) {
-                  console.log("Frontend data loaded through manual action");
-                  setGameState(current => ({ ...current, character: frontendData.character }));
-                  setGameState(current => ({ ...current, combatants: frontendData.combatants || [] }));
-                  setGameState(current => ({ ...current, noncombatants: frontendData.noncombatants || [] }));
-                  setGameState(current => ({ ...current, equipment: frontendData.equipment }));
-                  
-                  // Initialize position
-                  setGameState(current => ({ ...current, position: {
-                    x: Number(frontendData.character.stats.x),
-                    y: Number(frontendData.character.stats.y),
-                    depth: Number(frontendData.character.stats.depth)
-                  } }));
-                  
-                  if (frontendData.miniMap?.[2]?.[2]) {
-                    setGameState(current => ({ ...current, areaInfo: frontendData.miniMap[2][2] }));
-                  }
-                  
-                  setLoadingComplete(true);
-                } else {
-                  throw new Error("Manual data load failed - no data returned");
-                }
-              } catch (err) {
-                console.error("Error in manual data load:", err);
-                setGameState(current => ({ ...current, error: `Error loading game data: ${err instanceof Error ? err.message : String(err)}` }));
-              } finally {
-                setGameState(current => ({ ...current, loading: false }));
-              }
-            }}
-          >
-            Force Load Data
-          </Button>
-        </VStack>
-      </Center>
-    );
-  }
-
-  // Main game UI - only render when we have a character and initialization is complete
-  return (
-    <Container maxW="container.xl" p={4} className="game-container">
-      {error && (
-        <Alert status="error" mb={4}>
-          <AlertIcon />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+  // Replace conditional rendering with a switch statement based on gameUIState
+  switch (gameUIState) {
+    case 'loading':
+      return (
+        <Center height="100vh" className="bg-gray-900" color="white">
+          <VStack spacing={6}>
+            <Heading as="h1" size="xl" color="white">Battle Nads</Heading>
+            <Spinner size="xl" thickness="4px" speed="0.8s" color="blue.500" />
+            <Text fontSize="xl" color="white">{getLoadingMessage(status)}</Text>
+          </VStack>
+        </Center>
+      );
       
-      {sessionKeyWarning && (
-        <Alert status="warning" mb={4}>
-          <AlertIcon />
-          <AlertTitle>Session Key Warning</AlertTitle>
-          <AlertDescription>
-            {sessionKeyWarning}
+    case 'error':
+      return (
+        <Center height="100vh" className="bg-gray-900" color="white">
+          <VStack spacing={6} maxWidth="600px" p={6}>
+            <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
+            <Heading size="md" color="red.400">Error</Heading>
+            <Alert status="error" variant="solid">
+              <AlertIcon />
+              <AlertDescription>{error || gameError || hookError || "An unknown error occurred"}</AlertDescription>
+            </Alert>
             <Button 
-              size="sm" 
-              ml={4} 
+              colorScheme="blue" 
+              onClick={initializeGame}
+            >
+              Retry
+            </Button>
+          </VStack>
+        </Center>
+      );
+      
+    case 'need-wallet':
+      return (
+        <Center height="100vh" className="bg-gray-900" color="white">
+          <VStack spacing={6} maxWidth="600px" p={6}>
+            <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
+            <Heading size="md" color="blue.400">Wallet Required</Heading>
+            <Text color="white" textAlign="center">
+              Please connect your wallet to play Battle Nads.
+            </Text>
+            <Button 
+              colorScheme="blue" 
+              onClick={() => router.push('/')}
+            >
+              Return to Login
+            </Button>
+          </VStack>
+        </Center>
+      );
+      
+    case 'need-embedded-wallet':
+      return (
+        <Center height="100vh" className="bg-gray-900" color="white">
+          <VStack spacing={6} maxWidth="600px" p={6}>
+            <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
+            <Heading size="md" color="blue.400">Session Wallet Required</Heading>
+            <Text color="white" textAlign="center">
+              Your session wallet is not available. This is required for gas-free gameplay.
+            </Text>
+            <Button 
+              colorScheme="blue" 
+              onClick={() => router.push('/')}
+            >
+              Return to Login
+            </Button>
+          </VStack>
+        </Center>
+      );
+      
+    case 'need-character':
+      return (
+        <Center height="100vh" className="bg-gray-900" color="white">
+          <VStack spacing={6} maxWidth="600px" p={6}>
+            <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
+            <Heading size="md" color="blue.400">Character Required</Heading>
+            <Text color="white" textAlign="center">
+              You don't have a character yet. Create one to start playing!
+              Characters are stored on the Monad blockchain and associated with your owner wallet address ({injectedWallet?.address?.slice(0, 6)}...{injectedWallet?.address?.slice(-4)}).
+            </Text>
+            <Button 
+              colorScheme="blue" 
+              size="lg"
+              onClick={() => router.push('/create')}
+              px={8}
+              py={6}
+              fontSize="lg"
+            >
+              Create Your Character
+            </Button>
+          </VStack>
+        </Center>
+      );
+      
+    case 'session-key-warning':
+      return (
+        <Center height="100vh" className="bg-gray-900" color="white">
+          <VStack spacing={6} maxWidth="600px" p={6}>
+            <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
+            <Heading size="md" color="yellow.400">Session Key Warning</Heading>
+            <Alert status="warning">
+              <AlertIcon />
+              <AlertDescription>{sessionKeyWarning}</AlertDescription>
+            </Alert>
+            <Button 
               colorScheme="yellow" 
               onClick={() => handleUpdateSessionKey()}
             >
               Update Session Key
             </Button>
-          </AlertDescription>
-        </Alert>
-      )}
+            <Button 
+              variant="outline" 
+              onClick={resetSessionKeyWarning}
+            >
+              Continue Anyway
+            </Button>
+          </VStack>
+        </Center>
+      );
       
-      {status !== 'ready' ? (
-        <VStack spacing={4} align="center" justify="center" minH="50vh">
-          <Heading>Setting Up</Heading>
-          <Spinner size="xl" />
-          <Text>{status === 'initializing' ? 'Initializing game...' : 'Please wait...'}</Text>
-          {gameError && (
-            <Alert status="error">
+    case 'ready':
+      // Main game UI - only render when we have a character and initialization is complete
+      return (
+        <Container maxW="container.xl" p={4} className="game-container">
+          {error && (
+            <Alert status="error" mb={4}>
               <AlertIcon />
-              <AlertDescription>{gameError}</AlertDescription>
+              <AlertTitle>Error</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
-          <Button 
-            colorScheme="blue" 
-            onClick={initializeGame}
-            isLoading={status === 'initializing'}
-            loadingText="Initializing"
-          >
-            Initialize Game
-          </Button>
-        </VStack>
-      ) : loading && !loadingComplete ? (
-        <VStack spacing={4} align="center" justify="center" minH="50vh">
-          <Heading>Loading Game</Heading>
-          <Spinner size="xl" />
-          <Text>Please wait...</Text>
-        </VStack>
-      ) : (
-        <Box>
-          {/* Character Info and Combat Log Section */}
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mb={6}>
-            {/* Character Info */}
-            <Box bg="gray.800" p={4} borderRadius="md">
-              <Heading size="md" mb={4} color="white">Character Info</Heading>
-              
-              {character ? (
-                <>
-                  <HStack mb={2}>
-                    <Text color="white" fontWeight="bold">{character.name}</Text>
-                    <Badge colorScheme="green">Level {character.stats.level || 1}</Badge>
-                  </HStack>
-                  
-                  <Box mb={4}>
-                    <Text color="gray.400" fontSize="sm">HP: {character.stats.health || 0}/{character.stats.maxHealth || 0}</Text>
-                    <Progress 
-                      value={(character.stats.health / character.stats.maxHealth) * 100} 
-                      colorScheme="red" 
-                      size="sm" 
-                      mb={2} 
-                    />
-                    
-                    <Text color="gray.400" fontSize="sm">Energy: {character.stats.experience || 0}</Text>
-                    <Progress 
-                      value={(character.stats.experience / (character.stats.level * 100)) * 100} 
-                      colorScheme="blue" 
-                      size="sm" 
-                    />
-                  </Box>
-                  
-                  <SimpleGrid columns={2} spacing={2} mb={4}>
-                    <Box>
-                      <Text color="gray.400" fontSize="xs">Strength</Text>
-                      <Text color="white">{character.stats.strength || 0}</Text>
-                    </Box>
-                    <Box>
-                      <Text color="gray.400" fontSize="xs">Vitality</Text>
-                      <Text color="white">{character.stats.vitality || 0}</Text>
-                    </Box>
-                    <Box>
-                      <Text color="gray.400" fontSize="xs">Dexterity</Text>
-                      <Text color="white">{character.stats.dexterity || 0}</Text>
-                    </Box>
-                    <Box>
-                      <Text color="gray.400" fontSize="xs">Quickness</Text>
-                      <Text color="white">{character.stats.quickness || 0}</Text>
-                    </Box>
-                    <Box>
-                      <Text color="gray.400" fontSize="xs">Sturdiness</Text>
-                      <Text color="white">{character.stats.sturdiness || 0}</Text>
-                    </Box>
-                    <Box>
-                      <Text color="gray.400" fontSize="xs">Luck</Text>
-                      <Text color="white">{character.stats.luck || 0}</Text>
-                    </Box>
-                  </SimpleGrid>
-                  
-                  {/* Equipment Section */}
-                  <Box mb={4}>
-                    <Text color="gray.300" fontSize="sm" fontWeight="bold" mb={1}>Equipment</Text>
-                    <HStack>
-                      <Text color="gray.400" fontSize="xs">Weapon:</Text>
-                      <Text color="white" fontSize="xs">{character.weapon?.name || 'None'}</Text>
-                    </HStack>
-                    <HStack>
-                      <Text color="gray.400" fontSize="xs">Armor:</Text>
-                      <Text color="white" fontSize="xs">{character.armor?.name || 'None'}</Text>
-                    </HStack>
-                  </Box>
-                </>
-              ) : (
-                <Text color="gray.400">No character data available</Text>
-              )}
-            </Box>
-            
-            {/* Combat Log */}
-            <Box bg="gray.800" p={4} borderRadius="md" maxH="300px" overflow="auto">
-              <Heading size="md" mb={4} color="white">Combat Log</Heading>
-              
-              {combatLog.length > 0 ? (
-                <VStack align="stretch" spacing={1}>
-                  {combatLog.map((log, index) => (
-                    <Text key={index} color="gray.300" fontSize="sm">{log}</Text>
-                  ))}
-                </VStack>
-              ) : (
-                <Text color="gray.400">No combat actions yet</Text>
-              )}
-            </Box>
-          </SimpleGrid>
           
-          {/* Game Board Section */}
-          <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-            {/* Game Board - Use our new GameBoard component with structured data */}
-            <Box>
-              {character && (
-                <GameBoard
-                  character={character}
-                  areaCharacters={[...combatants, ...noncombatants]}
-                  miniMap={miniMap}
-                  onMove={handleMove}
-                  onAttack={(targetIndex: number) => handleAttack(targetIndex)}
-                  isMoving={isMoving}
-                  isAttacking={isAttacking}
-                />
-              )}
-            </Box>
-            
-            {/* Combatants in Area */}
-            <Box bg="gray.800" p={4} borderRadius="md">
-              <Heading size="md" mb={4} color="white">
-                {isInCombat ? 'Combat' : 'Area'} ({combatants.length + noncombatants.length} entities)
-              </Heading>
+          {sessionKeyWarning && (
+            <Alert status="warning" mb={4}>
+              <AlertIcon />
+              <AlertTitle>Session Key Warning</AlertTitle>
+              <AlertDescription>
+                {sessionKeyWarning}
+                <Button 
+                  size="sm" 
+                  ml={4} 
+                  colorScheme="yellow" 
+                  onClick={() => handleUpdateSessionKey()}
+                >
+                  Update Session Key
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          <Box>
+            {/* Character Info and Combat Log Section */}
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mb={6}>
+              {/* Character Info */}
+              <Box bg="gray.800" p={4} borderRadius="md">
+                <Heading size="md" mb={4} color="white">Character Info</Heading>
+                
+                {character ? (
+                  <>
+                    <HStack mb={2}>
+                      <Text color="white" fontWeight="bold">{character.name}</Text>
+                      <Badge colorScheme="green">Level {character.stats.level || 1}</Badge>
+                    </HStack>
+                    
+                    <Box mb={4}>
+                      <Text color="gray.400" fontSize="sm">HP: {character.stats.health || 0}/{character.stats.maxHealth || 0}</Text>
+                      <Progress 
+                        value={(character.stats.health / character.stats.maxHealth) * 100} 
+                        colorScheme="red" 
+                        size="sm" 
+                        mb={2} 
+                      />
+                      
+                      <Text color="gray.400" fontSize="sm">Energy: {character.stats.experience || 0}</Text>
+                      <Progress 
+                        value={(character.stats.experience / (character.stats.level * 100)) * 100} 
+                        colorScheme="blue" 
+                        size="sm" 
+                      />
+                    </Box>
+                    
+                    <SimpleGrid columns={2} spacing={2} mb={4}>
+                      <Box>
+                        <Text color="gray.400" fontSize="xs">Strength</Text>
+                        <Text color="white">{character.stats.strength || 0}</Text>
+                      </Box>
+                      <Box>
+                        <Text color="gray.400" fontSize="xs">Vitality</Text>
+                        <Text color="white">{character.stats.vitality || 0}</Text>
+                      </Box>
+                      <Box>
+                        <Text color="gray.400" fontSize="xs">Dexterity</Text>
+                        <Text color="white">{character.stats.dexterity || 0}</Text>
+                      </Box>
+                      <Box>
+                        <Text color="gray.400" fontSize="xs">Quickness</Text>
+                        <Text color="white">{character.stats.quickness || 0}</Text>
+                      </Box>
+                      <Box>
+                        <Text color="gray.400" fontSize="xs">Sturdiness</Text>
+                        <Text color="white">{character.stats.sturdiness || 0}</Text>
+                      </Box>
+                      <Box>
+                        <Text color="gray.400" fontSize="xs">Luck</Text>
+                        <Text color="white">{character.stats.luck || 0}</Text>
+                      </Box>
+                    </SimpleGrid>
+                    
+                    {/* Equipment Section */}
+                    <Box mb={4}>
+                      <Text color="gray.300" fontSize="sm" fontWeight="bold" mb={1}>Equipment</Text>
+                      <HStack>
+                        <Text color="gray.400" fontSize="xs">Weapon:</Text>
+                        <Text color="white" fontSize="xs">{character.weapon?.name || 'None'}</Text>
+                      </HStack>
+                      <HStack>
+                        <Text color="gray.400" fontSize="xs">Armor:</Text>
+                        <Text color="white" fontSize="xs">{character.armor?.name || 'None'}</Text>
+                      </HStack>
+                    </Box>
+                  </>
+                ) : (
+                  <Text color="gray.400">No character data available</Text>
+                )}
+              </Box>
               
-              {combatants.length > 0 && (
-                <Box mb={4}>
-                  <Text color="red.300" fontSize="sm" fontWeight="bold" mb={2}>
-                    Combatants ({combatants.length})
-                  </Text>
-                  
-                  <VStack align="stretch" spacing={2}>
-                    {combatants.map((enemy, index) => (
-                      <Box 
-                        key={index} 
-                        p={2} 
-                        bg="gray.700" 
-                        borderRadius="md"
-                        cursor="pointer"
-                        onClick={() => setSelectedCombatant(enemy)}
-                        borderWidth={selectedCombatant?.id === enemy.id ? 2 : 0}
-                        borderColor="yellow.400"
-                      >
-                        <HStack justify="space-between">
-                          <Text color="white" fontSize="sm">{enemy.name || 'Unknown'}</Text>
-                          <HStack>
+              {/* Combat Log */}
+              <Box bg="gray.800" p={4} borderRadius="md" maxH="300px" overflow="auto">
+                <Heading size="md" mb={4} color="white">Combat Log</Heading>
+                
+                {combatLog.length > 0 ? (
+                  <VStack align="stretch" spacing={1}>
+                    {combatLog.map((log, index) => (
+                      <Text key={index} color="gray.300" fontSize="sm">{log}</Text>
+                    ))}
+                  </VStack>
+                ) : (
+                  <Text color="gray.400">No combat actions yet</Text>
+                )}
+              </Box>
+            </SimpleGrid>
+            
+            {/* Game Board Section */}
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
+              {/* Game Board - Use our new GameBoard component with structured data */}
+              <Box>
+                {character && (
+                  <GameBoard
+                    character={character}
+                    areaCharacters={[...combatants, ...noncombatants]}
+                    miniMap={miniMap}
+                    onMove={handleMove}
+                    onAttack={(targetIndex: number) => handleAttack(targetIndex)}
+                    isMoving={isMoving}
+                    isAttacking={isAttacking}
+                  />
+                )}
+              </Box>
+              
+              {/* Combatants in Area */}
+              <Box bg="gray.800" p={4} borderRadius="md">
+                <Heading size="md" mb={4} color="white">
+                  {isInCombat ? 'Combat' : 'Area'} ({combatants.length + noncombatants.length} entities)
+                </Heading>
+                
+                {combatants.length > 0 && (
+                  <Box mb={4}>
+                    <Text color="red.300" fontSize="sm" fontWeight="bold" mb={2}>
+                      Combatants ({combatants.length})
+                    </Text>
+                    
+                    <VStack align="stretch" spacing={2}>
+                      {combatants.map((enemy, index) => (
+                        <Box 
+                          key={index} 
+                          p={2} 
+                          bg="gray.700" 
+                          borderRadius="md"
+                          cursor="pointer"
+                          onClick={() => setSelectedCombatant(enemy)}
+                          borderWidth={selectedCombatant?.id === enemy.id ? 2 : 0}
+                          borderColor="yellow.400"
+                        >
+                          <HStack justify="space-between">
+                            <Text color="white" fontSize="sm">{enemy.name || 'Unknown'}</Text>
+                            <HStack>
+                              <Text color="gray.400" fontSize="xs">
+                                Lvl {enemy.stats.level || '?'}
+                              </Text>
+                              <Text color="red.300" fontSize="xs">
+                                HP: {enemy.stats.health || '?'}/{enemy.stats.maxHealth || '?'}
+                              </Text>
+                            </HStack>
+                          </HStack>
+                        </Box>
+                      ))}
+                    </VStack>
+                  </Box>
+                )}
+                
+                {noncombatants.length > 0 && (
+                  <Box>
+                    <Text color="green.300" fontSize="sm" fontWeight="bold" mb={2}>
+                      Non-Combatants ({noncombatants.length})
+                    </Text>
+                    
+                    <VStack align="stretch" spacing={2}>
+                      {noncombatants.map((entity, index) => (
+                        <Box 
+                          key={index} 
+                          p={2} 
+                          bg="gray.700" 
+                          borderRadius="md"
+                        >
+                          <HStack justify="space-between">
+                            <Text color="white" fontSize="sm">{entity.name || 'Unknown'}</Text>
                             <Text color="gray.400" fontSize="xs">
-                              Lvl {enemy.stats.level || '?'}
-                            </Text>
-                            <Text color="red.300" fontSize="xs">
-                              HP: {enemy.stats.health || '?'}/{enemy.stats.maxHealth || '?'}
+                              Lvl {entity.stats.level || '?'}
                             </Text>
                           </HStack>
-                        </HStack>
-                      </Box>
-                    ))}
-                  </VStack>
-                </Box>
-              )}
-              
-              {noncombatants.length > 0 && (
-                <Box>
-                  <Text color="green.300" fontSize="sm" fontWeight="bold" mb={2}>
-                    Non-Combatants ({noncombatants.length})
-                  </Text>
-                  
-                  <VStack align="stretch" spacing={2}>
-                    {noncombatants.map((entity, index) => (
-                      <Box 
-                        key={index} 
-                        p={2} 
-                        bg="gray.700" 
-                        borderRadius="md"
-                      >
-                        <HStack justify="space-between">
-                          <Text color="white" fontSize="sm">{entity.name || 'Unknown'}</Text>
-                          <Text color="gray.400" fontSize="xs">
-                            Lvl {entity.stats.level || '?'}
-                          </Text>
-                        </HStack>
-                      </Box>
-                    ))}
-                  </VStack>
-                </Box>
-              )}
-              
-              {combatants.length === 0 && noncombatants.length === 0 && (
-                <Text color="gray.400">No entities in this area</Text>
-              )}
-            </Box>
-          </SimpleGrid>
-        </Box>
-      )}
-    </Container>
-  );
+                        </Box>
+                      ))}
+                    </VStack>
+                  </Box>
+                )}
+                
+                {combatants.length === 0 && noncombatants.length === 0 && (
+                  <Text color="gray.400">No entities in this area</Text>
+                )}
+              </Box>
+            </SimpleGrid>
+          </Box>
+        </Container>
+      );
+      
+    default:
+      return null;
+  }
 };
 
 export default Game;

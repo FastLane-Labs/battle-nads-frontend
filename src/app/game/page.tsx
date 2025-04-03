@@ -14,6 +14,7 @@ export default function GamePage() {
   // Redirect to home if not connected
   React.useEffect(() => {
     if (!address) {
+      console.log("No wallet address detected, redirecting to login");
       router.push('/');
     }
   }, [address, router]);
@@ -34,6 +35,7 @@ export default function GamePage() {
     }
   }, []);
   
+  // Early return if no wallet to prevent UI flicker
   if (!address) {
     return null; // Will redirect
   }

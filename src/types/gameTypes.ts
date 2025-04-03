@@ -123,4 +123,14 @@ export interface GameState {
   equipmentInfo: any | null;
   loading?: boolean;
   error?: string | null;
-} 
+}
+
+// New UI state type to centralize all UI states
+export type GameUIState = 
+  | 'loading'           // General loading state
+  | 'error'             // Unrecoverable error
+  | 'need-wallet'       // No wallet connected
+  | 'need-embedded-wallet' // No embedded wallet
+  | 'need-character'    // No character found
+  | 'session-key-warning' // Session key needs updating
+  | 'ready';            // Game is ready to play 

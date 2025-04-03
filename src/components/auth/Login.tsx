@@ -36,50 +36,29 @@ const Login: React.FC = () => {
     }
   }, [ready, authenticated, walletsReady, wallets, address]);
 
+  // Consolidated authentication and redirect flow
+  useEffect(() => {
+    if (!ready) return;
+
+    if (authenticated && user?.wallet?.address) {
+      setCheckingCharacter(true);
+      console.log("Authenticated, redirecting to dashboard:", user.wallet.address);
+      router.push('/dashboard');
+      setCheckingCharacter(false);
+      setInitialCheckComplete(true);
+    } else if (ready && !authenticated) {
+      console.log("Not authenticated, staying on login page");
+      setCheckingCharacter(false);
+      setInitialCheckComplete(true);
+    }
+  }, [ready, authenticated, user, router]);
+
   // Make sure initial check is completed even if not authenticated
   useEffect(() => {
     if (ready && !initialCheckComplete) {
       setInitialCheckComplete(true);
     }
   }, [ready, initialCheckComplete]);
-
-  // Check if user has a character directly using the contract function
-  useEffect(() => {
-    const checkCharacter = async () => {
-      // Only proceed if the user is authenticated and has a wallet
-      if (ready && authenticated && user?.wallet?.address) {
-        try {
-          setCheckingCharacter(true);
-          console.log("Checking for character using EOA address:", user.wallet.address);
-          
-          // After login, always go to dashboard which will handle redirects
-          router.push('/dashboard');
-        } catch (error) {
-          console.error("Error after authentication:", error);
-          setCheckingCharacter(false);
-          setInitialCheckComplete(true);
-        }
-      } else if (ready && !authenticated) {
-        // If user is not authenticated, make sure we stay on the login page
-        // and clear any loading state
-        setCheckingCharacter(false);
-        setInitialCheckComplete(true);
-        console.log("User not authenticated, showing login page");
-      }
-    };
-
-    if (ready) {
-      checkCharacter();
-    }
-  }, [authenticated, ready, router, user]);
-
-  // Also check if characterId exists in state, but only if authenticated
-  useEffect(() => {
-    if (authenticated && characterId) {
-      console.log("Character ID found in state, redirecting to dashboard");
-      router.push('/dashboard');
-    }
-  }, [characterId, router, authenticated]);
 
   const handleLogin = () => {
     // Only attempt login if not already authenticated
