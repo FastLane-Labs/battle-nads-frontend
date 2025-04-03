@@ -50,6 +50,7 @@ interface WalletContextValue {
   connectMetamask: () => Promise<void>;
   connectPrivyEmbedded: () => Promise<void>;
   logout: () => Promise<void>;
+  isInitialized: boolean;
 }
 
 const WalletContext = createContext<WalletContextValue>({
@@ -65,6 +66,7 @@ const WalletContext = createContext<WalletContextValue>({
   connectMetamask: async () => undefined,
   connectPrivyEmbedded: async () => undefined,
   logout: async () => undefined,
+  isInitialized: false,
 });
 
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -80,6 +82,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [sessionKey, setSessionKey] = useState<string | null>(null);
   const [injectedWallet, setInjectedWallet] = useState<WalletInfo | null>(null);
   const [embeddedWallet, setEmbeddedWallet] = useState<WalletInfo | null>(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Add a reference to store last known embedded wallet address for resilience
+  const lastEmbeddedWalletRef = useRef<string | null>(null);
 
   // Store previous wallet states to prevent unnecessary updates
   const prevWalletsRef = useRef<any[]>([]);
@@ -127,11 +133,18 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setSessionKey(null);
       setInjectedWallet(null);
       setEmbeddedWallet(null);
+      setIsInitialized(false); // Set to false during logout process
+
+      // Clear embedded wallet reference
+      lastEmbeddedWalletRef.current = null;
 
       // Also call the Privy logout if user is authenticated
       if (authenticated) {
         await privyLogout();
       }
+      
+      // After logout, set isInitialized back to true so we can redirect to login
+      setIsInitialized(true);
     } catch (err: any) {
       setError(err.message || 'Logout failed');
     } finally {
@@ -163,6 +176,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setInjectedWallet(null);
         setEmbeddedWallet(null);
         setLoading(false);
+        setIsInitialized(true); // No wallets but we're initialized
         return;
       }
       
@@ -192,6 +206,12 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           const isMetamask = wallet.walletClientType === 'metamask';
           const isInjected = wallet.walletClientType === 'injected' || isMetamask;
           const isEmbedded = wallet.walletClientType === 'privy' || wallet.connectorType === 'embedded';
+          
+          // Store embedded wallet address for resilience
+          if (isEmbedded) {
+            lastEmbeddedWalletRef.current = wallet.address;
+            console.log("Stored embedded wallet address for resilience:", wallet.address);
+          }
           
           // For debugging
           console.log(`Wallet: ${wallet.address}, Type: ${wallet.walletClientType}, ConnectorType: ${wallet.connectorType}`);
@@ -338,9 +358,34 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         setInjectedWallet(null);
       }
       
-      if (!foundEmbedded && embeddedWallet) {
-        setEmbeddedWallet(null);
-        setSessionKey(null);
+      if (!foundEmbedded) {
+        if (embeddedWallet && lastEmbeddedWalletRef.current) {
+          // If we have a stored embedded wallet reference but didn't find one this time
+          // keep the session key since it will be the same as the embedded wallet
+          console.log("Using stored embedded wallet reference:", lastEmbeddedWalletRef.current);
+          // Don't clear the embedded wallet if we have a stored reference
+        } else {
+          setEmbeddedWallet(null);
+          setSessionKey(null);
+        }
+      }
+      
+      // If embedded wallet is missing but we have a reference, create a placeholder
+      if (!embeddedWallet && lastEmbeddedWalletRef.current) {
+        console.log("Creating placeholder embedded wallet from stored reference");
+        setEmbeddedWallet({
+          type: 'embedded',
+          walletClientType: 'privy',
+          address: lastEmbeddedWalletRef.current,
+          signer: null,  // Can't get signer for stored reference
+          provider: null,  // Can't get provider for stored reference
+          privyWallet: null  // No actual wallet object
+        });
+        
+        // Make sure session key is set
+        if (!sessionKey) {
+          setSessionKey(lastEmbeddedWalletRef.current);
+        }
       }
       
       // Ensure we have a current wallet set if any are available
@@ -362,6 +407,18 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setError('Failed to sync with wallets');
     } finally {
       setLoading(false);
+      
+      // Check if we have both wallet types to set isInitialized
+      const hasInjected = wallets.some(w => w.connectorType === 'injected');
+      const hasEmbedded = wallets.some(w => w.connectorType === 'embedded') || 
+                         (lastEmbeddedWalletRef.current !== null);
+                         
+      // Set isInitialized if we have both wallet types
+      setIsInitialized(hasInjected && hasEmbedded);
+      console.log("Setting isInitialized:", hasInjected && hasEmbedded, 
+                  "HasInjected:", hasInjected, 
+                  "HasEmbedded:", hasEmbedded, 
+                  "Stored embedded wallet:", lastEmbeddedWalletRef.current);
     }
   }, [walletsReady, authenticated, wallets, checkAndSwitchChain, currentWallet, injectedWallet, embeddedWallet]);
 
@@ -422,6 +479,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         connectMetamask: async () => undefined,
         connectPrivyEmbedded: async () => undefined,
         logout: handleLogout,
+        isInitialized,
       }}
     >
       {children}

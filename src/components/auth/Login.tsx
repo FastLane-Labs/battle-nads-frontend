@@ -14,7 +14,7 @@ const Login: React.FC = () => {
   const router = useRouter();
   const { getPlayerCharacterID, characterId } = useBattleNads();
   // Get wallet state from our WalletProvider
-  const { address } = useWallet();
+  const { address, isInitialized } = useWallet();
   const [checkingCharacter, setCheckingCharacter] = useState(false);
   const [initialCheckComplete, setInitialCheckComplete] = useState(false);
 
@@ -24,9 +24,10 @@ const Login: React.FC = () => {
       privyReady: ready, 
       authenticated, 
       checkingCharacter,
-      initialCheckComplete 
+      initialCheckComplete,
+      walletInitialized: isInitialized
     });
-  }, [ready, authenticated, checkingCharacter, initialCheckComplete]);
+  }, [ready, authenticated, checkingCharacter, initialCheckComplete, isInitialized]);
 
   // Use the Privy wallets information to set up our wallet provider
   useEffect(() => {
@@ -38,7 +39,8 @@ const Login: React.FC = () => {
 
   // Consolidated authentication and redirect flow
   useEffect(() => {
-    if (!ready) return;
+    // Don't proceed until both Privy is ready and wallet provider is initialized
+    if (!ready || !isInitialized) return;
 
     if (authenticated && user?.wallet?.address) {
       setCheckingCharacter(true);
@@ -51,14 +53,14 @@ const Login: React.FC = () => {
       setCheckingCharacter(false);
       setInitialCheckComplete(true);
     }
-  }, [ready, authenticated, user, router]);
+  }, [ready, authenticated, user, router, isInitialized]);
 
   // Make sure initial check is completed even if not authenticated
   useEffect(() => {
-    if (ready && !initialCheckComplete) {
+    if (ready && isInitialized && !initialCheckComplete) {
       setInitialCheckComplete(true);
     }
-  }, [ready, initialCheckComplete]);
+  }, [ready, initialCheckComplete, isInitialized]);
 
   const handleLogin = () => {
     // Only attempt login if not already authenticated
@@ -71,8 +73,8 @@ const Login: React.FC = () => {
     // Redirect will happen in the useEffect above
   };
 
-  // Simplified loading check - only show spinner when we're actively checking character
-  if (checkingCharacter) {
+  // Show loading when wallet provider is initializing or we're checking character
+  if (!isInitialized || checkingCharacter) {
     return (
       <Center height="100vh" bg="gray.900">
         <Spinner size="xl" color="purple.500" thickness="4px" />

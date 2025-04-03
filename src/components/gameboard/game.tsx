@@ -87,7 +87,9 @@ const Game: React.FC = () => {
     isTransactionSent,
     checkOwnerWallet,
     checkEmbeddedWallet,
-    updateSessionKey
+    hasAllRequiredWallets,
+    updateSessionKey,
+    getStoredEmbeddedWalletAddress
   } = useGame();
   
   // Recoil state
@@ -194,7 +196,8 @@ const Game: React.FC = () => {
       console.log("Wallet state:", { 
         address, 
         injectedWallet: injectedWallet?.address,
-        embeddedWallet: embeddedWallet?.address
+        embeddedWallet: embeddedWallet?.address,
+        storedEmbeddedWallet: getStoredEmbeddedWalletAddress()
       });
       
       // Clear error state if status is ready
@@ -214,14 +217,33 @@ const Game: React.FC = () => {
       }
       
       // Make sure embedded wallet is available for session key operations
-      if (!embeddedWallet?.address) {
+      const storedEmbeddedWalletAddress = getStoredEmbeddedWalletAddress();
+      if (!embeddedWallet?.address && !storedEmbeddedWalletAddress) {
         console.log("No embedded wallet detected - attempting to reconnect...");
-        const embeddedConnected = await checkEmbeddedWallet();
-        console.log("Embedded wallet reconnection result:", embeddedConnected);
+        
+        // Add retry logic with delays
+        let embeddedConnected = false;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          console.log(`Attempt ${attempt}/3 to connect embedded wallet...`);
+          embeddedConnected = await checkEmbeddedWallet();
+          
+          if (embeddedConnected) {
+            console.log("Successfully connected embedded wallet on attempt", attempt);
+            break;
+          }
+          
+          // Wait between attempts, but only if we have more attempts left
+          if (attempt < 3) {
+            console.log("Waiting before next attempt...");
+            await new Promise(resolve => setTimeout(resolve, 800));
+          }
+        }
         
         if (!embeddedConnected) {
-          throw new Error("Need embedded wallet: Session wallet not available. Please refresh the page.");
+          throw new Error("Need embedded wallet: Session wallet not available after multiple attempts. Please refresh the page.");
         }
+      } else if (!embeddedWallet?.address && storedEmbeddedWalletAddress) {
+        console.log("Using stored embedded wallet address:", storedEmbeddedWalletAddress);
       }
       
       // Check game status - allow for initialization in progress
@@ -321,10 +343,32 @@ const Game: React.FC = () => {
       console.log("Wallet state:", { 
         address, 
         injectedWallet: injectedWallet?.address,
-        embeddedWallet: embeddedWallet?.address
+        embeddedWallet: embeddedWallet?.address,
+        storedEmbeddedWallet: getStoredEmbeddedWalletAddress()
       });
       
       try {
+        // Wait a moment for wallet states to stabilize
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        // Check if we have both required wallet types
+        const hasWallets = hasAllRequiredWallets();
+        console.log("Has all required wallets:", hasWallets);
+        
+        if (!hasWallets) {
+          console.log("Waiting for all wallet types to be available...");
+          // Wait longer to let both wallet types load
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          
+          // Check again after waiting
+          const hasWalletsAfterWait = hasAllRequiredWallets();
+          console.log("Has all required wallets after wait:", hasWalletsAfterWait);
+          
+          if (!hasWalletsAfterWait) {
+            console.log("Still missing wallet types, attempting reconnection...");
+          }
+        }
+        
         // First ensure wallet connection is active
         if (!injectedWallet?.address && !address) {
           console.log("No wallet detected, attempting to reconnect...");
@@ -337,14 +381,31 @@ const Game: React.FC = () => {
         }
         
         // Then ensure embedded wallet is available
-        if (!embeddedWallet?.address) {
+        const storedEmbeddedWalletAddress = getStoredEmbeddedWalletAddress();
+        if (!embeddedWallet?.address && !storedEmbeddedWalletAddress) {
           console.log("No embedded wallet detected, attempting to reconnect...");
-          const embeddedConnected = await checkEmbeddedWallet();
-          console.log("Embedded wallet reconnection result:", embeddedConnected);
+          
+          // Retry the embedded wallet check up to 3 times with delays
+          let embeddedConnected = false;
+          for (let attempt = 1; attempt <= 3; attempt++) {
+            console.log(`Attempt ${attempt}/3 to connect embedded wallet...`);
+            embeddedConnected = await checkEmbeddedWallet();
+            console.log(`Attempt ${attempt} result:`, embeddedConnected);
+            
+            if (embeddedConnected) break;
+            
+            // Wait between attempts
+            if (attempt < 3) {
+              console.log("Waiting before next attempt...");
+              await new Promise(resolve => setTimeout(resolve, 800));
+            }
+          }
           
           if (!embeddedConnected) {
-            throw new Error("Failed to connect embedded wallet. Please refresh the page.");
+            throw new Error("Failed to connect embedded wallet after multiple attempts. Please refresh the page.");
           }
+        } else if (!embeddedWallet?.address && storedEmbeddedWalletAddress) {
+          console.log("Using stored embedded wallet address:", storedEmbeddedWalletAddress);
         }
         
         // Now initialize the game if needed
@@ -354,17 +415,22 @@ const Game: React.FC = () => {
           console.log("Game initialization result:", initResult);
           
           if (!initResult.success) {
-            throw new Error(`Game initialization failed: ${initResult.status}`);
+            // Don't throw an error if status is 'checking' - this is normal during initialization
+            if (initResult.status !== 'checking') {
+              throw new Error(`Game initialization failed: ${initResult.status}`);
+            } else {
+              console.log("Game is still in checking state, continuing initialization process");
+            }
           }
           
           // Wait for UI state to update - this is key to preventing race conditions
-          await new Promise(resolve => setTimeout(resolve, 500));
+          await new Promise(resolve => setTimeout(resolve, 800));
         } else {
           console.log("Game already initialized with status: ready");
         }
         
         // Wait for a moment to ensure state updates
-        await new Promise(resolve => setTimeout(resolve, 500));
+        await new Promise(resolve => setTimeout(resolve, 800));
         
         // Let the status effect trigger the character data loading
         // This prevents race conditions where loadCharacterData is called
@@ -373,10 +439,10 @@ const Game: React.FC = () => {
       } catch (err) {
         console.error("Error during initialization:", err);
         // Only set local error if we don't have a better status from useGame
-        if (status === 'checking' || status === 'ready') {
+        if (status === 'ready') {
           setGameState(current => ({ ...current, error: err instanceof Error ? err.message : String(err) }));
         } else {
-          // If we have a more specific status like 'need-owner-wallet', don't set error
+          // If we have a more specific status like 'need-owner-wallet' or 'checking', don't set error
           console.log(`Not setting local error because status is: ${status}`);
         }
         setGameState(current => ({ ...current, loading: false }));
