@@ -323,8 +323,14 @@ export const useGame = () => {
       setStatus('loading-game-data');
       await loadGameState(charId);
       
-      // All necessary checks completed
+      // All necessary checks completed - update status to ready
+      // Use a state update callback to ensure the status is updated
+      // before returning from this function
       setStatus('ready');
+      
+      // Give a small delay to ensure state updates propagate
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
       return { success: true, status: 'ready' };
     } catch (error) {
       console.error("Error during game initialization:", error);

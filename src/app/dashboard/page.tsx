@@ -11,7 +11,8 @@ export default function DashboardPage() {
   const { address } = useWallet();
   const router = useRouter();
   
-  // Redirect to home if not connected
+  // Redirect to home if not connected 
+  // This needs to happen immediately to prevent Game from initializing
   useEffect(() => {
     if (!address) {
       console.log("No wallet address detected, redirecting to login");
@@ -19,9 +20,9 @@ export default function DashboardPage() {
     }
   }, [address, router]);
   
-  // Early return if no wallet to prevent UI flicker
+  // Early return if no wallet to prevent Game mounting
   if (!address) {
-    return null; // Will redirect
+    return null; // Will redirect without showing game
   }
   
   return (
