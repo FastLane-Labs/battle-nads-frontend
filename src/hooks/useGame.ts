@@ -174,6 +174,14 @@ export const useGame = () => {
       // Use the getCurrentSessionKey function from useBattleNads hook
       const currentSessionKey = await getCurrentSessionKey(charId);
       console.log("Current session key:", currentSessionKey);
+      
+      // Handle case when getCurrentSessionKey returns null
+      if (currentSessionKey === null) {
+        console.error("Failed to retrieve current session key");
+        setSessionKeyWarning("Unable to verify session key. Some game actions may fail.");
+        return true; // Continue with game initialization despite warning
+      }
+      
       console.log("Embedded wallet address:", embeddedWallet?.address);
       
       // Make sure embedded wallet is defined
@@ -210,10 +218,12 @@ export const useGame = () => {
       console.error("Error checking session key:", error);
       const errorMessage = (error as Error)?.message || "Unknown error";
       console.error(`Detailed error in checkSessionKey: ${errorMessage}`);
-      setError("Failed to verify session key: " + errorMessage);
-      setStatus('error');
+      
+      // Set warning instead of error to allow game to continue
+      setSessionKeyWarning("Failed to verify session key: " + errorMessage);
+      setStatus('warning');
       processingRef.current = false;
-      return false;
+      return true; // Continue with game initialization despite warning
     } finally {
       console.log("=== SESSION KEY CHECK COMPLETED ===");
     }
