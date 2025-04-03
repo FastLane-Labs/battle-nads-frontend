@@ -144,7 +144,7 @@ export const useGame = () => {
       return charId;
     } catch (error) {
       console.error("Error checking character:", error);
-      // Set more detailed error message for debugging
+      // Only set error for actual errors, not missing characters
       const errorMessage = (error as Error)?.message || "Unknown error";
       console.error(`Detailed error in checkCharacter: ${errorMessage}`);
       setError(`Failed to check character: ${errorMessage}`);
@@ -235,69 +235,6 @@ export const useGame = () => {
     setSessionKeyWarning(null);
   }, []);
   
-  // Main initialization function
-  const initializeGame = useCallback(async () => {
-    // Don't re-initialize if already processing or transaction was sent
-    if (processingRef.current || transactionSentRef.current) {
-      console.log("Skipping initialization due to flags:", {
-        processing: processingRef.current,
-        transactionSent: transactionSentRef.current
-      });
-      return { success: false, status };
-    }
-    
-    // Set processing flag to prevent multiple executions
-    processingRef.current = true;
-    
-    // Set global loading state
-    setGameState(prev => ({ ...prev, loading: true }));
-    
-    console.log("Starting game initialization flow");
-    
-    try {
-      // Step 1: Check owner wallet
-      const ownerWalletConnected = await checkOwnerWallet();
-      if (!ownerWalletConnected) {
-        setGameState(prev => ({ ...prev, loading: false }));
-        return { success: false, status: 'need-owner-wallet' };
-      }
-      
-      // Step 2: Check embedded wallet
-      const embeddedWalletAvailable = await checkEmbeddedWallet();
-      if (!embeddedWalletAvailable) {
-        setGameState(prev => ({ ...prev, loading: false }));
-        return { success: false, status: 'need-embedded-wallet' };
-      }
-      
-      // Step 3: Check character
-      const charId = await checkCharacter();
-      if (!charId) {
-        setGameState(prev => ({ ...prev, loading: false }));
-        return { success: false, status: 'need-character' };
-      }
-      
-      // Step 4: Check session key - but don't try to update it even if it's invalid
-      await checkSessionKey(charId);
-      
-      // Step 5: Load game data
-      await loadGameState(charId);
-      
-      // All necessary checks completed
-      setStatus('ready');
-      setGameState(prev => ({ ...prev, loading: false }));
-      return { success: true, status: 'ready' };
-    } catch (error) {
-      console.error("Error during game initialization:", error);
-      setError("Game initialization failed: " + ((error as Error)?.message || "Unknown error"));
-      setStatus('error');
-      processingRef.current = false;
-      setGameState(prev => ({ ...prev, loading: false, error: (error as Error)?.message || "Unknown error" }));
-      return { success: false, status: 'error', error: (error as Error)?.message || "Unknown error" };
-    } finally {
-      processingRef.current = false;
-    }
-  }, [checkOwnerWallet, checkEmbeddedWallet, checkCharacter, checkSessionKey, setGameState, status]);
-  
   // Load game state from blockchain
   const loadGameState = useCallback(async (characterId: string) => {
     try {
@@ -335,6 +272,71 @@ export const useGame = () => {
       return false;
     }
   }, [getFrontendData, setGameState]);
+  
+  // Main initialization function
+  const initializeGame = useCallback(async () => {
+    // Don't re-initialize if already processing or transaction was sent
+    if (processingRef.current || transactionSentRef.current) {
+      console.log("Skipping initialization due to flags:", {
+        processing: processingRef.current,
+        transactionSent: transactionSentRef.current
+      });
+      return { success: false, status };
+    }
+    
+    // Set processing flag to prevent multiple executions
+    processingRef.current = true;
+    
+    // Set global loading state
+    setGameState(prev => ({ ...prev, loading: true }));
+    
+    console.log("Starting game initialization flow");
+    
+    try {
+      // Set status for progress messaging only
+      setStatus('checking');
+      
+      // Step 1: Check owner wallet
+      setStatus('checking-owner-wallet');
+      if (!await checkOwnerWallet()) {
+        return { success: false, status: 'need-owner-wallet' };
+      }
+      
+      // Step 2: Check embedded wallet
+      setStatus('checking-embedded-wallet');
+      if (!await checkEmbeddedWallet()) {
+        return { success: false, status: 'need-embedded-wallet' };
+      }
+      
+      // Step 3: Check character
+      setStatus('checking-character');
+      const charId = await checkCharacter();
+      if (!charId) {
+        return { success: false, status: 'need-character' };
+      }
+      
+      // Step 4: Check session key - but don't try to update it even if it's invalid
+      setStatus('checking-session-key');
+      await checkSessionKey(charId);
+      
+      // Step 5: Load game data
+      setStatus('loading-game-data');
+      await loadGameState(charId);
+      
+      // All necessary checks completed
+      setStatus('ready');
+      return { success: true, status: 'ready' };
+    } catch (error) {
+      console.error("Error during game initialization:", error);
+      setError("Game initialization failed: " + ((error as Error)?.message || "Unknown error"));
+      setStatus('error');
+      setGameState(prev => ({ ...prev, error: (error as Error)?.message || "Unknown error" }));
+      return { success: false, status: 'error', error: (error as Error)?.message || "Unknown error" };
+    } finally {
+      processingRef.current = false;
+      setGameState(prev => ({ ...prev, loading: false }));
+    }
+  }, [checkOwnerWallet, checkEmbeddedWallet, checkCharacter, checkSessionKey, loadGameState, setGameState]);
   
   // Move character with state management
   const movePlayer = useCallback(async (characterId: string, direction: string) => {
