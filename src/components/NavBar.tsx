@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip, VStack } from '@chakra-ui/react';
+import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip } from '@chakra-ui/react';
 import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
