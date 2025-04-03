@@ -39,6 +39,17 @@ export const useGame = () => {
   // Add initialization tracker ref
   const initializationDoneRef = useRef(false);
   
+  // Store embedded wallet address to keep it stable during state transitions
+  const embeddedWalletRef = useRef<string | null>(null);
+  
+  // Update embedded wallet reference when it changes
+  useEffect(() => {
+    if (embeddedWallet?.address && !embeddedWalletRef.current) {
+      console.log("Storing embedded wallet reference:", embeddedWallet.address);
+      embeddedWalletRef.current = embeddedWallet.address;
+    }
+  }, [embeddedWallet]);
+  
   // Reset transaction flags
   const resetTransactionFlags = useCallback(() => {
     transactionSentRef.current = false;
@@ -87,14 +98,42 @@ export const useGame = () => {
       setStatus('checking-embedded-wallet');
       console.log("Checking embedded wallet...", { 
         embeddedWallet: embeddedWallet?.address,
+        storedAddress: embeddedWalletRef.current,
         walletType: embeddedWallet?.walletClientType
       });
       
+      // If embedded wallet is temporarily unavailable, add a small delay and retry
+      if (!embeddedWallet?.address && !embeddedWalletRef.current) {
+        console.log("Embedded wallet not available, waiting briefly before final check...");
+        
+        // Add a short delay to allow wallet state to stabilize
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // If still not available after delay, report failure
+        if (!embeddedWallet?.address) {
+          console.log("Embedded wallet still not available after delay");
+          setStatus('need-embedded-wallet');
+          processingRef.current = false;
+          return false;
+        }
+      }
+      
+      // Use the stored reference if the current embeddedWallet is unavailable
+      if (!embeddedWallet?.address && embeddedWalletRef.current) {
+        console.log("Embedded wallet temporarily unavailable, using stored reference:", embeddedWalletRef.current);
+        return true;
+      }
+      
       if (!embeddedWallet?.address) {
-        console.log("Embedded wallet not available");
+        console.log("Embedded wallet not available and no stored reference");
         setStatus('need-embedded-wallet');
         processingRef.current = false;
         return false;
+      }
+      
+      // Update our stored reference
+      if (embeddedWallet.address) {
+        embeddedWalletRef.current = embeddedWallet.address;
       }
       
       // Also check if the embedded wallet has a signer - crucial for operations
@@ -105,6 +144,13 @@ export const useGame = () => {
           type: embeddedWallet.walletClientType,
           hasProvider: !!embeddedWallet.provider
         });
+        
+        // If we have a stored reference, we can potentially proceed
+        if (embeddedWalletRef.current) {
+          console.log("Proceeding with stored embedded wallet reference despite missing signer");
+          return true;
+        }
+        
         setStatus('need-embedded-wallet');
         processingRef.current = false;
         return false;
@@ -122,33 +168,61 @@ export const useGame = () => {
     }
   }, [embeddedWallet]);
   
-  // Function to check character existence
+  // Function to check character
   const checkCharacter = useCallback(async () => {
     try {
-      setStatus('checking-character');
-      console.log("Checking for character...");
+      console.log("Checking character state");
       
-      // Try to get character ID if it's not already in state
-      const ownerAddress = injectedWallet?.address || address;
-      const charId = battleNadsCharacterId || await getPlayerCharacterID(ownerAddress || '');
-      console.log("Character check result:", { characterId: charId });
+      // Clear previous errors
+      setError(null);
+      
+      // Skip if transaction was sent
+      if (transactionSentRef.current) {
+        console.log("Transaction already sent, skipping character check");
+        return battleNadsCharacterId;
+      }
+      
+      // If we already have a character ID, use it
+      if (battleNadsCharacterId) {
+        console.log("Using existing character ID:", battleNadsCharacterId);
+        return battleNadsCharacterId;
+      }
+      
+      // Make sure wallet is connected
+      if (!injectedWallet?.address && !address) {
+        console.log("No wallet connected, can't check character");
+        setStatus('need-owner-wallet');
+        processingRef.current = false;
+        return null;
+      }
+      
+      // Check character ID
+      console.log("Attempting to get player character ID");
+      const charId = await getPlayerCharacterID();
+      console.log("Character ID from chain:", charId);
       
       if (!charId) {
-        console.log("No character found");
+        console.log("No character found, need to create one");
         setStatus('need-character');
         processingRef.current = false;
         return null;
       }
       
-      console.log("Character found with ID:", charId);
+      console.log("Character confirmed:", charId);
       return charId;
     } catch (error) {
       console.error("Error checking character:", error);
-      // Only set error for actual errors, not missing characters
       const errorMessage = (error as Error)?.message || "Unknown error";
-      console.error(`Detailed error in checkCharacter: ${errorMessage}`);
-      setError(`Failed to check character: ${errorMessage}`);
-      setStatus('error');
+      console.log("Error in checkCharacter:", errorMessage);
+      
+      // Only set error if it's not a temporary state like "checking"
+      if (errorMessage !== "checking" && !errorMessage.includes("checking")) {
+        setError(`Failed to check character: ${errorMessage}`);
+        setStatus('error');
+      } else {
+        console.log("Character is still in checking state, continuing");
+      }
+      
       processingRef.current = false;
       return null;
     }
@@ -169,7 +243,7 @@ export const useGame = () => {
       setStatus('checking-session-key');
       console.log("=== SESSION KEY CHECK STARTED ===");
       console.log("Checking session key for character:", charId);
-      console.log("Embedded wallet address:", embeddedWallet?.address);
+      console.log("Embedded wallet address:", embeddedWallet?.address || embeddedWalletRef.current || "Not available");
       
       // Use the getCurrentSessionKey function from useBattleNads hook
       const currentSessionKey = await getCurrentSessionKey(charId);
@@ -182,11 +256,13 @@ export const useGame = () => {
         return true; // Continue with game initialization despite warning
       }
       
-      console.log("Embedded wallet address:", embeddedWallet?.address);
+      // Use either the current embedded wallet address or the stored reference
+      const embeddedAddress = embeddedWallet?.address || embeddedWalletRef.current;
+      console.log("Using embedded wallet address for comparison:", embeddedAddress);
       
-      // Make sure embedded wallet is defined
-      if (!embeddedWallet?.address) {
-        console.error("Embedded wallet address is null or undefined");
+      // Make sure we have an embedded wallet address to compare with
+      if (!embeddedAddress) {
+        console.error("No embedded wallet address available for comparison");
         setError("Embedded wallet not available");
         setStatus('error');
         processingRef.current = false;
@@ -194,13 +270,13 @@ export const useGame = () => {
       }
       
       // Check if current session key matches the embedded wallet
-      const sessionKeyMatches = currentSessionKey.toLowerCase() === embeddedWallet.address.toLowerCase();
+      const sessionKeyMatches = currentSessionKey.toLowerCase() === embeddedAddress.toLowerCase();
       console.log("Session key matches embedded wallet:", sessionKeyMatches);
       
       if (!sessionKeyMatches) {
         console.log("Session key mismatch. Needs update.");
         console.log("Current session key:", currentSessionKey);
-        console.log("Embedded wallet address:", embeddedWallet.address);
+        console.log("Embedded wallet address:", embeddedAddress);
         
         // Set a warning that session keys don't match
         const warningMessage = "Your session key doesn't match your embedded wallet. Some game actions may fail.";
@@ -227,7 +303,7 @@ export const useGame = () => {
     } finally {
       console.log("=== SESSION KEY CHECK COMPLETED ===");
     }
-  }, [embeddedWallet, getCurrentSessionKey]);
+  }, [embeddedWallet, embeddedWalletRef, getCurrentSessionKey]);
   
   // Function to reset session key warning
   const resetSessionKeyWarning = useCallback(() => {
@@ -312,6 +388,11 @@ export const useGame = () => {
       setStatus('checking-character');
       const charId = await checkCharacter();
       if (!charId) {
+        // If we're in a temporary checking state, return checking instead of need-character
+        // This allows the game component to wait for the state to resolve
+        if (status === 'checking' || status === 'checking-character') {
+          return { success: false, status: 'checking' };
+        }
         return { success: false, status: 'need-character' };
       }
       
@@ -334,15 +415,23 @@ export const useGame = () => {
       return { success: true, status: 'ready' };
     } catch (error) {
       console.error("Error during game initialization:", error);
-      setError("Game initialization failed: " + ((error as Error)?.message || "Unknown error"));
+      
+      // Don't set error for temporary states
+      const errorMessage = (error as Error)?.message || "Unknown error";
+      if (errorMessage === "checking" || errorMessage.includes("checking") || status === 'checking') {
+        console.log("Game is still initializing, returning checking status");
+        return { success: false, status: 'checking' };
+      }
+      
+      setError("Game initialization failed: " + errorMessage);
       setStatus('error');
-      setGameState(prev => ({ ...prev, error: (error as Error)?.message || "Unknown error" }));
-      return { success: false, status: 'error', error: (error as Error)?.message || "Unknown error" };
+      setGameState(prev => ({ ...prev, error: errorMessage }));
+      return { success: false, status: 'error', error: errorMessage };
     } finally {
       processingRef.current = false;
       setGameState(prev => ({ ...prev, loading: false }));
     }
-  }, [checkOwnerWallet, checkEmbeddedWallet, checkCharacter, checkSessionKey, loadGameState, setGameState]);
+  }, [checkOwnerWallet, checkEmbeddedWallet, checkCharacter, checkSessionKey, loadGameState, setGameState, status]);
   
   // Move character with state management
   const movePlayer = useCallback(async (characterId: string, direction: string) => {
@@ -462,6 +551,16 @@ export const useGame = () => {
     }
   }, [injectedWallet, embeddedWallet, initializeGame]);
   
+  // Helper function to get stored embedded wallet address
+  const getStoredEmbeddedWalletAddress = useCallback(() => {
+    return embeddedWalletRef.current;
+  }, []);
+  
+  // Helper function to check if we have all required wallet types
+  const hasAllRequiredWallets = useCallback(() => {
+    return !!(injectedWallet?.address && (embeddedWallet?.address || embeddedWalletRef.current));
+  }, [injectedWallet, embeddedWallet]);
+  
   return {
     // Game status
     status,
@@ -486,6 +585,7 @@ export const useGame = () => {
     // Status functions
     checkOwnerWallet,
     checkEmbeddedWallet,
+    hasAllRequiredWallets,
     
     // Session key management
     resetSessionKeyWarning,
@@ -496,6 +596,9 @@ export const useGame = () => {
     
     // Utility function to reset flags
     resetTransactionFlags,
+    
+    // Function to get stored embedded wallet address
+    getStoredEmbeddedWalletAddress,
   };
 };
 
