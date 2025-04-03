@@ -56,9 +56,9 @@ export const useBattleNads = () => {
       } else if (Array.isArray(sessionKeyResponse)) {
         // Array format is returned (first element is the key)
         sessionKeyAddress = sessionKeyResponse[0];
-      } else if (sessionKeyResponse && typeof sessionKeyResponse === 'object') {
+      } else if (sessionKeyResponse && typeof sessionKeyResponse === 'object' && 'key' in sessionKeyResponse) {
         // Object format with named fields
-        sessionKeyAddress = sessionKeyResponse.key || sessionKeyResponse[0];
+        sessionKeyAddress = sessionKeyResponse.key;
       }
       
       if (!sessionKeyAddress) {
