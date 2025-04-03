@@ -1,12 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip } from '@chakra-ui/react';
 import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from '../providers/WalletProvider';
+
+// Create a safe localStorage key based on the contract address to avoid conflicts
+const LOCALSTORAGE_KEY = `battleNadsCharacterId_${process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0xbD4511F188B606e5a74A62b7b0F516d0139d76D5"}`;
 
 const NavBar: React.FC = () => {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -20,6 +23,15 @@ const NavBar: React.FC = () => {
   } = useWallet();
   const pathname = usePathname();
   const router = useRouter();
+  
+  // State to track if user has a character
+  const [hasCharacter, setHasCharacter] = useState<boolean>(false);
+  
+  // Check if user has a character when component mounts or address changes
+  useEffect(() => {
+    const storedCharacterId = localStorage.getItem(LOCALSTORAGE_KEY);
+    setHasCharacter(!!storedCharacterId);
+  }, [address]);
 
   const isActive = (path: string) => pathname === path;
   
@@ -59,9 +71,25 @@ const NavBar: React.FC = () => {
       >
         <HStack spacing={8} alignItems="center">
           <Box fontWeight="bold" fontSize="xl">
-            <Link href="/">
-              <Text cursor="pointer">Battle-Nads</Text>
-            </Link>
+            {hasCharacter && address && pathname !== '/game' ? (
+              // User has a character and isn't on game page - link to game
+              <Link href="/game">
+                <Text cursor="pointer">Battle-Nads</Text>
+              </Link>
+            ) : !hasCharacter || !address || pathname === '/game' ? (
+              // User is already on game page or doesn't have a character - no navigation or to home
+              pathname === '/game' ? (
+                <Text cursor="default">Battle-Nads</Text>
+              ) : (
+                <Link href="/">
+                  <Text cursor="pointer">Battle-Nads</Text>
+                </Link>
+              )
+            ) : (
+              <Link href="/">
+                <Text cursor="pointer">Battle-Nads</Text>
+              </Link>
+            )}
           </Box>
 
           {address && (
@@ -81,34 +109,23 @@ const NavBar: React.FC = () => {
                   Game
                 </Text>
               </Link>
-              <Link href="/dashboard">
-                <Text
-                  px={3}
-                  py={2}
-                  rounded="md"
-                  fontWeight={isActive('/dashboard') ? 'bold' : 'normal'}
-                  bg={isActive('/dashboard') ? 'blue.500' : 'transparent'}
-                  color={isActive('/dashboard') ? 'white' : undefined}
-                  _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
-                  cursor="pointer"
-                >
-                  Dashboard
-                </Text>
-              </Link>
-              <Link href="/create">
-                <Text
-                  px={3}
-                  py={2}
-                  rounded="md"
-                  fontWeight={isActive('/create') ? 'bold' : 'normal'}
-                  bg={isActive('/create') ? 'blue.500' : 'transparent'}
-                  color={isActive('/create') ? 'white' : undefined}
-                  _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
-                  cursor="pointer"
-                >
-                  Create
-                </Text>
-              </Link>
+              {/* Only show Create link if user doesn't have a character */}
+              {!hasCharacter && (
+                <Link href="/create">
+                  <Text
+                    px={3}
+                    py={2}
+                    rounded="md"
+                    fontWeight={isActive('/create') ? 'bold' : 'normal'}
+                    bg={isActive('/create') ? 'blue.500' : 'transparent'}
+                    color={isActive('/create') ? 'white' : undefined}
+                    _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
+                    cursor="pointer"
+                  >
+                    Create
+                  </Text>
+                </Link>
+              )}
             </HStack>
           )}
         </HStack>
