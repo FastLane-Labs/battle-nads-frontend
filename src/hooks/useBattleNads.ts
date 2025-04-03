@@ -663,6 +663,116 @@ export const useBattleNads = () => {
     }
   }, [injectedWallet?.provider]);
 
+  // Equip weapon for a character - blockchain call
+  const equipWeapon = useCallback(async (characterId: string, weaponId: number) => {
+    try {
+      console.log(`[equipWeapon] Equipping weapon ${weaponId} for character ${characterId}`);
+      
+      // Directly use embedded contract for equipment
+      if (!embeddedContract) {
+        throw new Error('Session key wallet not available. Please refresh the page and try again.');
+      }
+      
+      const tx = await embeddedContract.equipWeapon(characterId, weaponId, { gasLimit: 500000 });
+      console.log(`[equipWeapon] Transaction sent: ${tx.hash}`);
+      
+      const receipt = await tx.wait();
+      console.log(`[equipWeapon] Weapon equipped: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+      return true;
+    } catch (err: any) {
+      console.error("[equipWeapon] Error:", err);
+      throw new Error(err.message || "Error equipping weapon");
+    }
+  }, [embeddedContract]);
+
+  // Equip armor for a character - blockchain call
+  const equipArmor = useCallback(async (characterId: string, armorId: number) => {
+    try {
+      console.log(`[equipArmor] Equipping armor ${armorId} for character ${characterId}`);
+      
+      // Directly use embedded contract for equipment
+      if (!embeddedContract) {
+        throw new Error('Session key wallet not available. Please refresh the page and try again.');
+      }
+      
+      const tx = await embeddedContract.equipArmor(characterId, armorId, { gasLimit: 500000 });
+      console.log(`[equipArmor] Transaction sent: ${tx.hash}`);
+      
+      const receipt = await tx.wait();
+      console.log(`[equipArmor] Armor equipped: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+      return true;
+    } catch (err: any) {
+      console.error("[equipArmor] Error:", err);
+      throw new Error(err.message || "Error equipping armor");
+    }
+  }, [embeddedContract]);
+
+  // Allocate attribute points - blockchain call
+  const allocatePoints = useCallback(async (
+    characterId: string,
+    strength: number,
+    vitality: number,
+    dexterity: number,
+    quickness: number,
+    sturdiness: number,
+    luck: number
+  ) => {
+    try {
+      console.log(`[allocatePoints] Allocating points for character ${characterId}`);
+      
+      // Use owner wallet (injected) for allocating points
+      if (!injectedContract) {
+        throw new Error('Owner wallet not available. Please connect your wallet and try again.');
+      }
+      
+      const tx = await injectedContract.allocatePoints(
+        characterId,
+        strength,
+        vitality,
+        dexterity,
+        quickness,
+        sturdiness,
+        luck,
+        { gasLimit: 500000 }
+      );
+      console.log(`[allocatePoints] Transaction sent: ${tx.hash}`);
+      
+      const receipt = await tx.wait();
+      console.log(`[allocatePoints] Points allocated: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+      return true;
+    } catch (err: any) {
+      console.error("[allocatePoints] Error:", err);
+      throw new Error(err.message || "Error allocating points");
+    }
+  }, [injectedContract]);
+
+  // Replenish gas balance - blockchain call
+  const replenishGasBalance = useCallback(async (amount: string) => {
+    try {
+      console.log(`[replenishGasBalance] Replenishing gas balance with ${amount} ETH`);
+      
+      // Must use owner wallet (injected) for funding
+      if (!injectedContract) {
+        throw new Error('Owner wallet not available. Please connect your wallet and try again.');
+      }
+      
+      const valueToSend = ethers.parseEther(amount);
+      
+      const tx = await injectedContract.replenishGasBalance({ 
+        value: valueToSend,
+        gasLimit: 300000 
+      });
+      console.log(`[replenishGasBalance] Transaction sent: ${tx.hash}`);
+      
+      const receipt = await tx.wait();
+      console.log(`[replenishGasBalance] Gas balance replenished: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+      return true;
+    } catch (err: any) {
+      console.error("[replenishGasBalance] Error:", err);
+      throw new Error(err.message || "Error replenishing gas balance");
+    }
+  }, [injectedContract]);
+
   // Return only contract interaction functions
   return {
     createCharacter,
@@ -683,6 +793,11 @@ export const useBattleNads = () => {
     getCharacterIdByTransactionHash,
     characterId,
     setSessionKeyToEmbeddedWallet,
+    // Add new functions to the export
+    equipWeapon,
+    equipArmor,
+    allocatePoints,
+    replenishGasBalance,
     // Include loading and error for backward compatibility
     loading,
     error
