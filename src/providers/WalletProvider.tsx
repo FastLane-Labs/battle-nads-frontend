@@ -69,6 +69,20 @@ const WalletContext = createContext<WalletContextValue>({
   isInitialized: false,
 });
 
+interface InjectedWallet {
+  address: string;
+  provider: ethers.BrowserProvider;
+  signer: ethers.JsonRpcSigner;
+  walletType: InjectedWalletClientType;
+}
+
+interface EmbeddedWallet {
+  address: string;
+  provider: ethers.BrowserProvider;
+  signer: ethers.JsonRpcSigner;
+  walletType: string;
+}
+
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { authenticated, logout: privyLogout } = usePrivy();
   const { wallets, ready: walletsReady } = useWallets();
@@ -164,263 +178,175 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
       
       console.log("Available Privy wallets:", wallets);
+
+      // Start with empty wallet states
+      let foundInjectedWallet: InjectedWallet | null = null;
+      let foundEmbeddedWallet: EmbeddedWallet | null = null;
       
-      // Process all available wallets from Privy
-      if (wallets.length === 0) {
-        // No wallets connected, clear state
-        setCurrentWallet('none');
-        setSigner(null);
-        setProvider(null);
-        setAddress(null);
-        setSessionKey(null);
-        setInjectedWallet(null);
-        setEmbeddedWallet(null);
-        setLoading(false);
-        setIsInitialized(true); // No wallets but we're initialized
-        return;
-      }
-      
-      // Track which wallets we found
-      let foundInjected = false;
-      let foundEmbedded = false;
-      let newCurrentWallet = currentWallet;
-      
-      // DEBUG: List all connected wallets
-      console.log("WALLET DEBUG - Connected wallets:");
-      wallets.forEach((wallet, index) => {
+      console.log('WALLET DEBUG - Connected wallets:');
+      wallets.forEach((wallet: any, index: number) => {
         console.log(`Wallet #${index}: Address=${wallet.address}, Type=${wallet.walletClientType}, ConnectorType=${wallet.connectorType}`);
       });
+
+      // First look for a proper injected wallet (MetaMask preferred)
+      const metamaskWallet = wallets.find((wallet: any) => 
+        wallet.walletClientType === 'metamask' && wallet.connectorType === 'injected'
+      );
       
-      // Find Owner Wallet (MetaMask) if available
-      const metamaskWallet = wallets.find(w => w.walletClientType === 'metamask');
       if (metamaskWallet) {
-        console.log("FOUND OWNER WALLET (MetaMask):", metamaskWallet.address);
-      } else {
-        console.log("No MetaMask wallet found among connected wallets");
+        console.log('FOUND OWNER WALLET (MetaMask):', metamaskWallet.address);
       }
-      
-      // Process each wallet by type
+
+      // Store the embedded wallet address for resilience
+      const embeddedWallet = wallets.find((wallet: any) => wallet.connectorType === 'embedded');
+      if (embeddedWallet) {
+        console.log('Stored embedded wallet address for resilience:', embeddedWallet.address);
+        lastEmbeddedWalletRef.current = embeddedWallet.address;
+      }
+
+      // Process wallets and create providers/signers
       for (const wallet of wallets) {
-        try {
-          // Determine wallet type
-          const isMetamask = wallet.walletClientType === 'metamask';
-          const isInjected = wallet.walletClientType === 'injected' || isMetamask;
-          const isEmbedded = wallet.walletClientType === 'privy' || wallet.connectorType === 'embedded';
-          
-          // Store embedded wallet address for resilience
-          if (isEmbedded) {
-            lastEmbeddedWalletRef.current = wallet.address;
-            console.log("Stored embedded wallet address for resilience:", wallet.address);
+        console.log('Wallet:', wallet.address, 'Type:', wallet.walletClientType, 'ConnectorType:', wallet.connectorType);
+
+        if (wallet.connectorType === 'injected') {
+          // If it's MetaMask, prioritize it
+          if (wallet.walletClientType === 'metamask') {
+            console.log('Found MetaMask wallet, setting as injectedWallet:', wallet.address);
+            try {
+              // Create provider/signer for injected wallet
+              const privyProvider = await wallet.getEthereumProvider();
+              const provider = new ethers.BrowserProvider(privyProvider);
+              await checkAndSwitchChain(provider);
+              const signer = await provider.getSigner();
+              foundInjectedWallet = {
+                address: wallet.address,
+                provider,
+                signer,
+                walletType: wallet.walletClientType as InjectedWalletClientType
+              };
+              console.log('[WalletProvider] Successfully created MetaMask wallet signer:', {
+                address: wallet.address,
+                hasProvider: !!provider,
+                hasSigner: !!signer
+              });
+            } catch (e) {
+              console.error('[WalletProvider] Failed to create MetaMask wallet signer:', e);
+            }
+          } 
+          // If we don't have an injected wallet yet, use this one
+          else if (!foundInjectedWallet) {
+            try {
+              // Create provider/signer for injected wallet
+              const privyProvider = await wallet.getEthereumProvider();
+              const provider = new ethers.BrowserProvider(privyProvider);
+              await checkAndSwitchChain(provider);
+              const signer = await provider.getSigner();
+              foundInjectedWallet = {
+                address: wallet.address,
+                provider,
+                signer,
+                walletType: wallet.walletClientType as InjectedWalletClientType
+              };
+              console.log('[WalletProvider] Successfully created injected wallet signer:', {
+                address: wallet.address,
+                hasProvider: !!provider,
+                hasSigner: !!signer
+              });
+            } catch (e) {
+              console.error('[WalletProvider] Failed to create injected wallet signer:', e);
+            }
           }
-          
-          // For debugging
-          console.log(`Wallet: ${wallet.address}, Type: ${wallet.walletClientType}, ConnectorType: ${wallet.connectorType}`);
-          
-          if (isMetamask) {
-            // This is specifically Metamask - prioritize this as the injected wallet
-            console.log("Found MetaMask wallet, setting as injectedWallet:", wallet.address);
-            foundInjected = true;
-            
-            try {
-              // Follow Privy documentation for ethers v6
-              const privyProvider = await wallet.getEthereumProvider();
-              const ethProvider = new ethers.BrowserProvider(privyProvider);
-              await checkAndSwitchChain(ethProvider);
-              const walletSigner = await ethProvider.getSigner();
-              
-              console.log("[WalletProvider] Successfully created MetaMask wallet signer:", 
-                        { address: wallet.address, hasProvider: !!ethProvider, hasSigner: !!walletSigner });
-              
-              const walletInfo: WalletInfo = {
-                type: 'injected',
-                walletClientType: wallet.walletClientType,
-                address: wallet.address,
-                signer: walletSigner,
-                provider: ethProvider,
-                privyWallet: wallet
-              };
-              
-              setInjectedWallet(walletInfo);
-              
-              // Always make MetaMask the active wallet when available
-              newCurrentWallet = 'injected';
-              setSigner(walletSigner);
-              setProvider(ethProvider);
-              setAddress(wallet.address);
-            } catch (providerError) {
-              console.error("Error setting up MetaMask provider:", providerError);
-              setInjectedWallet({
-                type: 'injected',
-                walletClientType: wallet.walletClientType,
-                address: wallet.address,
-                signer: null,
-                provider: null,
-                privyWallet: wallet
-              });
-            }
-          } else if (isInjected && !isMetamask && !injectedWallet) {
-            // This is a non-MetaMask injected wallet, use only if no MetaMask found
-            console.log("Found other injected wallet:", wallet.walletClientType, wallet.address);
-            foundInjected = true;
-            
-            try {
-              // Follow Privy documentation for ethers v6
-              const privyProvider = await wallet.getEthereumProvider();
-              const ethProvider = new ethers.BrowserProvider(privyProvider);
-              await checkAndSwitchChain(ethProvider);
-              const walletSigner = await ethProvider.getSigner();
-              
-              console.log("[WalletProvider] Successfully created injected wallet signer:", 
-                        { address: wallet.address, type: wallet.walletClientType, hasProvider: !!ethProvider, hasSigner: !!walletSigner });
-              
-              const walletInfo: WalletInfo = {
-                type: 'injected',
-                walletClientType: wallet.walletClientType,
-                address: wallet.address,
-                signer: walletSigner,
-                provider: ethProvider,
-                privyWallet: wallet
-              };
-              
-              setInjectedWallet(walletInfo);
-              
-              // If no active wallet set, make this the active one
-              if (newCurrentWallet === 'none') {
-                newCurrentWallet = 'injected';
-                setSigner(walletSigner);
-                setProvider(ethProvider);
-                setAddress(wallet.address);
-              }
-            } catch (providerError) {
-              console.error("Error setting up injected wallet provider:", providerError);
-              // Create wallet info without provider/signer
-              setInjectedWallet({
-                type: 'injected',
-                walletClientType: wallet.walletClientType,
-                address: wallet.address,
-                signer: null,
-                provider: null,
-                privyWallet: wallet
-              });
-            }
-          } else if (isEmbedded) {
-            // This is a Privy embedded wallet
-            foundEmbedded = true;
-            
-            // Use the embedded wallet address as the session key instead of hardcoding
-            setSessionKey(wallet.address);
-            
-            // Try to get a provider
-            let embeddedProvider = null;
-            let embeddedSigner = null;
-            
-            try {
-              // For embedded wallets, use the Privy API to get the provider
-              // Following Privy documentation for ethers v6
-              const privyProvider = await wallet.getEthereumProvider();
-              const ethProvider = new ethers.BrowserProvider(privyProvider);
-              embeddedProvider = ethProvider;
-              embeddedSigner = await ethProvider.getSigner();
-              
-              console.log("[WalletProvider] Successfully created embedded wallet signer:", 
-                          { address: wallet.address, hasProvider: !!embeddedProvider, hasSigner: !!embeddedSigner });
-            } catch (providerError) {
-              console.error("Could not get provider for embedded wallet:", providerError);
-            }
-            
-            // Create and store the wallet info
-            const walletInfo: WalletInfo = {
-              type: 'embedded',
-              walletClientType: wallet.walletClientType,
+        } 
+        // Handle embedded wallet
+        else if (wallet.connectorType === 'embedded') {
+          try {
+            // Create provider/signer for embedded wallet
+            const privyProvider = await wallet.getEthereumProvider();
+            const provider = new ethers.BrowserProvider(privyProvider);
+            await checkAndSwitchChain(provider);
+            const signer = await provider.getSigner();
+            foundEmbeddedWallet = {
               address: wallet.address,
-              signer: embeddedSigner,
-              provider: embeddedProvider,
-              privyWallet: wallet
+              provider,
+              signer,
+              walletType: 'privy'
             };
-            
-            setEmbeddedWallet(walletInfo);
-            
-            // Prefer embedded wallet as active if available or if already selected
-            if (newCurrentWallet === 'none' || newCurrentWallet === 'embedded') {
-              newCurrentWallet = 'embedded';
-              if (embeddedSigner) setSigner(embeddedSigner);
-              if (embeddedProvider) setProvider(embeddedProvider);
-              setAddress(wallet.address);
-            }
+            console.log('[WalletProvider] Successfully created embedded wallet signer:', {
+              address: wallet.address,
+              hasProvider: !!provider,
+              hasSigner: !!signer
+            });
+          } catch (e) {
+            console.error('[WalletProvider] Failed to create embedded wallet signer:', e);
           }
-        } catch (walletError) {
-          console.error(`Error processing wallet ${wallet.address}:`, walletError);
-        }
-      }
-      
-      // Clean up wallets that no longer exist
-      if (!foundInjected && injectedWallet) {
-        setInjectedWallet(null);
-      }
-      
-      if (!foundEmbedded) {
-        if (embeddedWallet && lastEmbeddedWalletRef.current) {
-          // If we have a stored embedded wallet reference but didn't find one this time
-          // keep the session key since it will be the same as the embedded wallet
-          console.log("Using stored embedded wallet reference:", lastEmbeddedWalletRef.current);
-          // Don't clear the embedded wallet if we have a stored reference
-        } else {
-          setEmbeddedWallet(null);
-          setSessionKey(null);
-        }
-      }
-      
-      // If embedded wallet is missing but we have a reference, create a placeholder
-      if (!embeddedWallet && lastEmbeddedWalletRef.current) {
-        console.log("Creating placeholder embedded wallet from stored reference");
-        setEmbeddedWallet({
-          type: 'embedded',
-          walletClientType: 'privy',
-          address: lastEmbeddedWalletRef.current,
-          signer: null,  // Can't get signer for stored reference
-          provider: null,  // Can't get provider for stored reference
-          privyWallet: null  // No actual wallet object
-        });
-        
-        // Make sure session key is set
-        if (!sessionKey) {
-          setSessionKey(lastEmbeddedWalletRef.current);
-        }
-      }
-      
-      // Ensure we have a current wallet set if any are available
-      if (newCurrentWallet === 'none') {
-        if (foundEmbedded) {
-          newCurrentWallet = 'embedded';
-        } else if (foundInjected) {
-          newCurrentWallet = 'injected';
         }
       }
 
-      // Only update the current wallet if it changed
-      if (newCurrentWallet !== currentWallet) {
-        setCurrentWallet(newCurrentWallet);
+      // Update wallet states with proper WalletInfo objects
+      if (foundInjectedWallet) {
+        setInjectedWallet({
+          type: 'injected',
+          walletClientType: foundInjectedWallet.walletType,
+          address: foundInjectedWallet.address,
+          signer: foundInjectedWallet.signer,
+          provider: foundInjectedWallet.provider,
+          privyWallet: wallets.find((w: any) => w.address === foundInjectedWallet?.address)
+        });
+      } else {
+        setInjectedWallet(null);
       }
       
-    } catch (err) {
-      console.error('Error syncing with Privy wallets:', err);
-      setError('Failed to sync with wallets');
+      if (foundEmbeddedWallet) {
+        setEmbeddedWallet({
+          type: 'embedded',
+          walletClientType: 'privy',
+          address: foundEmbeddedWallet.address,
+          signer: foundEmbeddedWallet.signer,
+          provider: foundEmbeddedWallet.provider,
+          privyWallet: wallets.find((w: any) => w.address === foundEmbeddedWallet?.address)
+        });
+        
+        // Set session key to embedded wallet address
+        setSessionKey(foundEmbeddedWallet.address);
+      } else {
+        setEmbeddedWallet(null);
+      }
+      
+      // Only set initialized to true if we have BOTH wallets properly set up
+      const hasInjected = !!foundInjectedWallet && !!foundInjectedWallet.signer;
+      const hasEmbedded = !!foundEmbeddedWallet && !!foundEmbeddedWallet.signer;
+      
+      console.log(`Setting isInitialized: ${hasInjected && hasEmbedded} HasInjected: ${hasInjected} HasEmbedded: ${hasEmbedded} Stored embedded wallet: ${lastEmbeddedWalletRef.current}`);
+      
+      if (hasInjected && hasEmbedded) {
+        setIsInitialized(true);
+        
+        // Set active wallet based on priorities
+        if (hasInjected && foundInjectedWallet) {
+          setCurrentWallet('injected');
+          setSigner(foundInjectedWallet.signer);
+          setProvider(foundInjectedWallet.provider);
+          setAddress(foundInjectedWallet.address);
+        } else if (hasEmbedded && foundEmbeddedWallet) {
+          setCurrentWallet('embedded');
+          setSigner(foundEmbeddedWallet.signer);
+          setProvider(foundEmbeddedWallet.provider);
+          setAddress(foundEmbeddedWallet.address);
+        }
+      } else {
+        // Not initialized - clear current wallet state
+        setCurrentWallet('none');
+        setSigner(null);
+        setProvider(null);
+        setIsInitialized(false);
+      }
+    } catch (e) {
+      console.error('[WalletProvider] Failed to sync with Privy wallets:', e);
+      setIsInitialized(false);
     } finally {
       setLoading(false);
-      
-      // Check if we have both wallet types to set isInitialized
-      const hasInjected = wallets.some(w => w.connectorType === 'injected');
-      const hasEmbedded = wallets.some(w => w.connectorType === 'embedded') || 
-                         (lastEmbeddedWalletRef.current !== null);
-                         
-      // Set isInitialized if we have both wallet types
-      setIsInitialized(hasInjected && hasEmbedded);
-      console.log("Setting isInitialized:", hasInjected && hasEmbedded, 
-                  "HasInjected:", hasInjected, 
-                  "HasEmbedded:", hasEmbedded, 
-                  "Stored embedded wallet:", lastEmbeddedWalletRef.current);
     }
-  }, [walletsReady, authenticated, wallets, checkAndSwitchChain, currentWallet, injectedWallet, embeddedWallet]);
+  }, [walletsReady, authenticated, wallets, checkAndSwitchChain]);
 
   // Check if wallets have actually changed
   const walletsChanged = useCallback(() => {

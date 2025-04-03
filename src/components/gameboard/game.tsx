@@ -120,9 +120,6 @@ const Game: React.FC = () => {
   
   const toast = useToast();
 
-  // Use the Privy hooks for showing UI during transactions
-  const privy = usePrivy();
-
   // Derive a unified UI state from all the state variables
   const gameUIState = useMemo<GameUIState>(() => {
     // Show loading during any loading operation or status check
