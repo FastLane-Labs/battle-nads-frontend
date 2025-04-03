@@ -75,48 +75,29 @@ export const useBattleNads = () => {
   }, [readContract]);
 
   // Helper to select the appropriate contract based on operation type
-  const getContractForOperation = useCallback((operationType: 'creation' | 'session' | 'gas' | 'movement' | 'combat' | 'equipment' = 'session') => {
+  const getContractForOperation = useCallback((operationType: 'creation' | 'session' | 'gas' | 'movement' | 'combat' | 'equipment' | 'read' = 'session') => {
     console.log(`[getContractForOperation] Operation type: ${operationType}`);
     
-    // Log contract availability for debugging
-    console.log(`[getContractForOperation] Contract availability:`, {
-      readContractAvailable: !!readContract,
-      injectedContractAvailable: !!injectedContract,
-      embeddedContractAvailable: !!embeddedContract,
-    });
-    
-    // For character creation, session key updates, and gas operations, use injected (owner) wallet
-    if (['creation', 'gas', 'session'].includes(operationType)) {
-      if (!injectedContract) {
-        console.error('[getContractForOperation] No owner wallet connected for operation:', operationType);
-        throw new Error('No owner wallet connected. Please connect your owner wallet first.');
-      }
-      console.log(`[getContractForOperation] Using owner (injected) contract for ${operationType}`);
-      return injectedContract;
-    }
-    
-    // For movement, combat, and equipment operations, prefer embedded wallet (session key)
-    if (['movement', 'combat', 'equipment'].includes(operationType)) {
-      if (embeddedContract) {
-        console.log(`[getContractForOperation] Using embedded contract for ${operationType}`);
-        return embeddedContract;
-      }
-      
-      console.warn(`[getContractForOperation] No embedded contract available for ${operationType}, falling back to injected`);
-      // Fall back to injected contract if embedded not available
-      if (injectedContract) {
-        return injectedContract;
-      }
-    }
-    
-    // For read operations or fallback, use read-only contract
-    if (readContract) {
-      console.log(`[getContractForOperation] Using read-only contract for ${operationType}`);
+    // For read operations (queries), use read-only contract
+    if (operationType === 'read') {
       return readContract;
     }
     
-    console.error(`[getContractForOperation] No contracts available for operation: ${operationType}`);
-    return null; // Return null instead of throwing - let the calling function handle it
+    // Movement, combat, and equipment always use embedded wallet (session key)
+    if (['movement', 'combat', 'equipment'].includes(operationType)) {
+      return embeddedContract;
+    }
+    
+    // Character creation, session key updates, and gas operations use owner wallet
+    if (['creation', 'gas', 'session'].includes(operationType)) {
+      if (!injectedContract) {
+        throw new Error('No owner wallet connected. Please connect your owner wallet first.');
+      }
+      return injectedContract;
+    }
+    
+    // Default fallback to read contract
+    return readContract;
   }, [readContract, injectedContract, embeddedContract]);
 
   // Directly ensure we're prioritizing the true owner wallet (MetaMask) by checking wallet type
@@ -422,151 +403,60 @@ export const useBattleNads = () => {
   // Move character - pure blockchain call
   const moveCharacter = useCallback(async (characterID: string, direction: string) => {
     try {
-      console.log(`[moveCharacter] Starting movement ${direction} for character ${characterID}`);
+      console.log(`[moveCharacter] Moving ${direction} for character ${characterID}`);
       
-      // Verify that embedded wallet is available before proceeding
-      if (!embeddedWallet?.address) {
-        console.error('[moveCharacter] No embedded wallet available, movement requires a session key');
+      // Directly use the embedded contract for movement
+      if (!embeddedContract) {
         throw new Error('Session key wallet not available. Please refresh the page and try again.');
       }
       
-      if (!embeddedWallet.signer) {
-        console.error('[moveCharacter] Embedded wallet has no signer, movement requires an active session key');
-        console.error('[moveCharacter] Embedded wallet details:', {
-          address: embeddedWallet.address,
-          walletClientType: embeddedWallet.walletClientType,
-          hasProvider: !!embeddedWallet.provider
-        });
-        throw new Error('Session key wallet has no signer. Please refresh the page and try again.');
-      }
-      
-      // Check if the session key is properly set before moving
-      try {
-        const currentSessionKey = await getCurrentSessionKey(characterID);
-        console.log(`[moveCharacter] Current session key from contract: ${currentSessionKey}`);
-        console.log(`[moveCharacter] Session key matches embedded wallet: ${embeddedWallet.address.toLowerCase() === currentSessionKey?.toLowerCase()}`);
-        
-        if (!currentSessionKey || currentSessionKey.toLowerCase() !== embeddedWallet.address.toLowerCase()) {
-          console.warn(`[moveCharacter] Session key mismatch - should update session key first!`);
-          console.warn(`[moveCharacter] Embedded wallet: ${embeddedWallet.address}`);
-          console.warn(`[moveCharacter] Current session key: ${currentSessionKey}`);
-          throw new Error('Session key mismatch. Please update your session key before moving.');
-        }
-      } catch (error) {
-        console.error('[moveCharacter] Error checking session key:', error);
-        // Only throw if this is a session key mismatch error we caught above
-        if (error instanceof Error && error.message.includes('Session key mismatch')) {
-          throw error;
-        }
-        // Otherwise continue and hope for the best
-      }
-      
-      // Use session key (embedded wallet) for movement
-      const contract = getContractForOperation('movement');
-      if (!contract) throw new Error("No contract available for movement");
-      
-      console.log(`[moveCharacter] Executing move ${direction} for character ${characterID}`);
-      
-      // Log the actual wallet address being used for the movement transaction
-      try {
-        const signerAddress = await embeddedWallet.signer.getAddress();
-        console.log(`[moveCharacter] Using wallet address: ${signerAddress}`);
-        
-        // Check if this is the session key wallet or owner wallet
-        const isSessionKey = embeddedWallet?.address === signerAddress;
-        const isOwnerWallet = injectedWallet?.address === signerAddress;
-        console.log(`[moveCharacter] Is using session key wallet: ${isSessionKey}`);
-        console.log(`[moveCharacter] Is using owner wallet: ${isOwnerWallet}`);
-        
-        // Extra safety check - if we're not using the session key wallet, throw an error
-        if (!isSessionKey) {
-          console.error('[moveCharacter] Not using session key wallet for movement!');
-          throw new Error('Movement must use session key wallet. Please update your session key and try again.');
-        }
-      } catch (error) {
-        if (error instanceof Error && error.message.includes('Movement must use session key wallet')) {
-          throw error; // Rethrow our explicit error
-        }
-        console.error('[moveCharacter] Failed to get signer information:', error);
-      }
-      
-      let tx;
+      // Set gas limit once for all movements
       const gasLimit = 850000;
       
+      let tx;
+      // Simple switch for direction
       switch (direction) {
-        case 'north':
-          tx = await contract.moveNorth(characterID, { gasLimit });
-          break;
-        case 'south':
-          tx = await contract.moveSouth(characterID, { gasLimit });
-          break;
-        case 'east':
-          tx = await contract.moveEast(characterID, { gasLimit });
-          break;
-        case 'west':
-          tx = await contract.moveWest(characterID, { gasLimit });
-          break;
-        case 'up':
-          tx = await contract.moveUp(characterID, { gasLimit });
-          break;
-        case 'down':
-          tx = await contract.moveDown(characterID, { gasLimit });
-          break;
-        default:
-          throw new Error(`Invalid direction: ${direction}`);
+        case 'north': tx = await embeddedContract.moveNorth(characterID, { gasLimit }); break;
+        case 'south': tx = await embeddedContract.moveSouth(characterID, { gasLimit }); break;
+        case 'east': tx = await embeddedContract.moveEast(characterID, { gasLimit }); break;
+        case 'west': tx = await embeddedContract.moveWest(characterID, { gasLimit }); break;
+        case 'up': tx = await embeddedContract.moveUp(characterID, { gasLimit }); break;
+        case 'down': tx = await embeddedContract.moveDown(characterID, { gasLimit }); break;
+        default: throw new Error(`Invalid direction: ${direction}`);
       }
 
-      if (tx) {
-        console.log(`[moveCharacter] Transaction sent with hash: ${tx.hash}`);
-        const receipt = await tx.wait();
-        console.log(`[moveCharacter] Movement transaction completed: ${receipt.hash}`);
-        console.log(`[moveCharacter] Gas used: ${receipt.gasUsed.toString()}`);
-        return true;
-      }
-      
-      return false;
+      console.log(`[moveCharacter] Transaction sent: ${tx.hash}`);
+      const receipt = await tx.wait();
+      console.log(`[moveCharacter] Movement completed: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+      return true;
     } catch (err: any) {
-      console.error('[moveCharacter] Error during movement:', err);
-      
-      // Additional logging for debugging transaction failures
-      if (err.transaction) {
-        console.error('[moveCharacter] Transaction details:', {
-          data: err.transaction.data,
-          from: err.transaction.from,
-          to: err.transaction.to,
-          hash: err.transaction.hash
-        });
-      }
-      
-      if (err.receipt) {
-        console.error('[moveCharacter] Receipt details:', {
-          status: err.receipt.status,
-          gasUsed: err.receipt.gasUsed.toString()
-        });
-      }
-      
+      console.error('[moveCharacter] Error:', err);
       throw new Error(err.message || `Error moving ${direction}`);
     }
-  }, [getContractForOperation, embeddedWallet, injectedWallet, getCurrentSessionKey]);
+  }, [embeddedContract]);
 
   // Attack a target - pure blockchain call
   const attackTarget = useCallback(async (characterId: string, targetIndex: number) => {
     try {
-      // Use session key (embedded wallet) for combat
-      const contract = getContractForOperation('combat');
-      if (!contract) throw new Error("No contract available for combat");
+      console.log(`[attackTarget] Attacking target ${targetIndex} with character ${characterId}`);
       
-      const tx = await contract.attack(characterId, targetIndex, { gasLimit: 850000 });
+      // Directly use embedded contract for combat
+      if (!embeddedContract) {
+        throw new Error('Session key wallet not available. Please refresh the page and try again.');
+      }
+      
+      const tx = await embeddedContract.attack(characterId, targetIndex, { gasLimit: 850000 });
+      console.log(`[attackTarget] Transaction sent: ${tx.hash}`);
       
       // Wait for transaction to be mined
-      await tx.wait();
-      
+      const receipt = await tx.wait();
+      console.log(`[attackTarget] Attack completed: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
       return true;
     } catch (err: any) {
-      console.error("Error attacking target:", err);
+      console.error("[attackTarget] Error:", err);
       throw new Error(err.message || "Error attacking target");
     }
-  }, [getContractForOperation]);
+  }, [embeddedContract]);
 
   // Update session key - pure blockchain call
   const updateSessionKey = useCallback(async (newSessionKey: string, sessionKeyDeadline: string = MAX_SAFE_UINT256) => {
