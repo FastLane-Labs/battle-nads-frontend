@@ -1,88 +1,33 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import * as ethers from 'ethers';
 import { useWallet } from '../providers/WalletProvider';
+import { useContracts } from './useContracts';
 import { parseFrontendData, createGameState } from '../utils/gameDataConverters';
 import { GameState } from '../types/gameTypes';
-
-// ABI snippets for the Battle-Nads contracts
-const ENTRYPOINT_ABI = [
-  // Existing functions
-  "function executeWithSessionKey(bytes calldata data, bytes calldata sessionKeySignature) external",
-  
-  // Session key functions
-  "function updateSessionKey(address sessionKey, uint256 sessionKeyDeadline) external payable returns (address previousKey, uint256 balanceOnPreviousKey)",
-  "function getCurrentSessionKey(bytes32 characterID) public view returns (tuple(address key, uint64 expiration) sessionKey)",
-  
-  // Movement functions
-  "function moveNorth(bytes32 characterID) external",
-  "function moveSouth(bytes32 characterID) external",
-  "function moveEast(bytes32 characterID) external",
-  "function moveWest(bytes32 characterID) external",
-  "function moveUp(bytes32 characterID) external",
-  "function moveDown(bytes32 characterID) external",
-  
-  // Combat functions
-  "function attack(bytes32 characterID, uint256 targetIndex) external",
-  
-  // Equipment functions
-  "function equipWeapon(bytes32 characterID, uint8 weaponID) external",
-  "function equipArmor(bytes32 characterID, uint8 armorID) external",
-  
-  // Character functions
-  "function createCharacter(string memory name, uint256 strength, uint256 vitality, uint256 dexterity, uint256 quickness, uint256 sturdiness, uint256 luck, address sessionKey, uint256 sessionKeyDeadline) external payable returns (bytes32 characterID)",
-  "function allocatePoints(bytes32 characterID, uint256 newStrength, uint256 newVitality, uint256 newDexterity, uint256 newQuickness, uint256 newSturdiness, uint256 newLuck) external",
-  "function zoneChat(bytes32 characterID, string memory message) external",
-  
-  // View functions
-  "function getBattleNad(bytes32 characterID) public view returns (tuple(bytes32 id, tuple(uint8 strength, uint8 vitality, uint8 dexterity, uint8 quickness, uint8 sturdiness, uint8 luck, uint8 depth, uint8 x, uint8 y, uint8 index, uint16 health, uint8 sumOfCombatantLevels, uint8 combatants, uint8 nextTargetIndex, uint64 combatantBitMap, uint8 weaponID, uint8 armorID, uint8 level, uint16 experience, bool isMonster) stats, tuple(string name, uint256 baseDamage, uint256 bonusDamage, uint256 accuracy, uint256 speed) weapon, tuple(string name, uint256 armorFactor, uint256 armorQuality, uint256 flexibility, uint256 weight) armor, tuple(uint64 weaponBitmap, uint64 armorBitmap, uint128 balance) inventory, tuple(bool updateStats, bool updateInventory, bool updateActiveTask, bool updateOwner, bool died) tracker, address activeTask, address owner, string name) character)",
-  "function getBattleNadsInArea(uint8 depth, uint8 x, uint8 y) public view returns (tuple(bytes32 id, tuple(uint8 strength, uint8 vitality, uint8 dexterity, uint8 quickness, uint8 sturdiness, uint8 luck, uint8 depth, uint8 x, uint8 y, uint8 index, uint16 health, uint8 sumOfCombatantLevels, uint8 combatants, uint8 nextTargetIndex, uint64 combatantBitMap, uint8 weaponID, uint8 armorID, uint8 level, uint16 experience, bool isMonster) stats, tuple(string name, uint256 baseDamage, uint256 bonusDamage, uint256 accuracy, uint256 speed) weapon, tuple(string name, uint256 armorFactor, uint256 armorQuality, uint256 flexibility, uint256 weight) armor, tuple(uint64 weaponBitmap, uint64 armorBitmap, uint128 balance) inventory, tuple(bool updateStats, bool updateInventory, bool updateActiveTask, bool updateOwner, bool died) tracker, address activeTask, address owner, string name)[] characters)",
-  "function getPlayerCharacterIDs(address owner) external view returns (bytes32[] memory characterIDs)",
-  "function getAreaInfo(uint8 depth, uint8 x, uint8 y) external view returns (tuple(uint8 playerCount, uint32 sumOfPlayerLevels, uint64 playerBitMap, uint8 monsterCount, uint32 sumOfMonsterLevels, uint64 monsterBitMap, uint8 depth, uint8 x, uint8 y, bool update) area, uint8 playerCount, uint8 monsterCount, uint8 avgPlayerLevel, uint8 avgMonsterLevel)",
-  "function getAreaCombatState(bytes32 characterID) external view returns (bool inCombat, uint8 combatantCount, tuple(bytes32 id, tuple(uint8 strength, uint8 vitality, uint8 dexterity, uint8 quickness, uint8 sturdiness, uint8 luck, uint8 depth, uint8 x, uint8 y, uint8 index, uint16 health, uint8 sumOfCombatantLevels, uint8 combatants, uint8 nextTargetIndex, uint64 combatantBitMap, uint8 weaponID, uint8 armorID, uint8 level, uint16 experience, bool isMonster) stats, tuple(string name, uint256 baseDamage, uint256 bonusDamage, uint256 accuracy, uint256 speed) weapon, tuple(string name, uint256 armorFactor, uint256 armorQuality, uint256 flexibility, uint256 weight) armor, tuple(uint64 weaponBitmap, uint64 armorBitmap, uint128 balance) inventory, tuple(bool updateStats, bool updateInventory, bool updateActiveTask, bool updateOwner, bool died) tracker, address activeTask, address owner)[] enemies, uint8 targetIndex)",
-  "function getEquippableWeapons(bytes32 characterID) external view returns (uint8[] memory weaponIDs, string[] memory weaponNames, uint8 currentWeaponID)",
-  "function getEquippableArmor(bytes32 characterID) external view returns (uint8[] memory armorIDs, string[] memory armorNames, uint8 currentArmorID)",
-  "function getMovementOptions(bytes32 characterID) external view returns (bool canMoveNorth, bool canMoveSouth, bool canMoveEast, bool canMoveWest, bool canMoveUp, bool canMoveDown)",
-  "function getAttackOptions(bytes32 characterID) external view returns (bool canAttack, bytes32[] memory targets, uint8[] memory targetIndexes)",
-  
-  // Key comprehensive function that gets all frontend data in one call
-  "function getFrontendData(bytes32 characterID) public view returns (tuple(bytes32 id, tuple(uint8 strength, uint8 vitality, uint8 dexterity, uint8 quickness, uint8 sturdiness, uint8 luck, uint8 depth, uint8 x, uint8 y, uint8 index, uint16 health, uint8 sumOfCombatantLevels, uint8 combatants, uint8 nextTargetIndex, uint64 combatantBitMap, uint8 weaponID, uint8 armorID, uint8 level, uint16 experience, bool isMonster) stats, tuple(string name, uint256 baseDamage, uint256 bonusDamage, uint256 accuracy, uint256 speed) weapon, tuple(string name, uint256 armorFactor, uint256 armorQuality, uint256 flexibility, uint256 weight) armor, tuple(uint64 weaponBitmap, uint64 armorBitmap, uint128 balance) inventory, tuple(bool updateStats, bool updateInventory, bool updateActiveTask, bool updateOwner, bool died) tracker, address activeTask, address owner, string name) character, tuple(bytes32 id, tuple(uint8 strength, uint8 vitality, uint8 dexterity, uint8 quickness, uint8 sturdiness, uint8 luck, uint8 depth, uint8 x, uint8 y, uint8 index, uint16 health, uint8 sumOfCombatantLevels, uint8 combatants, uint8 nextTargetIndex, uint64 combatantBitMap, uint8 weaponID, uint8 armorID, uint8 level, uint16 experience, bool isMonster) stats, tuple(string name, uint256 baseDamage, uint256 bonusDamage, uint256 accuracy, uint256 speed) weapon, tuple(string name, uint256 armorFactor, uint256 armorQuality, uint256 flexibility, uint256 weight) armor, tuple(uint64 weaponBitmap, uint64 armorBitmap, uint128 balance) inventory, tuple(bool updateStats, bool updateInventory, bool updateActiveTask, bool updateOwner, bool died) tracker, address activeTask, address owner, string name)[] combatants, tuple(bytes32 id, tuple(uint8 strength, uint8 vitality, uint8 dexterity, uint8 quickness, uint8 sturdiness, uint8 luck, uint8 depth, uint8 x, uint8 y, uint8 index, uint16 health, uint8 sumOfCombatantLevels, uint8 combatants, uint8 nextTargetIndex, uint64 combatantBitMap, uint8 weaponID, uint8 armorID, uint8 level, uint16 experience, bool isMonster) stats, tuple(string name, uint256 baseDamage, uint256 bonusDamage, uint256 accuracy, uint256 speed) weapon, tuple(string name, uint256 armorFactor, uint256 armorQuality, uint256 flexibility, uint256 weight) armor, tuple(uint64 weaponBitmap, uint64 armorBitmap, uint128 balance) inventory, tuple(bool updateStats, bool updateInventory, bool updateActiveTask, bool updateOwner, bool died) tracker, address activeTask, address owner, string name)[] noncombatants, tuple(uint8 playerCount, uint32 sumOfPlayerLevels, uint64 playerBitMap, uint8 monsterCount, uint32 sumOfMonsterLevels, uint64 monsterBitMap, uint8 depth, uint8 x, uint8 y, bool update)[5][5] miniMap, uint8[] equipableWeaponIDs, string[] equipableWeaponNames, uint8[] equipableArmorIDs, string[] equipableArmorNames, uint256 unallocatedAttributePoints)",
-  
-  // Estimation functions - recently moved to Getters
-  "function estimateBuyInAmountInMON() external view returns (uint256 minAmount)",
-  "function estimateBuyInAmountInShMON() external view returns (uint256 minBondedShares)",
-  "function shortfallToRecommendedBalanceInMON(bytes32 characterID) external view returns (uint256 minAmount)",
-  "function shortfallToRecommendedBalanceInShMON(bytes32 characterID) external view returns (uint256 minBondedShares)"
-];
-
-// Use environment variables for contract addresses and RPC URLs
-const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0xbD4511F188B606e5a74A62b7b0F516d0139d76D5";
-
-// Primary and fallback RPC URLs
-const PRIMARY_RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";
-const FALLBACK_RPC_URL = "https://monad-testnet-rpc.dwellir.com";
-const RPC_URL = process.env.NEXT_PUBLIC_MONAD_RPC_URL || PRIMARY_RPC_URL;
 
 // Maximum safe integer for uint256 in Solidity
 const MAX_SAFE_UINT256 = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
 // Create a safe localStorage key based on the contract address to avoid conflicts
-const LOCALSTORAGE_KEY = `battleNadsCharacterId_${ENTRYPOINT_ADDRESS}`;
-
-// Event interface definition for CharacterCreated event
-interface CharacterCreatedEvent {
-  characterID: string;
-  owner: string;
-}
+const LOCALSTORAGE_KEY = `battleNadsCharacterId_${process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0xbD4511F188B606e5a74A62b7b0F516d0139d76D5"}`;
 
 export const useBattleNads = () => {
   console.log("useBattleNads hook initialized");
   const { injectedWallet, embeddedWallet } = useWallet();
+  const { readContract, injectedContract, embeddedContract, error: contractError } = useContracts();
 
   // Keep minimal state for the hook itself
   const [characterId, setCharacterId] = useState<string | null>(null);
   // Add loading and error states for backward compatibility
   const [loading, setLoading] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(contractError);
+
+  // Update error state when contract error changes
+  useEffect(() => {
+    if (contractError) {
+      setError(contractError);
+    }
+  }, [contractError]);
 
   // Load stored characterId on mount
   useEffect(() => {
@@ -90,110 +35,15 @@ export const useBattleNads = () => {
     if (storedId) setCharacterId(storedId);
   }, []);
 
-  // Create a memoized provider that prioritizes the injected wallet's provider
-  const provider = useMemo(() => {
-    console.log('[useBattleNads] Creating provider...');
-    // First try to use an existing wallet provider to save RPC costs
-    if (injectedWallet?.provider) {
-      console.log('[useBattleNads] Using injectedWallet provider');
-      return injectedWallet.provider;
-    }
-    
-    if (embeddedWallet?.provider) {
-      console.log('[useBattleNads] Using embeddedWallet provider');
-      return embeddedWallet.provider;
-    }
-    
-    // Fallback to a read-only provider if no wallet is connected
-    console.log(`[useBattleNads] Creating new JsonRpcProvider with ${RPC_URL}`);
-    try {
-      const fallbackProvider = new ethers.JsonRpcProvider(RPC_URL);
-      
-      // Add error listener for debugging
-      fallbackProvider.on("error", (error) => {
-        console.error(`[useBattleNads] Provider error:`, error);
-      });
-      
-      // Test the connection
-      fallbackProvider.getBlockNumber().catch(error => {
-        console.error('[useBattleNads] Primary RPC failed, trying fallback:', error);
-        return new ethers.JsonRpcProvider(FALLBACK_RPC_URL);
-      });
-      
-      return fallbackProvider;
-    } catch (error) {
-      console.error('[useBattleNads] Failed to create primary provider, trying fallback:', error);
-      return new ethers.JsonRpcProvider(FALLBACK_RPC_URL);
-    }
-  }, [injectedWallet?.provider, embeddedWallet?.provider]);
-
-  // Create a memoized contract instance for read-only operations
-  const readContract = useMemo(() => {
-    console.log('[useBattleNads] Creating read-only contract instance with provider');
-    return new ethers.Contract(ENTRYPOINT_ADDRESS, ENTRYPOINT_ABI, provider);
-  }, [provider]);
-
-  // Simplified and centralized wallet selection logic
-  const getSigner = useCallback((operationType: 'creation' | 'session' | 'gas' | 'movement' | 'combat' | 'equipment' = 'session') => {
-    console.log(`[getSigner] Operation type: ${operationType}`);
-    
-    // Log available wallets for debugging
-    console.log(`[getSigner] Injected wallet:`, injectedWallet ? {
-      address: injectedWallet.address,
-      type: injectedWallet.walletClientType,
-      hasSigner: !!injectedWallet.signer
-    } : 'Not connected');
-    console.log(`[getSigner] Embedded wallet:`, embeddedWallet ? {
-      address: embeddedWallet.address,
-      type: embeddedWallet.walletClientType,
-      hasSigner: !!embeddedWallet.signer
-    } : 'Not connected');
-    
-    // For character creation, gas refill, and session key updates, use the injected wallet (owner wallet)
-    if (['creation', 'gas', 'session'].includes(operationType)) {
-      if (!injectedWallet?.signer) {
-        throw new Error('No owner wallet connected. Please connect your owner wallet first.');
-      }
-      console.log(`[getSigner] Using owner wallet (injected) for operation: ${operationType}`);
-      return injectedWallet.signer;
-    }
-    
-    // For all other operations (movement, combat, equipment), prefer the embedded wallet (session key)
-    if (['movement', 'combat', 'equipment'].includes(operationType) && embeddedWallet?.signer) {
-      console.log(`[getSigner] Using embedded wallet (session key) for operation: ${operationType}`);
-      return embeddedWallet.signer;
-    }
-    
-    // Fallback to injected wallet if available
-    if (injectedWallet?.signer) {
-      console.log(`[getSigner] Falling back to injected wallet for operation: ${operationType}`);
-      return injectedWallet.signer;
-    }
-    
-    throw new Error('No connected wallet found. Please connect a wallet first.');
-  }, [injectedWallet, embeddedWallet]);
-
-  // Function to get a write-enabled contract with the appropriate signer
-  const getWriteContract = useCallback((operationType: 'creation' | 'session' | 'gas' | 'movement' | 'combat' | 'equipment' = 'session') => {
-    console.log(`[getWriteContract] Getting write contract for operation: ${operationType}`);
-    const signer = getSigner(operationType);
-    return readContract.connect(signer) as ethers.Contract & {
-      moveNorth: (characterId: string, options?: any) => Promise<any>;
-      moveSouth: (characterId: string, options?: any) => Promise<any>;
-      moveEast: (characterId: string, options?: any) => Promise<any>;
-      moveWest: (characterId: string, options?: any) => Promise<any>;
-      moveUp: (characterId: string, options?: any) => Promise<any>;
-      moveDown: (characterId: string, options?: any) => Promise<any>;
-      attack: (characterId: string, targetIndex: number, options?: any) => Promise<any>;
-      createCharacter: (name: string, strength: number, vitality: number, dexterity: number, quickness: number, sturdiness: number, luck: number, sessionKey: string, sessionKeyDeadline: string, options?: any) => Promise<any>;
-      updateSessionKey: (sessionKey: string, sessionKeyDeadline: string, options?: any) => Promise<any>;
-    };
-  }, [readContract, getSigner]);
-
   // Get current session key for a character
   const getCurrentSessionKey = useCallback(async (characterId: string) => {
     try {
       console.log(`[getCurrentSessionKey] Getting session key for character ${characterId}`);
+      
+      if (!readContract) {
+        console.error("[getCurrentSessionKey] No read contract available to check session key");
+        return null;
+      }
       
       const sessionKeyResponse = await readContract.getCurrentSessionKey(characterId);
       // The response is a tuple containing (address key, uint64 expiration)
@@ -220,9 +70,54 @@ export const useBattleNads = () => {
       return sessionKeyAddress;
     } catch (err) {
       console.error(`[getCurrentSessionKey] Failed:`, err);
-      throw new Error(`Failed to get session key: ${(err as Error)?.message || "Unknown error"}`);
+      return null; // Return null instead of throwing to prevent cascading errors
     }
   }, [readContract]);
+
+  // Helper to select the appropriate contract based on operation type
+  const getContractForOperation = useCallback((operationType: 'creation' | 'session' | 'gas' | 'movement' | 'combat' | 'equipment' = 'session') => {
+    console.log(`[getContractForOperation] Operation type: ${operationType}`);
+    
+    // Log contract availability for debugging
+    console.log(`[getContractForOperation] Contract availability:`, {
+      readContractAvailable: !!readContract,
+      injectedContractAvailable: !!injectedContract,
+      embeddedContractAvailable: !!embeddedContract,
+    });
+    
+    // For character creation, session key updates, and gas operations, use injected (owner) wallet
+    if (['creation', 'gas', 'session'].includes(operationType)) {
+      if (!injectedContract) {
+        console.error('[getContractForOperation] No owner wallet connected for operation:', operationType);
+        throw new Error('No owner wallet connected. Please connect your owner wallet first.');
+      }
+      console.log(`[getContractForOperation] Using owner (injected) contract for ${operationType}`);
+      return injectedContract;
+    }
+    
+    // For movement, combat, and equipment operations, prefer embedded wallet (session key)
+    if (['movement', 'combat', 'equipment'].includes(operationType)) {
+      if (embeddedContract) {
+        console.log(`[getContractForOperation] Using embedded contract for ${operationType}`);
+        return embeddedContract;
+      }
+      
+      console.warn(`[getContractForOperation] No embedded contract available for ${operationType}, falling back to injected`);
+      // Fall back to injected contract if embedded not available
+      if (injectedContract) {
+        return injectedContract;
+      }
+    }
+    
+    // For read operations or fallback, use read-only contract
+    if (readContract) {
+      console.log(`[getContractForOperation] Using read-only contract for ${operationType}`);
+      return readContract;
+    }
+    
+    console.error(`[getContractForOperation] No contracts available for operation: ${operationType}`);
+    return null; // Return null instead of throwing - let the calling function handle it
+  }, [readContract, injectedContract, embeddedContract]);
 
   // Directly ensure we're prioritizing the true owner wallet (MetaMask) by checking wallet type
   const getOwnerWalletAddress = useCallback(() => {
@@ -263,6 +158,10 @@ export const useBattleNads = () => {
       // SECOND PRIORITY: Only if no localStorage value, check the blockchain using owner address
       console.log("No stored character ID in localStorage, checking blockchain");
       
+      if (!readContract) {
+        throw new Error("No contract available to check character ID");
+      }
+      
       // Get the true owner wallet address (MetaMask)
       const ownerAddress = addressToCheck || getOwnerWalletAddress();
       
@@ -281,7 +180,7 @@ export const useBattleNads = () => {
         try {
           console.debug("Checking for character with the getPlayerCharacterID function");
 
-          const characterId = await readContract.getPlayerCharacterID(ownerAddress);
+          const characterId = await readContract.getPlayerCharacterIDs(ownerAddress);
           
           // Check if character exists (not zero bytes)
           const isZeroBytes = characterId === "0x0000000000000000000000000000000000000000000000000000000000000000";
@@ -308,11 +207,12 @@ export const useBattleNads = () => {
       console.error('Error in getPlayerCharacterID:', err);
       return null;
     }
-  }, [readContract, getOwnerWalletAddress]);
+  }, [readContract, getOwnerWalletAddress, injectedWallet]);
 
   // Get character data - pure blockchain call
   const getCharacter = useCallback(async (characterId: string) => {
     try {
+      if (!readContract) throw new Error("No contract available to get character data");
       const character = await readContract.getBattleNad(characterId);
       return character;
     } catch (err: any) {
@@ -324,6 +224,7 @@ export const useBattleNads = () => {
   // Get characters in area - pure blockchain call
   const getCharactersInArea = useCallback(async (depth: number, x: number, y: number) => {
     try {
+      if (!readContract) throw new Error("No contract available to get characters in area");
       const characters = await readContract.getBattleNadsInArea(depth, x, y);
       return characters;
     } catch (err: any) {
@@ -335,6 +236,7 @@ export const useBattleNads = () => {
   // Get area information including monsters, players, etc. - pure blockchain call
   const getAreaInfo = useCallback(async (depth: number, x: number, y: number) => {
     try {
+      if (!readContract) throw new Error("No contract available to get area info");
       const areaInfo = await readContract.getAreaInfo(depth, x, y);
       return areaInfo;
     } catch (err: any) {
@@ -346,6 +248,7 @@ export const useBattleNads = () => {
   // Get combat state for a character - pure blockchain call
   const getAreaCombatState = useCallback(async (characterId: string) => {
     try {
+      if (!readContract) throw new Error("No contract available to get combat state");
       const combatState = await readContract.getAreaCombatState(characterId);
       return combatState;
     } catch (err: any) {
@@ -357,6 +260,7 @@ export const useBattleNads = () => {
   // Get movement options for a character - pure blockchain call
   const getMovementOptions = useCallback(async (characterId: string) => {
     try {
+      if (!readContract) throw new Error("No contract available to get movement options");
       const options = await readContract.getMovementOptions(characterId);
       return options;
     } catch (err: any) {
@@ -368,6 +272,7 @@ export const useBattleNads = () => {
   // Get attack options for a character - pure blockchain call
   const getAttackOptions = useCallback(async (characterId: string) => {
     try {
+      if (!readContract) throw new Error("No contract available to get attack options");
       const options = await readContract.getAttackOptions(characterId);
       return options;
     } catch (err: any) {
@@ -384,6 +289,7 @@ export const useBattleNads = () => {
     }
     
     try {
+      if (!readContract) throw new Error("No contract available to get frontend data");
       const frontendData = await readContract.getFrontendData(characterId);
       
       if (!frontendData) {
@@ -447,13 +353,17 @@ export const useBattleNads = () => {
   ) => {
     try {
       // Use owner wallet for character creation
-      const writeContract = getWriteContract('creation');
-      const ownerSigner = getSigner('creation');
+      const contract = getContractForOperation('creation');
+      if (!contract) throw new Error("No owner wallet contract available for character creation");
+      
+      if (!readContract) throw new Error("No read contract available for character creation");
 
       const buyInAmount = await readContract.estimateBuyInAmountInMON();
 
-      // We'll use the same sessionKey param as the connected wallet, for demonstration
-      const sessionKey = await ownerSigner.getAddress();
+      // Use the owner wallet address as the sessionKey
+      const sessionKey = await injectedWallet?.signer?.getAddress();
+      if (!sessionKey) throw new Error("No owner wallet address available");
+      
       const sessionKeyDeadline = MAX_SAFE_UINT256;
 
       const txOptions = {
@@ -461,7 +371,7 @@ export const useBattleNads = () => {
         gasLimit: 1_000_000,
       };
 
-      const tx = await writeContract.createCharacter(
+      const tx = await contract.createCharacter(
         name,
         strength,
         vitality,
@@ -487,9 +397,9 @@ export const useBattleNads = () => {
         console.warn('Could not parse CharacterCreated event');
       }
 
-      if (!newCharacterId) {
+      if (!newCharacterId && injectedWallet?.signer) {
         // fallback: fetch all IDs owned by current EOA
-        const walletAddress = await ownerSigner.getAddress();
+        const walletAddress = await injectedWallet.signer.getAddress();
         const characterIDs = await readContract.getPlayerCharacterIDs(walletAddress);
         if (characterIDs.length > 0) {
           newCharacterId = characterIDs[characterIDs.length - 1];
@@ -507,7 +417,7 @@ export const useBattleNads = () => {
       console.error("Error creating character:", err);
       throw new Error(err.message || 'Error creating character');
     }
-  }, [readContract, getSigner, getWriteContract]);
+  }, [getContractForOperation, readContract, injectedWallet?.signer]);
 
   // Move character - pure blockchain call
   const moveCharacter = useCallback(async (characterID: string, direction: string) => {
@@ -552,13 +462,14 @@ export const useBattleNads = () => {
       }
       
       // Use session key (embedded wallet) for movement
-      const movementSigner = getSigner('movement');
-      const writeContract = getWriteContract('movement');
+      const contract = getContractForOperation('movement');
+      if (!contract) throw new Error("No contract available for movement");
+      
       console.log(`[moveCharacter] Executing move ${direction} for character ${characterID}`);
       
       // Log the actual wallet address being used for the movement transaction
       try {
-        const signerAddress = await movementSigner.getAddress();
+        const signerAddress = await embeddedWallet.signer.getAddress();
         console.log(`[moveCharacter] Using wallet address: ${signerAddress}`);
         
         // Check if this is the session key wallet or owner wallet
@@ -581,18 +492,28 @@ export const useBattleNads = () => {
       
       let tx;
       const gasLimit = 850000;
-      if (direction === 'north') {
-        tx = await writeContract.moveNorth(characterID, { gasLimit });
-      } else if (direction === 'south') {
-        tx = await writeContract.moveSouth(characterID, { gasLimit });
-      } else if (direction === 'east') {
-        tx = await writeContract.moveEast(characterID, { gasLimit });
-      } else if (direction === 'west') {
-        tx = await writeContract.moveWest(characterID, { gasLimit });
-      } else if (direction === 'up') {
-        tx = await writeContract.moveUp(characterID, { gasLimit });
-      } else if (direction === 'down') {
-        tx = await writeContract.moveDown(characterID, { gasLimit });
+      
+      switch (direction) {
+        case 'north':
+          tx = await contract.moveNorth(characterID, { gasLimit });
+          break;
+        case 'south':
+          tx = await contract.moveSouth(characterID, { gasLimit });
+          break;
+        case 'east':
+          tx = await contract.moveEast(characterID, { gasLimit });
+          break;
+        case 'west':
+          tx = await contract.moveWest(characterID, { gasLimit });
+          break;
+        case 'up':
+          tx = await contract.moveUp(characterID, { gasLimit });
+          break;
+        case 'down':
+          tx = await contract.moveDown(characterID, { gasLimit });
+          break;
+        default:
+          throw new Error(`Invalid direction: ${direction}`);
       }
 
       if (tx) {
@@ -626,15 +547,16 @@ export const useBattleNads = () => {
       
       throw new Error(err.message || `Error moving ${direction}`);
     }
-  }, [readContract, getSigner, getWriteContract, embeddedWallet, injectedWallet, getCurrentSessionKey]);
+  }, [getContractForOperation, embeddedWallet, injectedWallet, getCurrentSessionKey]);
 
   // Attack a target - pure blockchain call
   const attackTarget = useCallback(async (characterId: string, targetIndex: number) => {
     try {
       // Use session key (embedded wallet) for combat
-      const writeContract = getWriteContract('combat');
+      const contract = getContractForOperation('combat');
+      if (!contract) throw new Error("No contract available for combat");
       
-      const tx = await writeContract.attack(characterId, targetIndex, { gasLimit: 850000 });
+      const tx = await contract.attack(characterId, targetIndex, { gasLimit: 850000 });
       
       // Wait for transaction to be mined
       await tx.wait();
@@ -644,13 +566,14 @@ export const useBattleNads = () => {
       console.error("Error attacking target:", err);
       throw new Error(err.message || "Error attacking target");
     }
-  }, [getWriteContract]);
+  }, [getContractForOperation]);
 
   // Update session key - pure blockchain call
   const updateSessionKey = useCallback(async (newSessionKey: string, sessionKeyDeadline: string = MAX_SAFE_UINT256) => {
     try {
       // Must use the owner wallet (injected wallet) to update session keys
-      const writeContract = getWriteContract('creation');
+      const contract = getContractForOperation('creation');
+      if (!contract) throw new Error("No owner wallet contract available for session key update");
       
       console.log(`[updateSessionKey] Setting session key to ${newSessionKey}`);
       console.log(`[updateSessionKey] Session key deadline: ${sessionKeyDeadline}`);
@@ -663,7 +586,7 @@ export const useBattleNads = () => {
       console.log(`[updateSessionKey] Using very high gas limit: ${highGasLimit}`);
       
       // Call the updateSessionKey function
-      const tx = await writeContract.updateSessionKey(
+      const tx = await contract.updateSessionKey(
         newSessionKey,
         sessionKeyDeadline,
         { 
@@ -704,7 +627,7 @@ export const useBattleNads = () => {
         error: errorMessage
       };
     }
-  }, [getWriteContract]);
+  }, [getContractForOperation]);
 
   // Set the session key to the current embedded wallet address
   const setSessionKeyToEmbeddedWallet = useCallback(async (characterId: string) => {
@@ -784,6 +707,8 @@ export const useBattleNads = () => {
   // Get player characters - pure blockchain call
   const getPlayerCharacters = useCallback(async (address: string) => {
     try {
+      if (!readContract) throw new Error("No contract available to get player characters");
+      
       // Get character IDs owned by the player
       const characterIds = await readContract.getPlayerCharacterIDs(address);
       
@@ -806,9 +731,13 @@ export const useBattleNads = () => {
   // Helper for debugging/migrating
   const getCharacterIdByTransactionHash = useCallback(async (txHash: string) => {
     try {
+      if (!injectedWallet?.provider) {
+        throw new Error("No provider available to get transaction receipt");
+      }
+      
       // Get transaction receipt
       console.log(`Fetching receipt for transaction: ${txHash}`);
-      const receipt = await provider.getTransactionReceipt(txHash);
+      const receipt = await injectedWallet.provider.getTransactionReceipt(txHash);
 
       console.log(`Transaction receipt: ${JSON.stringify(receipt)}`);
       
@@ -842,7 +771,7 @@ export const useBattleNads = () => {
       console.error("Error getting character ID by transaction hash:", err);
       return null;
     }
-  }, [provider]);
+  }, [injectedWallet?.provider]);
 
   // Return only contract interaction functions
   return {
