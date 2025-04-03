@@ -68,7 +68,7 @@ const WalletContext = createContext<WalletContextValue>({
 });
 
 export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { authenticated, user, logout: privyLogout } = usePrivy();
+  const { authenticated, logout: privyLogout } = usePrivy();
   const { wallets, ready: walletsReady } = useWallets();
 
   const [currentWallet, setCurrentWallet] = useState<WalletType>('none');
