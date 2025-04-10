@@ -1086,7 +1086,7 @@ const GameDemo: React.FC = () => {
                   <Text color="green.300" mt={2} fontSize="sm">Explore to find monsters and gain experience!</Text>
                 </Box>
               )}
-            </Box>
+      </Box>
             
             {/* Combat Log */}
             <Box 
@@ -1146,7 +1146,7 @@ const GameDemo: React.FC = () => {
                 ) : (
                   <Center h="100%">
                     <Text fontSize="md" color="gray.400">No combat activity yet.</Text>
-                  </Center>
+    </Center>
                 )}
               </Box>
             </Box>
