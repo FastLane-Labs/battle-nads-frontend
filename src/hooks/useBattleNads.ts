@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import * as ethers from 'ethers';
 import { useWallet } from '../providers/WalletProvider';
 import { useContracts } from './useContracts';
@@ -9,8 +9,20 @@ import { getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKe
 // Maximum safe integer for uint256 in Solidity
 const MAX_SAFE_UINT256 = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
 
+// Flag to control debug logging (set to false in production)
+const DEBUG_LOGGING = false;
+
+// Debug logger that only logs when debugging is enabled
+const debugLog = (...args: any[]) => {
+  if (DEBUG_LOGGING) {
+    console.log(...args);
+  }
+};
+
 export const useBattleNads = () => {
-  console.log("useBattleNads hook initialized");
+  // Only log on development and when needed
+  debugLog("useBattleNads hook initialized");
+  
   const { injectedWallet, embeddedWallet } = useWallet();
   const { readContract, injectedContract, embeddedContract, error: contractError } = useContracts();
 
@@ -19,6 +31,9 @@ export const useBattleNads = () => {
   // Add loading and error states for backward compatibility
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(contractError);
+  
+  // Use ref to track initialization status and prevent multiple initializations
+  const initializedRef = useRef(false);
 
   // Update error state when contract error changes
   useEffect(() => {
@@ -29,30 +44,46 @@ export const useBattleNads = () => {
 
   // Add back effect to load characterId from localStorage on mount
   useEffect(() => {
-    // Check for MetaMask directly first - this is the most reliable way to get the owner address
-    let ownerAddress = null;
-    if (window.ethereum && (window.ethereum as any).isMetaMask && (window.ethereum as any).selectedAddress) {
-      ownerAddress = (window.ethereum as any).selectedAddress;
-    } else if (injectedWallet?.address) {
-      ownerAddress = injectedWallet.address;
+    // Skip if already initialized
+    if (initializedRef.current) {
+      return;
     }
     
-    if (ownerAddress) {
-      const storageKey = getCharacterLocalStorageKey(ownerAddress);
-      if (storageKey) {
-        const storedId = localStorage.getItem(storageKey);
-        if (storedId) {
-          console.log(`[useBattleNads] Initializing with stored character ID: ${storedId}`);
-          setCharacterId(storedId);
+    // Mark as initialized
+    initializedRef.current = true;
+    
+    const loadInitialCharacterId = async () => {
+      try {
+        // Check for MetaMask directly first - this is the most reliable way to get the owner address
+        let ownerAddress = null;
+        if (window.ethereum && (window.ethereum as any).isMetaMask && (window.ethereum as any).selectedAddress) {
+          ownerAddress = (window.ethereum as any).selectedAddress;
+        } else if (injectedWallet?.address) {
+          ownerAddress = injectedWallet.address;
         }
+        
+        if (ownerAddress) {
+          const storageKey = getCharacterLocalStorageKey(ownerAddress);
+          if (storageKey) {
+            const storedId = localStorage.getItem(storageKey);
+            if (storedId) {
+              debugLog(`[useBattleNads] Initializing with stored character ID: ${storedId}`);
+              setCharacterId(storedId);
+            }
+          }
+        }
+      } catch (error) {
+        console.error("[useBattleNads] Error loading initial character ID:", error);
       }
-    }
+    };
+    
+    loadInitialCharacterId();
   }, [injectedWallet?.address]);
 
   // Get current session key for a character
   const getCurrentSessionKey = useCallback(async (characterId: string) => {
     try {
-      console.log(`[getCurrentSessionKey] Getting session key for character ${characterId}`);
+      debugLog(`[getCurrentSessionKey] Getting session key for character ${characterId}`);
       
       if (!readContract) {
         console.error("[getCurrentSessionKey] No read contract available to check session key");
@@ -80,7 +111,7 @@ export const useBattleNads = () => {
         return null;
       }
       
-      console.log(`[getCurrentSessionKey] Found session key: ${sessionKeyAddress}`);
+      debugLog(`[getCurrentSessionKey] Found session key: ${sessionKeyAddress}`);
       return sessionKeyAddress;
     } catch (err) {
       console.error(`[getCurrentSessionKey] Failed:`, err);
@@ -90,7 +121,7 @@ export const useBattleNads = () => {
 
   // Helper to select the appropriate contract based on operation type
   const getContractForOperation = useCallback((operationType: 'creation' | 'session' | 'gas' | 'movement' | 'combat' | 'equipment' | 'read' = 'session') => {
-    console.log(`[getContractForOperation] Operation type: ${operationType}`);
+    debugLog(`[getContractForOperation] Operation type: ${operationType}`);
     
     // For read operations (queries), use read-only contract
     if (operationType === 'read') {
@@ -134,7 +165,7 @@ export const useBattleNads = () => {
   }, [injectedWallet]);
 
   // Get player character ID - pure blockchain call
-  const getPlayerCharacterID = useCallback(async (addressToCheck?: string) => {
+  const getPlayerCharacterID = useCallback(async (addressToCheck?: string): Promise<string | null> => {
     try {
       // Get the true owner wallet address (MetaMask)
       const ownerAddress = addressToCheck || getOwnerWalletAddress();
@@ -161,47 +192,29 @@ export const useBattleNads = () => {
       }
       
       // SECOND PRIORITY: Only if no localStorage value, check the blockchain using owner address
-      console.log(`No stored character ID in localStorage for ${ownerAddress}, checking blockchain`);
+      debugLog("No character in localStorage, checking blockchain...");
       
       if (!readContract) {
-        throw new Error("No contract available to check character ID");
+        console.warn("No read contract available to check for character ID");
+        return null;
       }
       
-      // Use the getPlayerCharacterID function from the smart contract
-      if (ownerAddress) {
-        try {
-          console.debug("Checking for character with the getPlayerCharacterID function");
-
-          const characterId = await readContract.getPlayerCharacterID(ownerAddress);
-          
-          if (characterId) {
-            // Check if character exists (not zero bytes)
-            const isZeroBytes = characterId === "0x0000000000000000000000000000000000000000000000000000000000000000";
-            console.debug("Character ID from contract call:", characterId, "Is zero bytes:", isZeroBytes);
-            
-            if (!isZeroBytes) {
-              console.log("Character found:", characterId);
-              setCharacterId(characterId);
-              localStorage.setItem(storageKey, characterId);
-              return characterId;
-            }
-          }
-          
-          console.log("No character found for address:", ownerAddress);
-          return null;
-        } catch (err) {
-          console.error("Error calling getPlayerCharacterID:", err);
-          return null;
-        }
+      const characterIdFromChain = await readContract.getPlayerCharacterID(ownerAddress);
+      
+      // If valid character ID returned, store it
+      if (characterIdFromChain && characterIdFromChain !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+        debugLog(`Found character ID on blockchain for ${ownerAddress}:`, characterIdFromChain);
+        setCharacterId(characterIdFromChain);
+        localStorage.setItem(storageKey, characterIdFromChain);
+        return characterIdFromChain;
       }
       
-      console.log("No character found for owner address");
       return null;
     } catch (err) {
       console.error('Error in getPlayerCharacterID:', err);
       return null;
     }
-  }, [readContract, getOwnerWalletAddress, injectedWallet]);
+  }, [getOwnerWalletAddress, readContract]);
 
   // Get character data - pure blockchain call
   const getCharacter = useCallback(async (characterId: string) => {
@@ -398,9 +411,10 @@ export const useBattleNads = () => {
       if (!newCharacterId && injectedWallet?.signer) {
         // fallback: fetch all IDs owned by current EOA
         const walletAddress = await injectedWallet.signer.getAddress();
-        const characterID = await readContract.getPlayerCharacterID(walletAddress);
-        if (characterID && characterID !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
-          newCharacterId = characterID;
+        // Call the contract method directly to avoid name conflict with our hook function
+        const characterIDFromContract = await readContract.getPlayerCharacterID(walletAddress);
+        if (characterIDFromContract && characterIDFromContract !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+          newCharacterId = characterIDFromContract;
         }
       }
 
@@ -834,13 +848,19 @@ export const useBattleNads = () => {
   // New function to check if a player has a character (either in localStorage or on blockchain)
   const hasPlayerCharacter = useCallback(async (): Promise<boolean> => {
     try {
+      // Don't set loading to true if we already have a character ID in state
+      if (characterId) {
+        debugLog("Character ID already in state, no need to check again");
+        return true;
+      }
+      
       setLoading(true);
       
       // Get the owner address
       const ownerAddress = getOwnerWalletAddress();
       
       if (!ownerAddress) {
-        console.log("No wallet address available to check for character");
+        debugLog("No wallet address available to check for character");
         return false;
       }
       
@@ -849,24 +869,26 @@ export const useBattleNads = () => {
       if (storageKey) {
         const storedCharacterId = localStorage.getItem(storageKey);
         if (storedCharacterId) {
-          console.log("Character found in localStorage:", storedCharacterId);
+          debugLog("Character found in localStorage:", storedCharacterId);
+          // Update our state if we find a character ID
+          setCharacterId(storedCharacterId);
           return true;
         }
       }
       
       // If not in localStorage, check the blockchain
-      console.log("No character in localStorage, checking blockchain...");
-      const characterId = await getPlayerCharacterID(ownerAddress);
+      debugLog("No character in localStorage, checking blockchain...");
+      const characterIdFromChain = await getPlayerCharacterID(ownerAddress);
       
       // If we found a character on the blockchain, it will also be stored in localStorage by getPlayerCharacterID
-      return !!characterId;
+      return !!characterIdFromChain;
     } catch (error) {
       console.error("Error checking for player character:", error);
       return false;
     } finally {
       setLoading(false);
     }
-  }, [getOwnerWalletAddress, getPlayerCharacterID]);
+  }, [getOwnerWalletAddress, getPlayerCharacterID, characterId]);
 
   // Return only contract interaction functions
   return {

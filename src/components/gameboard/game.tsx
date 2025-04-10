@@ -120,6 +120,9 @@ const Game: React.FC = () => {
   
   const toast = useToast();
 
+  // Ref to track status change debounce timer
+  const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Derive a unified UI state from all the state variables
   const gameUIState = useMemo<GameUIState>(() => {
     // Show loading during any loading operation or status check
@@ -359,8 +362,13 @@ const Game: React.FC = () => {
 
   // Initialize the game on component mount
   useEffect(() => {
-    // Only run once
-    if (hasInitialized.current) return;
+    // More robust initialization check
+    if (hasInitialized.current) {
+      console.log("Game already initialized, skipping initialization");
+      return;
+    }
+    
+    // Set initialized immediately to prevent duplicate initialization
     hasInitialized.current = true;
     
     console.log("Game component mounted - initializing game...");
@@ -488,9 +496,14 @@ const Game: React.FC = () => {
     initializeGameData();
   }, []);
 
-  // Update effect to track status changes
+  // Update effect to track status changes with debounce
   useEffect(() => {
     console.log("Game status changed to:", status);
+    
+    // Clear any previous timeout
+    if (statusTimeoutRef.current) {
+      clearTimeout(statusTimeoutRef.current);
+    }
     
     // When status becomes ready, check if we need to load character data
     if (status === 'ready') {
@@ -503,18 +516,42 @@ const Game: React.FC = () => {
       // Check if we have a character ID available
       const availableCharId = characterId || battleNadsCharacterId;
       
-      // Use a slight delay to ensure all state changes have been applied
-      if (!loadingComplete && !loading && !hasLoadedData.current) {
-        console.log("Status is ready and no data loaded yet - loading character data");
-        console.log("Available character ID:", availableCharId);
+      // Stricter check to prevent multiple loads 
+      // Only load if: 
+      // 1. Not already loading
+      // 2. We haven't loaded data yet
+      // 3. We have a character ID
+      if (!loadingComplete && !loading && !hasLoadedData.current && availableCharId) {
+        // Immediately set the flag to prevent duplicate loads during state updates
         hasLoadedData.current = true;
         
-        // Use a slight delay to ensure all state is updated
-        setTimeout(() => {
+        console.log("Status is ready, character ID available, and no data loaded yet - loading character data", {
+          characterId: availableCharId,
+          loadingComplete, 
+          hasLoadedDataRef: hasLoadedData.current
+        });
+        
+        // Use a slight delay with debounce to ensure all state is updated
+        statusTimeoutRef.current = setTimeout(() => {
           loadCharacterData();
+          statusTimeoutRef.current = null;
         }, 500); // Increase delay to ensure initialization is fully complete
+      } else {
+        const reason = loading ? "already loading" :
+                      loadingComplete ? "loading already complete" :
+                      hasLoadedData.current ? "data already loaded (ref)" :
+                      !availableCharId ? "no character ID" : "unknown";
+                      
+        console.log(`Not loading character data: ${reason}`);
       }
     }
+    
+    // Clean up on unmount
+    return () => {
+      if (statusTimeoutRef.current) {
+        clearTimeout(statusTimeoutRef.current);
+      }
+    };
   }, [status, loadingComplete, loading, characterId, battleNadsCharacterId, error]);
 
   // Handle movement with centralized function
