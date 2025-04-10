@@ -334,15 +334,25 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           setAddress(foundEmbeddedWallet.address);
         }
       } else {
-        // Not initialized - clear current wallet state
+        // Clear current wallet state but still mark as initialized if authentication state is known
         setCurrentWallet('none');
         setSigner(null);
         setProvider(null);
-        setIsInitialized(false);
+        
+        // Important: Set isInitialized to true even if wallets are not available
+        // This allows redirect logic to work when cookies/storage are cleared
+        setIsInitialized(walletsReady || !authenticated);
       }
     } catch (e) {
       console.error('[WalletProvider] Failed to sync with Privy wallets:', e);
-      setIsInitialized(false);
+      // Set initialized to true even on error if we know authentication state
+      // This prevents loading spinner from showing indefinitely
+      setIsInitialized(walletsReady || !authenticated);
+      // Clear wallet state on error
+      setCurrentWallet('none');
+      setSigner(null);
+      setProvider(null);
+      setAddress(null);
     } finally {
       setLoading(false);
     }
@@ -389,6 +399,20 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     
     syncWithPrivyWallets();
   }, [walletsReady, authenticated, wallets, walletsChanged, syncWithPrivyWallets]);
+
+  // Add a specific effect to handle unauthenticated case immediately
+  useEffect(() => {
+    // If we know the user is not authenticated, we should set isInitialized to true
+    // This helps break out of loading screens without waiting for wallet sync
+    if (!authenticated && walletsReady) {
+      console.log("[WalletProvider] Setting isInitialized=true because user is not authenticated");
+      setCurrentWallet('none');
+      setSigner(null);
+      setProvider(null);
+      setAddress(null);
+      setIsInitialized(true);
+    }
+  }, [authenticated, walletsReady]);
 
   return (
     <WalletContext.Provider

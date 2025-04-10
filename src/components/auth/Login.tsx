@@ -73,8 +73,9 @@ const Login: React.FC = () => {
     // Redirect will happen in the useEffect above
   };
 
-  // Show loading when wallet provider is initializing or we're checking character
-  if (!isInitialized || checkingCharacter) {
+  // Show loading spinner only for active operations, not for wallet initialization
+  // This prevents infinite loading screens when wallet provider fails to initialize
+  if (checkingCharacter || !ready) {
     return (
       <Center height="100vh" bg="gray.900">
         <Spinner size="xl" color="purple.500" thickness="4px" />
