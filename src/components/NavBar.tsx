@@ -1,15 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip } from '@chakra-ui/react';
+import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip, Spinner } from '@chakra-ui/react';
 import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from '../providers/WalletProvider';
-
-// Create a safe localStorage key based on the contract address to avoid conflicts
-const LOCALSTORAGE_KEY = `battleNadsCharacterId_${process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0xbD4511F188B606e5a74A62b7b0F516d0139d76D5"}`;
+import { useBattleNads } from '../hooks/useBattleNads';
 
 const NavBar: React.FC = () => {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -18,9 +16,9 @@ const NavBar: React.FC = () => {
     address, 
     logout,
     injectedWallet,
-    embeddedWallet,
-    sessionKey
+    embeddedWallet
   } = useWallet();
+  const { hasPlayerCharacter, loading: characterLoading } = useBattleNads();
   const pathname = usePathname();
   const router = useRouter();
   
@@ -29,9 +27,34 @@ const NavBar: React.FC = () => {
   
   // Check if user has a character when component mounts or address changes
   useEffect(() => {
-    const storedCharacterId = localStorage.getItem(LOCALSTORAGE_KEY);
-    setHasCharacter(!!storedCharacterId);
-  }, [address]);
+    let isMounted = true;
+    
+    const checkCharacter = async () => {
+      try {
+        if (!address) {
+          if (isMounted) setHasCharacter(false);
+          return;
+        }
+        
+        const playerHasCharacter = await hasPlayerCharacter();
+        
+        if (isMounted) {
+          setHasCharacter(playerHasCharacter);
+        }
+      } catch (error) {
+        console.error("Error checking for character:", error);
+        if (isMounted) {
+          setHasCharacter(false);
+        }
+      }
+    };
+    
+    checkCharacter();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [address, hasPlayerCharacter]);
 
   const isActive = (path: string) => pathname === path;
   
@@ -48,8 +71,18 @@ const NavBar: React.FC = () => {
   
   // Handle logout and redirect to home
   const handleLogout = async () => {
-    await logout();
-    router.push('/');
+    try {
+      // Wait for the logout process to complete
+      await logout();
+      
+      // Add a small delay to ensure all state changes have propagated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Only navigate after logout is complete
+      router.push('/');
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   };
   
   return (
@@ -109,22 +142,29 @@ const NavBar: React.FC = () => {
                   Game
                 </Text>
               </Link>
-              {/* Only show Create link if user doesn't have a character */}
-              {!hasCharacter && (
-                <Link href="/create">
-                  <Text
-                    px={3}
-                    py={2}
-                    rounded="md"
-                    fontWeight={isActive('/create') ? 'bold' : 'normal'}
-                    bg={isActive('/create') ? 'blue.500' : 'transparent'}
-                    color={isActive('/create') ? 'white' : undefined}
-                    _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
-                    cursor="pointer"
-                  >
-                    Create
-                  </Text>
-                </Link>
+              {/* Show loading spinner while checking character - use characterLoading from hook */}
+              {characterLoading ? (
+                <Box px={3} py={2}>
+                  <Spinner size="sm" color="blue.500" />
+                </Box>
+              ) : (
+                /* Only show Create link if user doesn't have a character */
+                !hasCharacter && (
+                  <Link href="/create">
+                    <Text
+                      px={3}
+                      py={2}
+                      rounded="md"
+                      fontWeight={isActive('/create') ? 'bold' : 'normal'}
+                      bg={isActive('/create') ? 'blue.500' : 'transparent'}
+                      color={isActive('/create') ? 'white' : undefined}
+                      _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
+                      cursor="pointer"
+                    >
+                      Create
+                    </Text>
+                  </Link>
+                )
               )}
             </HStack>
           )}

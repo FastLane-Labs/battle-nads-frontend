@@ -8,10 +8,14 @@ import Game from '../../components/gameboard/game';
 import { useWallet } from '../../providers/WalletProvider';
 
 export default function DashboardPage() {
+  // Always define all state variables at the top
+  const [showLoading, setShowLoading] = useState(true);
+  
+  // Always call all hooks at the top level in the same order
   const { address, isInitialized } = useWallet();
   const router = useRouter();
   
-  // Redirect to home if not connected, but only after wallet state is initialized
+  // First useEffect - redirection logic
   useEffect(() => {
     if (isInitialized && !address) {
       console.log("No wallet address detected, redirecting to login");
@@ -19,7 +23,7 @@ export default function DashboardPage() {
     }
   }, [address, router, isInitialized]);
   
-  // Redirect to home if not connected regardless of initialization state
+  // Second useEffect - additional redirection logic
   useEffect(() => {
     // If no address, redirect to login regardless of isInitialized state
     // This ensures we don't get stuck in a loading screen
@@ -29,19 +33,7 @@ export default function DashboardPage() {
     }
   }, [address, router]);
   
-  // Show loading spinner while wallet state is initializing
-  if (!isInitialized) {
-    return (
-      <Center height="100vh" className="bg-gray-900">
-        <Spinner size="xl" color="purple.500" thickness="4px" />
-      </Center>
-    );
-  }
-  
-  // Show loading spinner while wallet state is initializing, but with a timeout
-  // to prevent infinite loading
-  const [showLoading, setShowLoading] = useState(true);
-  
+  // Third useEffect - loading timeout
   useEffect(() => {
     // Set a timeout to stop showing the loading spinner after 3 seconds
     const timer = setTimeout(() => {
@@ -56,25 +48,25 @@ export default function DashboardPage() {
     return () => clearTimeout(timer);
   }, [isInitialized, address, router]);
   
-  if (!isInitialized && showLoading) {
-    return (
-      <Center height="100vh" className="bg-gray-900">
-        <Spinner size="xl" color="purple.500" thickness="4px" />
-      </Center>
-    );
-  }
-  
-  // Early return if no wallet to prevent Game mounting
-  if (!address) {
-    return null; // Will redirect without showing game
-  }
-  
+  // Determine what to render based on state
+  // Use a single return statement with conditional rendering inside
+  // to ensure consistent hook calls
   return (
-    <Box className="min-h-screen bg-gray-900">
-      <NavBar />
-      <Box pt="60px">
-        <Game />
-      </Box>
-    </Box>
+    <>
+      {(!isInitialized || (!isInitialized && showLoading)) ? (
+        <Center height="100vh" className="bg-gray-900">
+          <Spinner size="xl" color="purple.500" thickness="4px" />
+        </Center>
+      ) : !address ? (
+        null // Will redirect without showing game
+      ) : (
+        <Box className="min-h-screen bg-gray-900">
+          <NavBar />
+          <Box pt="60px">
+            <Game />
+          </Box>
+        </Box>
+      )}
+    </>
   );
 } 

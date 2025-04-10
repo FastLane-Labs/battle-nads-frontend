@@ -179,12 +179,27 @@ const Game: React.FC = () => {
 
   // Load character data from chain using centralized state
   const loadCharacterData = async () => {
-    // Track moving state locally for UI purposes
-    if (!isMoving) {
-      setGameState(current => ({ ...current, loading: true }));
-    }
-    
     try {
+      // Update the loading state if this isn't during movement
+      if (!isMoving) {
+        setGameState(current => ({ ...current, loading: true }));
+      }
+      
+      console.log("=== LOAD CHARACTER DATA STARTED ===");
+      console.log("Current state:", { 
+        characterId, 
+        battleNadsCharacterId,
+        status,
+        loadingComplete: loadingComplete,
+        hasLoadedData: hasLoadedData.current
+      });
+      
+      // Only proceed if necessary
+      if (status !== 'ready') {
+        console.log("Game not ready (status: " + status + "), skipping character data load");
+        return;
+      }
+      
       console.log("==========================================");
       console.log("LOADING CHARACTER DATA STARTED");
       
@@ -244,16 +259,17 @@ const Game: React.FC = () => {
       }
       
       // Check game status - allow for initialization in progress
-      if (status !== 'ready' && !status.includes('loading-game-data')) {
-        console.log("Game not ready (status:", status, ") - cannot load character data");
-        throw new Error(`Game not initialized properly (status: ${status})`);
+      const statusStr = status as string; // Add proper type assertion
+      if (statusStr !== 'ready' && !statusStr.includes('loading-game-data')) {
+        console.log("Game not ready (status:", statusStr, ") - cannot load character data");
+        throw new Error(`Game not initialized properly (status: ${statusStr})`);
       }
       
       console.log("Game status is ready, proceeding to load character data");
       
       // Get the character ID
       console.log("Looking for character ID");
-      const existingCharId = characterId || battleNadsCharacterId;
+      let existingCharId = characterId || battleNadsCharacterId;
       
       if (!existingCharId) {
         // If no character ID in state, get it from the player's address
@@ -268,6 +284,8 @@ const Game: React.FC = () => {
             throw new Error("No character found for this wallet");
           }
           
+          // Important: Save the character ID immediately
+          existingCharId = charId;
           setCharacterId(charId);
         } else {
           throw new Error("No wallet connected");
@@ -278,15 +296,29 @@ const Game: React.FC = () => {
       }
       
       // Get character data using centralized state management
-      const charToUse = characterId || existingCharId;
+      const charToUse = existingCharId; // Use the local variable that we know has a value
       console.log("Loading data for character ID:", charToUse);
       
       if (!charToUse) {
+        console.error("Character ID is null despite checks:", {
+          characterId,
+          battleNadsCharacterId,
+          existingCharId
+        });
         throw new Error("No character ID available");
       }
       
+      // Wait briefly to ensure state is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Double-check that we have a valid character ID before proceeding
+      const finalCharId = charToUse;
+      if (!finalCharId) {
+        throw new Error("Character ID was lost during loading process");
+      }
+      
       // Use the centralized getGameState function that updates Recoil atom
-      await getGameState(charToUse);
+      await getGameState(finalCharId);
       
       // Update position from the character data if available
       if (character) {
@@ -337,6 +369,7 @@ const Game: React.FC = () => {
       console.log("==========================================");
       console.log("INITIALIZATION FLOW STARTED");
       console.log("Current status:", status);
+      console.log("Current character ID state:", { characterId, battleNadsCharacterId });
       console.log("Wallet state:", { 
         address, 
         injectedWallet: injectedWallet?.address,
@@ -345,6 +378,12 @@ const Game: React.FC = () => {
       });
       
       try {
+        // If we already have a character ID, make sure it's properly set in state
+        if (battleNadsCharacterId && !characterId) {
+          console.log("Found character ID from hook but not in local state, setting it:", battleNadsCharacterId);
+          setCharacterId(battleNadsCharacterId);
+        }
+        
         // Wait a moment for wallet states to stabilize
         await new Promise(resolve => setTimeout(resolve, 800));
         
@@ -461,9 +500,13 @@ const Game: React.FC = () => {
         setGameState(current => ({ ...current, error: null }));
       }
       
+      // Check if we have a character ID available
+      const availableCharId = characterId || battleNadsCharacterId;
+      
       // Use a slight delay to ensure all state changes have been applied
       if (!loadingComplete && !loading && !hasLoadedData.current) {
         console.log("Status is ready and no data loaded yet - loading character data");
+        console.log("Available character ID:", availableCharId);
         hasLoadedData.current = true;
         
         // Use a slight delay to ensure all state is updated
@@ -472,7 +515,7 @@ const Game: React.FC = () => {
         }, 500); // Increase delay to ensure initialization is fully complete
       }
     }
-  }, [status, loadingComplete, loading]);
+  }, [status, loadingComplete, loading, characterId, battleNadsCharacterId, error]);
 
   // Handle movement with centralized function
   const handleMove = async (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
@@ -678,9 +721,10 @@ const Game: React.FC = () => {
   }, [character]);
 
   // Replace conditional rendering with a switch statement based on gameUIState
+  let renderContent;
   switch (gameUIState) {
     case 'loading':
-      return (
+      renderContent = (
         <Center height="100vh" className="bg-gray-900" color="white">
           <VStack spacing={6}>
             <Heading as="h1" size="xl" color="white">Battle Nads</Heading>
@@ -689,9 +733,10 @@ const Game: React.FC = () => {
           </VStack>
         </Center>
       );
+      break;
       
     case 'error':
-      return (
+      renderContent = (
         <Center height="100vh" className="bg-gray-900" color="white">
           <VStack spacing={6} maxWidth="600px" p={6}>
             <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
@@ -709,9 +754,10 @@ const Game: React.FC = () => {
           </VStack>
         </Center>
       );
+      break;
       
     case 'need-wallet':
-      return (
+      renderContent = (
         <Center height="100vh" className="bg-gray-900" color="white">
           <VStack spacing={6} maxWidth="600px" p={6}>
             <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
@@ -728,9 +774,10 @@ const Game: React.FC = () => {
           </VStack>
         </Center>
       );
+      break;
       
     case 'need-embedded-wallet':
-      return (
+      renderContent = (
         <Center height="100vh" className="bg-gray-900" color="white">
           <VStack spacing={6} maxWidth="600px" p={6}>
             <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
@@ -747,9 +794,10 @@ const Game: React.FC = () => {
           </VStack>
         </Center>
       );
+      break;
       
     case 'need-character':
-      return (
+      renderContent = (
         <Center height="100vh" className="bg-gray-900" color="white">
           <VStack spacing={6} maxWidth="600px" p={6}>
             <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
@@ -771,9 +819,10 @@ const Game: React.FC = () => {
           </VStack>
         </Center>
       );
+      break;
       
     case 'session-key-warning':
-      return (
+      renderContent = (
         <Center height="100vh" className="bg-gray-900" color="white">
           <VStack spacing={6} maxWidth="600px" p={6}>
             <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
@@ -797,10 +846,11 @@ const Game: React.FC = () => {
           </VStack>
         </Center>
       );
+      break;
       
     case 'ready':
       // Main game UI - only render when we have a character and initialization is complete
-      return (
+      renderContent = (
         <Container maxW="container.xl" p={4} className="game-container">
           {error && (
             <Alert status="error" mb={4}>
@@ -1012,10 +1062,22 @@ const Game: React.FC = () => {
           </Box>
         </Container>
       );
+      break;
       
     default:
-      return null;
+      renderContent = (
+        <Center height="100vh" className="bg-gray-900" color="white">
+          <VStack spacing={6}>
+            <Heading as="h1" size="xl" color="white">Battle Nads</Heading>
+            <Spinner size="xl" thickness="4px" speed="0.8s" color="blue.500" />
+            <Text fontSize="xl" color="white">Loading game...</Text>
+          </VStack>
+        </Center>
+      );
+      break;
   }
+
+  return renderContent;
 };
 
 export default Game;
