@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
+import { getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKey';
 
 // Define wallet client types based on Privy's supported wallets
 type InjectedWalletClientType = 
@@ -140,6 +141,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       setLoading(true);
       setError(null);
+
       setCurrentWallet('none');
       setSigner(null);
       setProvider(null);
@@ -164,7 +166,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } finally {
       setLoading(false);
     }
-  }, [authenticated, privyLogout]);
+  }, [authenticated, privyLogout, injectedWallet?.address]);
 
   // Sync with Privy wallets
   const syncWithPrivyWallets = useCallback(async () => {
