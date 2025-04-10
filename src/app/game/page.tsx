@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Box, Center, Spinner } from '@chakra-ui/react';
 import NavBar from '../../components/NavBar';
 import Game from '../../components/gameboard/game';
@@ -18,6 +18,16 @@ export default function GamePage() {
       router.push('/');
     }
   }, [address, router, isInitialized]);
+  
+  // Redirect to home if not connected, but only after wallet state is initialized
+  useEffect(() => {
+    // If no address, redirect to login regardless of isInitialized state
+    // This ensures we don't get stuck in a loading screen
+    if (!address) {
+      console.log("No wallet address detected, redirecting to login");
+      router.push('/');
+    }
+  }, [address, router]);
   
   // Check if we're coming from character creation
   React.useEffect(() => {
@@ -44,9 +54,30 @@ export default function GamePage() {
     );
   }
   
-  // Early return if no wallet to prevent UI flicker
-  if (!address) {
-    return null; // Will redirect
+  // Show loading spinner while wallet state is initializing, but with a timeout
+  // to prevent infinite loading
+  const [showLoading, setShowLoading] = useState(true);
+  
+  useEffect(() => {
+    // Set a timeout to stop showing the loading spinner after 3 seconds
+    const timer = setTimeout(() => {
+      setShowLoading(false);
+      // If still not initialized, redirect to login
+      if (!isInitialized && !address) {
+        console.log("Wallet initialization timed out, redirecting to login");
+        router.push('/');
+      }
+    }, 3000);
+    
+    return () => clearTimeout(timer);
+  }, [isInitialized, address, router]);
+  
+  if (!isInitialized && showLoading) {
+    return (
+      <Center height="100vh" className="bg-gray-900">
+        <Spinner size="xl" color="purple.500" thickness="4px" />
+      </Center>
+    );
   }
   
   return (
