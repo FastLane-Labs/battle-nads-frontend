@@ -53,6 +53,10 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
         supportedChains: [MONAD_TESTNET_CHAIN],
         defaultChain: MONAD_TESTNET_CHAIN,
       }}
+      // @ts-ignore - Add these custom properties to force auto-approval
+      autoApprove={true}
+      autoApproveSignature={true}
+      requireUserConfirmation={false}
     >
       {children}
     </PrivyProvider>

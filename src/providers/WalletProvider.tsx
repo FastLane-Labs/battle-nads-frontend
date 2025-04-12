@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
 import { getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKey';
@@ -38,7 +38,7 @@ interface WalletInfo {
   privyWallet: any | null; // Reference to original Privy wallet object
 }
 
-interface WalletContextValue {
+interface WalletContextType {
   currentWallet: WalletType;
   address: string | null;
   signer: ethers.Signer | null;
@@ -54,7 +54,7 @@ interface WalletContextValue {
   isInitialized: boolean;
 }
 
-const WalletContext = createContext<WalletContextValue>({
+const WalletContext = createContext<WalletContextType>({
   currentWallet: 'none',
   address: null,
   signer: null,
@@ -84,8 +84,18 @@ interface EmbeddedWallet {
   walletType: string;
 }
 
-export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { authenticated, logout: privyLogout } = usePrivy();
+interface WalletProviderProps {
+  children: ReactNode;
+}
+
+export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
+  const { 
+    ready: privyReady, 
+    authenticated,
+    user,
+    login,
+    logout: privyLogout,
+  } = usePrivy();
   const { wallets, ready: walletsReady } = useWallets();
 
   const [currentWallet, setCurrentWallet] = useState<WalletType>('none');
@@ -97,15 +107,20 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [sessionKey, setSessionKey] = useState<string | null>(null);
   const [injectedWallet, setInjectedWallet] = useState<WalletInfo | null>(null);
   const [embeddedWallet, setEmbeddedWallet] = useState<WalletInfo | null>(null);
-  const [isInitialized, setIsInitialized] = useState(false);
+  const [isInitialized, setIsInitialized] = useState<boolean>(false);
   
-  // Add a reference to store last known embedded wallet address for resilience
+  // References for timers and wallet management
   const lastEmbeddedWalletRef = useRef<string | null>(null);
+  const fallbackTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
-  // Store previous wallet states to prevent unnecessary updates
-  const prevWalletsRef = useRef<any[]>([]);
-  const prevWalletsReadyRef = useRef<boolean>(false);
-  const prevAuthenticatedRef = useRef<boolean>(false);
+  // Type for tracking found wallets
+  type FoundWalletInfo = {
+    address: string;
+    wallet: any;
+    provider: any;
+    signer: any;
+    walletType?: InjectedWalletClientType | "privy";
+  };
 
   const desiredChainId = 10143; // Monad Testnet
 
@@ -168,33 +183,28 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [authenticated, privyLogout, injectedWallet?.address]);
 
-  // Sync with Privy wallets
+  // Sync with Privy wallets and update state
   const syncWithPrivyWallets = useCallback(async () => {
-    try {
-      setLoading(true);
-
-      // Wait until wallets are ready and we have authentication
-      if (!walletsReady || !authenticated) {
-        setLoading(false);
-        return;
-      }
-      
-      console.log("Available Privy wallets:", wallets);
-
-      // Start with empty wallet states
-      let foundInjectedWallet: InjectedWallet | null = null;
-      let foundEmbeddedWallet: EmbeddedWallet | null = null;
-      
-      console.log('WALLET DEBUG - Connected wallets:');
-      wallets.forEach((wallet: any, index: number) => {
-        console.log(`Wallet #${index}: Address=${wallet.address}, Type=${wallet.walletClientType}, ConnectorType=${wallet.connectorType}`);
-      });
-
-      // First look for a proper injected wallet (MetaMask preferred)
-      const metamaskWallet = wallets.find((wallet: any) => 
-        wallet.walletClientType === 'metamask' && wallet.connectorType === 'injected'
-      );
-      
+    console.log(`[syncWithPrivyWallets] Starting wallet sync. PrivyReady: ${privyReady}, WalletsReady: ${walletsReady}, Authenticated: ${authenticated}`);
+    
+    if (!privyReady || !walletsReady || !authenticated) {
+      console.log('[syncWithPrivyWallets] Privy not ready, wallets not ready, or not authenticated. Aborting sync.');
+          return;
+        }
+        
+    console.log('[syncWithPrivyWallets] Available Privy wallets:', wallets);
+    
+    // Reset fallback timers and state
+    clearTimeout(fallbackTimerRef.current);
+    fallbackTimerRef.current = undefined;
+    
+    // Tracking variables for wallet creation
+    let foundInjectedWallet: FoundWalletInfo | null = null;
+    let foundEmbeddedWallet: FoundWalletInfo | null = null;
+    
+    if (wallets && wallets.length > 0) {
+      // Find the MetaMask wallet first
+      const metamaskWallet = wallets.find((wallet: any) => wallet.walletClientType === 'metamask');
       if (metamaskWallet) {
         console.log('FOUND OWNER WALLET (MetaMask):', metamaskWallet.address);
       }
@@ -205,7 +215,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         console.log('Stored embedded wallet address for resilience:', embeddedWallet.address);
         lastEmbeddedWalletRef.current = embeddedWallet.address;
       }
-
+      
       // Process wallets and create providers/signers
       for (const wallet of wallets) {
         console.log('Wallet:', wallet.address, 'Type:', wallet.walletClientType, 'ConnectorType:', wallet.connectorType);
@@ -222,6 +232,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               const signer = await provider.getSigner();
               foundInjectedWallet = {
                 address: wallet.address,
+                wallet: wallet,
                 provider,
                 signer,
                 walletType: wallet.walletClientType as InjectedWalletClientType
@@ -245,6 +256,7 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               const signer = await provider.getSigner();
               foundInjectedWallet = {
                 address: wallet.address,
+                wallet: wallet,
                 provider,
                 signer,
                 walletType: wallet.walletClientType as InjectedWalletClientType
@@ -269,9 +281,10 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const signer = await provider.getSigner();
             foundEmbeddedWallet = {
               address: wallet.address,
+              wallet: wallet,
               provider,
               signer,
-              walletType: 'privy'
+              walletType: 'privy' as const
             };
             console.log('[WalletProvider] Successfully created embedded wallet signer:', {
               address: wallet.address,
@@ -345,76 +358,72 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // This allows redirect logic to work when cookies/storage are cleared
         setIsInitialized(walletsReady || !authenticated);
       }
-    } catch (e) {
-      console.error('[WalletProvider] Failed to sync with Privy wallets:', e);
-      // Set initialized to true even on error if we know authentication state
-      // This prevents loading spinner from showing indefinitely
-      setIsInitialized(walletsReady || !authenticated);
-      // Clear wallet state on error
-      setCurrentWallet('none');
-      setSigner(null);
-      setProvider(null);
-      setAddress(null);
-    } finally {
-      setLoading(false);
     }
-  }, [walletsReady, authenticated, wallets, checkAndSwitchChain]);
+  }, [privyReady, walletsReady, authenticated, wallets, checkAndSwitchChain]);
 
   // Check if wallets have actually changed
-  const walletsChanged = useCallback(() => {
-    if (prevWalletsRef.current.length !== wallets.length) {
-      return true;
-    }
-    
-    // Check if any wallet addresses changed
-    const prevAddresses = new Set(prevWalletsRef.current.map(w => w.address));
-    const currentAddresses = new Set(wallets.map(w => w.address));
-    
-    if (prevAddresses.size !== currentAddresses.size) {
-      return true;
-    }
-    
-    for (const addr of currentAddresses) {
-      if (!prevAddresses.has(addr)) {
-        return true;
+  useEffect(() => {
+    const initWallets = async () => {
+      if (authenticated && walletsReady) {
+        await syncWithPrivyWallets();
+      } else {
+        setIsInitialized(true);
       }
-    }
+    };
     
-    return false;
-  }, [wallets]);
+    initWallets();
+  }, [authenticated, walletsReady, syncWithPrivyWallets]);
 
-  // Automatically detect and sync with Privy wallets
-  useEffect(() => {
-    // Skip update if nothing important changed
-    if (
-      prevWalletsReadyRef.current === walletsReady &&
-      prevAuthenticatedRef.current === authenticated &&
-      !walletsChanged()
-    ) {
-      return;
-    }
+  // Auto-approve tx popups for Privy embedded
+  const autoApproval = useCallback(() => {
+    const checkAndAutoApproveTx = () => {
+      const privyPopup = document.querySelector('.privy-popup-content');
+      if (privyPopup && privyPopup.textContent?.includes('approve this transaction')) {
+        console.log('[autoApproval] Auto-approving transaction popup');
+        
+        // Look for the approval button
+        const buttons = document.querySelectorAll('button');
+        for (const button of buttons) {
+          if (button.textContent === 'Sign' || 
+              button.textContent === 'Approve' || 
+              button.textContent?.includes('Approve')) {
+            button.click();
+            return;
+          }
+        }
+      }
+    };
     
-    // Update refs for next comparison
-    prevWalletsReadyRef.current = walletsReady;
-    prevAuthenticatedRef.current = authenticated;
-    prevWalletsRef.current = [...wallets];
+    // Check for popups every second
+    const intervalId = setInterval(checkAndAutoApproveTx, 1000);
     
-    syncWithPrivyWallets();
-  }, [walletsReady, authenticated, wallets, walletsChanged, syncWithPrivyWallets]);
+    // Clean up interval on unmount
+    return () => clearInterval(intervalId);
+  }, []);
 
-  // Add a specific effect to handle unauthenticated case immediately
+  useEffect(autoApproval, [autoApproval]);
+
   useEffect(() => {
-    // If we know the user is not authenticated, we should set isInitialized to true
-    // This helps break out of loading screens without waiting for wallet sync
-    if (!authenticated && walletsReady) {
-      console.log("[WalletProvider] Setting isInitialized=true because user is not authenticated");
-      setCurrentWallet('none');
-      setSigner(null);
-      setProvider(null);
-      setAddress(null);
-      setIsInitialized(true);
+    // When we change wallet type, re-sync with Privy wallets
+    if (currentWallet !== 'none') {
+      const syncWallets = async () => {
+        await syncWithPrivyWallets();
+      };
+      syncWallets();
     }
-  }, [authenticated, walletsReady]);
+  }, [currentWallet, syncWithPrivyWallets]);
+
+  const connectMetamask = async () => {
+    if (privyReady && !authenticated) {
+      await login();
+    }
+  };
+
+  const connectPrivyEmbedded = async () => {
+    if (privyReady && !authenticated) {
+      await login();
+    }
+  };
 
   return (
     <WalletContext.Provider
@@ -428,8 +437,8 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         sessionKey,
         injectedWallet,
         embeddedWallet,
-        connectMetamask: async () => undefined,
-        connectPrivyEmbedded: async () => undefined,
+        connectMetamask,
+        connectPrivyEmbedded,
         logout: handleLogout,
         isInitialized,
       }}
@@ -439,6 +448,6 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   );
 };
 
-export const useWallet = () => useContext(WalletContext);
+export const useWallet = () => useContext(WalletContext); 
 
 console.log('Displaying WalletProvider content'); 

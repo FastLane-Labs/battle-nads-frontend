@@ -4,6 +4,37 @@ import { useWallet } from '../providers/WalletProvider';
 import ENTRYPOINT_ABI from '../abis/battleNads.json';
 import { MovementOptions } from '../types/gameTypes';
 
+// Debug log the imported ABI to check if it's properly loaded
+console.log("[useContracts] Loaded ABI from file:", 
+  Array.isArray(ENTRYPOINT_ABI) ? `Array with ${ENTRYPOINT_ABI.length} items` : typeof ENTRYPOINT_ABI);
+
+// Fallback ABI with essential functions in case the import fails
+const FALLBACK_ABI = [
+  // Character creation
+  "function createCharacter(string name, uint256 strength, uint256 vitality, uint256 dexterity, uint256 quickness, uint256 sturdiness, uint256 luck, address sessionKey, uint256 sessionKeyDeadline) external payable returns (bytes32)",
+  
+  // Movement
+  "function moveNorth(bytes32 characterID) external",
+  "function moveSouth(bytes32 characterID) external",
+  "function moveEast(bytes32 characterID) external",
+  "function moveWest(bytes32 characterID) external",
+  "function moveUp(bytes32 characterID) external",
+  "function moveDown(bytes32 characterID) external",
+  
+  // Combat
+  "function attack(bytes32 characterID, uint256 targetIndex) external",
+  
+  // Session keys
+  "function updateSessionKey(address sessionKey, uint256 sessionKeyDeadline) external payable",
+  
+  // Other functions
+  "function estimateBuyInAmountInMON() external view returns (uint256)"
+];
+
+// Use the imported ABI if it's an array, otherwise use the fallback
+const FINAL_ABI = Array.isArray(ENTRYPOINT_ABI) && ENTRYPOINT_ABI.length > 0 ? ENTRYPOINT_ABI : FALLBACK_ABI;
+console.log("[useContracts] Using ABI:", Array.isArray(FINAL_ABI) ? `Array with ${FINAL_ABI.length} items` : typeof FINAL_ABI);
+
 // Define transaction options type
 export interface TransactionOptions {
   gasLimit?: number | bigint;
@@ -13,7 +44,7 @@ export interface TransactionOptions {
 }
 
 // Use environment variables for contract addresses and RPC URLs
-const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0xbD4511F188B606e5a74A62b7b0F516d0139d76D5";
+const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0x1E85b64E23Cf13b305b4c056438DD5242d93BB76";
 
 // Primary and fallback RPC URLs
 const PRIMARY_RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";
@@ -40,32 +71,32 @@ export type BattleNadsContract = ethers.Contract & {
   // Character methods
   createCharacter: (
     name: string, 
-    strength: number, 
-    vitality: number, 
-    dexterity: number, 
-    quickness: number, 
-    sturdiness: number, 
-    luck: number, 
+    strength: bigint, 
+    vitality: bigint, 
+    dexterity: bigint, 
+    quickness: bigint, 
+    sturdiness: bigint, 
+    luck: bigint, 
     sessionKey: string, 
-    sessionKeyDeadline: string, 
+    sessionKeyDeadline: bigint, 
     options?: TransactionOptions
   ) => Promise<ethers.TransactionResponse>;
   
   allocatePoints: (
     characterId: string,
-    strength: number,
-    vitality: number,
-    dexterity: number,
-    quickness: number,
-    sturdiness: number,
-    luck: number,
+    strength: bigint,
+    vitality: bigint,
+    dexterity: bigint,
+    quickness: bigint,
+    sturdiness: bigint,
+    luck: bigint,
     options?: TransactionOptions
   ) => Promise<ethers.TransactionResponse>;
   
   // Session key methods
   updateSessionKey: (
     sessionKey: string, 
-    sessionKeyDeadline: string, 
+    sessionKeyDeadline: bigint, 
     options?: TransactionOptions
   ) => Promise<ethers.TransactionResponse>;
   
@@ -127,6 +158,25 @@ export type BattleNadsContract = ethers.Contract & {
     };
   }>;
   
+  // Function to get all frontend data including balances in one call
+  getFullFrontendData: (owner: string, startBlock: number) => Promise<{
+    characterID: string;
+    sessionKey: string;
+    sessionKeyBalance: bigint;
+    bondedShMonadBalance: bigint;
+    balanceShortfall: bigint;
+    unallocatedAttributePoints: number;
+    character: any; // Raw data for BattleNad
+    combatants: any[]; // Raw data for BattleNad[]
+    noncombatants: any[]; // Raw data for BattleNad[]
+    miniMap: any[][]; // Raw data for area grid
+    equipableWeaponIDs: number[];
+    equipableWeaponNames: string[];
+    equipableArmorIDs: number[];
+    equipableArmorNames: string[];
+    dataFeeds: any[];
+  }>;
+  
   // Estimation methods
   estimateBuyInAmountInMON: () => Promise<ethers.BigNumberish>;
   shortfallToRecommendedBalanceInMON: (characterId: string) => Promise<ethers.BigNumberish>;
@@ -178,7 +228,7 @@ export const useContracts = () => {
     try {
       return new ethers.Contract(
         ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
+        FINAL_ABI,
         readOnlyProvider
       ) as BattleNadsContract;
     } catch (error) {
@@ -197,11 +247,33 @@ export const useContracts = () => {
     }
     
     try {
-      return new ethers.Contract(
+      // Debug log the ABI before creating contract
+      console.log('[useContracts] Using ABI for contract creation:', 
+        typeof FINAL_ABI === 'string' 
+          ? 'string ABI: ' + FINAL_ABI.substring(0, 100) + '...' 
+          : `Array ABI with ${FINAL_ABI.length} items`
+      );
+      
+      // Ensure the ABI includes createCharacter function
+      if (Array.isArray(FINAL_ABI)) {
+        const createCharacterAbi = FINAL_ABI.find(item => 
+          typeof item === 'string' && item.includes('createCharacter')
+        );
+        console.log('[useContracts] Found createCharacter in ABI:', 
+          createCharacterAbi ? 'Yes - ' + createCharacterAbi : 'No');
+      }
+      
+      const contract = new ethers.Contract(
         ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
+        FINAL_ABI,
         injectedWallet.signer
       ) as BattleNadsContract;
+      
+      // Check contract functions
+      console.log('[useContracts] Contract has createCharacter function:', 
+        typeof contract.createCharacter === 'function');
+      
+      return contract;
     } catch (error) {
       console.error('[useContracts] Failed to create injected contract:', error);
       setError(`Injected contract creation failed: ${(error as Error)?.message || "Unknown error"}`);
@@ -220,7 +292,7 @@ export const useContracts = () => {
     try {
       return new ethers.Contract(
         ENTRYPOINT_ADDRESS,
-        ENTRYPOINT_ABI,
+        FINAL_ABI,
         embeddedWallet.signer
       ) as BattleNadsContract;
     } catch (error) {

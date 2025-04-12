@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip, Spinner } from '@chakra-ui/react';
+import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip, Spinner, Image } from '@chakra-ui/react';
 import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -97,30 +97,28 @@ const NavBar: React.FC = () => {
       <Flex
         h={16}
         alignItems="center"
-        justifyContent="space-between"
         maxW="7xl"
         mx="auto"
-        px={4}
+        px={6}
       >
-        <HStack spacing={8} alignItems="center">
-          <Box fontWeight="bold" fontSize="xl">
+        {/* Left side with logo and navigation */}
+        <Flex alignItems="center" flex="1">
+          <Box mr={6}>
             {hasCharacter && address && pathname !== '/game' ? (
-              // User has a character and isn't on game page - link to game
               <Link href="/game">
-                <Text cursor="pointer">Battle-Nads</Text>
+                <Image src="/BattleNadsLogo.png" alt="Battle-Nads Logo" height="40px" />
               </Link>
             ) : !hasCharacter || !address || pathname === '/game' ? (
-              // User is already on game page or doesn't have a character - no navigation or to home
               pathname === '/game' ? (
-                <Text cursor="default">Battle-Nads</Text>
+                <Image src="/BattleNadsLogo.png" alt="Battle-Nads Logo" height="40px" />
               ) : (
                 <Link href="/">
-                  <Text cursor="pointer">Battle-Nads</Text>
+                  <Image src="/BattleNadsLogo.png" alt="Battle-Nads Logo" height="40px" />
                 </Link>
               )
             ) : (
               <Link href="/">
-                <Text cursor="pointer">Battle-Nads</Text>
+                <Image src="/BattleNadsLogo.png" alt="Battle-Nads Logo" height="40px" />
               </Link>
             )}
           </Box>
@@ -168,9 +166,10 @@ const NavBar: React.FC = () => {
               )}
             </HStack>
           )}
-        </HStack>
+        </Flex>
 
-        <HStack spacing={4}>
+        {/* Right side with wallet info and buttons */}
+        <Flex justifyContent="flex-end" alignItems="center">
           {!address ? (
             <Button colorScheme="blue" size="sm" onClick={() => login()}>
               Connect Wallet
@@ -202,7 +201,6 @@ const NavBar: React.FC = () => {
                     </HStack>
                   </Tooltip>
                 )}
-                
               </HStack>
               
               {/* Logout Button - Next to toggle */}
@@ -213,10 +211,10 @@ const NavBar: React.FC = () => {
           )}
           
           {/* Darkmode Toggle - All the way to the right */}
-          <Button onClick={toggleColorMode} size="sm">
+          <Button onClick={toggleColorMode} size="sm" ml={4}>
             {colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
           </Button>
-        </HStack>
+        </Flex>
       </Flex>
     </Box>
   );

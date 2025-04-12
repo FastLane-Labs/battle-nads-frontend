@@ -432,15 +432,15 @@ export const useGame = () => {
     }
   }, [checkOwnerWallet, checkEmbeddedWallet, checkCharacter, checkSessionKey, loadGameState, setGameState, status]);
   
-  // Move character with state management
-  const movePlayer = useCallback(async (characterId: string, direction: string) => {
+  // Move player with state management
+  const moveCharacter = useCallback(async (characterId: string, direction: string) => {
     try {
       // Set moving state
       setGameState(prev => ({ ...prev, isMoving: true, error: null }));
       
-      console.log(`[movePlayer] Moving character ${characterId} ${direction}`);
+      console.log(`[moveCharacter] Moving character ${characterId} ${direction}`);
       
-      // Call contract function
+      // Call contract function 
       await contractMoveCharacter(characterId, direction);
       
       // Reload state after movement
@@ -450,7 +450,7 @@ export const useGame = () => {
       setGameState(prev => ({ ...prev, isMoving: false }));
       return true;
     } catch (error) {
-      console.error(`[movePlayer] Error:`, error);
+      console.error(`[moveCharacter] Error:`, error);
       const errorMessage = (error as Error)?.message || "Unknown error";
       setGameState(prev => ({ ...prev, isMoving: false, error: errorMessage }));
       return false;
@@ -458,12 +458,12 @@ export const useGame = () => {
   }, [contractMoveCharacter, loadGameState, setGameState]);
   
   // Attack target with state management
-  const attackEnemy = useCallback(async (characterId: string, targetIndex: number) => {
+  const attackTarget = useCallback(async (characterId: string, targetIndex: number) => {
     try {
       // Set attacking state
       setGameState(prev => ({ ...prev, isAttacking: true, error: null }));
       
-      console.log(`[attackEnemy] Attacking target ${targetIndex} with character ${characterId}`);
+      console.log(`[attackTarget] Attacking target ${targetIndex} with character ${characterId}`);
       
       // Call contract function
       await contractAttackTarget(characterId, targetIndex);
@@ -475,7 +475,7 @@ export const useGame = () => {
       setGameState(prev => ({ ...prev, isAttacking: false }));
       return true;
     } catch (error) {
-      console.error(`[attackEnemy] Error:`, error);
+      console.error(`[attackTarget] Error:`, error);
       const errorMessage = (error as Error)?.message || "Unknown error";
       setGameState(prev => ({ ...prev, isAttacking: false, error: errorMessage }));
       return false;
@@ -483,26 +483,35 @@ export const useGame = () => {
   }, [contractAttackTarget, loadGameState, setGameState]);
   
   // Update session key with state management
-  const updateSessionKey = useCallback(async (characterId: string) => {
+  const updateSessionKey = useCallback(async () => {
     try {
       // Set loading state
       setGameState(prev => ({ ...prev, loading: true, error: null }));
       
-      console.log(`[updateSessionKey] Updating session key for character ${characterId}`);
+      console.log(`[updateSessionKey] Updating session key to embedded wallet`);
       
       if (!embeddedWallet?.address) {
         throw new Error("No embedded wallet available to use as session key");
       }
       
-      // Call contract function to set session key to embedded wallet
-      const result = await setSessionKeyToEmbeddedWallet(characterId);
+      // Calculate deadline (1 year from now)
+      const deadline = Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60;
+      
+      // Call updateSessionKey directly with embedded wallet address and deadline
+      const result = await setSessionKeyToEmbeddedWallet();
       
       if (result && result.success) {
         // Reset session key warning
         resetSessionKeyWarning();
         
+        // Get character ID to verify the update
+        if (!battleNadsCharacterId) {
+          console.warn(`[updateSessionKey] No character ID available for verification`);
+          return { success: true };
+        }
+        
         // Verify the update
-        const updatedKey = await getCurrentSessionKey(characterId);
+        const updatedKey = await getCurrentSessionKey(battleNadsCharacterId);
         
         // Check if updatedKey is null before using toLowerCase()
         const keyMatches = updatedKey ? 
@@ -529,14 +538,14 @@ export const useGame = () => {
         return { success: true };
       }
       
-      throw new Error(result?.error || "Failed to update session key");
+      throw new Error("Failed to update session key");
     } catch (error) {
       console.error(`[updateSessionKey] Error:`, error);
       const errorMessage = (error as Error)?.message || "Unknown error";
       setGameState(prev => ({ ...prev, loading: false, error: errorMessage }));
       return { success: false, error: errorMessage };
     }
-  }, [embeddedWallet, setSessionKeyToEmbeddedWallet, getCurrentSessionKey, resetSessionKeyWarning, setGameState]);
+  }, [embeddedWallet, battleNadsCharacterId, setSessionKeyToEmbeddedWallet, getCurrentSessionKey, resetSessionKeyWarning, setGameState]);
   
   // Auto-initialize on component mount
   useEffect(() => {
@@ -577,8 +586,8 @@ export const useGame = () => {
     loadGameState,
     
     // Game actions
-    movePlayer,
-    attackEnemy,
+    moveCharacter,
+    attackTarget,
     updateSessionKey,
     
     // Status functions

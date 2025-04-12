@@ -292,10 +292,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
   return (
     <Box bg="gray.800" p={4} borderRadius="md" maxW="500px" mx="auto">
-      <Text fontSize="lg" mb={2} color="white">
-        Character: {character.name} at ({character.position.x}, {character.position.y}, Depth: {character.position.depth})
+      <Box fontSize="lg" mb={2} color="white" display="flex" alignItems="center">
+        <Text>
+          Character: {character.name} at ({character.position.x}, {character.position.y}, Depth: {character.position.depth})
+        </Text>
         {isMoving && <Spinner size="xs" ml={2} />}
-      </Text>
+      </Box>
       
       <Flex direction="column" align="center">
         {renderGrid()}

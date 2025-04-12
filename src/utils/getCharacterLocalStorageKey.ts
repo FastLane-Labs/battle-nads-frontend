@@ -16,9 +16,9 @@ export const getCharacterLocalStorageKey = (ownerAddress: string | null | undefi
   // Normalize the owner address (lowercase for consistency in localStorage keys)
   const normalizedAddress = ownerAddress.toLowerCase();
   
-  // Get contract address from environment or use default
-  const contractAddress = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0xbD4511F188B606e5a74A62b7b0F516d0139d76D5";
+  // Get contract address from environment or use the fallback
+  const contractAddress = (process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0x1E85b64E23Cf13b305b4c056438DD5242d93BB76").toLowerCase();
   
   // Create key in format: battleNadsCharacterId_[contractAddress]_[walletAddress]
   return `battleNadsCharacterId_${contractAddress}_${normalizedAddress}`;
-}; 
+};

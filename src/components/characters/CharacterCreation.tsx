@@ -213,7 +213,8 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
         dexterity,
         quickness,
         sturdiness,
-        luck
+        luck,
+        embeddedWallet.address  // Pass the embedded wallet address as the session key
       );
       
       console.log("Character creation result:", characterId);

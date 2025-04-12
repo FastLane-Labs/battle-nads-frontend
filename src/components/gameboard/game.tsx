@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   Box, 
   Heading, 
@@ -22,14 +22,32 @@ import {
   Container,
   Code,
   Link,
-  Spinner
+  Spinner,
+  Switch,
+  useColorMode,
+  Modal,
+  ModalOverlay,
+  ModalContent,
+  ModalHeader,
+  ModalFooter,
+  ModalBody,
+  ModalCloseButton,
+  useDisclosure,
+  Tabs,
+  TabList,
+  TabPanels,
+  Tab,
+  TabPanel
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import { useWallet } from '../../providers/WalletProvider';
-import { useBattleNads } from '../../hooks/useBattleNads';
+import { useBattleNads, LogType } from '../../hooks/useBattleNads';
 import { useGame } from '../../hooks/useGame';
 import { usePrivy } from '@privy-io/react-auth';
-import GameBoard from './GameBoard';
+import { GameBoard } from './GameBoard';
+import EventFeed from './EventFeed';
+import ChatInterface from './ChatInterface';
+import DataFeed from './DataFeed';
 import { BattleNad, GameState, GameUIState } from '../../types/gameTypes';
 import { convertCharacterData, createGameState, parseFrontendData } from '../../utils/gameDataConverters';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
@@ -44,6 +62,10 @@ import {
   loadingSelector,
   errorSelector
 } from '../../state/gameState';
+import WalletBalances from '../WalletBalances';
+import DebugPanel from '../DebugPanel';
+import { ChevronUpIcon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from '@chakra-ui/icons';
+import { CharacterCard } from '../../components/CharacterCard';
 
 interface Combatant {
   id: string;
@@ -57,21 +79,35 @@ const Game: React.FC = () => {
   const router = useRouter();
   const { address, injectedWallet, embeddedWallet } = useWallet();
   const { 
-    getPlayerCharacterID, 
+    characterId: battleNadsCharacterId,
+    moveCharacter,
+    attackTarget,
+    updateSessionKey,
+    sendChatMessage,
+    getFullFrontendData,
+    equipWeapon,
+    equipArmor,
+    getGameState,
+    setSessionKeyToEmbeddedWallet,
+    getPlayerCharacterID,
     getCharacter,
-    getAreaInfo, 
+    getCharactersInArea,
+    getAreaInfo,
     getAreaCombatState,
     getMovementOptions,
-    moveCharacter,
     getAttackOptions,
-    attackTarget,
-    getCharactersInArea,
+    getCurrentSessionKey,
     getFrontendData,
-    getGameState,
-    loading: hookLoading, 
-    error: hookError,
-    setSessionKeyToEmbeddedWallet,
-    characterId: battleNadsCharacterId
+    getCharacterIdByTransactionHash,
+    allocatePoints,
+    replenishGasBalance,
+    hasPlayerCharacter,
+    getPlayerCharacters,
+    loading: contractLoading,
+    error: contractError,
+    eventLogs,
+    chatMessages,
+    lastFetchedBlock
   } = useBattleNads();
   
   // Use our new game initialization hook
@@ -88,10 +124,9 @@ const Game: React.FC = () => {
     checkOwnerWallet,
     checkEmbeddedWallet,
     hasAllRequiredWallets,
-    updateSessionKey,
     getStoredEmbeddedWalletAddress
   } = useGame();
-  
+
   // Recoil state
   const setGameState = useSetRecoilState(gameStateAtom);
   const character = useRecoilValue(playerCharacterSelector);
@@ -123,15 +158,19 @@ const Game: React.FC = () => {
   // Ref to track status change debounce timer
   const statusTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Add state for debug panel
+  const [showDebugPanel, setShowDebugPanel] = useState<boolean>(false);
+  const { isOpen, onOpen, onClose } = useDisclosure();
+
   // Derive a unified UI state from all the state variables
   const gameUIState = useMemo<GameUIState>(() => {
     // Show loading during any loading operation or status check
-    if (loading || hookLoading || status.startsWith('checking') || status === 'updating-session-key' || status === 'loading-game-data') {
+    if (loading || status.startsWith('checking') || status === 'updating-session-key' || status === 'loading-game-data') {
       return 'loading';
     }
     
     // Show errors only for actual errors, not expected states
-    if (error || gameError || hookError) {
+    if (error || gameError) {
       return 'error';
     }
     
@@ -159,7 +198,7 @@ const Game: React.FC = () => {
     
     // Fallback - if we somehow get here, show loading
     return 'loading';
-  }, [loading, hookLoading, status, error, gameError, hookError, sessionKeyWarning, character]);
+  }, [loading, status, error, gameError, sessionKeyWarning, character]);
   
   // Helper function to get loading messages based on status
   const getLoadingMessage = (status: string): string => {
@@ -191,7 +230,6 @@ const Game: React.FC = () => {
       console.log("=== LOAD CHARACTER DATA STARTED ===");
       console.log("Current state:", { 
         characterId, 
-        battleNadsCharacterId,
         status,
         loadingComplete: loadingComplete,
         hasLoadedData: hasLoadedData.current
@@ -272,7 +310,7 @@ const Game: React.FC = () => {
       
       // Get the character ID
       console.log("Looking for character ID");
-      let existingCharId = characterId || battleNadsCharacterId;
+      let existingCharId = characterId || character?.id;
       
       if (!existingCharId) {
         // If no character ID in state, get it from the player's address
@@ -305,7 +343,6 @@ const Game: React.FC = () => {
       if (!charToUse) {
         console.error("Character ID is null despite checks:", {
           characterId,
-          battleNadsCharacterId,
           existingCharId
         });
         throw new Error("No character ID available");
@@ -321,7 +358,17 @@ const Game: React.FC = () => {
       }
       
       // Use the centralized getGameState function that updates Recoil atom
-      await getGameState(finalCharId);
+      const gameStateData = await getGameState(finalCharId);
+      
+      // Update Recoil game state with the returned data
+      if (gameStateData) {
+        setGameState(current => ({
+          ...current,
+          ...gameStateData,
+          loading: false,
+          error: null
+        }));
+      }
       
       // Update position from the character data if available
       if (character) {
@@ -343,7 +390,7 @@ const Game: React.FC = () => {
       setLoadingComplete(true);
     } catch (err) {
       console.error("Error loading character data:", err);
-      const errorMessage = (err as Error)?.message || "Unknown error loading character data";
+      const errorMessage = err instanceof Error ? err.message : "Unknown error loading character data";
       setGameState(current => ({ ...current, error: errorMessage }));
       toast({
         title: "Error",
@@ -377,7 +424,7 @@ const Game: React.FC = () => {
       console.log("==========================================");
       console.log("INITIALIZATION FLOW STARTED");
       console.log("Current status:", status);
-      console.log("Current character ID state:", { characterId, battleNadsCharacterId });
+      console.log("Current character ID state:", { characterId, characterID: character ? character.id : undefined });
       console.log("Wallet state:", { 
         address, 
         injectedWallet: injectedWallet?.address,
@@ -387,9 +434,9 @@ const Game: React.FC = () => {
       
       try {
         // If we already have a character ID, make sure it's properly set in state
-        if (battleNadsCharacterId && !characterId) {
-          console.log("Found character ID from hook but not in local state, setting it:", battleNadsCharacterId);
-          setCharacterId(battleNadsCharacterId);
+        if (character && character.id && !characterId) {
+          console.log("Found character ID from hook but not in local state, setting it:", character.id);
+          setCharacterId(character.id);
         }
         
         // Wait a moment for wallet states to stabilize
@@ -514,7 +561,7 @@ const Game: React.FC = () => {
       }
       
       // Check if we have a character ID available
-      const availableCharId = characterId || battleNadsCharacterId;
+      const availableCharId = characterId || (character ? character.id : undefined);
       
       // Stricter check to prevent multiple loads 
       // Only load if: 
@@ -552,26 +599,21 @@ const Game: React.FC = () => {
         clearTimeout(statusTimeoutRef.current);
       }
     };
-  }, [status, loadingComplete, loading, characterId, battleNadsCharacterId, error]);
+  }, [status, loadingComplete, loading, characterId, error]);
 
   // Handle movement with centralized function
-  const handleMove = async (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
-    if (isAttacking || isMoving) return;
-    
+  const handleMovement = async (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
     try {
       setIsMoving(true);
-      // Don't set loading to true here, let Privy handle the UI overlay
       
-      if (!characterId) {
-        throw new Error('No character ID available');
+      if (!character) {
+        setGameState(current => ({ ...current, error: "No character data available" }));
+        return;
       }
-      
-      // Clear any selected combatant when moving
-      setSelectedCombatant(null);
       
       // Check which direction we're moving and use the appropriate move function
       // Privy will automatically show its loading UI during this blockchain transaction
-      await moveCharacter(characterId, direction);
+      await moveCharacter(character.id, direction);
       
       // Reload character data after movement
       await loadCharacterData();
@@ -588,32 +630,28 @@ const Game: React.FC = () => {
   
   // Handle attacks with centralized function
   const handleAttack = async (targetIndex: number) => {
-    if (isAttacking || isMoving) return;
-    
     try {
       setIsAttacking(true);
-      // Don't set loading to true here, let Privy handle the UI overlay
       
-      if (!characterId) {
-        throw new Error('No character ID available');
+      if (!character) {
+        setGameState(current => ({ ...current, error: "No character data available" }));
+        return;
       }
       
-      // Execute the attack
-      // Privy will automatically show its loading UI during this blockchain transaction
-      await attackTarget(characterId, targetIndex);
+      // Call the attack function with character ID and target index
+      const result = await attackTarget(character.id, targetIndex);
+      
+      // Add to combat log
+      addToCombatLog(`Attacked target ${targetIndex}!`);
       
       // Reload character data after attack
       await loadCharacterData();
       
-      if (selectedCombatant) {
-        addToCombatLog(`Attacked ${selectedCombatant.name}`);
-      } else {
-        addToCombatLog(`Attacked target`);
-      }
-    } catch (err: any) {
-      console.error('Error during attack:', err);
-      setGameState(current => ({ ...current, error: err.message || 'Error attacking target' }));
-      addToCombatLog(`Attack failed: ${err.message}`);
+      return result;
+    } catch (err) {
+      console.error("Error in handleAttack:", err);
+      setGameState(current => ({ ...current, error: `Attack failed: ${err instanceof Error ? err.message : String(err)}` }));
+      addToCombatLog(`Attack failed: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setIsAttacking(false);
     }
@@ -688,58 +726,45 @@ const Game: React.FC = () => {
   };
 
   // Handle updating the session key
-  const handleUpdateSessionKey = async (characterIdParam?: string) => {
+  const handleUpdateSessionKey = async (key?: string) => {
     try {
-      // Use either the provided characterId or the one from state
-      const charToUse = characterIdParam || characterId || battleNadsCharacterId;
-
-      if (!charToUse) {
-        console.error("No character ID available for session key update");
+      // Use embeddedWallet as default sessionKey if none provided
+      const sessionKey = key || embeddedWallet?.address;
+      
+      if (!sessionKey) {
         toast({
-          title: "Error",
-          description: "Could not find your character ID. Please reload the page.",
+          title: "Session key update failed",
+          description: "No embedded wallet available to use as session key",
           status: "error",
-          duration: 5000,
+          duration: 3000,
           isClosable: true,
         });
         return;
       }
-
-      console.log("Updating session key for character:", charToUse);
       
-      // Use the updateSessionKey function from the useGame hook
-      const result = await updateSessionKey(charToUse);
+      // Use the direct setSessionKeyToEmbeddedWallet function
+      // which already handles the correct parameters
+      const result = await setSessionKeyToEmbeddedWallet();
       
-      if (result.success) {
-        console.log("Session key updated successfully");
-        toast({
-          title: "Success",
-          description: "Session key updated successfully",
-          status: "success",
-          duration: 5000,
-          isClosable: true,
-        });
-        // After successful update, reload the game state
-        setTimeout(() => {
-          loadCharacterData();
-        }, 500);
-      } else {
-        console.error("Session key update failed:", result.error);
-        toast({
-          title: "Error",
-          description: `Failed to update session key: ${result.error}`,
-          status: "error",
-          duration: 5000,
-          isClosable: true,
-        });
-      }
-    } catch (error) {
-      console.error("Error updating session key:", error);
       toast({
-        title: "Error",
-        description: `Error updating session key: ${error instanceof Error ? error.message : String(error)}`,
+        title: "Session key updated",
+        description: `Transaction hash: ${result.transactionHash}`,
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+      
+      // Reload session key data
+      if (character) {
+        await getCurrentSessionKey(character.id);
+      }
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Failed to update session key",
+        description: err instanceof Error ? err.message : String(err),
         status: "error",
-        duration: 5000,
+        duration: 3000,
         isClosable: true,
       });
     }
@@ -756,6 +781,158 @@ const Game: React.FC = () => {
   useEffect(() => {
     debugGameData();
   }, [character]);
+
+  // Function to send a chat message
+  const handleSendChatMessage = async (message: string) => {
+    if (!character || !message.trim()) return;
+    
+    try {
+      await sendChatMessage(message);
+      // Local optimistic update for better UX
+      toast({
+        title: "Message sent",
+        status: "success",
+        duration: 2000,
+        isClosable: true,
+      });
+    } catch (err) {
+      console.error("Error sending chat message:", err);
+      toast({
+        title: "Failed to send message",
+        description: String(err),
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+  
+  // Load data feeds
+  useEffect(() => {
+    if (status === "connected" && character && injectedWallet?.address) {
+      const ownerAddress = injectedWallet.address.toString();
+      console.log('[Game] Wallet connected, retrieving data with owner address:', ownerAddress);
+      console.log('[Game] Character state:', { id: character.id, name: character.name });
+      
+      console.log('[Game] Making initial getFullFrontendData call');
+      // Initial data load
+      getFullFrontendData(ownerAddress)
+        .then(result => {
+          console.log('[Game] Initial frontend data result:', 
+            result ? { 
+              characterID: result.characterID, 
+              hasCharacter: !!result.character,
+              sessionKey: result.sessionKey
+            } : 'null');
+            
+          if (!result?.characterID) {
+            console.warn('[Game] Warning: Initial data load returned null characterID');
+          }
+        })
+        .catch(err => {
+          console.error('[Game] Error in initial frontend data load:', err);
+        });
+      
+      let pollCount = 0;
+      
+      // Set up interval for data feeds
+      const intervalId = setInterval(() => {
+        pollCount++;
+        if (pollCount % 30 === 0) { // Log every 30th poll to avoid console spam
+          console.log(`[Game] Poll #${pollCount} for data feeds, address: ${ownerAddress}`);
+        }
+        
+        getFullFrontendData(ownerAddress)
+          .then(result => {
+            if (pollCount % 30 === 0 || !result?.characterID) {
+              console.log(`[Game] Poll #${pollCount} result:`, 
+                result ? { 
+                  characterID: result.characterID,
+                  hasCharacter: !!result.character
+                } : 'null');
+            }
+            
+            if (!result?.characterID) {
+              console.warn(`[Game] Warning: Poll #${pollCount} returned null characterID`);
+            }
+          })
+          .catch(err => {
+            console.error(`[Game] Error in poll #${pollCount}:`, err);
+          });
+      }, 10000);  // 10 sec refresh rate
+      
+      // Clean up interval on unmount
+      return () => {
+        console.log('[Game] Cleaning up polling interval');
+        clearInterval(intervalId);
+      };
+    }
+  }, [getFullFrontendData, status, character, injectedWallet?.address]);
+
+  // Code to handle equipment changes
+  const handleEquipWeapon = async (weaponId: number) => {
+    if (!character) {
+      toast({
+        title: "Error",
+        description: "Character not loaded",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    
+    try {
+      await equipWeapon(character.id, weaponId);
+      toast({
+        title: "Weapon equipped",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Failed to equip weapon",
+        description: String(err),
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
+
+  const handleEquipArmor = async (armorId: number) => {
+    if (!character) {
+      toast({
+        title: "Error",
+        description: "Character not loaded",
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+      return;
+    }
+    
+    try {
+      await equipArmor(character.id, armorId);
+      toast({
+        title: "Armor equipped",
+        status: "success",
+        duration: 3000,
+        isClosable: true,
+      });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Failed to equip armor",
+        description: String(err),
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
+  };
 
   // Replace conditional rendering with a switch statement based on gameUIState
   let renderContent;
@@ -780,7 +957,7 @@ const Game: React.FC = () => {
             <Heading size="md" color="red.400">Error</Heading>
             <Alert status="error" variant="solid">
               <AlertIcon />
-              <AlertDescription>{error || gameError || hookError || "An unknown error occurred"}</AlertDescription>
+              <AlertDescription>{error || gameError || "An unknown error occurred"}</AlertDescription>
             </Alert>
             <Button 
               colorScheme="blue" 
@@ -841,7 +1018,7 @@ const Game: React.FC = () => {
             <Heading size="md" color="blue.400">Character Required</Heading>
             <Text color="white" textAlign="center">
               You don't have a character yet. Create one to start playing!
-              Characters are stored on the Monad blockchain and associated with your owner wallet address ({injectedWallet?.address?.slice(0, 6)}...{injectedWallet?.address?.slice(-4)}).
+              Characters are stored on the Monad blockchain and associated with your owner wallet address ({injectedWallet && injectedWallet.address ? injectedWallet.address.slice(0, 6) : ''}...{injectedWallet && injectedWallet.address ? injectedWallet.address.slice(-4) : ''}).
             </Text>
             <Button 
               colorScheme="blue" 
@@ -887,219 +1064,206 @@ const Game: React.FC = () => {
       
     case 'ready':
       // Main game UI - only render when we have a character and initialization is complete
-      renderContent = (
-        <Container maxW="container.xl" p={4} className="game-container">
-          {error && (
-            <Alert status="error" mb={4}>
-              <AlertIcon />
-              <AlertTitle>Error</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          
-          {sessionKeyWarning && (
-            <Alert status="warning" mb={4}>
-              <AlertIcon />
-              <AlertTitle>Session Key Warning</AlertTitle>
-              <AlertDescription>
-                {sessionKeyWarning}
-                <Button 
-                  size="sm" 
-                  ml={4} 
-                  colorScheme="yellow" 
-                  onClick={() => handleUpdateSessionKey()}
-                >
-                  Update Session Key
-                </Button>
-              </AlertDescription>
-            </Alert>
-          )}
-          
-          <Box>
-            {/* Character Info and Combat Log Section */}
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6} mb={6}>
-              {/* Character Info */}
-              <Box bg="gray.800" p={4} borderRadius="md">
-                <Heading size="md" mb={4} color="white">Character Info</Heading>
-                
-                {character ? (
-                  <>
-                    <HStack mb={2}>
-                      <Text color="white" fontWeight="bold">{character.name}</Text>
-                      <Badge colorScheme="green">Level {character.stats.level || 1}</Badge>
-                    </HStack>
-                    
-                    <Box mb={4}>
-                      <Text color="gray.400" fontSize="sm">HP: {character.stats.health || 0}/{character.stats.maxHealth || 0}</Text>
-                      <Progress 
-                        value={(character.stats.health / character.stats.maxHealth) * 100} 
-                        colorScheme="red" 
-                        size="sm" 
-                        mb={2} 
-                      />
-                      
-                      <Text color="gray.400" fontSize="sm">Energy: {character.stats.experience || 0}</Text>
-                      <Progress 
-                        value={(character.stats.experience / (character.stats.level * 100)) * 100} 
-                        colorScheme="blue" 
-                        size="sm" 
-                      />
-                    </Box>
-                    
-                    <SimpleGrid columns={2} spacing={2} mb={4}>
-                      <Box>
-                        <Text color="gray.400" fontSize="xs">Strength</Text>
-                        <Text color="white">{character.stats.strength || 0}</Text>
-                      </Box>
-                      <Box>
-                        <Text color="gray.400" fontSize="xs">Vitality</Text>
-                        <Text color="white">{character.stats.vitality || 0}</Text>
-                      </Box>
-                      <Box>
-                        <Text color="gray.400" fontSize="xs">Dexterity</Text>
-                        <Text color="white">{character.stats.dexterity || 0}</Text>
-                      </Box>
-                      <Box>
-                        <Text color="gray.400" fontSize="xs">Quickness</Text>
-                        <Text color="white">{character.stats.quickness || 0}</Text>
-                      </Box>
-                      <Box>
-                        <Text color="gray.400" fontSize="xs">Sturdiness</Text>
-                        <Text color="white">{character.stats.sturdiness || 0}</Text>
-                      </Box>
-                      <Box>
-                        <Text color="gray.400" fontSize="xs">Luck</Text>
-                        <Text color="white">{character.stats.luck || 0}</Text>
-                      </Box>
-                    </SimpleGrid>
-                    
-                    {/* Equipment Section */}
-                    <Box mb={4}>
-                      <Text color="gray.300" fontSize="sm" fontWeight="bold" mb={1}>Equipment</Text>
-                      <HStack>
-                        <Text color="gray.400" fontSize="xs">Weapon:</Text>
-                        <Text color="white" fontSize="xs">{character.weapon?.name || 'None'}</Text>
-                      </HStack>
-                      <HStack>
-                        <Text color="gray.400" fontSize="xs">Armor:</Text>
-                        <Text color="white" fontSize="xs">{character.armor?.name || 'None'}</Text>
-                      </HStack>
-                    </Box>
-                  </>
-                ) : (
-                  <Text color="gray.400">No character data available</Text>
-                )}
-              </Box>
-              
-              {/* Combat Log */}
-              <Box bg="gray.800" p={4} borderRadius="md" maxH="300px" overflow="auto">
-                <Heading size="md" mb={4} color="white">Combat Log</Heading>
-                
-                {combatLog.length > 0 ? (
-                  <VStack align="stretch" spacing={1}>
-                    {combatLog.map((log, index) => (
-                      <Text key={index} color="gray.300" fontSize="sm">{log}</Text>
-                    ))}
-                  </VStack>
-                ) : (
-                  <Text color="gray.400">No combat actions yet</Text>
-                )}
-              </Box>
-            </SimpleGrid>
-            
-            {/* Game Board Section */}
-            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={6}>
-              {/* Game Board - Use our new GameBoard component with structured data */}
-              <Box>
-                {character && (
-                  <GameBoard
-                    character={character}
-                    areaCharacters={[...combatants, ...noncombatants]}
-                    miniMap={miniMap}
-                    onMove={handleMove}
-                    onAttack={(targetIndex: number) => handleAttack(targetIndex)}
-                    isMoving={isMoving}
-                    isAttacking={isAttacking}
-                  />
-                )}
-              </Box>
-              
-              {/* Combatants in Area */}
-              <Box bg="gray.800" p={4} borderRadius="md">
-                <Heading size="md" mb={4} color="white">
-                  {isInCombat ? 'Combat' : 'Area'} ({combatants.length + noncombatants.length} entities)
-                </Heading>
-                
-                {combatants.length > 0 && (
-                  <Box mb={4}>
-                    <Text color="red.300" fontSize="sm" fontWeight="bold" mb={2}>
-                      Combatants ({combatants.length})
-                    </Text>
-                    
-                    <VStack align="stretch" spacing={2}>
-                      {combatants.map((enemy, index) => (
-                        <Box 
-                          key={index} 
-                          p={2} 
-                          bg="gray.700" 
-                          borderRadius="md"
-                          cursor="pointer"
-                          onClick={() => setSelectedCombatant(enemy)}
-                          borderWidth={selectedCombatant?.id === enemy.id ? 2 : 0}
-                          borderColor="yellow.400"
-                        >
-                          <HStack justify="space-between">
-                            <Text color="white" fontSize="sm">{enemy.name || 'Unknown'}</Text>
-                            <HStack>
-                              <Text color="gray.400" fontSize="xs">
-                                Lvl {enemy.stats.level || '?'}
-                              </Text>
-                              <Text color="red.300" fontSize="xs">
-                                HP: {enemy.stats.health || '?'}/{enemy.stats.maxHealth || '?'}
-                              </Text>
-                            </HStack>
-                          </HStack>
-                        </Box>
-                      ))}
-                    </VStack>
-                  </Box>
-                )}
-                
-                {noncombatants.length > 0 && (
-                  <Box>
-                    <Text color="green.300" fontSize="sm" fontWeight="bold" mb={2}>
-                      Non-Combatants ({noncombatants.length})
-                    </Text>
-                    
-                    <VStack align="stretch" spacing={2}>
-                      {noncombatants.map((entity, index) => (
-                        <Box 
-                          key={index} 
-                          p={2} 
-                          bg="gray.700" 
-                          borderRadius="md"
-                        >
-                          <HStack justify="space-between">
-                            <Text color="white" fontSize="sm">{entity.name || 'Unknown'}</Text>
-                            <Text color="gray.400" fontSize="xs">
-                              Lvl {entity.stats.level || '?'}
-                            </Text>
-                          </HStack>
-                        </Box>
-                      ))}
-                    </VStack>
-                  </Box>
-                )}
-                
-                {combatants.length === 0 && noncombatants.length === 0 && (
-                  <Text color="gray.400">No entities in this area</Text>
-                )}
-              </Box>
-            </SimpleGrid>
+      if (!character) {
+        return (
+          <Center height="100vh" className="bg-gray-900" color="white">
+            <VStack spacing={6}>
+              <Heading as="h1" size="xl" color="white">Battle Nads</Heading>
+              <Text fontSize="xl" color="white">Character data not available</Text>
+              <Button onClick={loadCharacterData} colorScheme="blue">Retry Loading</Button>
+            </VStack>
+          </Center>
+        );
+      }
+      
+      return (
+        <Box height="calc(100vh - 60px)" position="relative">
+          {/* Add a fixed button to toggle debug panel */}
+          <Box position="fixed" right="20px" bottom="20px" zIndex={1000}>
+            <IconButton
+              aria-label="Debug Tools"
+              icon={<Text fontSize="xs">DEBUG</Text>}
+              onClick={onOpen}
+              colorScheme="purple"
+              size="sm"
+            />
           </Box>
-        </Container>
+          
+          {/* Debug Panel Modal */}
+          <Modal isOpen={isOpen} onClose={onClose} size="xl">
+            <ModalOverlay />
+            <ModalContent bg="gray.900" color="white" maxWidth="90vw">
+              <ModalHeader>Debug Panel</ModalHeader>
+              <ModalCloseButton />
+              <ModalBody>
+                <DebugPanel />
+              </ModalBody>
+              <ModalFooter>
+                <Button colorScheme="gray" mr={3} onClick={onClose}>
+                  Close
+                </Button>
+              </ModalFooter>
+            </ModalContent>
+          </Modal>
+
+          <Flex height="100%" flexDirection="column">
+            <Flex flexGrow={1} overflow="hidden">
+              <Box flexBasis="70%" height="100%" width="100%" position="relative">
+                {/* Simple placeholder that has debugging info instead of the GameBoard */}
+                <Box p={4} bg="gray.800" height="100%" overflow="auto">
+                  <SimpleGrid columns={{ base: 1, lg: 3 }} spacing={4}>
+                    {/* Character Section */}
+                    <Box bg="gray.700" p={4} borderRadius="md">
+                      <Heading size="md" mb={4}>Character</Heading>
+                      {/* Character Card shows stats, health, equipment */}
+                      <CharacterCard character={character} />
+                    </Box>
+                    
+                    {/* Movement Section */}
+                    <Box bg="gray.700" p={4} borderRadius="md">
+                      <Heading size="md" mb={4}>Movement</Heading>
+                      
+                      {/* Location Information */}
+                      <Box mb={4} bg="gray.800" p={2} borderRadius="md">
+                        <Text fontWeight="bold" mb={1}>Location</Text>
+                        <Text fontSize="sm">
+                          Depth: {character.position.depth}, Position: ({character.position.x}, {character.position.y})
+                        </Text>
+                      </Box>
+                      
+                      <SimpleGrid columns={3} spacing={2} mb={4} maxW="200px" mx="auto">
+                        <Box></Box>
+                        <Button 
+                          onClick={() => handleMovement('north')}
+                          isLoading={isMoving}
+                          leftIcon={<ChevronUpIcon />}
+                          size="md"
+                          colorScheme="blue"
+                        >
+                          North
+                        </Button>
+                        <Box></Box>
+                        
+                        <Button 
+                          onClick={() => handleMovement('west')}
+                          isLoading={isMoving}
+                          leftIcon={<ChevronLeftIcon />}
+                          size="md"
+                          colorScheme="blue"
+                        >
+                          West
+                        </Button>
+                        <Box></Box>
+                        <Button 
+                          onClick={() => handleMovement('east')}
+                          isLoading={isMoving}
+                          leftIcon={<ChevronRightIcon />}
+                          size="md"
+                          colorScheme="blue"
+                        >
+                          East
+                        </Button>
+                        
+                        <Box></Box>
+                        <Button 
+                          onClick={() => handleMovement('south')}
+                          isLoading={isMoving}
+                          leftIcon={<ChevronDownIcon />}
+                          size="md"
+                          colorScheme="blue"
+                        >
+                          South
+                        </Button>
+                        <Box></Box>
+                      </SimpleGrid>
+                      
+                      <HStack spacing={4} mb={4} justify="center">
+                        <Button 
+                          onClick={() => handleMovement('up')}
+                          isLoading={isMoving}
+                          size="md"
+                          colorScheme="purple"
+                        >
+                          Up
+                        </Button>
+                        <Button 
+                          onClick={() => handleMovement('down')}
+                          isLoading={isMoving}
+                          size="md"
+                          colorScheme="purple"
+                        >
+                          Down
+                        </Button>
+                      </HStack>
+                    </Box>
+                    
+                    {/* Combat Section */}
+                    <Box bg="gray.700" p={4} borderRadius="md">
+                      <Heading size="md" mb={4}>Combat</Heading>
+                      {combatants.length > 0 ? (
+                        <VStack align="stretch" spacing={2}>
+                          {combatants.map((enemy, index) => (
+                            <Box 
+                              key={index} 
+                              p={3} 
+                              bg="gray.600" 
+                              borderRadius="md"
+                            >
+                              <HStack justify="space-between" align="flex-start">
+                                <VStack align="stretch" spacing={2} flex="1">
+                                  <Flex justify="space-between" align="center">
+                                    <Text fontWeight="bold" fontSize="sm">{enemy.name || 'Unknown'}</Text>
+                                    <Badge colorScheme="purple" fontSize="xs" p={1}>
+                                      Level {enemy.stats.level}
+                                    </Badge>
+                                  </Flex>
+                                  <Box>
+                                    <Flex justify="space-between" mb={1}>
+                                      <Text fontSize="xs">Health</Text>
+                                      <Text fontSize="xs">{enemy.stats.health} / {enemy.stats.maxHealth}</Text>
+                                    </Flex>
+                                    <Progress 
+                                      value={(enemy.stats.health / enemy.stats.maxHealth) * 100} 
+                                      colorScheme="green" 
+                                      size="xs" 
+                                    />
+                                  </Box>
+                                </VStack>
+                                <Button
+                                  colorScheme="red"
+                                  onClick={() => handleAttack(index)}
+                                  isLoading={isAttacking}
+                                  size="sm"
+                                >
+                                  Attack
+                                </Button>
+                              </HStack>
+                            </Box>
+                          ))}
+                        </VStack>
+                      ) : (
+                        <Alert status="info" variant="subtle">
+                          <AlertIcon />
+                          No combatants in this area
+                        </Alert>
+                      )}
+                    </Box>
+                  </SimpleGrid>
+                </Box>
+              </Box>
+              <Box flexBasis="30%" bg="gray.900" height="100%" overflowY="auto">
+                <DataFeed
+                  characterId={character.id}
+                  pollInterval={10000}
+                />
+              </Box>
+            </Flex>
+            <Box>
+              <WalletBalances />
+            </Box>
+          </Flex>
+        </Box>
       );
-      break;
       
     default:
       renderContent = (

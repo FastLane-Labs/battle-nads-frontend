@@ -5,19 +5,117 @@ import { useContracts } from './useContracts';
 import { parseFrontendData, createGameState } from '../utils/gameDataConverters';
 import { GameState } from '../types/gameTypes';
 import { getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKey';
+import { useContractWrite, useContractRead, useNetwork } from 'wagmi';
+import { useEmbeddedWallet } from '@/context/EmbeddedWalletContext';
+import { useOwnerWallet } from '@/context/OwnerWalletContext';
+import { ensureReceipt } from '@/utils/transaction';
+import { useUserCharacter } from '@/context/UserCharacterContext';
 
+// Constants
+const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0x1E85b64E23Cf13b305b4c056438DD5242d93BB76";
+const RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";
 // Maximum safe integer for uint256 in Solidity
 const MAX_SAFE_UINT256 = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+// Create a safe localStorage key based on the contract address to avoid conflicts
+const LOCALSTORAGE_KEY = `battleNadsCharacterId_${ENTRYPOINT_ADDRESS}`;
+// Gas limit constants from the smart contract
+const MIN_EXECUTION_GAS = 700000; // From Constants.sol
+const TRANSACTION_GAS_LIMIT = BigInt(MIN_EXECUTION_GAS + 350000); // Regular transactions
+const MOVEMENT_GAS_LIMIT = BigInt((MIN_EXECUTION_GAS + 350000) * 2); // Double gas limit only for movement
 
 // Flag to control debug logging (set to false in production)
-const DEBUG_LOGGING = false;
+const DEBUG_MODE = true;
 
 // Debug logger that only logs when debugging is enabled
 const debugLog = (...args: any[]) => {
-  if (DEBUG_LOGGING) {
+  if (DEBUG_MODE) {
     console.log(...args);
   }
 };
+
+// Function to process data feeds from the contract
+const processDataFeeds = (dataFeeds: any[]): DataFeed[] => {
+  if (!dataFeeds || dataFeeds.length === 0) {
+    return [];
+  }
+  
+  return dataFeeds.map(feed => {
+    const blockNumber = Number(feed.blockNumber);
+    const logs = feed.logs.map((log: any) => ({
+      logType: Number(log.logType),
+      source: log.source,
+      message: log.message,
+      characterID: log.characterID, 
+      characterName: log.characterName,
+      x: log.x !== undefined ? Number(log.x) : undefined,
+      y: log.y !== undefined ? Number(log.y) : undefined,
+      depth: log.depth !== undefined ? Number(log.depth) : undefined,
+      extraData: log.extraData
+    }));
+    
+    return { blockNumber, logs };
+  });
+};
+
+// Add TypeScript definitions for the new data structures
+export enum LogType {
+  NONE = 0,
+  MOVEMENT = 1,
+  COMBAT = 2,
+  CHARACTER_ACTION = 3,
+  ITEM = 4, 
+  SYSTEM = 5,
+  CHAT = 6,
+  DEATH = 7
+}
+
+interface Log {
+  logType: LogType;
+  source: string;
+  message: string;
+  characterID?: string;
+  characterName?: string;
+  x?: number;
+  y?: number;
+  depth?: number;
+  extraData?: any;
+}
+
+export interface DataFeed {
+  blockNumber: number;
+  logs: Log[];
+}
+
+export interface ChatMessage {
+  characterName: string;
+  message: string;
+  timestamp?: number;
+}
+
+// Update the ENTRYPOINT_ABI to include the createCharacter function
+const ENTRYPOINT_ABI = [
+  // Character creation
+  "function createCharacter(string name, uint256 strength, uint256 vitality, uint256 dexterity, uint256 quickness, uint256 sturdiness, uint256 luck, address sessionKey, uint256 sessionKeyDeadline) external payable returns (bytes32)",
+  
+  // Standard ABI entries
+  "function getFrontendData(bytes32 characterID) external view returns (tuple(bytes32 id, tuple(uint8 strength, uint8 vitality, uint8 dexterity, uint8 quickness, uint8 sturdiness, uint8 luck, uint8 depth, uint8 x, uint8 y, uint8 index, uint16 health, uint8 sumOfCombatantLevels, uint8 combatants, uint8 nextTargetIndex, uint64 combatantBitMap, uint8 weaponID, uint8 armorID, uint8 level, uint16 experience, bool isMonster) stats, tuple(string name, uint256 baseDamage, uint256 bonusDamage, uint256 accuracy, uint256 speed) weapon, tuple(string name, uint256 armorFactor, uint256 armorQuality, uint256 flexibility, uint256 weight) armor, tuple(uint64 weaponBitmap, uint64 armorBitmap, uint128 balance) inventory, tuple(bool updateStats, bool updateInventory, bool updateActiveTask, bool updateOwner, bool died) tracker, address activeTask, address owner, string name) character, tuple(bytes32 id, tuple(uint8 strength, uint8 vitality, uint8 dexterity, uint8 quickness, uint8 sturdiness, uint8 luck, uint8 depth, uint8 x, uint8 y, uint8 index, uint16 health, uint8 sumOfCombatantLevels, uint8 combatants, uint8 nextTargetIndex, uint64 combatantBitMap, uint8 weaponID, uint8 armorID, uint8 level, uint16 experience, bool isMonster) stats, tuple(string name, uint256 baseDamage, uint256 bonusDamage, uint256 accuracy, uint256 speed) weapon, tuple(string name, uint256 armorFactor, uint256 armorQuality, uint256 flexibility, uint256 weight) armor, tuple(uint64 weaponBitmap, uint64 armorBitmap, uint128 balance) inventory, tuple(bool updateStats, bool updateInventory, bool updateActiveTask, bool updateOwner, bool died) tracker, address activeTask, address owner, string name)[] combatants, tuple(bytes32 id, tuple(uint8 strength, uint8 vitality, uint8 dexterity, uint8 quickness, uint8 sturdiness, uint8 luck, uint8 depth, uint8 x, uint8 y, uint8 index, uint16 health, uint8 sumOfCombatantLevels, uint8 combatants, uint8 nextTargetIndex, uint64 combatantBitMap, uint8 weaponID, uint8 armorID, uint8 level, uint16 experience, bool isMonster) stats, tuple(string name, uint256 baseDamage, uint256 bonusDamage, uint256 accuracy, uint256 speed) weapon, tuple(string name, uint256 armorFactor, uint256 armorQuality, uint256 flexibility, uint256 weight) armor, tuple(uint64 weaponBitmap, uint64 armorBitmap, uint128 balance) inventory, tuple(bool updateStats, bool updateInventory, bool updateActiveTask, bool updateOwner, bool died) tracker, address activeTask, address owner, string name)[] noncombatants, tuple(uint8 playerCount, uint32 sumOfPlayerLevels, uint64 playerBitMap, uint8 monsterCount, uint32 sumOfMonsterLevels, uint64 monsterBitMap, uint8 depth, uint8 x, uint8 y, bool update)[5][5] miniMap, uint8[] equipableWeaponIDs, string[] equipableWeaponNames, uint8[] equipableArmorIDs, string[] equipableArmorNames, uint256 unallocatedAttributePoints)",
+  "function getFullFrontendData(address owner, uint256 startBlock) external view returns (bytes32 characterID, address sessionKey, uint256 sessionKeyBalance, uint256 bondedShMonadBalance, uint256 balanceShortfall, uint256 unallocatedAttributePoints, tuple(bytes32 id, tuple(uint8 logType, address source, string message, bytes32 characterID, string characterName, uint8 x, uint8 y, uint8 depth, bytes extraData)[] logs)[] dataFeeds)",
+  "function getDataFeed(address owner, uint256 startBlock, uint256 endBlock) external view returns (tuple(uint256 blockNumber, tuple(uint8 logType, address source, string message, bytes32 characterID, string characterName, uint8 x, uint8 y, uint8 depth, bytes extraData)[] logs)[] dataFeeds)",
+  
+  // Other common functions
+  "function moveNorth(bytes32 characterID) external",
+  "function moveSouth(bytes32 characterID) external",
+  "function moveEast(bytes32 characterID) external",
+  "function moveWest(bytes32 characterID) external",
+  "function moveUp(bytes32 characterID) external",
+  "function moveDown(bytes32 characterID) external",
+  "function attack(bytes32 characterID, uint256 targetIndex) external",
+  "function equipWeapon(bytes32 characterID, uint8 weaponID) external",
+  "function equipArmor(bytes32 characterID, uint8 armorID) external",
+  "function updateSessionKey(address sessionKey, uint256 sessionKeyDeadline) external payable",
+  "function replenishGasBalance() external payable",
+  "function getPlayerCharacterID(address owner) external view returns (bytes32)"
+];
 
 export const useBattleNads = () => {
   // Only log on development and when needed
@@ -34,6 +132,12 @@ export const useBattleNads = () => {
   
   // Use ref to track initialization status and prevent multiple initializations
   const initializedRef = useRef(false);
+
+  // Add state for data feeds
+  const [dataFeeds, setDataFeeds] = useState<DataFeed[]>([]);
+  const [eventLogs, setEventLogs] = useState<Log[]>([]);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [lastFetchedBlock, setLastFetchedBlock] = useState<number>(0);
 
   // Update error state when contract error changes
   useEffect(() => {
@@ -264,6 +368,26 @@ export const useBattleNads = () => {
     }
   }, [readContract]);
 
+  // Get estimated buy-in amount in ETH for creating a character or updating session key
+  const getEstimatedBuyInAmount = useCallback(async () => {
+    try {
+      console.log(`[getEstimatedBuyInAmount] Estimating buy-in amount in MON`);
+      
+      if (!readContract) {
+        throw new Error('Read contract not available to estimate buy-in amount');
+      }
+      
+      const estimatedAmount = await readContract.estimateBuyInAmountInMON();
+      console.log(`[getEstimatedBuyInAmount] Estimated amount: ${estimatedAmount.toString()}`);
+      
+      return estimatedAmount;
+    } catch (err: any) {
+      console.error("[getEstimatedBuyInAmount] Error:", err);
+      // Return a default amount if estimation fails
+      return BigInt(0);
+    }
+  }, [readContract]);
+
   // Get movement options for a character - pure blockchain call
   const getMovementOptions = useCallback(async (characterId: string) => {
     try {
@@ -310,355 +434,395 @@ export const useBattleNads = () => {
     }
   }, [readContract]);
 
-  // Get full game state and update the Recoil atom - hybrid function (backward compatibility)
-  const getGameState = useCallback(async (characterId: string): Promise<GameState | null> => {
-    if (!characterId) {
-      console.error("getGameState called without characterId");
-      return null;
+  // Helper function to ensure transaction receipt
+  const ensureReceipt = (receipt: any, operationName: string) => {
+    if (!receipt) {
+      throw new Error(`No receipt returned for ${operationName} operation`);
     }
-    
+    return receipt;
+  };
+
+  // Get full frontend data including chat/event logs
+  const getFullFrontendData = useCallback(async (characterIdOrOwnerAddress?: string, startBlockOverride?: number) => {
     try {
-      // Set loading state for backward compatibility
       setLoading(true);
       
-      const frontendDataRaw = await getFrontendData(characterId);
+      // For getFullFrontendData, we need an owner address, not a character ID
+      const ownerAddress = characterIdOrOwnerAddress || getOwnerWalletAddress() || '';
       
-      if (!frontendDataRaw) {
-        setError("Failed to load game data");
+      if (!ownerAddress) {
+        console.error("[getFullFrontendData] ERROR: No owner address available");
+        setError("No owner address available");
         return null;
       }
       
-      // Parse the raw data
-      const parsedData = parseFrontendData(frontendDataRaw);
+      console.log(`[getFullFrontendData] Using owner address: ${ownerAddress}`);
       
-      // Create a structured game state
-      const gameState = createGameState(parsedData);
+      const contract = getContractForOperation('read');
+      if (!contract) {
+        console.error("[getFullFrontendData] ERROR: No contract available");
+        setError("No contract available");
+        return null;
+      }
       
-      console.log("[getGameState] Game state fetched successfully");
-      return gameState;
+      // Calculate start block - use override or lastFetchedBlock or 0
+      let startBlock = startBlockOverride !== undefined ? startBlockOverride : lastFetchedBlock || 0;
+      console.log(`[getFullFrontendData] Using startBlock: ${startBlock}`);
+      
+      // Call the actual getFullFrontendData method from the contract
+      console.log(`[getFullFrontendData] Calling contract.getFullFrontendData(${ownerAddress}, ${startBlock})...`);
+      
+      // Helper function to safely stringify objects containing BigInt values
+      const safeStringify = (obj: any): string => {
+        return JSON.stringify(obj, (_, value) => 
+          typeof value === 'bigint' ? value.toString() : value
+        );
+      };
+      
+      const response = await contract.getFullFrontendData(ownerAddress, startBlock);
+      console.log(`[getFullFrontendData] Response received, type: ${typeof response}`);
+      
+      // Initialize result object with default values
+      const result: any = {
+        characterID: null,
+        sessionKey: null,
+        sessionKeyBalance: BigInt(0),
+        bondedShMonadBalance: BigInt(0),
+        balanceShortfall: BigInt(0),
+        unallocatedAttributePoints: 0,
+        character: null,
+        combatants: [],
+        noncombatants: [],
+        miniMap: [],
+        equipableWeaponIDs: [],
+        equipableWeaponNames: [],
+        equipableArmorIDs: [],
+        equipableArmorNames: [],
+        dataFeeds: []
+      };
+      
+      try {
+        // Process response based on its format
+        if (Array.isArray(response)) {
+          // Array format (traditional solidity tuple return)
+          console.log(`[getFullFrontendData] Response is array with ${response.length} items`);
+          
+          // Extract values in order based on the contract definition
+          [
+            result.characterID,
+            result.sessionKey,
+            result.sessionKeyBalance,
+            result.bondedShMonadBalance,
+            result.balanceShortfall,
+            result.unallocatedAttributePoints,
+            result.character,
+            result.combatants,
+            result.noncombatants,
+            result.miniMap,
+            result.equipableWeaponIDs,
+            result.equipableWeaponNames,
+            result.equipableArmorIDs,
+            result.equipableArmorNames,
+            result.dataFeeds
+          ] = response;
+          
+        } else if (typeof response === 'object' && response !== null) {
+          // Object format (ethers.js named outputs)
+          console.log(`[getFullFrontendData] Response is object with keys: ${Object.keys(response).join(', ')}`);
+          
+          // Copy properties from response to result, preserving defaults for missing properties
+          Object.keys(result).forEach(key => {
+            if (key in response && response[key as keyof typeof response] !== undefined) {
+              result[key] = response[key as keyof typeof response];
+            }
+          });
+        }
+        
+        // Log the key values for debugging
+        console.log(`[getFullFrontendData] Character ID from chain: ${result.characterID || 'null'}`);
+        console.log(`[getFullFrontendData] Session key: ${result.sessionKey || 'null'}`);
+        console.log(`[getFullFrontendData] Session key balance: ${result.sessionKeyBalance ? result.sessionKeyBalance.toString() : '0'}`);
+        console.log(`[getFullFrontendData] Bonded shMONAD balance: ${result.bondedShMonadBalance ? result.bondedShMonadBalance.toString() : '0'}`);
+        
+        // Add detailed debug logging for character object
+        if (result.character) {
+          console.log(`[getFullFrontendData] DEBUG: Character object structure:`, {
+            hasName: !!result.character.name,
+            nameType: typeof result.character.name,
+            nameValue: result.character.name,
+            id: result.character.id,
+            props: Object.keys(result.character),
+            stats: result.character.stats ? Object.keys(result.character.stats) : 'no stats'
+          });
+        } else {
+          console.log(`[getFullFrontendData] DEBUG: No character object in result`);
+        }
+        
+        // Validate characterID - check if it's a valid bytes32 hex
+        if (result.characterID) {
+          const isHex = /^0x[0-9a-f]{64}$/i.test(result.characterID);
+          console.log(`[getFullFrontendData] Character ID is valid hex bytes32: ${isHex}`);
+          
+          if (!isHex) {
+            console.warn(`[getFullFrontendData] Character ID has invalid format: ${result.characterID}`);
+          }
+        } else {
+          console.warn('[getFullFrontendData] WARNING: Received null or empty characterID from contract');
+          
+          // Use fallback from state if available
+          if (characterId) {
+            console.log(`[getFullFrontendData] Using cached characterId from state: ${characterId}`);
+            result.characterID = characterId;
+          } else {
+            console.log('[getFullFrontendData] No fallback characterId available in state');
+          }
+        }
+      } catch (err) {
+        console.error('[getFullFrontendData] Error processing response:', err);
+        try {
+          // Log a safe version of the response for debugging
+          console.log('[getFullFrontendData] Raw response (truncated):', safeStringify(response).substring(0, 1000) + '...');
+        } catch (jsonErr) {
+          console.error('[getFullFrontendData] Could not stringify response:', jsonErr);
+          console.log('[getFullFrontendData] Response type:', typeof response);
+        }
+      }
+      
+      // Ensure BigInt values are handled properly
+      result.sessionKeyBalance = result.sessionKeyBalance || BigInt(0);
+      result.bondedShMonadBalance = result.bondedShMonadBalance || BigInt(0);
+      result.balanceShortfall = result.balanceShortfall || BigInt(0);
+      result.unallocatedAttributePoints = result.unallocatedAttributePoints ? Number(result.unallocatedAttributePoints) : 0;
+      
+      // Emit events for balance updates so other components can react to them
+      dispatchEvent(new CustomEvent('sessionKeyBalanceUpdated', { 
+        detail: { balance: result.sessionKeyBalance } 
+      }));
+      
+      dispatchEvent(new CustomEvent('bondedBalanceUpdated', { 
+        detail: { balance: result.bondedShMonadBalance } 
+      }));
+      
+      // Update the current block for next time
+      try {
+        const provider = new ethers.JsonRpcProvider(RPC_URL);
+        const currentBlock = await provider.getBlockNumber();
+        setLastFetchedBlock(currentBlock);
+        console.log(`[getFullFrontendData] Setting last fetched block to current block: ${currentBlock}`);
+      } catch (blockErr) {
+        console.warn('[getFullFrontendData] Could not get current block:', blockErr);
+      }
+      
+      // Store characterID in state if it's valid and not already stored
+      if (result.characterID && (!characterId || characterId !== result.characterID)) {
+        console.log(`[getFullFrontendData] Updating character ID in state: ${result.characterID}`);
+        setCharacterId(result.characterID);
+        
+        // Store in localStorage for persistence
+        try {
+          const storageKey = getCharacterLocalStorageKey(ownerAddress);
+          if (storageKey) {
+            localStorage.setItem(storageKey, result.characterID);
+            console.log(`[getFullFrontendData] Saved character ID to localStorage with key: ${storageKey}`);
+          }
+        } catch (storageErr) {
+          console.error('[getFullFrontendData] Failed to save character ID to localStorage:', storageErr);
+        }
+      }
+      
+      // Process any data feeds for event logging
+      if (Array.isArray(result.dataFeeds) && result.dataFeeds.length > 0) {
+        try {
+          const processedDataFeeds = processDataFeeds(result.dataFeeds);
+          setDataFeeds(processedDataFeeds);
+          
+          // Extract and collate event logs from all data feeds
+          const allLogs = processedDataFeeds.flatMap(feed => feed.logs || []);
+          if (allLogs.length > 0) {
+            setEventLogs(prev => [...allLogs.filter(log => log.logType !== LogType.CHAT), ...prev]);
+            
+            // Extract chat messages
+            const chatLogs = allLogs.filter(log => log.logType === LogType.CHAT);
+            if (chatLogs.length > 0) {
+              const newChatMessages = chatLogs.map(log => ({
+                characterName: log.characterName || 'Unknown',
+                message: log.message || '',
+                timestamp: Date.now()
+              }));
+              setChatMessages(prev => [...newChatMessages, ...prev]);
+            }
+          }
+        } catch (dataFeedErr) {
+          console.error('[getFullFrontendData] Error processing data feeds:', dataFeedErr);
+        }
+      }
+      
+      // Log result summary
+      try {
+        const simplifiedResult = {
+          characterID: result.characterID,
+          hasSessionKey: !!result.sessionKey,
+          sessionKeyBalance: result.sessionKeyBalance.toString(),
+          bondedShMonadBalance: result.bondedShMonadBalance.toString(),
+          balanceShortfall: result.balanceShortfall.toString(),
+          unallocatedAttributePoints: result.unallocatedAttributePoints,
+          dataFeedsCount: Array.isArray(result.dataFeeds) ? result.dataFeeds.length : 0
+        };
+        console.log(`[getFullFrontendData] Result summary:`, safeStringify(simplifiedResult));
+      } catch (logErr) {
+        console.warn('[getFullFrontendData] Could not log result summary:', logErr);
+      }
+      
+      console.log(`[getFullFrontendData] Returning result with character ID: ${result.characterID || 'null'}`);
+      return result;
     } catch (err) {
-      console.error("[getGameState] Error:", err);
-      const errorMsg = `Failed to load game state: ${(err as Error)?.message || "Unknown error"}`;
-      
-      // Set local error state for backward compatibility
-      setError(errorMsg);
+      console.error("[getFullFrontendData] Error:", err);
+      setError(`Failed to get data: ${err instanceof Error ? err.message : String(err)}`);
       return null;
     } finally {
       setLoading(false);
     }
-  }, [getFrontendData]);
+  }, [characterId, lastFetchedBlock, getContractForOperation, getOwnerWalletAddress, setCharacterId, processDataFeeds]);
 
-  // Create character - pure blockchain call
-  const createCharacter = useCallback(async (
-    name: string,
-    strength: number,
-    vitality: number,
-    dexterity: number,
-    quickness: number,
-    sturdiness: number,
-    luck: number
-  ) => {
-    try {
-      // Use owner wallet for character creation
-      const contract = getContractForOperation('creation');
-      if (!contract) throw new Error("No owner wallet contract available for character creation");
-      
-      if (!readContract) throw new Error("No read contract available for character creation");
-
-      const buyInAmount = await readContract.estimateBuyInAmountInMON();
-
-      // Use the owner wallet address as the sessionKey
-      const sessionKey = await injectedWallet?.signer?.getAddress();
-      if (!sessionKey) throw new Error("No owner wallet address available");
-      
-      const sessionKeyDeadline = MAX_SAFE_UINT256;
-
-      const txOptions = {
-        value: buyInAmount,
-        gasLimit: 1_000_000,
-      };
-
-      const tx = await contract.createCharacter(
-        name,
-        strength,
-        vitality,
-        dexterity,
-        quickness,
-        sturdiness,
-        luck,
-        sessionKey,
-        sessionKeyDeadline,
-        txOptions
-      );
-      
-      const receipt = await tx.wait();
-      if (!receipt) {
-        throw new Error("Transaction failed: no receipt returned");
-      }
-
-      // Attempt to parse logs for the CharacterCreated event
-      let newCharacterId: string | null = null;
-      try {
-        const topic = ethers.id('CharacterCreated(bytes32,address)');
-        const log = receipt.logs.find((l: any) => l.topics[0] === topic);
-        if (log) {
-          newCharacterId = ethers.zeroPadValue(log.topics[1], 32);
-        }
-      } catch (err) {
-        console.warn('Could not parse CharacterCreated event');
-      }
-
-      if (!newCharacterId && injectedWallet?.signer) {
-        // fallback: fetch all IDs owned by current EOA
-        const walletAddress = await injectedWallet.signer.getAddress();
-        // Call the contract method directly to avoid name conflict with our hook function
-        const characterIDFromContract = await readContract.getPlayerCharacterID(walletAddress);
-        if (characterIDFromContract && characterIDFromContract !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
-          newCharacterId = characterIDFromContract;
-        }
-      }
-
-      if (!newCharacterId) {
-        throw new Error('Unable to detect newly created character ID');
-      }
-
-      // Get the owner address for storage key
-      const ownerAddress = await injectedWallet?.signer?.getAddress();
-      if (!ownerAddress) {
-        console.warn('No owner wallet address available to save character ID');
-        setCharacterId(newCharacterId);
-        return newCharacterId;
-      }
-
-      // Get wallet-specific storage key
-      const storageKey = getCharacterLocalStorageKey(ownerAddress);
-      if (!storageKey) {
-        console.warn(`Could not generate storage key for address: ${ownerAddress}`);
-        setCharacterId(newCharacterId);
-        return newCharacterId;
-      }
-
-      setCharacterId(newCharacterId);
-      localStorage.setItem(storageKey, newCharacterId);
-      return newCharacterId;
-    } catch (err: any) {
-      console.error("Error creating character:", err);
-      throw new Error(err.message || 'Error creating character');
-    }
-  }, [getContractForOperation, readContract, injectedWallet?.signer]);
-
-  // Move character - pure blockchain call
-  const moveCharacter = useCallback(async (characterID: string, direction: string) => {
-    try {
-      console.log(`[moveCharacter] Moving ${direction} for character ${characterID}`);
-      
-      // Directly use the embedded contract for movement
-      if (!embeddedContract) {
-        throw new Error('Session key wallet not available. Please refresh the page and try again.');
-      }
-      
-      // Set gas limit once for all movements
-      const gasLimit = 850000;
-      
-      let tx;
-      // Simple switch for direction
-      switch (direction) {
-        case 'north': tx = await embeddedContract.moveNorth(characterID, { gasLimit }); break;
-        case 'south': tx = await embeddedContract.moveSouth(characterID, { gasLimit }); break;
-        case 'east': tx = await embeddedContract.moveEast(characterID, { gasLimit }); break;
-        case 'west': tx = await embeddedContract.moveWest(characterID, { gasLimit }); break;
-        case 'up': tx = await embeddedContract.moveUp(characterID, { gasLimit }); break;
-        case 'down': tx = await embeddedContract.moveDown(characterID, { gasLimit }); break;
-        default: throw new Error(`Invalid direction: ${direction}`);
-      }
-
-      console.log(`[moveCharacter] Transaction sent: ${tx.hash}`);
-      
-      const receipt = await tx.wait();
-      if (!receipt) {
-        throw new Error("Transaction failed: no receipt returned");
-      }
-      
-      console.log(`[moveCharacter] Movement completed: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
-      return true;
-    } catch (err: any) {
-      console.error('[moveCharacter] Error:', err);
-      throw new Error(err.message || `Error moving ${direction}`);
-    }
-  }, [embeddedContract]);
-
-  // Add null check helper function to reuse in all transaction functions
-  const ensureReceipt = (receipt: ethers.TransactionReceipt | null, operation: string): ethers.TransactionReceipt => {
-    if (!receipt) {
-      throw new Error(`${operation} transaction failed: no receipt returned`);
-    }
-    return receipt;
-  }
-
-  // Attack a target - pure blockchain call
+  // Implement attackTarget function
   const attackTarget = useCallback(async (characterId: string, targetIndex: number) => {
     try {
       console.log(`[attackTarget] Attacking target ${targetIndex} with character ${characterId}`);
       
-      // Directly use embedded contract for combat
       if (!embeddedContract) {
-        throw new Error('Session key wallet not available. Please refresh the page and try again.');
+        throw new Error('Session key wallet not available. Please connect your wallet and try again.');
       }
       
-      const tx = await embeddedContract.attack(characterId, targetIndex, { gasLimit: 850000 });
+      const tx = await embeddedContract.attack(characterId, targetIndex, { gasLimit: TRANSACTION_GAS_LIMIT });
       console.log(`[attackTarget] Transaction sent: ${tx.hash}`);
       
-      // Wait for transaction to be mined
-      const receipt = ensureReceipt(await tx.wait(), "Attack");
+      const receipt = ensureReceipt(await tx.wait(), "Attack target");
       console.log(`[attackTarget] Attack completed: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
-      return true;
+      return receipt;
     } catch (err: any) {
       console.error("[attackTarget] Error:", err);
       throw new Error(err.message || "Error attacking target");
     }
   }, [embeddedContract]);
 
-  // Update session key - pure blockchain call
-  const updateSessionKey = useCallback(async (newSessionKey: string, sessionKeyDeadline: string = MAX_SAFE_UINT256) => {
+  // Implement updateSessionKey function
+  const updateSessionKey = useCallback(async (sessionKey?: string, sessionKeyDeadline?: number) => {
     try {
-      // Must use the owner wallet (injected wallet) to update session keys
-      const contract = getContractForOperation('creation');
-      if (!contract) throw new Error("No owner wallet contract available for session key update");
+      console.log(`[updateSessionKey] Updating session key to ${sessionKey}`);
       
-      console.log(`[updateSessionKey] Setting session key to ${newSessionKey}`);
-      console.log(`[updateSessionKey] Session key deadline: ${sessionKeyDeadline}`);
+      if (!injectedContract) {
+        throw new Error('Owner wallet not available. Please connect your wallet and try again.');
+      }
       
-      // Try to get recommended balance for funding the session key
-      let valueToSend = ethers.parseEther("0.0001"); // Default small amount
+      // Use the embedded wallet address as the session key if not provided
+      const actualSessionKey = sessionKey || (embeddedWallet?.address || ethers.ZeroAddress);
+      // Set deadline to 30 days from now if not provided
+      const actualDeadline = sessionKeyDeadline || Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
       
-      // Use a very high gas limit to ensure the transaction has enough gas
-      const highGasLimit = 2000000; // Use 2 million as a very high gas limit
-      console.log(`[updateSessionKey] Using very high gas limit: ${highGasLimit}`);
+      // Get the estimated buy-in amount
+      const estimatedBuyInAmount = await getEstimatedBuyInAmount();
+      console.log(`[updateSessionKey] Using estimated buy-in amount: ${estimatedBuyInAmount.toString()}`);
       
-      // Call the updateSessionKey function
-      const tx = await contract.updateSessionKey(
-        newSessionKey,
-        sessionKeyDeadline,
-        { 
-          gasLimit: highGasLimit,
-          value: valueToSend 
-        }
-      );
+      const tx = await injectedContract.updateSessionKey(actualSessionKey, BigInt(actualDeadline), { 
+        gasLimit: TRANSACTION_GAS_LIMIT,
+        value: estimatedBuyInAmount
+      });
       
-      console.log(`[updateSessionKey] Transaction sent with hash: ${tx.hash}`);
-      console.log(`[updateSessionKey] Waiting for transaction to be mined...`);
+      console.log(`[updateSessionKey] Transaction sent: ${tx.hash}`);
       
-      // Wait for transaction to be mined and ensure receipt exists
       const receipt = ensureReceipt(await tx.wait(), "Update session key");
-      console.log(`[updateSessionKey] Session key updated successfully:`, receipt);
-      console.log(`[updateSessionKey] Gas used: ${receipt.gasUsed.toString()}`);
-      
-      return {
-        success: true,
-        transactionHash: receipt.hash,
-        gasUsed: receipt.gasUsed.toString()
+      console.log(`[updateSessionKey] Session key updated: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+      return { 
+        success: true, 
+        transactionHash: tx.hash,
+        receipt
       };
     } catch (err: any) {
-      console.error(`[updateSessionKey] Error updating session key:`, err);
-      
-      // Try to identify if it's a gas-related error
-      const errorMessage = err.message || "Unknown error";
-      if (
-        errorMessage.includes("out of gas") || 
-        errorMessage.includes("exceeds gas limit") || 
-        errorMessage.includes("insufficient funds") ||
-        errorMessage.includes("gas required exceeds")
-      ) {
-        console.error(`[updateSessionKey] Gas-related error detected. Transaction needs more gas or funds.`);
-      }
-      
-      return {
-        success: false,
-        error: errorMessage
-      };
+      console.error("[updateSessionKey] Error:", err);
+      throw new Error(err.message || "Error updating session key");
     }
-  }, [getContractForOperation]);
+  }, [injectedContract, embeddedWallet, getEstimatedBuyInAmount]);
 
-  // Set the session key to the current embedded wallet address
-  const setSessionKeyToEmbeddedWallet = useCallback(async (characterId: string) => {
+  // Implement getGameState function
+  const getGameState = useCallback(async (characterId?: string) => {
     try {
-      if (!embeddedWallet?.address) {
-        throw new Error("No embedded wallet available to use as session key");
-      }
-
-      console.log(`[setSessionKeyToEmbeddedWallet] Setting session key to embedded wallet: ${embeddedWallet.address}`);
+      console.log(`[getGameState] Getting game state for character ${characterId}`);
       
-      // Check current session key before updating
-      try {
-        const currentSessionKey = await getCurrentSessionKey(characterId);
-        console.log(`[setSessionKeyToEmbeddedWallet] Current session key before update: ${currentSessionKey}`);
-        
-        if (currentSessionKey && currentSessionKey.toLowerCase() === embeddedWallet.address.toLowerCase()) {
-          console.log(`[setSessionKeyToEmbeddedWallet] Session key is already set to the embedded wallet`);
-          return {
-            success: true,
-            sessionKey: embeddedWallet.address,
-            transactionHash: null,
-            alreadySet: true
-          };
-        }
-      } catch (err) {
-        console.warn(`[setSessionKeyToEmbeddedWallet] Error checking current session key:`, err);
+      // Use the character ID from state if not provided
+      const targetCharacterId = characterId || characterId;
+      if (!targetCharacterId) {
+        throw new Error('No character ID provided or available');
       }
       
-      // Use the embedded wallet address as the session key with a far future deadline
-      console.log(`[setSessionKeyToEmbeddedWallet] Calling updateSessionKey with embedded wallet: ${embeddedWallet.address}`);
-      const MAX_DEADLINE = MAX_SAFE_UINT256;
-      console.log(`[setSessionKeyToEmbeddedWallet] Using deadline: ${MAX_DEADLINE}`);
-      
-      const result = await updateSessionKey(embeddedWallet.address, MAX_DEADLINE);
-      
-      if (result.success) {
-        console.log(`[setSessionKeyToEmbeddedWallet] Successfully set session key to embedded wallet`);
-        console.log(`[setSessionKeyToEmbeddedWallet] Transaction hash: ${result.transactionHash}`);
-        
-        if (result.gasUsed) {
-          console.log(`[setSessionKeyToEmbeddedWallet] Gas used: ${result.gasUsed}`);
-        }
-        
-        // Verify the session key was set correctly
-        try {
-          const updatedSessionKey = await getCurrentSessionKey(characterId);
-          console.log(`[setSessionKeyToEmbeddedWallet] Updated session key from contract: ${updatedSessionKey}`);
-          
-          if (updatedSessionKey) {
-            // Only perform comparison if we got a valid session key
-            console.log(`[setSessionKeyToEmbeddedWallet] Session key matches embedded wallet: ${updatedSessionKey.toLowerCase() === embeddedWallet.address.toLowerCase()}`);
-            
-            if (updatedSessionKey.toLowerCase() !== embeddedWallet.address.toLowerCase()) {
-              console.warn(`[setSessionKeyToEmbeddedWallet] WARNING: Session key was not updated correctly`);
-              console.warn(`[setSessionKeyToEmbeddedWallet] Expected: ${embeddedWallet.address.toLowerCase()}`);
-              console.warn(`[setSessionKeyToEmbeddedWallet] Actual: ${updatedSessionKey.toLowerCase()}`);
-            }
-          } else {
-            console.warn(`[setSessionKeyToEmbeddedWallet] Could not verify session key update - null response from contract`);
-          }
-        } catch (err) {
-          console.warn(`[setSessionKeyToEmbeddedWallet] Error verifying updated session key:`, err);
-        }
-        
-        return {
-          success: true,
-          sessionKey: embeddedWallet.address,
-          transactionHash: result.transactionHash
-        };
-      } else {
-        console.error(`[setSessionKeyToEmbeddedWallet] Failed to set session key: ${result.error}`);
-        throw new Error(result.error || "Failed to set session key");
+      // Get the full game state by calling getFrontendData
+      const gameData = await getFrontendData(targetCharacterId);
+      if (!gameData) {
+        throw new Error('Failed to get game data');
       }
+      
+      // Convert the contract data to our GameState format
+      const gameState = createGameState(gameData);
+      return gameState;
     } catch (err: any) {
-      console.error(`[setSessionKeyToEmbeddedWallet] Error setting session key to embedded wallet:`, err);
-      return {
-        success: false,
-        error: err.message
-      };
+      console.error("[getGameState] Error:", err);
+      throw new Error(err.message || "Error getting game state");
     }
-  }, [embeddedWallet, updateSessionKey, getCurrentSessionKey]);
+  }, [getFrontendData, characterId]);
+
+  // Implement setSessionKeyToEmbeddedWallet function
+  const setSessionKeyToEmbeddedWallet = useCallback(async () => {
+    try {
+      console.log(`[setSessionKeyToEmbeddedWallet] Setting session key to embedded wallet`);
+      
+      if (!embeddedWallet?.address) {
+        throw new Error('No embedded wallet available');
+      }
+      
+      // Call the updateSessionKey function with the embedded wallet address
+      return await updateSessionKey(
+        embeddedWallet.address, 
+        Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60 // 1 year validity
+      );
+    } catch (err: any) {
+      console.error("[setSessionKeyToEmbeddedWallet] Error:", err);
+      throw new Error(err.message || "Error setting session key to embedded wallet");
+    }
+  }, [updateSessionKey, embeddedWallet]);
+
+  // Implement sendChatMessage function
+  const sendChatMessage = useCallback(async (message: string) => {
+    try {
+      console.log(`[sendChatMessage] Sending chat message: ${message}`);
+      
+      if (!characterId) {
+        throw new Error('No character ID available');
+      }
+      
+      if (!embeddedContract) {
+        throw new Error('Session key wallet not available. Please connect your wallet and try again.');
+      }
+      
+      const tx = await embeddedContract.zoneChat(characterId, message, { gasLimit: TRANSACTION_GAS_LIMIT });
+      console.log(`[sendChatMessage] Transaction sent: ${tx.hash}`);
+      
+      const receipt = ensureReceipt(await tx.wait(), "Send chat message");
+      console.log(`[sendChatMessage] Message sent: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+      
+      // Add message to local chat list for immediate UI feedback
+      const newMessage: ChatMessage = {
+        characterName: "You", // Will be updated with real name when fetched from chain
+        message: message,
+        timestamp: Date.now()
+      };
+      
+      setChatMessages(prev => [newMessage, ...prev]);
+      
+      return receipt;
+    } catch (err: any) {
+      console.error("[sendChatMessage] Error:", err);
+      throw new Error(err.message || "Error sending chat message");
+    }
+  }, [embeddedContract, characterId]);
 
   // Get player characters - pure blockchain call
   const getPlayerCharacters = useCallback(async (address: string) => {
@@ -670,7 +834,7 @@ export const useBattleNads = () => {
       
       // If no character or zero ID, return empty array
       if (!characterId || characterId === "0x0000000000000000000000000000000000000000000000000000000000000000") {
-        return [];
+      return [];
       }
       
       // Get details for the character
@@ -745,7 +909,7 @@ export const useBattleNads = () => {
         throw new Error('Session key wallet not available. Please refresh the page and try again.');
       }
       
-      const tx = await embeddedContract.equipWeapon(characterId, weaponId, { gasLimit: 500000 });
+      const tx = await embeddedContract.equipWeapon(characterId, weaponId, { gasLimit: TRANSACTION_GAS_LIMIT });
       console.log(`[equipWeapon] Transaction sent: ${tx.hash}`);
       
       const receipt = ensureReceipt(await tx.wait(), "Equip weapon");
@@ -767,7 +931,7 @@ export const useBattleNads = () => {
         throw new Error('Session key wallet not available. Please refresh the page and try again.');
       }
       
-      const tx = await embeddedContract.equipArmor(characterId, armorId, { gasLimit: 500000 });
+      const tx = await embeddedContract.equipArmor(characterId, armorId, { gasLimit: TRANSACTION_GAS_LIMIT });
       console.log(`[equipArmor] Transaction sent: ${tx.hash}`);
       
       const receipt = ensureReceipt(await tx.wait(), "Equip armor");
@@ -782,11 +946,11 @@ export const useBattleNads = () => {
   // Allocate attribute points - blockchain call
   const allocatePoints = useCallback(async (
     characterId: string,
-    strength: number,
-    vitality: number,
-    dexterity: number,
-    quickness: number,
-    sturdiness: number,
+    strength: number, 
+    vitality: number, 
+    dexterity: number, 
+    quickness: number, 
+    sturdiness: number, 
     luck: number
   ) => {
     try {
@@ -799,13 +963,13 @@ export const useBattleNads = () => {
       
       const tx = await injectedContract.allocatePoints(
         characterId,
-        strength,
-        vitality,
-        dexterity,
-        quickness,
-        sturdiness,
-        luck,
-        { gasLimit: 500000 }
+        BigInt(strength),
+        BigInt(vitality),
+        BigInt(dexterity),
+        BigInt(quickness),
+        BigInt(sturdiness),
+        BigInt(luck),
+        { gasLimit: TRANSACTION_GAS_LIMIT }
       );
       console.log(`[allocatePoints] Transaction sent: ${tx.hash}`);
       
@@ -832,7 +996,7 @@ export const useBattleNads = () => {
       
       const tx = await injectedContract.replenishGasBalance({ 
         value: valueToSend,
-        gasLimit: 300000 
+        gasLimit: TRANSACTION_GAS_LIMIT 
       });
       console.log(`[replenishGasBalance] Transaction sent: ${tx.hash}`);
       
@@ -890,35 +1054,461 @@ export const useBattleNads = () => {
     }
   }, [getOwnerWalletAddress, getPlayerCharacterID, characterId]);
 
-  // Return only contract interaction functions
+  // Common helper for getting a read-only provider
+  const getReadOnlyProvider = useCallback(() => {
+    return new ethers.JsonRpcProvider(RPC_URL);
+  }, []);
+
+  // Get the appropriate signer based on operation type
+  const getSigner = useCallback((operationType: 'creation' | 'session' | 'gas' | 'movement' | 'combat' | 'equipment' = 'session') => {
+    // For character creation, gas refill, and session key updates, use the injected wallet (owner wallet)
+    if (operationType === 'creation' || operationType === 'gas') {
+      if (!injectedWallet?.signer) {
+        throw new Error('No owner wallet connected. Please connect your owner wallet first.');
+      }
+      return injectedWallet.signer;
+    }
+    
+    // For all other operations (movement, combat, equipment), prefer the embedded wallet (session key)
+    if (operationType === 'movement' || operationType === 'combat' || operationType === 'equipment') {
+      if (embeddedWallet?.signer) {
+        return embeddedWallet.signer;
+      }
+    }
+    
+    // Fallback to injected wallet if available
+    if (injectedWallet?.signer) {
+      return injectedWallet.signer;
+    }
+    
+    throw new Error('No connected wallet found. Please connect a wallet first.');
+  }, [injectedWallet, embeddedWallet]);
+
+  // Create a character (strength, vitality, dexterity, quickness, sturdiness, luck)
+  const createCharacter = useCallback(async (
+    name: string,
+    strength: number,
+    vitality: number,
+    dexterity: number,
+    quickness: number,
+    sturdiness: number,
+    luck: number,
+    sessionKey?: string,
+    sessionKeyDeadline?: number
+  ) => {
+    try {
+      console.log(`[createCharacter] Creating character "${name}" with stats:`, {
+        strength, vitality, dexterity, quickness, sturdiness, luck
+      });
+      
+      if (!injectedWallet?.signer) {
+        throw new Error('Owner wallet not available. Please connect your wallet and try again.');
+      }
+      
+      // Use defaults for sessionKey parameters if not provided
+      const actualSessionKey = sessionKey || ethers.ZeroAddress;
+      const actualDeadline = sessionKeyDeadline || Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60;
+      
+      console.log(`[createCharacter] Using session key: ${actualSessionKey}`);
+      console.log(`[createCharacter] Session key deadline: ${actualDeadline}`);
+      
+      // Get the estimated buy-in amount
+      const estimatedBuyInAmount = await getEstimatedBuyInAmount();
+      console.log(`[createCharacter] Using estimated buy-in amount: ${estimatedBuyInAmount.toString()}`);
+      
+      // Debug contract interface
+      console.log(`[createCharacter] Contract instance available: ${!!injectedContract}`);
+      console.log(`[createCharacter] Contract address: ${ENTRYPOINT_ADDRESS}`);
+      
+      if (!injectedContract) {
+        throw new Error('Contract instance not available');
+      }
+      
+      // Debug interface fragments available
+      if (injectedContract.interface) {
+        console.log(`[createCharacter] Interface fragments count: `, injectedContract.interface.fragments.length);
+        
+        // Log all function names in the interface to confirm createCharacter exists
+        const functionNames = injectedContract.interface.fragments
+          .filter((f: any) => f.type === 'function')
+          .map((f: any) => f.name);
+        
+        console.log('[createCharacter] Available functions:', functionNames);
+        
+        // Check if createCharacter function exists in the ABI
+        const hasCreateCharacterFunction = functionNames.includes('createCharacter');
+        console.log(`[createCharacter] ABI contains createCharacter: ${hasCreateCharacterFunction}`);
+        
+        // Find the createCharacter function fragment for more details
+        const createCharacterFragment = injectedContract.interface.fragments.find(
+          (f: any) => f && f.type === 'function' && f.name === 'createCharacter'
+        );
+        
+        if (createCharacterFragment) {
+          console.log(`[createCharacter] CreateCharacter function has ${createCharacterFragment.inputs.length} parameters`);
+          console.log(`[createCharacter] Parameter types:`, 
+            createCharacterFragment.inputs.map((i: any) => `${i.type} ${i.name}`));
+        } else {
+          console.warn(`[createCharacter] createCharacter function not found in interface!`);
+        }
+      }
+      
+      // Convert all numeric values to BigInt to ensure proper encoding
+      const inputParams = {
+        name,
+        strength: BigInt(strength),
+        vitality: BigInt(vitality),
+        dexterity: BigInt(dexterity),
+        quickness: BigInt(quickness),
+        sturdiness: BigInt(sturdiness),
+        luck: BigInt(luck),
+        sessionKey: actualSessionKey,
+        deadline: BigInt(actualDeadline)
+      };
+      
+      console.log(`[createCharacter] Input parameters with BigInt conversion:`, {
+        name: inputParams.name,
+        strength: inputParams.strength.toString(),
+        vitality: inputParams.vitality.toString(),
+        dexterity: inputParams.dexterity.toString(),
+        quickness: inputParams.quickness.toString(),
+        sturdiness: inputParams.sturdiness.toString(),
+        luck: inputParams.luck.toString(),
+        sessionKey: inputParams.sessionKey,
+        deadline: inputParams.deadline.toString()
+      });
+      
+      // Generate transaction options
+      const txOptions = { 
+        gasLimit: TRANSACTION_GAS_LIMIT * BigInt(2), // Double the gas limit to ensure there's enough gas
+        value: estimatedBuyInAmount
+      };
+        
+      console.log(`[createCharacter] Transaction options:`, {
+        gasLimit: txOptions.gasLimit.toString(),
+        value: txOptions.value.toString()
+      });
+      
+      // Try manual encoding as a test 
+      try {
+        // Define a test ABI just for the createCharacter function
+        const testAbi = ["function createCharacter(string name, uint256 strength, uint256 vitality, uint256 dexterity, uint256 quickness, uint256 sturdiness, uint256 luck, address sessionKey, uint256 sessionKeyDeadline) payable returns (bytes32)"];
+        const testInterface = new ethers.Interface(testAbi);
+        
+        // Encode the function call data using the test interface
+        const encodedData = testInterface.encodeFunctionData("createCharacter", [
+          inputParams.name,
+          inputParams.strength,
+          inputParams.vitality,
+          inputParams.dexterity,
+          inputParams.quickness,
+          inputParams.sturdiness,
+          inputParams.luck,
+          inputParams.sessionKey,
+          inputParams.deadline
+        ]);
+        
+        console.log(`[createCharacter] Test encoding produces data (${encodedData.length} bytes):`, 
+          encodedData.substring(0, 66) + '...');
+        
+        // Compare with contract interface encoding
+        const contractEncoding = injectedContract.interface.encodeFunctionData(
+          "createCharacter", 
+          [
+            inputParams.name,
+            inputParams.strength,
+            inputParams.vitality,
+            inputParams.dexterity,
+            inputParams.quickness,
+            inputParams.sturdiness,
+            inputParams.luck,
+            inputParams.sessionKey,
+            inputParams.deadline
+          ]
+        );
+        
+        console.log(`[createCharacter] Contract interface encoding produces data (${contractEncoding.length} bytes):`,
+          contractEncoding.substring(0, 66) + '...');
+          
+        console.log(`[createCharacter] Test encoding matches contract encoding: ${encodedData === contractEncoding}`);
+      } catch (encodeErr) {
+        console.error('[createCharacter] Error in test encoding:', encodeErr);
+      }
+      
+      console.log(`[createCharacter] Calling contract.createCharacter with explicit BigInt parameters...`);
+      
+      // Send the transaction with explicit BigInt parameters
+      const tx = await injectedContract.createCharacter(
+        inputParams.name,
+        inputParams.strength,
+        inputParams.vitality,
+        inputParams.dexterity, 
+        inputParams.quickness,
+        inputParams.sturdiness,
+        inputParams.luck,
+        inputParams.sessionKey,
+        inputParams.deadline,
+        txOptions
+      );
+      
+      console.log(`[createCharacter] Transaction sent:`, tx.hash);
+      console.log(`[createCharacter] Transaction data:`, tx.data || 'No data');
+      
+      // Wait for transaction to be mined
+      const receipt = ensureReceipt(await tx.wait(), "Create character");
+      console.log(`[createCharacter] Character created: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+      
+      // Try to get the character ID from the receipt
+      const characterId = await getCharacterIdByTransactionHash(tx.hash);
+      
+      if (characterId) {
+        setCharacterId(characterId);
+        
+        // Also store in localStorage for the current wallet
+        const ownerAddress = getOwnerWalletAddress();
+        if (ownerAddress) {
+          const storageKey = getCharacterLocalStorageKey(ownerAddress);
+          if (storageKey) {
+            localStorage.setItem(storageKey, characterId);
+          }
+        }
+      }
+      
+      return { characterId, transactionHash: tx.hash };
+    } catch (err: any) {
+      console.error("[createCharacter] Error:", err);
+      
+      // Add more detailed error logging
+      console.error("[createCharacter] Error details:", {
+        message: err.message,
+        code: err.code,
+        reason: err.reason,
+        transaction: err.transaction ? {
+          from: err.transaction.from,
+          to: err.transaction.to,
+          data: err.transaction.data || 'No data',
+          value: err.transaction.value ? ethers.formatEther(err.transaction.value) + ' ETH' : '0 ETH'
+        } : 'No transaction'
+      });
+      
+      throw new Error(err.message || "Error creating character");
+    }
+  }, [injectedWallet, injectedContract, getCharacterIdByTransactionHash, getOwnerWalletAddress, getEstimatedBuyInAmount, setCharacterId]);
+
+  // Update the moveCharacter function to accept characterId and direction parameters
+  const moveCharacter = useCallback(async (characterId: string, direction: string) => {
+    try {
+      console.log(`[moveCharacter] Moving character ${characterId} in direction ${direction}`);
+      
+      // First check if we have the embedded wallet properly set up
+      if (!embeddedWallet?.signer || !embeddedWallet?.address) {
+        console.error('[moveCharacter] Embedded wallet not properly set up', {
+          hasSigner: !!embeddedWallet?.signer,
+          address: embeddedWallet?.address
+        });
+        throw new Error('Session key wallet not available or not properly set up. Please reload the page and try again.');
+      }
+      
+      // Then check if we have a contract instance
+      if (!embeddedContract) {
+        console.error('[moveCharacter] No embedded contract instance available');
+        throw new Error('Session key wallet not available. Please connect your wallet and try again.');
+      }
+      
+      // Add debugging for contract instance
+      console.log('[moveCharacter] Contract address:', embeddedContract.target);
+      
+      // Check for move function existence
+      const moveFunction = `move${direction.charAt(0).toUpperCase() + direction.slice(1).toLowerCase()}`;
+      console.log(`[moveCharacter] Checking for function ${moveFunction}:`, 
+        typeof embeddedContract[moveFunction] === 'function');
+      
+      // Verify character ID format
+      if (!characterId || !characterId.startsWith('0x')) {
+        console.error('[moveCharacter] Invalid character ID format:', characterId);
+        throw new Error('Invalid character ID format');
+      }
+      
+      // Check if character is in combat before moving
+      try {
+        const areaState = await getAreaCombatState(characterId);
+        if (areaState && areaState.inCombat) {
+          console.error('[moveCharacter] Character is in combat and cannot move');
+          throw new Error('Cannot move while in combat');
+        }
+      } catch (combatErr) {
+        console.warn('[moveCharacter] Failed to check combat state:', combatErr);
+        // Continue anyway, the contract will reject if in combat
+      }
+      
+      let tx;
+      
+      // Call the appropriate direction-specific function
+      try {
+        switch (direction.toLowerCase()) {
+        case 'north':
+            tx = await embeddedContract.moveNorth(characterId, { gasLimit: MOVEMENT_GAS_LIMIT });
+          break;
+        case 'south':
+            tx = await embeddedContract.moveSouth(characterId, { gasLimit: MOVEMENT_GAS_LIMIT });
+          break;
+        case 'east':
+            tx = await embeddedContract.moveEast(characterId, { gasLimit: MOVEMENT_GAS_LIMIT });
+          break;
+        case 'west':
+            tx = await embeddedContract.moveWest(characterId, { gasLimit: MOVEMENT_GAS_LIMIT });
+          break;
+        case 'up':
+            tx = await embeddedContract.moveUp(characterId, { gasLimit: MOVEMENT_GAS_LIMIT });
+          break;
+        case 'down':
+            tx = await embeddedContract.moveDown(characterId, { gasLimit: MOVEMENT_GAS_LIMIT });
+          break;
+          default:
+            throw new Error(`Invalid direction: ${direction}`);
+        }
+        
+        console.log(`[moveCharacter] Transaction sent: ${tx.hash}`);
+        
+        // Add debug logging for the transaction
+        console.log(`[moveCharacter] Transaction data:`, {
+          data: tx.data,
+          from: tx.from,
+          to: tx.to,
+          gasLimit: tx.gasLimit?.toString(),
+          nonce: tx.nonce
+        });
+      } catch (txErr) {
+        console.error('[moveCharacter] Error sending transaction:', txErr);
+        
+        // Special handling for different error types
+        if (typeof txErr === 'object' && txErr !== null) {
+          if ('reason' in txErr) {
+            console.error('[moveCharacter] Error reason:', (txErr as any).reason);
+          }
+          if ('code' in txErr) {
+            console.error('[moveCharacter] Error code:', (txErr as any).code);
+          }
+          if ('error' in txErr && (txErr as any).error && 'message' in (txErr as any).error) {
+            console.error('[moveCharacter] Inner error message:', (txErr as any).error.message);
+          }
+        }
+        
+        // Check if there's an issue with the session key
+        const ownerAddress = getOwnerWalletAddress();
+        const sessionKey = embeddedWallet?.address;
+        
+        if (ownerAddress && sessionKey) {
+          try {
+            // Try to get the current session key for this character
+            const currentSessionKey = await getCurrentSessionKey(characterId);
+            console.log(`[moveCharacter] Current session key check:`, {
+              current: currentSessionKey,
+              embedded: sessionKey,
+              match: currentSessionKey === sessionKey
+            });
+            
+            // If they don't match, suggest updating the session key
+            if (currentSessionKey && currentSessionKey !== sessionKey) {
+              throw new Error('Session key mismatch. Please update your session key in the wallet settings.');
+            }
+          } catch (sessionErr) {
+            console.warn('[moveCharacter] Failed to check session key:', sessionErr);
+          }
+        }
+        
+        // Re-throw with a more user-friendly message
+        throw new Error(`Failed to move ${direction}: ${txErr.message || 'Unknown error'}`);
+      }
+      
+      // Wait for transaction to be mined
+      try {
+        const receipt = await tx.wait();
+        console.log(`[moveCharacter] Move completed: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+        return receipt;
+      } catch (receiptErr) {
+        console.error('[moveCharacter] Error getting transaction receipt:', receiptErr);
+        
+        // Check if transaction was probably executed despite the error
+    try {
+      const provider = getReadOnlyProvider();
+          const txReceipt = await provider.getTransactionReceipt(tx.hash);
+          
+          if (txReceipt) {
+            console.log('[moveCharacter] Transaction was mined:', {
+              status: txReceipt.status,
+              blockNumber: txReceipt.blockNumber,
+              gasUsed: txReceipt.gasUsed.toString()
+            });
+            
+            if (txReceipt.status === 0) {
+              throw new Error(`Movement failed: Transaction was reverted by the contract`);
+            } else {
+              console.log('[moveCharacter] Transaction succeeded despite error getting receipt');
+              return txReceipt;
+            }
+          }
+        } catch (checkErr) {
+          console.warn('[moveCharacter] Error checking transaction status:', checkErr);
+        }
+        
+        throw new Error(`Movement succeeded but error occurred while waiting for confirmation: ${receiptErr.message}`);
+      }
+    } catch (err: any) {
+      console.error("[moveCharacter] Error:", err);
+      
+      // Provide better error message for common issues
+      if (err.message && err.message.includes('insufficient funds')) {
+        throw new Error('Insufficient funds in your wallet. Please add more funds or replenish your gas balance.');
+      } else if (err.message && err.message.includes('execution reverted')) {
+        throw new Error('Movement rejected by the game. You may be trying to move in an invalid direction or be in combat.');
+      } else if (err.message && err.message.includes('nonce too low')) {
+        throw new Error('Transaction error: Please reload the page and try again.');
+      } else {
+        throw new Error(err.message || "Error moving character");
+      }
+    }
+  }, [embeddedContract, embeddedWallet, getAreaCombatState, getOwnerWalletAddress, getCurrentSessionKey, getReadOnlyProvider]);
+
+  // Return all the functions and state that components need
   return {
-    createCharacter,
-    moveCharacter,
+    characterId,
+    loading,
+    error,
+    dataFeeds,
+    eventLogs,
+    chatMessages,
+    lastFetchedBlock,
+    getCurrentSessionKey,
+    getContractForOperation,
+    getOwnerWalletAddress,
     getPlayerCharacterID,
-    getCharacter, 
+    getCharacter,
     getCharactersInArea,
-    getPlayerCharacters,
     getAreaInfo,
     getAreaCombatState,
+    getEstimatedBuyInAmount,
     getMovementOptions,
     getAttackOptions,
+    getFrontendData,
+    getFullFrontendData,
     attackTarget,
     updateSessionKey,
-    getCurrentSessionKey,
-    getFrontendData,
     getGameState,
-    getCharacterIdByTransactionHash,
-    characterId,
     setSessionKeyToEmbeddedWallet,
-    // Add new functions to the export
+    sendChatMessage,
+    getPlayerCharacters,
+    getCharacterIdByTransactionHash,
     equipWeapon,
     equipArmor,
     allocatePoints,
     replenishGasBalance,
-    // Include loading and error for backward compatibility
-    loading,
-    error,
-    // Add the new hasPlayerCharacter function
     hasPlayerCharacter,
+    getReadOnlyProvider,
+    getSigner,
+    processDataFeeds,
+    createCharacter,
+    moveCharacter,
+    attack: attackTarget
   };
-};
+}; 

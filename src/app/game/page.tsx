@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 export default function GamePage() {
   const { address, isInitialized } = useWallet();
   const router = useRouter();
+  const [showLoading, setShowLoading] = useState(true);
   
   // Redirect to home if not connected, but only after wallet state is initialized
   useEffect(() => {
@@ -45,19 +46,6 @@ export default function GamePage() {
     }
   }, []);
   
-  // Show loading spinner while wallet state is initializing
-  if (!isInitialized) {
-    return (
-      <Center height="100vh" className="bg-gray-900">
-        <Spinner size="xl" color="purple.500" thickness="4px" />
-      </Center>
-    );
-  }
-  
-  // Show loading spinner while wallet state is initializing, but with a timeout
-  // to prevent infinite loading
-  const [showLoading, setShowLoading] = useState(true);
-  
   useEffect(() => {
     // Set a timeout to stop showing the loading spinner after 3 seconds
     const timer = setTimeout(() => {
@@ -71,6 +59,15 @@ export default function GamePage() {
     
     return () => clearTimeout(timer);
   }, [isInitialized, address, router]);
+  
+  // Show loading spinner while wallet state is initializing
+  if (!isInitialized) {
+    return (
+      <Center height="100vh" className="bg-gray-900">
+        <Spinner size="xl" color="purple.500" thickness="4px" />
+      </Center>
+    );
+  }
   
   if (!isInitialized && showLoading) {
     return (
