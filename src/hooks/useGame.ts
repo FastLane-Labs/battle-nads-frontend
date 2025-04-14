@@ -241,6 +241,12 @@ export const useGame = () => {
       console.log("Checking session key for character:", charId);
       console.log("Embedded wallet address:", embeddedWallet?.address || embeddedWalletRef.current || "Not available");
       
+      // Skip session key check if character ID is zero address (byte32(0)) or null
+      if (!charId || charId === "0x0000000000000000000000000000000000000000000000000000000000000000") {
+        console.log("Character ID is zero/null, skipping session key check");
+        return true; // Continue with game initialization without warning
+      }
+      
       // Get session key from game data
       const gameData = await getFullFrontendData();
       
@@ -252,6 +258,12 @@ export const useGame = () => {
       
       const currentSessionKey = gameData.sessionKey;
       console.log("Current session key:", currentSessionKey);
+      
+      // Check if session key is zero address (meaning no session key assigned yet)
+      if (currentSessionKey === "0x0000000000000000000000000000000000000000") {
+        console.log("Session key is zero address, will be set during character creation");
+        return true; // Continue without warning
+      }
       
       // Use either the current embedded wallet address or the stored reference
       const embeddedAddress = embeddedWallet?.address || embeddedWalletRef.current;

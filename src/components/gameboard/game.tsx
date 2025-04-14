@@ -1007,30 +1007,46 @@ const Game: React.FC = () => {
       break;
       
     case 'session-key-warning':
-      renderContent = (
-        <Center height="100vh" className="bg-gray-900" color="white">
-          <VStack spacing={6} maxWidth="600px" p={6}>
-            <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
-            <Heading size="md" color="yellow.400">Session Key Warning</Heading>
-            <Alert status="warning">
-              <AlertIcon />
-              <AlertDescription>{sessionKeyWarning}</AlertDescription>
-            </Alert>
-            <Button 
-              colorScheme="yellow" 
-              onClick={() => handleUpdateSessionKey()}
-            >
-              Update Session Key
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={resetSessionKeyWarning}
-            >
-              Continue Anyway
-            </Button>
-          </VStack>
-        </Center>
-      );
+      // Check if we should show session key warning (skip if character ID is zero/null)
+      const isZeroCharacterId = !character || !character.id || character.id === "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+      if (sessionKeyWarning && !isZeroCharacterId) {
+        renderContent = (
+          <Center height="100vh" className="bg-gray-900" color="white">
+            <VStack spacing={6} maxWidth="600px" p={6}>
+              <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
+              <Heading size="md" color="yellow.400">Session Key Warning</Heading>
+              <Alert status="warning">
+                <AlertIcon />
+                <AlertDescription>{sessionKeyWarning}</AlertDescription>
+              </Alert>
+              <Button 
+                colorScheme="yellow" 
+                onClick={() => handleUpdateSessionKey()}
+              >
+                Update Session Key
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={resetSessionKeyWarning}
+              >
+                Continue Anyway
+              </Button>
+            </VStack>
+          </Center>
+        );
+      } else {
+        // If we're skipping the session key warning, we should proceed to character creation/selection
+        renderContent = (
+          <Center height="100vh" className="bg-gray-900" color="white">
+            <VStack spacing={6}>
+              <Heading as="h1" size="xl" color="white">Battle Nads</Heading>
+              <Text fontSize="xl" color="white">Preparing game environment...</Text>
+              <Button onClick={initializeGame} colorScheme="blue">Continue</Button>
+            </VStack>
+          </Center>
+        );
+      }
       break;
       
     case 'ready':
