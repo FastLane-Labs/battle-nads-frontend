@@ -365,6 +365,226 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
     }
   }, [getOwnerWalletAddress, readContract]);
 
+  // Add new function to get all characters for a player
+  const getPlayerCharacters = useCallback(async (addressToCheck?: string): Promise<any[]> => {
+    try {
+      // Get the owner wallet address
+      const ownerAddress = addressToCheck || getOwnerWalletAddress();
+      
+      if (!ownerAddress || !ethers.isAddress(ownerAddress)) {
+        console.warn("No valid owner address available to check for character IDs");
+        return [];
+      }
+      
+      if (!readContract) {
+        console.warn("No read contract available to check for character IDs");
+        return [];
+      }
+      
+      // Use getPlayerCharacterIDs to get all character IDs for this address
+      let characterIds;
+      try {
+        characterIds = await readContract.getPlayerCharacterIDs(ownerAddress);
+      } catch (err) {
+        console.error('Error fetching character IDs:', err);
+        return [];
+      }
+      
+      if (!characterIds || characterIds.length === 0) {
+        return [];
+      }
+      
+      console.log(`Found ${characterIds.length} characters for address ${ownerAddress}`);
+      
+      // For each character ID, fetch the full character data
+      const characters = await Promise.all(
+        characterIds.map(async (id: string) => {
+          try {
+            if (readContract.getBattleNad) {
+              const character = await readContract.getBattleNad(id);
+              return { id, ...character };
+            } else {
+              // Fallback to use getFrontendData if getBattleNad is not available
+              const data = await readContract.getFrontendData(id);
+              return { id, ...data.character };
+            }
+          } catch (err) {
+            console.error(`Error fetching data for character ${id}:`, err);
+            return { id, error: true };
+          }
+        })
+      );
+      
+      return characters.filter(c => !c.error);
+    } catch (err) {
+      console.error('Error in getPlayerCharacters:', err);
+      return [];
+    }
+  }, [getOwnerWalletAddress, readContract]);
+
+  // Add the createCharacter function
+  const createCharacter = useCallback(async (
+    name: string,
+    strength: number,
+    vitality: number,
+    dexterity: number,
+    quickness: number,
+    sturdiness: number,
+    luck: number,
+    sessionKey?: string,
+    sessionKeyDeadline?: bigint
+  ): Promise<string | null> => {
+    try {
+      console.log(`[createCharacter] Creating character "${name}" with stats:`, {
+        strength, vitality, dexterity, quickness, sturdiness, luck
+      });
+      
+      if (!injectedWallet?.signer || !injectedWallet?.address) {
+        throw new Error('Owner wallet not available or not properly set up. Please connect your wallet and try again.');
+      }
+      
+      if (!injectedContract) {
+        throw new Error('Contract not available. Please connect your wallet and try again.');
+      }
+      
+      // If sessionKey is not provided, try to use embedded wallet
+      let sessionKeyAddress = sessionKey;
+      if (!sessionKeyAddress && embeddedWallet?.address) {
+        sessionKeyAddress = embeddedWallet.address;
+        console.log(`[createCharacter] Using embedded wallet as session key: ${sessionKeyAddress}`);
+      }
+      
+      if (!sessionKeyAddress) {
+        throw new Error('No session key available. Please provide a session key or connect an embedded wallet.');
+      }
+      
+      // Set deadline one week in the future if not provided
+      let deadline = sessionKeyDeadline;
+      if (!deadline) {
+        // 10,000 blocks ≈ 1 day on most chains
+        deadline = BigInt(70000); // ≈ 7 days worth of blocks
+        console.log(`[createCharacter] Using default deadline: ${deadline} blocks`);
+      }
+      
+      console.log(`[createCharacter] Creating character with session key: ${sessionKeyAddress}, deadline: ${deadline}`);
+      
+      // Call the contract function
+      const tx = await injectedContract.createCharacter(
+        name,
+        BigInt(strength),
+        BigInt(vitality),
+        BigInt(dexterity),
+        BigInt(quickness),
+        BigInt(sturdiness),
+        BigInt(luck),
+        sessionKeyAddress,
+        deadline
+      );
+      
+      console.log(`[createCharacter] Transaction sent: ${tx.hash}`);
+      
+      // Wait for transaction to be mined
+      const receipt = await tx.wait();
+      if (!receipt) {
+        throw new Error('No receipt returned from transaction');
+      }
+      console.log(`[createCharacter] Character created: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+      
+      // Try to get character ID after creation
+      try {
+        // Wait a bit for blockchain state to update
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Get character ID
+        const characterId = await getPlayerCharacterID(injectedWallet.address);
+        if (characterId) {
+          console.log(`[createCharacter] New character ID: ${characterId}`);
+          return characterId;
+        }
+      } catch (err) {
+        console.error('[createCharacter] Error getting character ID after creation:', err);
+        // We'll continue anyway since the transaction completed
+      }
+      
+      // Return the transaction hash as a fallback
+      return tx.hash;
+    } catch (err: any) {
+      console.error("[createCharacter] Error:", err);
+      
+      // Provide better error message for common issues
+      if (err.message && err.message.includes('insufficient funds')) {
+        throw new Error('Insufficient funds in your wallet. Please add more funds.');
+      } else if (err.message && err.message.includes('execution reverted')) {
+        throw new Error('Character creation rejected by the contract.');
+      } else if (err.message && err.message.includes('nonce too low')) {
+        throw new Error('Transaction error: Please reload the page and try again.');
+      } else {
+        throw new Error(err.message || "Error creating character");
+      }
+    }
+  }, [injectedContract, injectedWallet, embeddedWallet, getPlayerCharacterID]);
+
+  // Add getCharacterIdByTransactionHash to look up character ID by transaction hash
+  const getCharacterIdByTransactionHash = useCallback(async (txHash: string): Promise<string | null> => {
+    try {
+      console.log(`[getCharacterIdByTransactionHash] Looking up character ID for transaction: ${txHash}`);
+      
+      if (!txHash || !txHash.startsWith('0x')) {
+        throw new Error('Invalid transaction hash');
+      }
+      
+      if (!readContract) {
+        throw new Error('Contract not available for reading');
+      }
+      
+      // Get the true owner wallet address
+      const ownerAddress = getOwnerWalletAddress();
+      
+      if (!ownerAddress) {
+        throw new Error('No owner wallet address available');
+      }
+      
+      // Create a provider to look up the transaction
+      const provider = new ethers.JsonRpcProvider(RPC_URL);
+      
+      // Get transaction receipt
+      const receipt = await provider.getTransactionReceipt(txHash);
+      
+      if (!receipt) {
+        throw new Error('Transaction not found or still pending');
+      }
+      
+      // Get character ID after transaction confirmation
+      const characterId = await getPlayerCharacterID(ownerAddress);
+      
+      if (characterId) {
+        console.log(`[getCharacterIdByTransactionHash] Found character ID: ${characterId}`);
+        return characterId;
+      }
+      
+      console.log(`[getCharacterIdByTransactionHash] No character ID found for transaction: ${txHash}`);
+      return null;
+    } catch (err) {
+      console.error('[getCharacterIdByTransactionHash] Error:', err);
+      throw err;
+    }
+  }, [readContract, getOwnerWalletAddress, getPlayerCharacterID]);
+
+  // Add function to get estimated buy-in amount in MON
+  const getEstimatedBuyInAmount = useCallback(async (): Promise<ethers.BigNumberish> => {
+    try {
+      if (!readContract) {
+        throw new Error("Contract not available for reading");
+      }
+      
+      const amount = await readContract.estimateBuyInAmountInMON();
+      return amount;
+    } catch (err) {
+      console.error("[getEstimatedBuyInAmount] Error:", err);
+      throw new Error(`Failed to get estimated buy-in amount: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [readContract]);
+
   // Get full frontend data including chat/event logs
   const getFullFrontendData = useCallback(async (characterIdOrOwnerAddress?: string, startBlockOverride?: number) => {
     // Return cached data if this is not the provider and cache exists
@@ -906,6 +1126,10 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
     highestSeenBlock,
     getOwnerWalletAddress,
     getPlayerCharacterID,
+    getPlayerCharacters,
+    createCharacter,
+    getCharacterIdByTransactionHash,
+    getEstimatedBuyInAmount,
     getFullFrontendData,
     moveCharacter,
     replenishGasBalance,
@@ -978,29 +1202,131 @@ export const useWalletBalances = () => {
 };
 
 export const useGameActions = () => {
-  const { moveCharacter } = useBattleNads();
+  const { 
+    moveCharacter, 
+    sendChatMessage: battleNadsSendChatMessage,
+    characterId 
+  } = useBattleNads();
+  const { 
+    injectedWallet, 
+    embeddedWallet 
+  } = useWallet();
+  const { 
+    injectedContract, 
+    readContract 
+  } = useContracts();
   
-  // Add sendChatMessage function implementation
+  // Reuse the existing sendChatMessage function
   const sendChatMessage = (message: string) => {
     if (!message.trim()) return;
     
-    // Create a new chat message object
-    const newMessage: ChatMessage = {
-      characterName: 'You', // Will be overridden by contract
-      message,
-      timestamp: Date.now()
-    };
-    
-    // Use smart contract interaction to send chat message
-    // This now only logs the message without trying to update state locally
-    console.log('Sending chat message to blockchain:', message);
-    
-    // The actual messages will be retrieved from the blockchain through the useBattleNads hook
-    // Future implementation will send this to the blockchain
+    // If we have the battleNads sendChatMessage function, use it
+    if (battleNadsSendChatMessage && characterId) {
+      try {
+        return battleNadsSendChatMessage(message);
+      } catch (err) {
+        console.error("Error sending chat message:", err);
+      }
+    } else {
+      // Fallback to just logging
+      console.log('Sending chat message to blockchain:', message);
+    }
+  };
+  
+  // Add updateSessionKey function that uses the contract
+  const updateSessionKey = async (sessionKey?: string) => {
+    try {
+      console.log('[updateSessionKey] Updating session key');
+      
+      if (!injectedWallet?.signer || !injectedWallet?.address) {
+        throw new Error('Owner wallet not available. Please connect your wallet and try again.');
+      }
+      
+      if (!injectedContract) {
+        throw new Error('Contract not available. Please connect your wallet and try again.');
+      }
+      
+      // Use provided session key or embedded wallet as fallback
+      const sessionKeyToUse = sessionKey || embeddedWallet?.address;
+      
+      if (!sessionKeyToUse) {
+        throw new Error('No session key provided and no embedded wallet available');
+      }
+      
+      console.log(`[updateSessionKey] Using session key: ${sessionKeyToUse}`);
+      
+      // Set deadline one week in the future (≈70,000 blocks)
+      const sessionKeyDeadline = BigInt(70000);
+      
+      // Call the contract function
+      const tx = await injectedContract.updateSessionKey(
+        sessionKeyToUse,
+        sessionKeyDeadline
+      );
+      
+      console.log(`[updateSessionKey] Transaction sent: ${tx.hash}`);
+      
+      // Wait for transaction to be mined
+      const receipt = await tx.wait();
+      if (!receipt) {
+        throw new Error('No receipt returned from transaction');
+      }
+      
+      console.log(`[updateSessionKey] Session key updated: ${receipt.hash}`);
+      return { success: true, hash: receipt.hash };
+    } catch (err) {
+      console.error("[updateSessionKey] Error:", err);
+      return { 
+        success: false, 
+        error: err instanceof Error ? err.message : String(err) 
+      };
+    }
+  };
+  
+  // Add getCurrentSessionKey function that uses the contract
+  const getCurrentSessionKey = async (characterId: string): Promise<string | null> => {
+    try {
+      console.log(`[getCurrentSessionKey] Fetching session key for character: ${characterId}`);
+      
+      if (!characterId) {
+        throw new Error('No character ID provided');
+      }
+      
+      if (!readContract) {
+        throw new Error('Contract not available for reading');
+      }
+      
+      // Call the contract function
+      const sessionKeyData = await readContract.getCurrentSessionKey(characterId);
+      
+      // Handle different response formats
+      let sessionKey: string | null = null;
+      
+      if (Array.isArray(sessionKeyData)) {
+        // Handle array response [key, expiration]
+        sessionKey = sessionKeyData[0];
+      } else if (sessionKeyData && typeof sessionKeyData === 'object') {
+        // Handle object response {key, expiration}
+        sessionKey = sessionKeyData.key;
+      }
+      
+      if (sessionKey && typeof sessionKey === 'string') {
+        console.log(`[getCurrentSessionKey] Current session key: ${sessionKey}`);
+        return sessionKey;
+      }
+      
+      console.log('[getCurrentSessionKey] No valid session key found');
+      return null;
+    } catch (err) {
+      console.error("[getCurrentSessionKey] Error:", err);
+      return null;
+    }
   };
   
   return {
     moveCharacter,
-    sendChatMessage
+    sendChatMessage,
+    updateSessionKey,
+    getCurrentSessionKey
   };
 }; 

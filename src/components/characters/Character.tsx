@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Box, Heading, Text, Button, VStack, HStack, Input, FormControl, FormLabel, Grid, GridItem, IconButton, NumberInput, NumberInputField, Flex, Stat, StatLabel, StatNumber, StatHelpText, Image, Center } from '@chakra-ui/react';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from '../../hooks/useBattleNads';
+import { useGame } from '../../hooks/useGame';
 import { CharacterCard } from '../CharacterCard';
 import { CharacterList } from '../CharacterList';
 import { AddIcon, MinusIcon } from '@chakra-ui/icons';
@@ -15,7 +16,14 @@ const STARTING_UNALLOCATED_POINTS = STARTING_STAT_SUM - (6 * MIN_STAT_VALUE); //
 
 const CharacterDashboard = () => {
   const { address, injectedWallet, embeddedWallet } = useWallet();
-  const { createCharacter, getCharacter, getCharactersInArea, moveCharacter, attackTarget, loading, error } = useBattleNads();
+  const { loading: battleNadsLoading, error: battleNadsError } = useBattleNads();
+  const { 
+    moveCharacter, 
+    initializeGame, 
+    loadGameState,
+    error: gameError,
+    status
+  } = useGame();
   
   const [characterName, setCharacterName] = useState('');
   
@@ -33,6 +41,8 @@ const CharacterDashboard = () => {
   const [selectedCharacter, setSelectedCharacter] = useState<any>(null);
   const [areaCharacters, setAreaCharacters] = useState<any[]>([]);
   const [characterId, setCharacterId] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(battleNadsError || gameError);
 
   // Function to increase a stat
   const increaseStat = (statSetter: React.Dispatch<React.SetStateAction<number>>, currentValue: number) => {
@@ -62,61 +72,80 @@ const CharacterDashboard = () => {
     }
     
     try {
-      await createCharacter(
-        characterName,
-        strength,
-        vitality,
-        dexterity,
-        quickness,
-        sturdiness,
-        luck
-      );
-      // Would typically reload character list here
+      setLoading(true);
+      setError(null);
+      
+      // Navigate to character creation page since we don't have direct access to createCharacter here
+      window.location.href = `/create?name=${encodeURIComponent(characterName)}&strength=${strength}&vitality=${vitality}&dexterity=${dexterity}&quickness=${quickness}&sturdiness=${sturdiness}&luck=${luck}`;
     } catch (err) {
-      console.error("Error creating character:", err);
+      console.error("Error starting character creation:", err);
+      setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   // Load character data
   const handleLoadCharacter = async (id: string) => {
     try {
-      const character = await getCharacter(id);
-      setSelectedCharacter(character);
+      setLoading(true);
+      setError(null);
+      setCharacterId(id);
       
-      // Load characters in the same area
-      if (character) {
-        const { depth, x, y } = character.stats;
-        const areaChars = await getCharactersInArea(depth, x, y);
-        setAreaCharacters(areaChars);
+      // Load game state using the selected character ID
+      await loadGameState(id);
+      
+      // After loading game state, initialize the game
+      const result = await initializeGame();
+      
+      if (result.success) {
+        console.log("Game initialized successfully with character:", id);
+      } else {
+        console.warn("Game initialization warning:", result.status);
       }
+      
+      setSelectedCharacter({ id });
     } catch (err) {
       console.error("Error loading character:", err);
+      setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   // Handle character movement
   const handleMove = async (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
-    if (!selectedCharacter) return;
+    if (!selectedCharacter?.id) return;
     
     try {
+      setLoading(true);
+      setError(null);
+      
       await moveCharacter(selectedCharacter.id, direction);
-      // Reload character after movement
-      await handleLoadCharacter(selectedCharacter.id);
     } catch (err) {
       console.error(`Error moving ${direction}:`, err);
+      setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setLoading(false);
     }
   };
 
   // Handle attack
   const handleAttack = async (targetIndex: number) => {
-    if (!selectedCharacter) return;
+    if (!selectedCharacter?.id) return;
     
     try {
-      await attackTarget(selectedCharacter.id, targetIndex);
-      // Reload character and area after attack
-      await handleLoadCharacter(selectedCharacter.id);
+      setLoading(true);
+      setError(null);
+      
+      // Since attackTarget is no longer available directly, 
+      // we'll need to provide a UI message
+      setError("Combat functionality is not available in this view. Please use the main game view for combat.");
     } catch (err) {
       console.error("Error attacking:", err);
+      setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setLoading(false);
     }
   };
 
