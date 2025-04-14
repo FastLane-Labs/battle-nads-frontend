@@ -35,6 +35,7 @@ import {
 import { useRouter } from 'next/navigation';
 import { useBattleNads } from '../../hooks/useBattleNads';
 import { useWallet } from '../../providers/WalletProvider';
+import { isValidCharacterId } from '../../utils/getCharacterLocalStorageKey';
 
 interface AttributeInputProps {
   value: number;
@@ -72,12 +73,6 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
   // Import the wallet provider to get embedded wallet address
   const { embeddedWallet, injectedWallet } = useWallet();
   
-  // Helper function to check if a character ID is valid (not zero address)
-  const isValidCharacterId = (id: string | null): boolean => {
-    if (!id) return false;
-    return id !== "0x0000000000000000000000000000000000000000000000000000000000000000";
-  };
-  
   // Check if character already exists and redirect if it does
   useEffect(() => {
     const storedCharacterId = localStorage.getItem('battleNadsCharacterId');
@@ -113,6 +108,25 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
       console.log("Embedded wallet (will be used as session key):", embeddedWallet.address);
     }
   }, [injectedWallet, embeddedWallet]);
+  
+  // Add a new effect to listen for character creation events
+  useEffect(() => {
+    const handleCharacterCreated = (event: CustomEvent) => {
+      console.log("CharacterCreation received characterCreated event:", event.detail);
+      if (event.detail && event.detail.characterId && isValidCharacterId(event.detail.characterId)) {
+        console.log("Valid character created, will redirect to game:", event.detail.characterId);
+        router.push('/game');
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('characterCreated', handleCharacterCreated as EventListener);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('characterCreated', handleCharacterCreated as EventListener);
+    };
+  }, [router]);
   
   const MIN_STAT_VALUE = 3;
   const TOTAL_POINTS = 32;
@@ -213,12 +227,15 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
       return;
     }
     
+    console.log("Starting character creation process...");
     setIsCreating(true);
     
     try {
       console.log("Creating character with session key:", embeddedWallet.address);
+      console.log("Character stats:", { name, strength, vitality, dexterity, quickness, sturdiness, luck });
+      
       // Call the createCharacter function from the hook
-      const characterId = await createCharacter(
+      const newCharacterId = await createCharacter(
         name,
         strength,
         vitality,
@@ -229,9 +246,19 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
         embeddedWallet.address  // Pass the embedded wallet address as the session key
       );
       
-      console.log("Character creation result:", characterId);
+      console.log("Character creation result:", { 
+        characterId: newCharacterId, 
+        isValid: newCharacterId ? isValidCharacterId(newCharacterId) : false 
+      });
       
-      if (characterId) {
+      if (newCharacterId && isValidCharacterId(newCharacterId)) {
+        // Store character ID in local state for the component to use
+        console.log("Setting transactionHash for reference:", newCharacterId);
+        setTransactionHash(typeof newCharacterId === 'string' && newCharacterId.startsWith('0x') && newCharacterId.length < 66 
+          ? newCharacterId  // It's probably a transaction hash
+          : null           // It's a character ID
+        );
+        
         toast({
           title: 'Success',
           description: 'Character created successfully!',
@@ -245,11 +272,31 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
           onCharacterCreated();
         }
         
-        // Navigation will happen via useEffect
+        // Force check localStorage to ensure it was updated
+        const storedCharacterId = localStorage.getItem('battleNadsCharacterId');
+        console.log("Checking localStorage after creation:", { 
+          storedCharacterId,
+          isValid: storedCharacterId ? isValidCharacterId(storedCharacterId) : false
+        });
+        
+        // Navigation will happen via useEffect or the event listener
+        console.log("Waiting for navigation to game page...");
+        
+        // Manually trigger a custom event in case other listeners missed it
+        try {
+          const characterCreatedEvent = new CustomEvent('characterCreated', { 
+            detail: { characterId: newCharacterId, owner: injectedWallet.address }
+          });
+          window.dispatchEvent(characterCreatedEvent);
+          console.log("Manually dispatched characterCreated event");
+        } catch (eventErr) {
+          console.error("Error dispatching manual event:", eventErr);
+        }
       } else {
+        console.warn("Character creation returned an invalid character ID:", newCharacterId);
         toast({
           title: 'Error',
-          description: error || 'Failed to create character',
+          description: error || 'Failed to create character - invalid ID returned',
           status: 'error',
           duration: 5000,
           isClosable: true,

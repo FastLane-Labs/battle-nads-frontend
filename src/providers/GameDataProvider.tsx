@@ -325,6 +325,25 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
     setIsPollingEnabled(false);
   }, []);
 
+  // Add a listener for character creation events to trigger immediate data fetch
+  useEffect(() => {
+    const handleCharacterCreated = (event: CustomEvent) => {
+      console.log("[GameDataProvider] Received characterCreated event:", event.detail);
+      if (event.detail && event.detail.characterId) {
+        console.log("[GameDataProvider] Triggering immediate data fetch for new character");
+        fetchGameData();
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('characterCreated', handleCharacterCreated as EventListener);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('characterCreated', handleCharacterCreated as EventListener);
+    };
+  }, [fetchGameData]);
+
   // Provide context to children
   const contextValue = useMemo(() => ({
     gameData,

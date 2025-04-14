@@ -503,9 +503,33 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
         
         // Get character ID
         const characterId = await getPlayerCharacterID(injectedWallet.address);
-        if (characterId) {
+        if (characterId && isValidCharacterId(characterId)) {
           console.log(`[createCharacter] New character ID: ${characterId}`);
+          
+          // Explicitly update state
+          setCharacterId(characterId);
+          
+          // Get wallet-specific localStorage key and update storage
+          const storageKey = getCharacterLocalStorageKey(injectedWallet.address);
+          if (storageKey) {
+            localStorage.setItem(storageKey, characterId);
+            console.log(`[createCharacter] Saved character ID to localStorage using key: ${storageKey}`);
+          }
+          
+          // Also use a fixed key for backwards compatibility
+          localStorage.setItem('battleNadsCharacterId', characterId);
+          console.log(`[createCharacter] Saved character ID to localStorage with fixed key for compatibility`);
+          
+          // Broadcast an event when character is created - this helps with UI updates
+          const characterCreatedEvent = new CustomEvent('characterCreated', { 
+            detail: { characterId, owner: injectedWallet.address }
+          });
+          window.dispatchEvent(characterCreatedEvent);
+          console.log(`[createCharacter] Dispatched characterCreated event`);
+          
           return characterId;
+        } else {
+          console.warn(`[createCharacter] Retrieved character ID is invalid or zero address: ${characterId}`);
         }
       } catch (err) {
         console.error('[createCharacter] Error getting character ID after creation:', err);

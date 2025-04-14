@@ -9,6 +9,7 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from '../providers/WalletProvider';
 import { useBattleNads } from '../hooks/useBattleNads';
 import { useGameData } from '../providers/GameDataProvider';
+import { isValidCharacterId } from '../utils/getCharacterLocalStorageKey';
 
 const NavBar: React.FC = () => {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -29,14 +30,6 @@ const NavBar: React.FC = () => {
   
   // State to track if user has a character
   const [hasCharacter, setHasCharacter] = useState<boolean>(false);
-  
-  // Helper to check if a character ID is valid (not null and not zero address)
-  const isValidCharacterId = (id: string | null): boolean => {
-    if (!id) return false;
-    // Check if the ID is the zero address (byte32(0))
-    const zeroAddress = "0x0000000000000000000000000000000000000000000000000000000000000000";
-    return id !== zeroAddress;
-  };
   
   // Use both the characterId from useBattleNads and the characterID from gameData
   useEffect(() => {
@@ -67,6 +60,27 @@ const NavBar: React.FC = () => {
     
     setHasCharacter(isValid);
   }, [characterId, gameData]);
+
+  // Add an effect to listen for character creation events
+  useEffect(() => {
+    const handleCharacterCreated = (event: CustomEvent) => {
+      console.log("NavBar received characterCreated event:", event.detail);
+      
+      // Force a check to see if the user has a character now
+      if (event.detail && event.detail.characterId && isValidCharacterId(event.detail.characterId)) {
+        console.log("NavBar: Setting hasCharacter to true from event");
+        setHasCharacter(true);
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('characterCreated', handleCharacterCreated as EventListener);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('characterCreated', handleCharacterCreated as EventListener);
+    };
+  }, []);
 
   const isActive = (path: string) => pathname === path;
   
