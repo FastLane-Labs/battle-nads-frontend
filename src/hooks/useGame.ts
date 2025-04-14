@@ -4,6 +4,7 @@ import { useBattleNads } from './useBattleNads';
 import { useSetRecoilState, useRecoilValue } from 'recoil';
 import { gameStateAtom } from '../state/gameState';
 import { parseFrontendData, createGameState } from '../utils/gameDataConverters';
+import { isValidCharacterId } from '../utils/getCharacterLocalStorageKey';
 
 // This hook handles game state management and orchestration
 export const useGame = () => {
@@ -178,9 +179,15 @@ export const useGame = () => {
         return battleNadsCharacterId;
       }
       
-      // If we already have a character ID, use it
+      // If we already have a character ID, validate it's not the zero address
       if (battleNadsCharacterId) {
         console.log("Using existing character ID:", battleNadsCharacterId);
+        if (!isValidCharacterId(battleNadsCharacterId)) {
+          console.log("Character ID is the zero address, need to create a character");
+          setStatus('need-character');
+          processingRef.current = false;
+          return null;
+        }
         return battleNadsCharacterId;
       }
       
@@ -197,14 +204,15 @@ export const useGame = () => {
       const charId = await getPlayerCharacterID();
       console.log("Character ID from chain:", charId);
       
-      if (!charId) {
-        console.log("No character found, need to create one");
+      // Check if character ID is null or the zero address
+      if (!isValidCharacterId(charId)) {
+        console.log("No valid character found (null or zero address), need to create one");
         setStatus('need-character');
         processingRef.current = false;
         return null;
       }
       
-      console.log("Character confirmed:", charId);
+      console.log("Valid character confirmed:", charId);
       return charId;
     } catch (error) {
       console.error("Error checking character:", error);

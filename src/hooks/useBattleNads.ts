@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import * as ethers from 'ethers';
 import { useWallet } from '../providers/WalletProvider';
 import { useContracts } from './useContracts';
-import { getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKey';
+import { getCharacterLocalStorageKey, isValidCharacterId } from '../utils/getCharacterLocalStorageKey';
 
 /**
  * Safely stringifies objects containing BigInt values
@@ -332,16 +332,19 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
         return null;
       }
       
-      // FIRST PRIORITY: Always use localStorage if available for this specific wallet
+      // FIRST PRIORITY: Check localStorage but ensure it's not the zero address
       const storedCharacterId = localStorage.getItem(storageKey);
-      if (storedCharacterId) {
+      if (storedCharacterId && isValidCharacterId(storedCharacterId)) {
         console.log(`Using stored character ID from localStorage for ${ownerAddress}:`, storedCharacterId);
         setCharacterId(storedCharacterId);
         return storedCharacterId;
+      } else if (storedCharacterId && !isValidCharacterId(storedCharacterId)) {
+        console.log(`Found invalid zero-address character ID in localStorage for ${ownerAddress}, removing it`);
+        localStorage.removeItem(storageKey);
       }
       
-      // SECOND PRIORITY: Only if no localStorage value, check the blockchain using owner address
-      debugLog("No character in localStorage, checking blockchain...");
+      // SECOND PRIORITY: Only if no valid localStorage value, check the blockchain using owner address
+      debugLog("No valid character in localStorage, checking blockchain...");
       
       if (!readContract) {
         console.warn("No read contract available to check for character ID");
@@ -350,12 +353,15 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
       
       const characterIdFromChain = await readContract.getPlayerCharacterID(ownerAddress);
       
-      // If valid character ID returned, store it
-      if (characterIdFromChain && characterIdFromChain !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
-        debugLog(`Found character ID on blockchain for ${ownerAddress}:`, characterIdFromChain);
+      // If valid character ID returned (not zero address), store it
+      if (characterIdFromChain && isValidCharacterId(characterIdFromChain)) {
+        debugLog(`Found valid character ID on blockchain for ${ownerAddress}:`, characterIdFromChain);
         setCharacterId(characterIdFromChain);
         localStorage.setItem(storageKey, characterIdFromChain);
         return characterIdFromChain;
+      } else if (characterIdFromChain) {
+        // We got a character ID from the chain, but it's the zero address
+        console.log(`Found zero-address character ID on blockchain for ${ownerAddress} - this indicates no character exists`);
       }
       
       return null;

@@ -8,17 +8,20 @@ import { ethers } from 'ethers';
  * @returns The localStorage key string or null if the address is invalid.
  */
 export const getCharacterLocalStorageKey = (ownerAddress: string | null | undefined): string | null => {
-  if (!ownerAddress || !ethers.isAddress(ownerAddress)) {
+  if (!ownerAddress) {
     console.warn("[getCharacterLocalStorageKey] Invalid or missing owner address provided.");
     return null;
   }
   
-  // Normalize the owner address (lowercase for consistency in localStorage keys)
-  const normalizedAddress = ownerAddress.toLowerCase();
+  // For this specific wallet address, generate a unique storage key
+  return `battleNads:character:${ownerAddress.toLowerCase()}`;
+};
+
+// Add a new helper function to validate character IDs
+export const isValidCharacterId = (characterId: string | null | undefined): boolean => {
+  if (!characterId) return false;
   
-  // Get contract address from environment or use the fallback
-  const contractAddress = (process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0x1E85b64E23Cf13b305b4c056438DD5242d93BB76").toLowerCase();
-  
-  // Create key in format: battleNadsCharacterId_[contractAddress]_[walletAddress]
-  return `battleNadsCharacterId_${contractAddress}_${normalizedAddress}`;
+  // Check if the character ID is the zero address (bytes32(0))
+  const zeroAddress = "0x0000000000000000000000000000000000000000000000000000000000000000";
+  return characterId !== zeroAddress;
 };

@@ -72,14 +72,34 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
   // Import the wallet provider to get embedded wallet address
   const { embeddedWallet, injectedWallet } = useWallet();
   
+  // Helper function to check if a character ID is valid (not zero address)
+  const isValidCharacterId = (id: string | null): boolean => {
+    if (!id) return false;
+    return id !== "0x0000000000000000000000000000000000000000000000000000000000000000";
+  };
+  
   // Check if character already exists and redirect if it does
   useEffect(() => {
     const storedCharacterId = localStorage.getItem('battleNadsCharacterId');
-    if (storedCharacterId) {
-      console.log("Found existing character, redirecting to game:", storedCharacterId);
+    if (storedCharacterId && isValidCharacterId(storedCharacterId)) {
+      console.log("Found existing valid character, redirecting to game:", storedCharacterId);
       router.push('/game');
+    } else if (storedCharacterId) {
+      console.log("Found invalid zero-address character ID in localStorage, not redirecting");
+      // Remove invalid character ID from localStorage
+      localStorage.removeItem('battleNadsCharacterId');
     }
   }, [router]);
+  
+  // Check if character was created and redirect to game
+  useEffect(() => {
+    if (characterId && isValidCharacterId(characterId)) {
+      console.log("Valid character ID found, redirecting to game:", characterId);
+      router.push('/game');
+    } else if (characterId) {
+      console.log("Character ID is the zero address, not redirecting to game");
+    }
+  }, [characterId, router]);
   
   // Check if we have both required wallets
   useEffect(() => {
@@ -93,14 +113,6 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
       console.log("Embedded wallet (will be used as session key):", embeddedWallet.address);
     }
   }, [injectedWallet, embeddedWallet]);
-  
-  // Check if character was created and redirect to game
-  useEffect(() => {
-    if (characterId) {
-      console.log("Character ID found, redirecting to game:", characterId);
-      router.push('/game');
-    }
-  }, [characterId, router]);
   
   const MIN_STAT_VALUE = 3;
   const TOTAL_POINTS = 32;
