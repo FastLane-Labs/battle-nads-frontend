@@ -1,113 +1,114 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { Box, VStack, Tabs, TabList, TabPanels, Tab, TabPanel } from '@chakra-ui/react';
-import { useBattleNads } from '../../hooks/useBattleNads';
-import { useWallet } from '../../providers/WalletProvider';
+import { useGameData } from '../../providers/GameDataProvider';
 import ChatInterface from './ChatInterface';
 import EventFeed from './EventFeed';
 
+// Replace tracking array with singleton object
+const ACTIVE_DATAFEED = {
+  instance: null as string | null,
+  timestamp: null as string | null,
+  isMounted: false
+};
+
 interface DataFeedProps {
   characterId: string;
-  pollInterval?: number; // Polling interval in milliseconds
+  owner?: string;
+  sendChatMessage: (message: string) => void;
 }
 
-export default function DataFeed({ characterId, pollInterval = 5000 }: DataFeedProps) {
-  const { 
-    getFullFrontendData, 
-    sendChatMessage, 
-    eventLogs, 
-    chatMessages,
-    loading,
-    error,
-    getOwnerWalletAddress
-  } = useBattleNads();
+// Use React.memo to prevent unnecessary re-renders
+const DataFeed = memo(function DataFeed({ characterId, owner, sendChatMessage }: DataFeedProps) {
+  // Generate unique instance ID for this component
+  const instanceId = useRef<string>(`DataFeed-${Math.random().toString(36).substring(2, 9)}`);
   
-  const { injectedWallet } = useWallet();
+  // Track render count
+  const renderCount = useRef<number>(0);
   
-  const [pollingTimer, setPollingTimer] = useState<NodeJS.Timeout | null>(null);
+  // Track if we should render - initialized to false
+  const [shouldRender, setShouldRender] = useState<boolean>(false);
   
-  // Set up polling to get data updates
+  // Use game data context for access to shared state - always call this hook
+  const { isLoading, processedChatMessages, processedEventLogs } = useGameData();
+  
+  // Debug log to check if chat messages are being received
   useEffect(() => {
-    if (!pollingTimer) {
-      console.log('[DataFeed] Setting up polling interval');
-      
-      // Log the owner address we're using for polling
-      const ownerAddress = injectedWallet?.address || getOwnerWalletAddress() || '';
-      console.log(`[DataFeed] Using owner address: ${ownerAddress || 'undefined'}`);
-      console.log(`[DataFeed] Character ID from props: ${characterId || 'undefined'}`);
-      
-      // Log wallet details (if available) for debugging
-      if (injectedWallet) {
-        console.log(`[DataFeed] Injected wallet info:`, {
-          address: injectedWallet.address,
-          connected: !!injectedWallet.provider
-        });
-      }
-      
-      // Track poll count for debugging
-      let pollCount = 0;
-      
-      // Initial fetch
-      const fetchInitialData = async () => {
-        try {
-          if (!ownerAddress) {
-            console.warn('[DataFeed] No owner address available for initial data fetch');
-            return;
-          }
-          
-          console.log(`[DataFeed] Fetching initial data for owner: ${ownerAddress}`);
-          const result = await getFullFrontendData(ownerAddress);
-          
-          if (result) {
-            console.log(`[DataFeed] Initial fetch successful, character ID: ${result.characterID || 'null'}`);
-          } else {
-            console.warn('[DataFeed] Initial fetch returned null result');
-          }
-        } catch (err) {
-          console.error('[DataFeed] Error in initial data fetch:', err);
-        }
-      };
-      
-      fetchInitialData();
-      
-      // Set up polling interval
-      const interval = setInterval(async () => {
-        pollCount++;
-        try {
-          if (!ownerAddress) {
-            console.warn(`[DataFeed] Poll #${pollCount} - No owner address available`);
-            return;
-          }
-          
-          const result = await getFullFrontendData(ownerAddress);
-          console.log(`[DataFeed] Poll #${pollCount} result: ${result ? 'data received' : 'null'}`);
-          
-          if (result) {
-            if (!result.characterID) {
-              console.warn(`[DataFeed] Warning: Poll #${pollCount} returned null characterID`);
-            }
-          } else {
-            console.warn(`[DataFeed] Warning: Poll #${pollCount} returned null result`);
-          }
-        } catch (err) {
-          console.error(`[DataFeed] Error in poll #${pollCount}:`, err);
-        }
-      }, pollInterval);
-      
-      setPollingTimer(interval);
-      
-      return () => {
-        console.log('[DataFeed] Cleanup - clearing polling interval');
-        clearInterval(interval);
-      };
+    if (processedChatMessages.length > 0) {
+      console.log(`[DataFeed] Received ${processedChatMessages.length} chat messages:`, 
+                 processedChatMessages.slice(0, 3));
+      console.log(`[DataFeed] Passing ${processedChatMessages.length} messages to ChatInterface`);
     }
-  }, [getFullFrontendData, pollingTimer, injectedWallet?.address, getOwnerWalletAddress, characterId, injectedWallet, pollInterval]);
+  }, [processedChatMessages]);
   
-  // Handle sending a new chat message
-  const handleSendMessage = (message: string) => {
-    if (message.trim()) {
-      sendChatMessage(message);
+  // Memoize the send message handler to avoid recreating it on each render - always call this hook
+  const handleSendMessage = useMemo(() => {
+    return (message: string) => {
+      if (message.trim()) {
+        const timestamp = new Date().toISOString();
+        console.log(`[DATAFEED-DEBUG ${timestamp}] DataFeed ${instanceId.current} sending chat message: ${message}`);
+        sendChatMessage(message);
+      }
+    };
+  }, [sendChatMessage, instanceId]);
+  
+  // Register/unregister singleton instance - always call this hook last
+  useEffect(() => {
+    renderCount.current = 0;
+    const timestamp = new Date().toISOString();
+    
+    // Check if an instance is already active
+    if (!ACTIVE_DATAFEED.isMounted) {
+      // Claim the singleton spot
+      ACTIVE_DATAFEED.instance = instanceId.current;
+      ACTIVE_DATAFEED.timestamp = timestamp;
+      ACTIVE_DATAFEED.isMounted = true;
+      
+      // Use setTimeout to avoid state updates during render
+      setTimeout(() => {
+        setShouldRender(true);
+      }, 0);
+      
+      console.log(`[DATAFEED-DEBUG ${timestamp}] DataFeed singleton instance ${instanceId.current} created with characterId=${characterId}`);
+      
+      // Log the component stack that created this instance to help trace parent components
+      console.log(`[DATAFEED-DEBUG ${timestamp}] DataFeed ${instanceId.current} - Created from:`, 
+        new Error('Component stack trace').stack);
+    } else {
+      // Another instance is already active
+      console.log(`[DATAFEED-DEBUG ${timestamp}] DataFeed instance ${instanceId.current} not rendered - singleton already exists: ${ACTIVE_DATAFEED.instance}`);
     }
-  };
+    
+    return () => {
+      // Only clean up if this is the active instance
+      if (ACTIVE_DATAFEED.instance === instanceId.current) {
+        const cleanupTime = new Date().toISOString();
+        console.log(`[DATAFEED-DEBUG ${cleanupTime}] DataFeed singleton instance ${instanceId.current} destroyed`);
+        
+        // Release the singleton spot
+        ACTIVE_DATAFEED.instance = null;
+        ACTIVE_DATAFEED.timestamp = null;
+        ACTIVE_DATAFEED.isMounted = false;
+      }
+    };
+  }, [characterId]);
+  
+  // Skip rendering if this isn't the active instance
+  if (!shouldRender) {
+    return null;
+  }
+  
+  // Track each render - but only log occasionally to reduce noise
+  renderCount.current += 1;
+  const shouldLog = renderCount.current <= 5 || renderCount.current % 20 === 0;
+  
+  if (shouldLog) {
+    const timestamp = new Date().toISOString();
+    console.log(`[DATAFEED-DEBUG ${timestamp}] DataFeed ${instanceId.current} render #${renderCount.current}`, {
+      hasChatMessages: processedChatMessages.length > 0,
+      hasEventLogs: processedEventLogs.length > 0,
+      isLoading
+    });
+  }
   
   return (
     <Box height="100%" width="100%">
@@ -121,15 +122,23 @@ export default function DataFeed({ characterId, pollInterval = 5000 }: DataFeedP
           <TabPanel height="100%" padding={2}>
             <ChatInterface 
               characterId={characterId}
-              messages={chatMessages}
+              messages={processedChatMessages}
               onSendMessage={handleSendMessage}
             />
+            {/* Trigger useEffect for logging */}
+            {processedChatMessages.length > 0 && <div style={{display: 'none'}} />}
           </TabPanel>
           <TabPanel height="100%" padding={2}>
-            <EventFeed events={eventLogs} />
+            <EventFeed events={processedEventLogs} />
           </TabPanel>
         </TabPanels>
       </Tabs>
     </Box>
   );
-} 
+}, (prevProps, nextProps) => {
+  // Custom comparison function to prevent unnecessary rerenders
+  // Only rerender if characterId changes
+  return prevProps.characterId === nextProps.characterId;
+});
+
+export default DataFeed; 

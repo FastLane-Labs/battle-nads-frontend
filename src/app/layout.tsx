@@ -3,6 +3,7 @@
 import { ReactNode } from 'react';
 import { PrivyAuthProvider } from '../providers/PrivyAuthProvider';
 import { WalletProvider } from '../providers/WalletProvider';
+import { GameDataProvider } from '../providers/GameDataProvider';
 import { ChakraProvider, ColorModeScript } from '@chakra-ui/react';
 import { RecoilRoot } from 'recoil';
 import theme from './theme';
@@ -42,7 +43,9 @@ export default function RootLayout({
           <WalletProvider>
             <RecoilRoot>
               <ChakraProvider theme={theme}>
-                {children}
+                <GameDataProvider pollInterval={5000}>
+                  {children}
+                </GameDataProvider>
               </ChakraProvider>
             </RecoilRoot>
           </WalletProvider>

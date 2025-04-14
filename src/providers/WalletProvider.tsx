@@ -276,9 +276,38 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           try {
             // Create provider/signer for embedded wallet
             const privyProvider = await wallet.getEthereumProvider();
+            
+            // Set auto-approval options on the provider if possible
+            if (privyProvider && typeof privyProvider === 'object') {
+              try {
+                // Set any available auto-approval properties
+                (privyProvider as any).autoApprove = true;
+                (privyProvider as any).autoApproveSignature = true;
+                (privyProvider as any).autoApproveTransactions = true;
+                (privyProvider as any).noPromptOnSignature = true;
+                (privyProvider as any).noPromptOnTransaction = true;
+                
+                console.log('[WalletProvider] Set auto-approval properties on embedded wallet provider');
+              } catch (propErr) {
+                console.warn('[WalletProvider] Could not set auto-approval properties:', propErr);
+              }
+            }
+            
             const provider = new ethers.BrowserProvider(privyProvider);
             await checkAndSwitchChain(provider);
             const signer = await provider.getSigner();
+            
+            // Try to set auto-approval properties on the signer as well
+            try {
+              if (signer && typeof signer === 'object') {
+                (signer as any).autoApprove = true;
+                (signer as any).autoApproveSignature = true;
+                (signer as any).autoApproveTransactions = true;
+              }
+            } catch (signerPropErr) {
+              console.warn('[WalletProvider] Could not set auto-approval properties on signer:', signerPropErr);
+            }
+            
             foundEmbeddedWallet = {
               address: wallet.address,
               wallet: wallet,
@@ -373,45 +402,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     
     initWallets();
   }, [authenticated, walletsReady, syncWithPrivyWallets]);
-
-  // Auto-approve tx popups for Privy embedded
-  const autoApproval = useCallback(() => {
-    const checkAndAutoApproveTx = () => {
-      const privyPopup = document.querySelector('.privy-popup-content');
-      if (privyPopup && privyPopup.textContent?.includes('approve this transaction')) {
-        console.log('[autoApproval] Auto-approving transaction popup');
-        
-        // Look for the approval button
-        const buttons = document.querySelectorAll('button');
-        for (const button of buttons) {
-          if (button.textContent === 'Sign' || 
-              button.textContent === 'Approve' || 
-              button.textContent?.includes('Approve')) {
-            button.click();
-            return;
-          }
-        }
-      }
-    };
-    
-    // Check for popups every second
-    const intervalId = setInterval(checkAndAutoApproveTx, 1000);
-    
-    // Clean up interval on unmount
-    return () => clearInterval(intervalId);
-  }, []);
-
-  useEffect(autoApproval, [autoApproval]);
-
-  useEffect(() => {
-    // When we change wallet type, re-sync with Privy wallets
-    if (currentWallet !== 'none') {
-      const syncWallets = async () => {
-        await syncWithPrivyWallets();
-      };
-      syncWallets();
-    }
-  }, [currentWallet, syncWithPrivyWallets]);
 
   const connectMetamask = async () => {
     if (privyReady && !authenticated) {

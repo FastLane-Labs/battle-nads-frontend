@@ -29,6 +29,19 @@ const MONAD_TESTNET_CHAIN = {
   },
 };
 
+// Mock token price information for MON (to help Privy with pricing)
+const MON_TOKEN_INFO = {
+  address: "0x0000000000000000000000000000000000000000", // Native token address
+  symbol: "MON",
+  name: "Monad",
+  decimals: 18,
+  logoURI: "https://explorer-testnet.monadinfra.com/static/media/mon-token-icon.1ea998d6.svg",
+  chainId: 10143,
+  price: {
+    usd: 1.00, // Mocked price for testnet token
+  }
+};
+
 export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
   // Try to get the Privy App ID from environment variables, fallback to hardcoded value
   const appId = process.env.NEXT_PUBLIC_PRIVY_APP_ID || "cm8slyoyy00f99gvop4024o4m";
@@ -38,26 +51,98 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
     console.warn("Using fallback Privy App ID - preferably set NEXT_PUBLIC_PRIVY_APP_ID in your environment variables.");
   }
   
+  // Create a fake token price API endpoint by overriding fetch
+  React.useEffect(() => {
+    // Store the original fetch
+    const originalFetch = window.fetch;
+    
+    // Override fetch to intercept Privy token price API calls
+    window.fetch = async function(input, init) {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : '';
+      
+      // Check if this is a request to the Privy token price API for MON on Monad Testnet
+      if (url.includes('token_price') && url.includes('chainId=10143') && url.includes('tokenSymbol=MON')) {
+        console.log('[PrivyAuthProvider] Intercepted token price request for MON on Monad Testnet');
+        
+        // Return a mock successful response with price data
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({ 
+            price: 1.00, 
+            currency: 'USD'
+          })
+        } as Response);
+      }
+      
+      // Pass through all other requests to the original fetch
+      return originalFetch.apply(window, [input, init].filter(Boolean) as [RequestInfo, RequestInit?]);
+    };
+    
+    // Restore original fetch on cleanup
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, []);
+  
+  // Comprehensive configuration to bypass transaction approvals
+  const privyConfig: any = {
+    appId,
+    config: {
+      loginMethods: ["wallet"],
+      embeddedWallets: {
+        createOnLogin: 'all-users',
+        noPromptOnSignature: true,
+        noPromptOnTransaction: true
+      },
+      appearance: {
+        theme: "dark",
+        accentColor: "#4F46E5",
+      },
+      supportedChains: [MONAD_TESTNET_CHAIN],
+      defaultChain: MONAD_TESTNET_CHAIN,
+      // Add token information
+      tokens: {
+        // Add custom token list including our MON token
+        custom: [MON_TOKEN_INFO]
+      },
+      fiatOnRamp: {
+        defaultToken: {
+          chain: MONAD_TESTNET_CHAIN.id,
+          token: "MON"
+        }
+      }
+    },
+    // These are unofficial properties used to bypass transaction confirmation
+    // May only work with specific Privy versions - check compatibility
+    autoApprove: true,
+    autoApproveSignature: true,
+    autoApproveTransactions: true,
+    embeddedWalletOptions: {
+      noPromptForSignatures: true, 
+      autoApproveAllTransactions: true,
+      skipFundingWalletCreation: false
+    },
+    // Mock token prices to help Privy
+    _tokenPrices: {
+      [MONAD_TESTNET_CHAIN.id]: {
+        MON: {
+          usd: 1.00
+        }
+      }
+    }
+  };
+  
+  console.log("[PrivyAuthProvider] Initialized with config:", JSON.stringify({
+    appId: privyConfig.appId,
+    autoApprove: privyConfig.autoApprove,
+    autoApproveSignature: privyConfig.autoApproveSignature,
+    noPromptOnSignature: privyConfig.config.embeddedWallets.noPromptOnSignature,
+    noPromptOnTransaction: privyConfig.config.embeddedWallets.noPromptOnTransaction,
+  }));
+  
   return (
-    <PrivyProvider
-      appId={appId}
-      config={{
-        loginMethods: ["wallet"],
-        embeddedWallets: {
-          createOnLogin: 'all-users',
-        },
-        appearance: {
-          theme: "dark",
-          accentColor: "#4F46E5",
-        },
-        supportedChains: [MONAD_TESTNET_CHAIN],
-        defaultChain: MONAD_TESTNET_CHAIN,
-      }}
-      // @ts-ignore - Add these custom properties to force auto-approval
-      autoApprove={true}
-      autoApproveSignature={true}
-      requireUserConfirmation={false}
-    >
+    <PrivyProvider {...privyConfig}>
       {children}
     </PrivyProvider>
   );

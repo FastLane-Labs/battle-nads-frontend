@@ -7,34 +7,6 @@ import { MovementOptions } from '../types/gameTypes';
 // Debug log the imported ABI to check if it's properly loaded
 console.log("[useContracts] Loaded ABI from file:", 
   Array.isArray(ENTRYPOINT_ABI) ? `Array with ${ENTRYPOINT_ABI.length} items` : typeof ENTRYPOINT_ABI);
-
-// Fallback ABI with essential functions in case the import fails
-const FALLBACK_ABI = [
-  // Character creation
-  "function createCharacter(string name, uint256 strength, uint256 vitality, uint256 dexterity, uint256 quickness, uint256 sturdiness, uint256 luck, address sessionKey, uint256 sessionKeyDeadline) external payable returns (bytes32)",
-  
-  // Movement
-  "function moveNorth(bytes32 characterID) external",
-  "function moveSouth(bytes32 characterID) external",
-  "function moveEast(bytes32 characterID) external",
-  "function moveWest(bytes32 characterID) external",
-  "function moveUp(bytes32 characterID) external",
-  "function moveDown(bytes32 characterID) external",
-  
-  // Combat
-  "function attack(bytes32 characterID, uint256 targetIndex) external",
-  
-  // Session keys
-  "function updateSessionKey(address sessionKey, uint256 sessionKeyDeadline) external payable",
-  
-  // Other functions
-  "function estimateBuyInAmountInMON() external view returns (uint256)"
-];
-
-// Use the imported ABI if it's an array, otherwise use the fallback
-const FINAL_ABI = Array.isArray(ENTRYPOINT_ABI) && ENTRYPOINT_ABI.length > 0 ? ENTRYPOINT_ABI : FALLBACK_ABI;
-console.log("[useContracts] Using ABI:", Array.isArray(FINAL_ABI) ? `Array with ${FINAL_ABI.length} items` : typeof FINAL_ABI);
-
 // Define transaction options type
 export interface TransactionOptions {
   gasLimit?: number | bigint;
@@ -228,7 +200,7 @@ export const useContracts = () => {
     try {
       return new ethers.Contract(
         ENTRYPOINT_ADDRESS,
-        FINAL_ABI,
+        ENTRYPOINT_ABI,
         readOnlyProvider
       ) as BattleNadsContract;
     } catch (error) {
@@ -249,15 +221,15 @@ export const useContracts = () => {
     try {
       // Debug log the ABI before creating contract
       console.log('[useContracts] Using ABI for contract creation:', 
-        typeof FINAL_ABI === 'string' 
-          ? 'string ABI: ' + FINAL_ABI.substring(0, 100) + '...' 
-          : `Array ABI with ${FINAL_ABI.length} items`
+        typeof ENTRYPOINT_ABI === 'string' 
+          ? 'string ABI: ' + (ENTRYPOINT_ABI as string).substring(0, 100) + '...' 
+          : `Array ABI with ${ENTRYPOINT_ABI.length} items`
       );
       
       // Ensure the ABI includes createCharacter function
-      if (Array.isArray(FINAL_ABI)) {
-        const createCharacterAbi = FINAL_ABI.find(item => 
-          typeof item === 'string' && item.includes('createCharacter')
+      if (Array.isArray(ENTRYPOINT_ABI)) {
+        const createCharacterAbi = ENTRYPOINT_ABI.find(item => 
+          typeof item === 'string' && (item as string).includes('createCharacter')
         );
         console.log('[useContracts] Found createCharacter in ABI:', 
           createCharacterAbi ? 'Yes - ' + createCharacterAbi : 'No');
@@ -265,7 +237,7 @@ export const useContracts = () => {
       
       const contract = new ethers.Contract(
         ENTRYPOINT_ADDRESS,
-        FINAL_ABI,
+        ENTRYPOINT_ABI,
         injectedWallet.signer
       ) as BattleNadsContract;
       
@@ -292,7 +264,7 @@ export const useContracts = () => {
     try {
       return new ethers.Contract(
         ENTRYPOINT_ADDRESS,
-        FINAL_ABI,
+        ENTRYPOINT_ABI,
         embeddedWallet.signer
       ) as BattleNadsContract;
     } catch (error) {
