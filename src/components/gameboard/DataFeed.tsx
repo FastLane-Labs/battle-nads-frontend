@@ -29,7 +29,7 @@ const DataFeed = memo(function DataFeed({ characterId, owner, sendChatMessage }:
   const [shouldRender, setShouldRender] = useState<boolean>(false);
   
   // Use game data context for access to shared state - always call this hook
-  const { isLoading, processedChatMessages, processedEventLogs } = useGameData();
+  const { isLoading, processedChatMessages, eventLogs } = useGameData();
   
   // Debug log to check if chat messages are being received
   useEffect(() => {
@@ -105,7 +105,7 @@ const DataFeed = memo(function DataFeed({ characterId, owner, sendChatMessage }:
     const timestamp = new Date().toISOString();
     console.log(`[DATAFEED-DEBUG ${timestamp}] DataFeed ${instanceId.current} render #${renderCount.current}`, {
       hasChatMessages: processedChatMessages.length > 0,
-      hasEventLogs: processedEventLogs.length > 0,
+      hasEventLogs: eventLogs.length > 0,
       isLoading
     });
   }
@@ -129,7 +129,7 @@ const DataFeed = memo(function DataFeed({ characterId, owner, sendChatMessage }:
             {processedChatMessages.length > 0 && <div style={{display: 'none'}} />}
           </TabPanel>
           <TabPanel height="100%" padding={2}>
-            <EventFeed events={processedEventLogs} />
+            <EventFeed events={eventLogs} />
           </TabPanel>
         </TabPanels>
       </Tabs>

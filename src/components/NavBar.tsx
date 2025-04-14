@@ -63,24 +63,65 @@ const NavBar: React.FC = () => {
 
   // Add an effect to listen for character creation events
   useEffect(() => {
+    // Handle character created event and update nav state
     const handleCharacterCreated = (event: CustomEvent) => {
-      console.log("NavBar received characterCreated event:", event.detail);
+      console.log('[NavBar] Character Created event received', event.detail);
+      setHasCharacter(true);
+    };
+
+    // Handle game data updated events to sync character state
+    const handleGameDataUpdated = (event: CustomEvent) => {
+      console.log('[NavBar] Game data updated event received', event.detail);
+      const updatedGameData = event.detail;
       
-      // Force a check to see if the user has a character now
-      if (event.detail && event.detail.characterId && isValidCharacterId(event.detail.characterId)) {
-        console.log("NavBar: Setting hasCharacter to true from event");
+      if (updatedGameData && updatedGameData.characterID && 
+          updatedGameData.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
+        console.log('[NavBar] Setting hasCharacter to true based on gameDataUpdated event');
         setHasCharacter(true);
+      } else if (updatedGameData && updatedGameData.characterID === '0x0000000000000000000000000000000000000000000000000000000000000000') {
+        // Only log this, don't set hasCharacter to false if we have a local characterId
+        console.log('[NavBar] Zero address character ID received from gameDataUpdated event');
+        if (!characterId) {
+          console.log('[NavBar] No local characterId found, setting hasCharacter to false');
+          setHasCharacter(false);
+        }
       }
     };
 
-    // Add event listener
+    // Add event listeners
     window.addEventListener('characterCreated', handleCharacterCreated as EventListener);
-    
-    // Clean up
+    window.addEventListener('gameDataUpdated', handleGameDataUpdated as EventListener);
+
+    // Clean up event listeners on unmount
     return () => {
       window.removeEventListener('characterCreated', handleCharacterCreated as EventListener);
+      window.removeEventListener('gameDataUpdated', handleGameDataUpdated as EventListener);
     };
-  }, []);
+  }, [characterId]);
+
+  // This effect syncs the NavBar's hasCharacter state with the characterId from useBattleNads
+  // and the character ID from gameData
+  useEffect(() => {
+    // If we have a characterId from local storage, we have a character
+    if (characterId && characterId !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
+      console.log('[NavBar] Setting hasCharacter to true based on local characterId:', characterId);
+      setHasCharacter(true);
+      return;
+    }
+    
+    // If we have a character ID from game data, we have a character
+    if (gameData?.characterID && gameData.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
+      console.log('[NavBar] Setting hasCharacter to true based on gameData.characterID:', gameData.characterID);
+      setHasCharacter(true);
+      return;
+    }
+    
+    // If neither source has a character ID, we don't have a character
+    if (!characterId && (!gameData?.characterID || gameData.characterID === '0x0000000000000000000000000000000000000000000000000000000000000000')) {
+      console.log('[NavBar] Setting hasCharacter to false (no characterId found)');
+      setHasCharacter(false);
+    }
+  }, [characterId, gameData?.characterID]);
 
   const isActive = (path: string) => pathname === path;
   
@@ -166,30 +207,22 @@ const NavBar: React.FC = () => {
                   Game
                 </Text>
               </Link>
-              {/* Show loading spinner while checking character - use characterLoading from hook */}
-              {characterLoading ? (
-                <Box px={3} py={2}>
-                  <Spinner size="sm" color="blue.500" />
-                  <Text fontSize="xs" color="gray.500" ml={1}>Loading character...</Text>
-                </Box>
-              ) : (
-                /* Show Create link if user doesn't have a character AND we're done loading */
-                !hasCharacter && (
-                  <Link href="/create">
-                    <Text
-                      px={3}
-                      py={2}
-                      rounded="md"
-                      fontWeight="bold" // Always bold to make it prominent
-                      bg={isActive('/create') ? 'blue.500' : 'transparent'}
-                      color={isActive('/create') ? 'white' : undefined}
-                      _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
-                      cursor="pointer"
-                    >
-                      Create Character
-                    </Text>
-                  </Link>
-                )
+              {/* Only show Create Character link if user doesn't have a character and not loading */}
+              {!hasCharacter && !characterLoading && (
+                <Link href="/create">
+                  <Text
+                    px={3}
+                    py={2}
+                    rounded="md"
+                    fontWeight="bold" // Always bold to make it prominent
+                    bg={isActive('/create') ? 'blue.500' : 'transparent'}
+                    color={isActive('/create') ? 'white' : undefined}
+                    _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
+                    cursor="pointer"
+                  >
+                    Create Character
+                  </Text>
+                </Link>
               )}
             </HStack>
           )}

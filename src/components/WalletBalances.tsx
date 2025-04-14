@@ -308,7 +308,7 @@ const WalletBalances: React.FC = memo(() => {
       
       // Update last updated time
       if (dataLastUpdated) {
-        setLastUpdated(dataLastUpdated);
+        setLastUpdated(new Date(dataLastUpdated));
       }
       
       setIsLoading(false);

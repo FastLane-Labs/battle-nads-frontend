@@ -527,6 +527,44 @@ const Game: React.FC = () => {
     initializeGameData();
   }, []);
 
+  // Listen for gameDataUpdated event
+  useEffect(() => {
+    const handleGameDataUpdated = (event: CustomEvent) => {
+      console.log("[Game] Received gameDataUpdated event:", event.detail);
+      
+      // If we already have a character ID in state, no need to update
+      if (characterId && characterId !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+        console.log("[Game] Already have character ID in state:", characterId);
+        return;
+      }
+      
+      // Extract and update the character ID from the updated game data
+      if (event.detail && event.detail.characterID) {
+        const newCharId = event.detail.characterID;
+        console.log("[Game] Setting character ID from gameDataUpdated event:", newCharId);
+        
+        // If this is a valid character ID (not zero address), update state and trigger data load
+        if (newCharId && newCharId !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
+          setCharacterId(newCharId);
+          
+          // If we're in need-character state, try to load character data
+          if (gameUIState === 'need-character') {
+            console.log("[Game] Currently in need-character state, loading character data");
+            loadCharacterData();
+          }
+        }
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('gameDataUpdated', handleGameDataUpdated as EventListener);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('gameDataUpdated', handleGameDataUpdated as EventListener);
+    };
+  }, [characterId, gameUIState]);
+
   // Update effect to track status changes with debounce
   useEffect(() => {
     console.log("Game status changed to:", status);
@@ -985,7 +1023,12 @@ const Game: React.FC = () => {
       renderContent = (
         <Center height="100vh" className="bg-gray-900" color="white">
           <VStack spacing={6} maxWidth="600px" p={6}>
-            <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
+            <Image 
+              src="/BattleNadsLogo.png" 
+              alt="Battle Nads Logo"
+              maxWidth="250px" 
+              mb={4}
+            />
             <Heading size="md" color="blue.400">Character Required</Heading>
             <Text color="white" textAlign="center">
               You don't have a character yet. Create one to start playing!
@@ -1014,7 +1057,12 @@ const Game: React.FC = () => {
         renderContent = (
           <Center height="100vh" className="bg-gray-900" color="white">
             <VStack spacing={6} maxWidth="600px" p={6}>
-              <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
+              <Image 
+                src="/BattleNadsLogo.png" 
+                alt="Battle Nads Logo"
+                maxWidth="250px" 
+                mb={4}
+              />
               <Heading size="md" color="yellow.400">Session Key Warning</Heading>
               <Alert status="warning">
                 <AlertIcon />
@@ -1040,7 +1088,12 @@ const Game: React.FC = () => {
         renderContent = (
           <Center height="100vh" className="bg-gray-900" color="white">
             <VStack spacing={6}>
-              <Heading as="h1" size="xl" color="white">Battle Nads</Heading>
+              <Image 
+                src="/BattleNadsLogo.png" 
+                alt="Battle Nads Logo"
+                maxWidth="250px" 
+                mb={4}
+              />
               <Text fontSize="xl" color="white">Preparing game environment...</Text>
               <Button onClick={initializeGame} colorScheme="blue">Continue</Button>
             </VStack>
@@ -1055,7 +1108,12 @@ const Game: React.FC = () => {
         renderContent = (
           <Center height="100vh" className="bg-gray-900" color="white">
             <VStack spacing={6}>
-              <Heading as="h1" size="xl" color="white">Battle Nads</Heading>
+              <Image 
+                src="/BattleNadsLogo.png" 
+                alt="Battle Nads Logo"
+                maxWidth="250px" 
+                mb={4}
+              />
               <Text fontSize="xl" color="white">Character data not available</Text>
               <Button onClick={loadCharacterData} colorScheme="blue">Retry Loading</Button>
             </VStack>
@@ -1258,7 +1316,12 @@ const Game: React.FC = () => {
       renderContent = (
         <Center height="100vh" className="bg-gray-900" color="white">
           <VStack spacing={6}>
-            <Heading as="h1" size="xl" color="white">Battle Nads</Heading>
+            <Image 
+              src="/BattleNadsLogo.png" 
+              alt="Battle Nads Logo"
+              maxWidth="250px" 
+              mb={4}
+            />
             <Spinner size="xl" thickness="4px" speed="0.8s" color="blue.500" />
             <Text fontSize="xl" color="white">Loading game...</Text>
           </VStack>
