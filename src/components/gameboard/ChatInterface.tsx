@@ -35,6 +35,14 @@ export default function ChatInterface({
   const bgColor = useColorModeValue('gray.700', 'gray.800');
   const borderColor = useColorModeValue('gray.600', 'gray.700');
   
+  // Add debug logging for incoming messages
+  useEffect(() => {
+    console.log(`[ChatInterface] Received ${messages.length} messages to display`);
+    if (messages.length > 0) {
+      console.log('[ChatInterface] First few messages:', messages.slice(0, 3));
+    }
+  }, [messages]);
+  
   // Scroll to bottom when new messages arrive
   useEffect(() => {
     scrollToBottom();

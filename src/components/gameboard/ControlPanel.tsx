@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Box, VStack, HStack, Button, Text, Heading, Tooltip, useToast } from '@chakra-ui/react';
 import { useWallet } from '../../providers/WalletProvider';
-import { useBattleNads } from '../../hooks/useBattleNads';
+import { useBattleNads, useGameActions, useCharacterData } from '../../hooks/useBattleNads';
+import { useGameData } from '../../providers/GameDataProvider';
 import MovementControls from './MovementControls';
 
 interface ControlPanelProps {
@@ -10,7 +11,9 @@ interface ControlPanelProps {
 
 export default function ControlPanel({ characterId }: ControlPanelProps) {
   const { injectedWallet, embeddedWallet } = useWallet();
-  const { moveCharacter, getFullFrontendData, updateSessionKey, getCurrentSessionKey } = useBattleNads();
+  const { moveCharacter, updateSessionKey, getCurrentSessionKey } = useGameActions();
+  const { gameData } = useGameData();
+  
   const [isMoving, setIsMoving] = useState(false);
   const [movementError, setMovementError] = useState<string | null>(null);
   const toast = useToast();
@@ -56,9 +59,6 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
             isClosable: true,
           });
         }
-        
-        // Fetch fresh data
-        await getFullFrontendData();
       } else {
         toast({
           title: "Session key is valid",
@@ -160,6 +160,7 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
               onClick={() => {
                 console.log({
                   characterId,
+                  gameData: gameData ? 'Available' : 'Not available',
                   injectedWallet: {
                     address: injectedWallet?.address,
                     type: injectedWallet?.walletClientType

@@ -18,43 +18,17 @@ const NavBar: React.FC = () => {
     injectedWallet,
     embeddedWallet
   } = useWallet();
-  const { hasPlayerCharacter, loading: characterLoading } = useBattleNads();
+  const { characterId, loading: characterLoading } = useBattleNads();
   const pathname = usePathname();
   const router = useRouter();
   
   // State to track if user has a character
   const [hasCharacter, setHasCharacter] = useState<boolean>(false);
   
-  // Check if user has a character when component mounts or address changes
+  // Check if user has a character when characterId changes
   useEffect(() => {
-    let isMounted = true;
-    
-    const checkCharacter = async () => {
-      try {
-        if (!address) {
-          if (isMounted) setHasCharacter(false);
-          return;
-        }
-        
-        const playerHasCharacter = await hasPlayerCharacter();
-        
-        if (isMounted) {
-          setHasCharacter(playerHasCharacter);
-        }
-      } catch (error) {
-        console.error("Error checking for character:", error);
-        if (isMounted) {
-          setHasCharacter(false);
-        }
-      }
-    };
-    
-    checkCharacter();
-    
-    return () => {
-      isMounted = false;
-    };
-  }, [address, hasPlayerCharacter]);
+    setHasCharacter(characterId !== null);
+  }, [characterId]);
 
   const isActive = (path: string) => pathname === path;
   

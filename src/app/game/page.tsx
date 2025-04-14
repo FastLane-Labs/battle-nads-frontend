@@ -81,7 +81,7 @@ export default function GamePage() {
     <Box className="min-h-screen bg-gray-900">
       <NavBar />
       <Box pt="60px">
-        <Game />
+        <Game key="stable-game-instance" />
       </Box>
     </Box>
   );

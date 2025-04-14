@@ -16,11 +16,8 @@ export const useGame = () => {
   const { 
     getPlayerCharacterID, 
     characterId: battleNadsCharacterId, 
-    getCurrentSessionKey,
-    setSessionKeyToEmbeddedWallet,
-    getFrontendData,
+    getFullFrontendData,
     moveCharacter: contractMoveCharacter,
-    attackTarget: contractAttackTarget,
   } = useBattleNads();
   
   // Use Recoil for global state management - MUST be at the top level
@@ -244,16 +241,17 @@ export const useGame = () => {
       console.log("Checking session key for character:", charId);
       console.log("Embedded wallet address:", embeddedWallet?.address || embeddedWalletRef.current || "Not available");
       
-      // Use the getCurrentSessionKey function from useBattleNads hook
-      const currentSessionKey = await getCurrentSessionKey(charId);
-      console.log("Current session key:", currentSessionKey);
+      // Get session key from game data
+      const gameData = await getFullFrontendData();
       
-      // Handle case when getCurrentSessionKey returns null
-      if (currentSessionKey === null) {
+      if (!gameData || !gameData.sessionKey) {
         console.error("Failed to retrieve current session key");
         setSessionKeyWarning("Unable to verify session key. Some game actions may fail.");
         return true; // Continue with game initialization despite warning
       }
+      
+      const currentSessionKey = gameData.sessionKey;
+      console.log("Current session key:", currentSessionKey);
       
       // Use either the current embedded wallet address or the stored reference
       const embeddedAddress = embeddedWallet?.address || embeddedWalletRef.current;
@@ -302,7 +300,7 @@ export const useGame = () => {
     } finally {
       console.log("=== SESSION KEY CHECK COMPLETED ===");
     }
-  }, [embeddedWallet, embeddedWalletRef, getCurrentSessionKey]);
+  }, [embeddedWallet, embeddedWalletRef, getFullFrontendData]);
   
   // Function to reset session key warning
   const resetSessionKeyWarning = useCallback(() => {
@@ -319,10 +317,10 @@ export const useGame = () => {
       console.log(`[loadGameState] Loading game state for character ${characterId}`);
       
       // Get data from contract
-      const frontendDataRaw = await getFrontendData(characterId);
+      const frontendDataRaw = await getFullFrontendData(characterId);
       
       if (!frontendDataRaw) {
-        console.error(`[loadGameState] No data returned from getFrontendData`);
+        console.error(`[loadGameState] No data returned from getFullFrontendData`);
         setGameState(prev => ({ ...prev, loading: false, error: "Failed to load game data" }));
         return false;
       }
@@ -346,7 +344,7 @@ export const useGame = () => {
       setGameState(prev => ({ ...prev, loading: false, error: errorMessage }));
       return false;
     }
-  }, [getFrontendData, setGameState]);
+  }, [getFullFrontendData, setGameState]);
   
   // Main initialization function
   const initializeGame = useCallback(async () => {
@@ -457,31 +455,6 @@ export const useGame = () => {
     }
   }, [contractMoveCharacter, loadGameState, setGameState]);
   
-  // Attack target with state management
-  const attackTarget = useCallback(async (characterId: string, targetIndex: number) => {
-    try {
-      // Set attacking state
-      setGameState(prev => ({ ...prev, isAttacking: true, error: null }));
-      
-      console.log(`[attackTarget] Attacking target ${targetIndex} with character ${characterId}`);
-      
-      // Call contract function
-      await contractAttackTarget(characterId, targetIndex);
-      
-      // Reload state after attack
-      await loadGameState(characterId);
-      
-      // Reset attacking state
-      setGameState(prev => ({ ...prev, isAttacking: false }));
-      return true;
-    } catch (error) {
-      console.error(`[attackTarget] Error:`, error);
-      const errorMessage = (error as Error)?.message || "Unknown error";
-      setGameState(prev => ({ ...prev, isAttacking: false, error: errorMessage }));
-      return false;
-    }
-  }, [contractAttackTarget, loadGameState, setGameState]);
-  
   // Update session key with state management
   const updateSessionKey = useCallback(async () => {
     try {
@@ -494,43 +467,27 @@ export const useGame = () => {
         throw new Error("No embedded wallet available to use as session key");
       }
       
-      // Calculate deadline (1 year from now)
-      const deadline = Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60;
+      // We'll get the session key status from the game data
+      const gameData = await getFullFrontendData();
       
-      // Call updateSessionKey directly with embedded wallet address and deadline
-      const result = await setSessionKeyToEmbeddedWallet();
+      // Reset session key warning
+      resetSessionKeyWarning();
       
-      if (result && result.success) {
-        // Reset session key warning
-        resetSessionKeyWarning();
-        
-        // Get character ID to verify the update
-        if (!battleNadsCharacterId) {
-          console.warn(`[updateSessionKey] No character ID available for verification`);
-          return { success: true };
-        }
-        
-        // Verify the update
-        const updatedKey = await getCurrentSessionKey(battleNadsCharacterId);
-        
-        // Check if updatedKey is null before using toLowerCase()
-        const keyMatches = updatedKey ? 
-          updatedKey.toLowerCase() === embeddedWallet.address.toLowerCase() : 
-          false;
+      // Get character ID to verify the update
+      if (!battleNadsCharacterId) {
+        console.warn(`[updateSessionKey] No character ID available for verification`);
+        return { success: true };
+      }
+      
+      // Check if the session key is already set correctly
+      if (gameData && gameData.sessionKey) {
+        const sessionKeyMatches = gameData.sessionKey.toLowerCase() === embeddedWallet.address.toLowerCase();
         
         // Reset loading state
         setGameState(prev => ({ ...prev, loading: false }));
         
-        if (!keyMatches) {
+        if (!sessionKeyMatches) {
           console.warn(`[updateSessionKey] Session key still doesn't match after update`);
-          
-          // Add more detailed logging for debugging
-          if (updatedKey === null) {
-            console.warn(`[updateSessionKey] Failed to retrieve session key after update (null)`);
-          } else {
-            console.warn(`[updateSessionKey] Actual: ${updatedKey}, Expected: ${embeddedWallet.address}`);
-          }
-          
           setSessionKeyWarning("Session key update may have failed. Some game actions may not work.");
           return { success: false, error: "Session key update verification failed" };
         }
@@ -545,7 +502,7 @@ export const useGame = () => {
       setGameState(prev => ({ ...prev, loading: false, error: errorMessage }));
       return { success: false, error: errorMessage };
     }
-  }, [embeddedWallet, battleNadsCharacterId, setSessionKeyToEmbeddedWallet, getCurrentSessionKey, resetSessionKeyWarning, setGameState]);
+  }, [embeddedWallet, battleNadsCharacterId, getFullFrontendData, resetSessionKeyWarning, setGameState]);
   
   // Auto-initialize on component mount
   useEffect(() => {
@@ -576,8 +533,6 @@ export const useGame = () => {
     sessionKeyWarning,
     sessionKeyStatus: embeddedWallet && battleNadsCharacterId ? {
       isSessionKeyMismatch: sessionKeyWarning !== null,
-      currentSessionKey: getCurrentSessionKey,
-      updateSessionKey: setSessionKeyToEmbeddedWallet,
       embeddedWalletAddress: embeddedWallet?.address || null
     } : null,
     
@@ -587,7 +542,6 @@ export const useGame = () => {
     
     // Game actions
     moveCharacter,
-    attackTarget,
     updateSessionKey,
     
     // Status functions

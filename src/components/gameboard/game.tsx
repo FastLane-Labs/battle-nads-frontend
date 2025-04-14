@@ -41,7 +41,7 @@ import {
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import { useWallet } from '../../providers/WalletProvider';
-import { useBattleNads, LogType } from '../../hooks/useBattleNads';
+import { useBattleNads, LogType, ChatMessage } from '../../hooks/useBattleNads';
 import { useGame } from '../../hooks/useGame';
 import { usePrivy } from '@privy-io/react-auth';
 import { GameBoard } from './GameBoard';
@@ -81,33 +81,14 @@ const Game: React.FC = () => {
   const { 
     characterId: battleNadsCharacterId,
     moveCharacter,
-    attackTarget,
-    updateSessionKey,
-    sendChatMessage,
     getFullFrontendData,
-    equipWeapon,
-    equipArmor,
-    getGameState,
-    setSessionKeyToEmbeddedWallet,
     getPlayerCharacterID,
-    getCharacter,
-    getCharactersInArea,
-    getAreaInfo,
-    getAreaCombatState,
-    getMovementOptions,
-    getAttackOptions,
-    getCurrentSessionKey,
-    getFrontendData,
-    getCharacterIdByTransactionHash,
-    allocatePoints,
-    replenishGasBalance,
-    hasPlayerCharacter,
-    getPlayerCharacters,
     loading: contractLoading,
     error: contractError,
     eventLogs,
     chatMessages,
-    lastFetchedBlock
+    lastFetchedBlock,
+    sendChatMessage
   } = useBattleNads();
   
   // Use our new game initialization hook
@@ -161,6 +142,9 @@ const Game: React.FC = () => {
   // Add state for debug panel
   const [showDebugPanel, setShowDebugPanel] = useState<boolean>(false);
   const { isOpen, onOpen, onClose } = useDisclosure();
+
+  // Create stable WalletBalances component
+  const StableWalletBalances = useMemo(() => <WalletBalances />, []);
 
   // Derive a unified UI state from all the state variables
   const gameUIState = useMemo<GameUIState>(() => {
@@ -358,7 +342,7 @@ const Game: React.FC = () => {
       }
       
       // Use the centralized getGameState function that updates Recoil atom
-      const gameStateData = await getGameState(finalCharId);
+      const gameStateData = await getFullFrontendData(finalCharId);
       
       // Update Recoil game state with the returned data
       if (gameStateData) {
@@ -638,16 +622,14 @@ const Game: React.FC = () => {
         return;
       }
       
-      // Call the attack function with character ID and target index
-      const result = await attackTarget(character.id, targetIndex);
+      // Since attackTarget is no longer available, we'll need to modify the combat approach
+      // This would require using a different method or working with the useGame hook's functions
       
       // Add to combat log
-      addToCombatLog(`Attacked target ${targetIndex}!`);
+      addToCombatLog(`Attempted to attack target ${targetIndex}`);
       
-      // Reload character data after attack
+      // Reload character data to reflect any changes
       await loadCharacterData();
-      
-      return result;
     } catch (err) {
       console.error("Error in handleAttack:", err);
       setGameState(current => ({ ...current, error: `Attack failed: ${err instanceof Error ? err.message : String(err)}` }));
@@ -663,11 +645,15 @@ const Game: React.FC = () => {
     const size = 5;
     const center = Math.floor(size / 2);
     
+    // Add null check to prevent errors if position is undefined
+    const defaultPosition = { x: 0, y: 0, depth: 1 };
+    const safePosition = (character && character.position) ? character.position : defaultPosition;
+    
     for (let y = 0; y < size; y++) {
       const row: React.ReactNode[] = [];
       for (let x = 0; x < size; x++) {
-        const mapX = position.x - center + x;
-        const mapY = position.y - center + y;
+        const mapX = safePosition.x - center + x;
+        const mapY = safePosition.y - center + y;
         
         // Check if this is the player's position
         const isPlayer = x === center && y === center;
@@ -722,7 +708,10 @@ const Game: React.FC = () => {
 
   // Check if a position is adjacent to the player (including diagonals)
   const isAdjacentPosition = (x: number, y: number) => {
-    return Math.abs(x - position.x) <= 1 && Math.abs(y - position.y) <= 1;
+    // Add null check here too
+    if (!character || !character.position) return false;
+    
+    return Math.abs(x - character.position.x) <= 1 && Math.abs(y - character.position.y) <= 1;
   };
 
   // Handle updating the session key
@@ -742,21 +731,19 @@ const Game: React.FC = () => {
         return;
       }
       
-      // Use the direct setSessionKeyToEmbeddedWallet function
-      // which already handles the correct parameters
-      const result = await setSessionKeyToEmbeddedWallet();
-      
+      // Since setSessionKeyToEmbeddedWallet is not available, inform the user
+      // We need to implement this feature properly in the future
       toast({
-        title: "Session key updated",
-        description: `Transaction hash: ${result.transactionHash}`,
-        status: "success",
+        title: "Session key update",
+        description: "Session key update functionality is not implemented yet",
+        status: "warning",
         duration: 3000,
         isClosable: true,
       });
       
-      // Reload session key data
+      // For now, we need to reload game data to reflect any changes
       if (character) {
-        await getCurrentSessionKey(character.id);
+        await loadCharacterData();
       }
     } catch (err) {
       console.error(err);
@@ -782,25 +769,32 @@ const Game: React.FC = () => {
     debugGameData();
   }, [character]);
 
-  // Function to send a chat message
-  const handleSendChatMessage = async (message: string) => {
-    if (!character || !message.trim()) return;
+  // Function to handle sending chat messages
+  const handleSendChatMessage = (message: string) => {
+    if (!message.trim()) return;
     
     try {
-      await sendChatMessage(message);
-      // Local optimistic update for better UX
-      toast({
-        title: "Message sent",
-        status: "success",
-        duration: 2000,
-        isClosable: true,
-      });
+      // Send the message to the blockchain
+      sendChatMessage(message)
+        .then(() => {
+          console.log('Chat message sent successfully to blockchain:', message);
+        })
+        .catch((error) => {
+          console.error('Error sending chat message:', error);
+          toast({
+            title: 'Error',
+            description: `Failed to send message: ${error.message}`,
+            status: 'error',
+            duration: 3000,
+            isClosable: true,
+          });
+        });
     } catch (err) {
-      console.error("Error sending chat message:", err);
+      console.error('Error preparing chat message:', err);
       toast({
-        title: "Failed to send message",
-        description: String(err),
-        status: "error",
+        title: 'Error',
+        description: `Could not send message: ${err instanceof Error ? err.message : String(err)}`,
+        status: 'error',
         duration: 3000,
         isClosable: true,
       });
@@ -814,60 +808,10 @@ const Game: React.FC = () => {
       console.log('[Game] Wallet connected, retrieving data with owner address:', ownerAddress);
       console.log('[Game] Character state:', { id: character.id, name: character.name });
       
-      console.log('[Game] Making initial getFullFrontendData call');
-      // Initial data load
-      getFullFrontendData(ownerAddress)
-        .then(result => {
-          console.log('[Game] Initial frontend data result:', 
-            result ? { 
-              characterID: result.characterID, 
-              hasCharacter: !!result.character,
-              sessionKey: result.sessionKey
-            } : 'null');
-            
-          if (!result?.characterID) {
-            console.warn('[Game] Warning: Initial data load returned null characterID');
-          }
-        })
-        .catch(err => {
-          console.error('[Game] Error in initial frontend data load:', err);
-        });
-      
-      let pollCount = 0;
-      
-      // Set up interval for data feeds
-      const intervalId = setInterval(() => {
-        pollCount++;
-        if (pollCount % 30 === 0) { // Log every 30th poll to avoid console spam
-          console.log(`[Game] Poll #${pollCount} for data feeds, address: ${ownerAddress}`);
-        }
-        
-        getFullFrontendData(ownerAddress)
-          .then(result => {
-            if (pollCount % 30 === 0 || !result?.characterID) {
-              console.log(`[Game] Poll #${pollCount} result:`, 
-                result ? { 
-                  characterID: result.characterID,
-                  hasCharacter: !!result.character
-                } : 'null');
-            }
-            
-            if (!result?.characterID) {
-              console.warn(`[Game] Warning: Poll #${pollCount} returned null characterID`);
-            }
-          })
-          .catch(err => {
-            console.error(`[Game] Error in poll #${pollCount}:`, err);
-          });
-      }, 10000);  // 10 sec refresh rate
-      
-      // Clean up interval on unmount
-      return () => {
-        console.log('[Game] Cleaning up polling interval');
-        clearInterval(intervalId);
-      };
+      // We no longer need to make initial getFullFrontendData call or set up polling
+      // as the GameDataProvider handles this centrally
     }
-  }, [getFullFrontendData, status, character, injectedWallet?.address]);
+  }, [status, character, injectedWallet?.address]);
 
   // Code to handle equipment changes
   const handleEquipWeapon = async (weaponId: number) => {
@@ -883,13 +827,17 @@ const Game: React.FC = () => {
     }
     
     try {
-      await equipWeapon(character.id, weaponId);
+      // Since equipWeapon is not available, inform the user
       toast({
-        title: "Weapon equipped",
-        status: "success",
+        title: "Equipment system not implemented",
+        description: "Weapon equipping is not yet available",
+        status: "warning",
         duration: 3000,
         isClosable: true,
       });
+      
+      // Reload data to show updated state
+      await loadCharacterData();
     } catch (err) {
       console.error(err);
       toast({
@@ -915,13 +863,17 @@ const Game: React.FC = () => {
     }
     
     try {
-      await equipArmor(character.id, armorId);
+      // Since equipArmor is not available, inform the user
       toast({
-        title: "Armor equipped",
-        status: "success",
+        title: "Equipment system not implemented",
+        description: "Armor equipping is not yet available",
+        status: "warning",
         duration: 3000,
         isClosable: true,
       });
+      
+      // Reload data to show updated state
+      await loadCharacterData();
     } catch (err) {
       console.error(err);
       toast({
@@ -932,6 +884,25 @@ const Game: React.FC = () => {
         isClosable: true,
       });
     }
+  };
+
+  // Handle chat message submission
+  const handleChatSubmit = (message: string) => {
+    if (!message.trim()) return;
+    
+    // Simply pass the message to the send handler
+    // No local state updates since we're using the blockchain as source of truth
+    handleSendChatMessage(message);
+  };
+
+  // Handle weapon equip click
+  const handleWeaponEquip = (itemId: number) => {
+    handleEquipWeapon(itemId);
+  };
+
+  // Handle armor equip click
+  const handleArmorEquip = (itemId: number) => {
+    handleEquipArmor(itemId);
   };
 
   // Replace conditional rendering with a switch statement based on gameUIState
@@ -1065,7 +1036,7 @@ const Game: React.FC = () => {
     case 'ready':
       // Main game UI - only render when we have a character and initialization is complete
       if (!character) {
-        return (
+        renderContent = (
           <Center height="100vh" className="bg-gray-900" color="white">
             <VStack spacing={6}>
               <Heading as="h1" size="xl" color="white">Battle Nads</Heading>
@@ -1074,196 +1045,198 @@ const Game: React.FC = () => {
             </VStack>
           </Center>
         );
-      }
-      
-      return (
-        <Box height="calc(100vh - 60px)" position="relative">
-          {/* Add a fixed button to toggle debug panel */}
-          <Box position="fixed" right="20px" bottom="20px" zIndex={1000}>
-            <IconButton
-              aria-label="Debug Tools"
-              icon={<Text fontSize="xs">DEBUG</Text>}
-              onClick={onOpen}
-              colorScheme="purple"
-              size="sm"
-            />
-          </Box>
-          
-          {/* Debug Panel Modal */}
-          <Modal isOpen={isOpen} onClose={onClose} size="xl">
-            <ModalOverlay />
-            <ModalContent bg="gray.900" color="white" maxWidth="90vw">
-              <ModalHeader>Debug Panel</ModalHeader>
-              <ModalCloseButton />
-              <ModalBody>
-                <DebugPanel />
-              </ModalBody>
-              <ModalFooter>
-                <Button colorScheme="gray" mr={3} onClick={onClose}>
-                  Close
-                </Button>
-              </ModalFooter>
-            </ModalContent>
-          </Modal>
+      } else {
+        renderContent = (
+          <Box height="calc(100vh - 60px)" position="relative">
+            {/* Add a fixed button to toggle debug panel */}
+            <Box position="fixed" right="20px" bottom="20px" zIndex={1000}>
+              <IconButton
+                aria-label="Debug Tools"
+                icon={<Text fontSize="xs">DEBUG</Text>}
+                onClick={onOpen}
+                colorScheme="purple"
+                size="sm"
+              />
+            </Box>
+            
+            {/* Debug Panel Modal */}
+            <Modal isOpen={isOpen} onClose={onClose} size="xl">
+              <ModalOverlay />
+              <ModalContent bg="gray.900" color="white" maxWidth="90vw">
+                <ModalHeader>Debug Panel</ModalHeader>
+                <ModalCloseButton />
+                <ModalBody>
+                  <DebugPanel />
+                </ModalBody>
+                <ModalFooter>
+                  <Button colorScheme="gray" mr={3} onClick={onClose}>
+                    Close
+                  </Button>
+                </ModalFooter>
+              </ModalContent>
+            </Modal>
 
-          <Flex height="100%" flexDirection="column">
-            <Flex flexGrow={1} overflow="hidden">
-              <Box flexBasis="70%" height="100%" width="100%" position="relative">
-                {/* Simple placeholder that has debugging info instead of the GameBoard */}
-                <Box p={4} bg="gray.800" height="100%" overflow="auto">
-                  <SimpleGrid columns={{ base: 1, lg: 3 }} spacing={4}>
-                    {/* Character Section */}
-                    <Box bg="gray.700" p={4} borderRadius="md">
-                      <Heading size="md" mb={4}>Character</Heading>
-                      {/* Character Card shows stats, health, equipment */}
-                      <CharacterCard character={character} />
-                    </Box>
-                    
-                    {/* Movement Section */}
-                    <Box bg="gray.700" p={4} borderRadius="md">
-                      <Heading size="md" mb={4}>Movement</Heading>
-                      
-                      {/* Location Information */}
-                      <Box mb={4} bg="gray.800" p={2} borderRadius="md">
-                        <Text fontWeight="bold" mb={1}>Location</Text>
-                        <Text fontSize="sm">
-                          Depth: {character.position.depth}, Position: ({character.position.x}, {character.position.y})
-                        </Text>
+            <Flex height="100%" flexDirection="column">
+              <Flex flexGrow={1} overflow="hidden">
+                <Box flexBasis="70%" height="100%" width="100%" position="relative">
+                  {/* Simple placeholder that has debugging info instead of the GameBoard */}
+                  <Box p={4} bg="gray.800" height="100%" overflow="auto">
+                    <SimpleGrid columns={{ base: 1, lg: 3 }} spacing={4}>
+                      {/* Character Section */}
+                      <Box bg="gray.700" p={4} borderRadius="md">
+                        <Heading size="md" mb={4}>Character</Heading>
+                        {/* Character Card shows stats, health, equipment */}
+                        <CharacterCard character={character} />
                       </Box>
                       
-                      <SimpleGrid columns={3} spacing={2} mb={4} maxW="200px" mx="auto">
-                        <Box></Box>
-                        <Button 
-                          onClick={() => handleMovement('north')}
-                          isLoading={isMoving}
-                          leftIcon={<ChevronUpIcon />}
-                          size="md"
-                          colorScheme="blue"
-                        >
-                          North
-                        </Button>
-                        <Box></Box>
+                      {/* Movement Section */}
+                      <Box bg="gray.700" p={4} borderRadius="md">
+                        <Heading size="md" mb={4}>Movement</Heading>
                         
-                        <Button 
-                          onClick={() => handleMovement('west')}
-                          isLoading={isMoving}
-                          leftIcon={<ChevronLeftIcon />}
-                          size="md"
-                          colorScheme="blue"
-                        >
-                          West
-                        </Button>
-                        <Box></Box>
-                        <Button 
-                          onClick={() => handleMovement('east')}
-                          isLoading={isMoving}
-                          leftIcon={<ChevronRightIcon />}
-                          size="md"
-                          colorScheme="blue"
-                        >
-                          East
-                        </Button>
+                        {/* Location Information */}
+                        <Box mb={4} bg="gray.800" p={2} borderRadius="md">
+                          <Text fontWeight="bold" mb={1}>Location</Text>
+                          <Text fontSize="sm">
+                            Depth: {character?.position?.depth ?? 0}, Position: ({character?.position?.x ?? 0}, {character?.position?.y ?? 0})
+                          </Text>
+                        </Box>
                         
-                        <Box></Box>
-                        <Button 
-                          onClick={() => handleMovement('south')}
-                          isLoading={isMoving}
-                          leftIcon={<ChevronDownIcon />}
-                          size="md"
-                          colorScheme="blue"
-                        >
-                          South
-                        </Button>
-                        <Box></Box>
-                      </SimpleGrid>
+                        <SimpleGrid columns={3} spacing={2} mb={4} maxW="200px" mx="auto">
+                          <Box></Box>
+                          <Button 
+                            onClick={() => handleMovement('north')}
+                            isLoading={isMoving}
+                            leftIcon={<ChevronUpIcon />}
+                            size="md"
+                            colorScheme="blue"
+                          >
+                            North
+                          </Button>
+                          <Box></Box>
+                          
+                          <Button 
+                            onClick={() => handleMovement('west')}
+                            isLoading={isMoving}
+                            leftIcon={<ChevronLeftIcon />}
+                            size="md"
+                            colorScheme="blue"
+                          >
+                            West
+                          </Button>
+                          <Box></Box>
+                          <Button 
+                            onClick={() => handleMovement('east')}
+                            isLoading={isMoving}
+                            leftIcon={<ChevronRightIcon />}
+                            size="md"
+                            colorScheme="blue"
+                          >
+                            East
+                          </Button>
+                          
+                          <Box></Box>
+                          <Button 
+                            onClick={() => handleMovement('south')}
+                            isLoading={isMoving}
+                            leftIcon={<ChevronDownIcon />}
+                            size="md"
+                            colorScheme="blue"
+                          >
+                            South
+                          </Button>
+                          <Box></Box>
+                        </SimpleGrid>
+                        
+                        <HStack spacing={4} mb={4} justify="center">
+                          <Button 
+                            onClick={() => handleMovement('up')}
+                            isLoading={isMoving}
+                            size="md"
+                            colorScheme="purple"
+                          >
+                            Up
+                          </Button>
+                          <Button 
+                            onClick={() => handleMovement('down')}
+                            isLoading={isMoving}
+                            size="md"
+                            colorScheme="purple"
+                          >
+                            Down
+                          </Button>
+                        </HStack>
+                      </Box>
                       
-                      <HStack spacing={4} mb={4} justify="center">
-                        <Button 
-                          onClick={() => handleMovement('up')}
-                          isLoading={isMoving}
-                          size="md"
-                          colorScheme="purple"
-                        >
-                          Up
-                        </Button>
-                        <Button 
-                          onClick={() => handleMovement('down')}
-                          isLoading={isMoving}
-                          size="md"
-                          colorScheme="purple"
-                        >
-                          Down
-                        </Button>
-                      </HStack>
-                    </Box>
-                    
-                    {/* Combat Section */}
-                    <Box bg="gray.700" p={4} borderRadius="md">
-                      <Heading size="md" mb={4}>Combat</Heading>
-                      {combatants.length > 0 ? (
-                        <VStack align="stretch" spacing={2}>
-                          {combatants.map((enemy, index) => (
-                            <Box 
-                              key={index} 
-                              p={3} 
-                              bg="gray.600" 
-                              borderRadius="md"
-                            >
-                              <HStack justify="space-between" align="flex-start">
-                                <VStack align="stretch" spacing={2} flex="1">
-                                  <Flex justify="space-between" align="center">
-                                    <Text fontWeight="bold" fontSize="sm">{enemy.name || 'Unknown'}</Text>
-                                    <Badge colorScheme="purple" fontSize="xs" p={1}>
-                                      Level {enemy.stats.level}
-                                    </Badge>
-                                  </Flex>
-                                  <Box>
-                                    <Flex justify="space-between" mb={1}>
-                                      <Text fontSize="xs">Health</Text>
-                                      <Text fontSize="xs">{enemy.stats.health} / {enemy.stats.maxHealth}</Text>
+                      {/* Combat Section */}
+                      <Box bg="gray.700" p={4} borderRadius="md">
+                        <Heading size="md" mb={4}>Combat</Heading>
+                        {combatants.length > 0 ? (
+                          <VStack align="stretch" spacing={2}>
+                            {combatants.map((enemy, index) => (
+                              <Box 
+                                key={index} 
+                                p={3} 
+                                bg="gray.600" 
+                                borderRadius="md"
+                              >
+                                <HStack justify="space-between" align="flex-start">
+                                  <VStack align="stretch" spacing={2} flex="1">
+                                    <Flex justify="space-between" align="center">
+                                      <Text fontWeight="bold" fontSize="sm">{enemy.name || 'Unknown'}</Text>
+                                      <Badge colorScheme="purple" fontSize="xs" p={1}>
+                                        Level {enemy.stats.level}
+                                      </Badge>
                                     </Flex>
-                                    <Progress 
-                                      value={(enemy.stats.health / enemy.stats.maxHealth) * 100} 
-                                      colorScheme="green" 
-                                      size="xs" 
-                                    />
-                                  </Box>
-                                </VStack>
-                                <Button
-                                  colorScheme="red"
-                                  onClick={() => handleAttack(index)}
-                                  isLoading={isAttacking}
-                                  size="sm"
-                                >
-                                  Attack
-                                </Button>
-                              </HStack>
-                            </Box>
-                          ))}
-                        </VStack>
-                      ) : (
-                        <Alert status="info" variant="subtle">
-                          <AlertIcon />
-                          No combatants in this area
-                        </Alert>
-                      )}
-                    </Box>
-                  </SimpleGrid>
+                                    <Box>
+                                      <Flex justify="space-between" mb={1}>
+                                        <Text fontSize="xs">Health</Text>
+                                        <Text fontSize="xs">{Number(enemy.stats.health)} / {Number(enemy.stats.maxHealth)}</Text>
+                                      </Flex>
+                                      <Progress 
+                                        value={(Number(enemy.stats.health) / Number(enemy.stats.maxHealth)) * 100} 
+                                        colorScheme="green" 
+                                        size="xs" 
+                                      />
+                                    </Box>
+                                  </VStack>
+                                  <Button
+                                    colorScheme="red"
+                                    onClick={() => handleAttack(index)}
+                                    isLoading={isAttacking}
+                                    size="sm"
+                                  >
+                                    Attack
+                                  </Button>
+                                </HStack>
+                              </Box>
+                            ))}
+                          </VStack>
+                        ) : (
+                          <Alert status="info" variant="subtle">
+                            <AlertIcon />
+                            No combatants in this area
+                          </Alert>
+                        )}
+                      </Box>
+                    </SimpleGrid>
+                  </Box>
                 </Box>
-              </Box>
-              <Box flexBasis="30%" bg="gray.900" height="100%" overflowY="auto">
-                <DataFeed
-                  characterId={character.id}
-                  pollInterval={10000}
-                />
+                <Box flexBasis="30%" bg="gray.900" height="100%" overflowY="auto">
+                  <DataFeed
+                    key="singleton-data-feed"
+                    characterId={character ? character.id : ''}
+                    sendChatMessage={handleSendChatMessage}
+                  />
+                </Box>
+              </Flex>
+              <Box>
+                {StableWalletBalances}
               </Box>
             </Flex>
-            <Box>
-              <WalletBalances />
-            </Box>
-          </Flex>
-        </Box>
-      );
+          </Box>
+        );
+      }
+      break;
       
     default:
       renderContent = (
