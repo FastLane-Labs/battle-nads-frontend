@@ -66,6 +66,10 @@ import WalletBalances from '../WalletBalances';
 import DebugPanel from '../DebugPanel';
 import { ChevronUpIcon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from '@chakra-ui/icons';
 import { CharacterCard } from '../../components/CharacterCard';
+import { useContracts } from '../../hooks/useContracts';
+
+// Constants from the contract
+const MIN_EXECUTION_GAS = BigInt(900000); // Standard gas limit for operations
 
 interface Combatant {
   id: string;
@@ -148,6 +152,9 @@ const Game: React.FC = () => {
 
   // Create stable WalletBalances component
   const StableWalletBalances = useMemo(() => <WalletBalances />, []);
+
+  // Add useContracts hook to get embeddedContract
+  const { readContract, injectedContract, embeddedContract } = useContracts();
 
   // Derive a unified UI state from all the state variables
   const gameUIState = useMemo<GameUIState>(() => {
@@ -346,6 +353,45 @@ const Game: React.FC = () => {
       
       // Use the centralized getGameState function that updates Recoil atom
       const gameStateData = await getFullFrontendData(finalCharId);
+      
+      // Add validation for position and health values
+      if (gameStateData && gameStateData.character) {
+        // Validate position data - don't allow (0,0) position unless it's confirmed valid
+        if (gameStateData.character.position && 
+            gameStateData.character.position.x === 0 && 
+            gameStateData.character.position.y === 0) {
+          console.warn("Suspicious position data (0,0) detected, validating...");
+          
+          // Only accept if depth is also 0 (valid starting point) and not in combat
+          const isValidStartingPoint = gameStateData.character.position.depth === 0 && 
+                                     (!gameStateData.combatants || gameStateData.combatants.length === 0);
+          
+          if (!isValidStartingPoint && character && character.position) {
+            console.warn("Invalid position data detected, keeping current position");
+            // Keep the current position instead of using the invalid data
+            gameStateData.character.position = character.position;
+          }
+        }
+        
+        // Validate health values for combatants
+        if (gameStateData.combatants && gameStateData.combatants.length > 0) {
+          const validatedCombatants = gameStateData.combatants.map((combatant: Combatant) => {
+            if (combatant && combatant.stats) {
+              // Calculate expected max health
+              const maxHealth = calculateMaxHealth(combatant.stats);
+              
+              // If health is unreasonably high, cap it
+              if (combatant.stats.health > maxHealth * 10) {
+                console.warn(`Suspicious health value detected for combatant: ${combatant.stats.health}, capping to ${maxHealth}`);
+                combatant.stats.health = maxHealth;
+              }
+            }
+            return combatant;
+          });
+          
+          gameStateData.combatants = validatedCombatants;
+        }
+      }
       
       // Update Recoil game state with the returned data
       if (gameStateData) {
@@ -625,18 +671,59 @@ const Game: React.FC = () => {
         return;
       }
       
-      // Since attackTarget is no longer available, we'll need to modify the combat approach
-      // This would require using a different method or working with the useGame hook's functions
+      // Log the attack attempt
+      console.log(`[handleAttack] Attempting to attack target with index ${targetIndex}`);
+      addToCombatLog(`Attempting to attack target ${targetIndex}`);
       
-      // Add to combat log
-      addToCombatLog(`Attempted to attack target ${targetIndex}`);
+      // Use the embeddedContract to call the attack function on the blockchain
+      if (!embeddedContract) {
+        throw new Error('Session key wallet not available. Please connect your wallet and try again.');
+      }
       
-      // Reload character data to reflect any changes
+      // Create transaction options with appropriate gas limit
+      const txOptions = { 
+        gasLimit: MIN_EXECUTION_GAS 
+      };
+      
+      // Call the attack function on the contract
+      console.log(`[handleAttack] Sending attack transaction to blockchain`);
+      const tx = await embeddedContract.attack(character.id, targetIndex, txOptions);
+      console.log(`[handleAttack] Attack transaction sent: ${tx.hash}`);
+      
+      // Wait for transaction confirmation
+      console.log(`[handleAttack] Waiting for transaction confirmation...`);
+      const receipt = await tx.wait();
+      
+      if (!receipt) {
+        throw new Error('No receipt returned from attack transaction');
+      }
+      
+      console.log(`[handleAttack] Attack completed: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+      
+      // Add success message to combat log
+      addToCombatLog(`Successfully attacked target ${targetIndex}`);
+      
+      // Allow a short delay before reloading data to ensure blockchain state is updated
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Reload character data to reflect changes
+      console.log(`[handleAttack] Reloading character data after attack`);
       await loadCharacterData();
     } catch (err) {
       console.error("Error in handleAttack:", err);
-      setGameState(current => ({ ...current, error: `Attack failed: ${err instanceof Error ? err.message : String(err)}` }));
-      addToCombatLog(`Attack failed: ${err instanceof Error ? err.message : String(err)}`);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      
+      // Provide better error messages for common issues
+      let userMessage = `Attack failed: ${errorMessage}`;
+      
+      if (errorMessage.includes('execution reverted')) {
+        userMessage = "Attack failed: Target is not valid or no longer available";
+      } else if (errorMessage.includes('insufficient funds')) {
+        userMessage = "Attack failed: Insufficient gas balance. Please replenish your gas.";
+      }
+      
+      setGameState(current => ({ ...current, error: userMessage }));
+      addToCombatLog(userMessage);
     } finally {
       setIsAttacking(false);
     }
