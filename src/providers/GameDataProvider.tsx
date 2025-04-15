@@ -342,28 +342,72 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
             console.log(`[GameDataProvider] Processing ${allLogs.length} logs from data feeds`);
           }
           
-          // Extract chat messages (logType 4 is Chat)
-          const chatLogs = allLogs
-            .filter((log: any) => log?.logType === LogType.Chat)
-            .map((log: any) => ({
-              characterName: log.characterName || 'Unknown',
-              message: log.message || '',
-              timestamp: Date.now()
-            }));
+          // Extract chat events (logType 4 is Chat)
+          const chatEvents = allLogs.filter((log: any) => log?.logType === LogType.Chat);
+          
+          // Collect all chat contents from data feeds
+          const chatContents = result.dataFeeds.flatMap((feed: any) => 
+            Array.isArray(feed?.chatLogs) ? feed.chatLogs : []
+          );
+          
+          console.log(`[GameDataProvider] Found ${chatEvents.length} chat events and ${chatContents.length} chat contents`);
           
           // Extract event logs (all non-chat logs)
           const events = allLogs.filter((log: any) => log?.logType !== LogType.Chat);
           
           // Update processed data state if we have new logs
-          if (chatLogs.length > 0) {
-            if (shouldLogDetailed) {
-              console.log(`[GameDataProvider] Adding ${chatLogs.length} new chat messages:`, chatLogs);
+          if (chatEvents.length > 0 && chatContents.length > 0) {
+            // Combine chat events with their content
+            const combinedChatMessages: { characterName: string; message: string; timestamp: number }[] = [];
+            
+            // Matching length indicates we can pair them directly by index
+            if (chatEvents.length === chatContents.length) {
+              for (let i = 0; i < chatEvents.length; i++) {
+                combinedChatMessages.push({
+                  characterName: chatEvents[i].characterName || 'Unknown',
+                  message: chatContents[i] || '',
+                  timestamp: Date.now()
+                });
+              }
+              
+              if (shouldLogDetailed) {
+                console.log(`[GameDataProvider] Created ${combinedChatMessages.length} combined chat messages`);
+              }
+            } else {
+              // If lengths don't match, try to match by index field if available
+              for (const chatEvent of chatEvents) {
+                if (chatEvent.index !== undefined && chatEvent.index < chatContents.length) {
+                  combinedChatMessages.push({
+                    characterName: chatEvent.characterName || 'Unknown',
+                    message: chatContents[chatEvent.index] || '',
+                    timestamp: Date.now()
+                  });
+                }
+              }
+              
+              console.log(`[GameDataProvider] Created ${combinedChatMessages.length} chat messages using index matching`);
+              
+              // If we couldn't match any, fall back to simpler approach
+              if (combinedChatMessages.length === 0) {
+                console.log(`[GameDataProvider] Fallback: Using simpler approach for chat messages`);
+                for (let i = 0; i < Math.min(chatEvents.length, chatContents.length); i++) {
+                  combinedChatMessages.push({
+                    characterName: chatEvents[i].characterName || 'Unknown',
+                    message: chatContents[i] || '',
+                    timestamp: Date.now()
+                  });
+                }
+              }
             }
-            setProcessedChatMessages(prev => {
-              const newState = [...chatLogs, ...prev];
-              console.log(`[GameDataProvider] Updated processedChatMessages state, now has ${newState.length} messages`);
-              return newState;
-            });
+            
+            // Update state with combined chat messages
+            if (combinedChatMessages.length > 0) {
+              setProcessedChatMessages(prev => {
+                const newState = [...prev, ...combinedChatMessages];
+                console.log(`[GameDataProvider] Updated processedChatMessages state, now has ${newState.length} messages`);
+                return newState;
+              });
+            }
           }
           
           if (events.length > 0) {

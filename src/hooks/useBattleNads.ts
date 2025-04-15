@@ -73,17 +73,29 @@ const processDataFeeds = (dataFeeds: any[], highestProcessedBlock: number): Data
     
     // Process logs array
     const logs = Array.isArray(feed.logs) 
-      ? feed.logs.map((log: any) => ({
-          logType: Number(log.logType),
-          source: log.source,
-          message: log.message,
-          characterID: log.characterID, 
-          characterName: log.characterName,
-          x: log.x !== undefined ? Number(log.x) : undefined,
-          y: log.y !== undefined ? Number(log.y) : undefined,
-          depth: log.depth !== undefined ? Number(log.depth) : undefined,
-          extraData: log.extraData
-        }))
+      ? feed.logs.map((log: any) => {
+          // Ensure we capture all relevant fields, especially for chat logs
+          const processedLog: Log = {
+            logType: Number(log.logType),
+            source: log.source,
+            message: log.message,
+            characterID: log.characterID, 
+            characterName: log.characterName,
+            x: log.x !== undefined ? Number(log.x) : undefined,
+            y: log.y !== undefined ? Number(log.y) : undefined,
+            depth: log.depth !== undefined ? Number(log.depth) : undefined,
+            extraData: log.extraData,
+            // Ensure we capture the index field for chat logs - this is critical for matching
+            index: log.index !== undefined ? Number(log.index) : undefined
+          };
+          
+          // Add special debug for chat logs
+          if (processedLog.logType === LogType.Chat) {
+            console.log(`[processDataFeeds] Chat log processed: Index=${processedLog.index}, Speaker=${processedLog.characterName}`);
+          }
+          
+          return processedLog;
+        })
       : [];
     
     // Process chatLogs array if it exists
@@ -92,6 +104,14 @@ const processDataFeeds = (dataFeeds: any[], highestProcessedBlock: number): Data
     // Log any chat logs found
     if (chatLogs.length > 0) {
       console.log(`[processDataFeeds] Found ${chatLogs.length} chat logs in feed with block ${blockNumber}:`, chatLogs);
+      
+      // Check for matching between chat events and content
+      const chatEvents = logs.filter((log: Log) => log.logType === LogType.Chat);
+      if (chatEvents.length === chatLogs.length) {
+        console.log(`[processDataFeeds] Perfect match between ${chatEvents.length} chat events and ${chatLogs.length} chat contents`);
+      } else {
+        console.log(`[processDataFeeds] Mismatch: ${chatEvents.length} chat events vs ${chatLogs.length} chat contents`);
+      }
     }
     
     return { blockNumber, logs, chatLogs };
@@ -118,6 +138,7 @@ interface Log {
   y?: number;
   depth?: number;
   extraData?: any;
+  index?: number;
 }
 
 export interface DataFeed {
@@ -1038,33 +1059,50 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
           // Extract and collate event logs from all data feeds
           const allLogs = processedDataFeeds.flatMap(feed => feed.logs || []);
           if (allLogs.length > 0) {
+            // Only keep non-chat logs for the event log display
             setEventLogs(prev => [...allLogs.filter(log => log.logType !== LogType.Chat), ...prev]);
-            
-            // Extract chat messages from logs with logType Chat
-            const chatLogs = allLogs.filter(log => log.logType === LogType.Chat);
-            if (chatLogs.length > 0) {
-              const newChatMessages = chatLogs.map(log => ({
-                characterName: log.characterName || 'Unknown',
-                message: log.message || '',
-                timestamp: Date.now()
-              }));
-              
-              setChatMessages(prev => [...newChatMessages, ...prev]);
-            }
           }
           
-          // Also process any dedicated chatLogs arrays from the data feeds
-          const allChatLogs = processedDataFeeds.flatMap(feed => feed.chatLogs || []);
+          // Process chat messages by combining chat events with their content
+          // First, collect all chat logs and chat events from all data feeds
+          const chatEvents = allLogs.filter(log => log.logType === LogType.Chat);
+          const chatContents = processedDataFeeds.flatMap(feed => feed.chatLogs || []);
           
-          // Add debug log for the chatLogs array
-          console.log(`[useBattleNads] Found ${allChatLogs.length} chat messages in chatLogs arrays`);
-          if (allChatLogs.length > 0) {
-            console.log('[useBattleNads] Chat messages found:', allChatLogs);
+          console.log(`[useBattleNads] Found ${chatEvents.length} chat events and ${chatContents.length} chat contents`);
+          
+          // Create properly attributed chat messages
+          const processedChatMessages: ChatMessage[] = [];
+          
+          // Only process if we have both chat events and contents
+          if (chatEvents.length > 0 && chatContents.length > 0) {
+            // Match chat events with chat contents by index
+            // Each chat event should have an index that corresponds to the chat content
+            for (let i = 0; i < Math.min(chatEvents.length, chatContents.length); i++) {
+              const chatEvent = chatEvents[i];
+              const chatContent = chatContents[i];
+              
+              if (chatEvent && chatContent) {
+                // Use the character name from the event and the message from the content
+                processedChatMessages.push({
+                  characterName: chatEvent.characterName || 'Unknown',
+                  message: typeof chatContent === 'string' ? chatContent : 
+                          (typeof chatContent === 'object' && 'message' in chatContent) ? 
+                          (chatContent as {message: string}).message : String(chatContent),
+                  timestamp: Date.now()
+                });
+              }
+            }
+            
+            if (processedChatMessages.length > 0) {
+              console.log(`[useBattleNads] Processed ${processedChatMessages.length} combined chat messages`);
+              setChatMessages(prev => [...prev, ...processedChatMessages]);
+            }
+          } else if (chatContents.length > 0) {
+            // Fallback: If we only have chat contents but no events, process them directly
+            console.log('[useBattleNads] Processing chat contents without matching events');
             
             // Parse and map chat logs to the right format
-            const chatMessages: ChatMessage[] = [];
-            
-            for (const chatLog of allChatLogs) {
+            for (const chatLog of chatContents) {
               if (!chatLog) continue;
               
               let message: ChatMessage;
@@ -1102,12 +1140,12 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
                 };
               }
               
-              chatMessages.push(message);
+              processedChatMessages.push(message);
             }
             
-            if (chatMessages.length > 0) {
-              console.log('[useBattleNads] Processed chat messages:', chatMessages);
-              setChatMessages(prev => [...chatMessages, ...prev]);
+            if (processedChatMessages.length > 0) {
+              console.log('[useBattleNads] Processed chat messages without events:', processedChatMessages);
+              setChatMessages(prev => [...prev, ...processedChatMessages]);
             }
           }
         } catch (dataFeedErr) {
