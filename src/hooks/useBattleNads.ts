@@ -44,29 +44,12 @@ const processDataFeeds = (dataFeeds: any[], highestProcessedBlock: number): Data
     return [];
   }
   
-  // Add debug logging for data feed processing
-  console.log(`[processDataFeeds] Processing ${dataFeeds.length} data feeds with highestProcessedBlock: ${highestProcessedBlock}`);
-  if (dataFeeds.length > 0) {
-    const firstFeed = dataFeeds[0];
-    console.log(`[processDataFeeds] First data feed structure:`, {
-      hasChatLogsArray: firstFeed && Array.isArray(firstFeed.chatLogs),
-      chatLogsLength: firstFeed && Array.isArray(firstFeed.chatLogs) ? firstFeed.chatLogs.length : 0,
-      chatLogsContent: firstFeed && Array.isArray(firstFeed.chatLogs) && firstFeed.chatLogs.length > 0 ? firstFeed.chatLogs : 'empty',
-      keys: firstFeed ? Object.keys(firstFeed) : []
-    });
-  }
-  
   // Filter out data feeds from blocks we've already processed
   const newDataFeeds = dataFeeds.filter(feed => {
     const blockNumber = Number(feed.blockNumber);
     const isNew = blockNumber > highestProcessedBlock;
-    if (!isNew && blockNumber > 0) {
-      console.log(`[processDataFeeds] Skipping already processed block ${blockNumber}`);
-    }
     return isNew;
   });
-  
-  console.log(`[processDataFeeds] After filtering: ${newDataFeeds.length}/${dataFeeds.length} data feeds are new`);
   
   return newDataFeeds.map(feed => {
     const blockNumber = Number(feed.blockNumber);
@@ -89,11 +72,6 @@ const processDataFeeds = (dataFeeds: any[], highestProcessedBlock: number): Data
             index: log.index !== undefined ? Number(log.index) : undefined
           };
           
-          // Add special debug for chat logs
-          if (processedLog.logType === LogType.Chat) {
-            console.log(`[processDataFeeds] Chat log processed: Index=${processedLog.index}, Speaker=${processedLog.characterName}`);
-          }
-          
           return processedLog;
         })
       : [];
@@ -101,17 +79,9 @@ const processDataFeeds = (dataFeeds: any[], highestProcessedBlock: number): Data
     // Process chatLogs array if it exists
     const chatLogs = Array.isArray(feed.chatLogs) ? feed.chatLogs : [];
     
-    // Log any chat logs found
+    // Only log when actually finding chat logs (keeping useful logs)
     if (chatLogs.length > 0) {
-      console.log(`[processDataFeeds] Found ${chatLogs.length} chat logs in feed with block ${blockNumber}:`, chatLogs);
-      
-      // Check for matching between chat events and content
-      const chatEvents = logs.filter((log: Log) => log.logType === LogType.Chat);
-      if (chatEvents.length === chatLogs.length) {
-        console.log(`[processDataFeeds] Perfect match between ${chatEvents.length} chat events and ${chatLogs.length} chat contents`);
-      } else {
-        console.log(`[processDataFeeds] Mismatch: ${chatEvents.length} chat events vs ${chatLogs.length} chat contents`);
-      }
+      console.log(`[processDataFeeds] Found ${chatLogs.length} chat logs in feed with block ${blockNumber}`);
     }
     
     return { blockNumber, logs, chatLogs };
@@ -153,7 +123,7 @@ export interface ChatMessage {
   timestamp?: number;
 }
 
-export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { role: 'consumer' }) => {
+export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppressEvents?: boolean } = { role: 'consumer', suppressEvents: false }) => {
   // Generate a unique instance ID for tracking this hook instance
   const instanceIdRef = useRef<string>(`useBattleNads-${Math.random().toString(36).substring(2, 9)}`);
 
@@ -174,6 +144,17 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [lastFetchedBlock, setLastFetchedBlock] = useState<number>(0);
   const [highestSeenBlock, setHighestSeenBlock] = useState<number>(0);
+  
+  // Add a ref to track the current highest seen block to prevent closure issues
+  const highestSeenBlockRef = useRef<number>(0);
+
+  // Effect to keep ref in sync with state changes
+  useEffect(() => {
+    // Update ref if state changes from an external source
+    if (highestSeenBlock !== highestSeenBlockRef.current) {
+      highestSeenBlockRef.current = highestSeenBlock;
+    }
+  }, [highestSeenBlock]);
 
   // Set this instance as the provider if the role is provider and no provider exists yet
   useEffect(() => {
@@ -185,7 +166,7 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
   // Initialize highestSeenBlock on mount if not set yet
   useEffect(() => {
     const initializeHighestBlock = async () => {
-      if (highestSeenBlock === 0 && readContract) {
+      if (highestSeenBlock === 0 && highestSeenBlockRef.current === 0 && readContract) {
         try {
           // Get the current block and set highestSeenBlock to a few blocks before
           // to avoid missing very recent messages
@@ -194,6 +175,8 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
           // Set to a few blocks back to avoid missing recent transactions
           const initialBlock = Math.max(0, currentBlock - 10);
           console.log(`[useBattleNads] Initializing highestSeenBlock to ${initialBlock} (current block: ${currentBlock})`);
+          // Update both ref and state
+          highestSeenBlockRef.current = initialBlock;
           setHighestSeenBlock(initialBlock);
         } catch (err) {
           console.error('[useBattleNads] Failed to initialize highestSeenBlock:', err);
@@ -202,7 +185,7 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
     };
     
     initializeHighestBlock();
-  }, [highestSeenBlock, readContract]);
+  }, [highestSeenBlock, readContract, highestSeenBlockRef]);
 
   // Update error state when contract error changes
   useEffect(() => {
@@ -709,90 +692,14 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
         startBlock = 0;
       }
       
-      // Log the start block being used
-      console.log(`[getFullFrontendData] Fetching data with start block: ${startBlock}`);
-      
       let response;
       try {
-        // Add logging for detailed debugging of contract call parameters
-        console.log(`[getFullFrontendData] Making contract call with parameters:`, {
-          ownerAddress,
-          startBlock,
-          contractAddress: readContract.target
-        });
-        
-        // Call contract method
+        // Remove detailed parameter logging
         response = await readContract.getFullFrontendData(ownerAddress, startBlock);
-        
-        // Check response type and add detailed logging
-        console.log(`[getFullFrontendData] Contract response type: ${typeof response}`);
-        
-        // Log top-level structure of the response
-        if (typeof response === 'object') {
-          console.log(`[getFullFrontendData] Top level keys: ${Object.keys(response)}`);
-        }
-        
-        // Log specific fields we're interested in for debugging
-        if (response) {
-          // Handle both array and object response formats
-          let sessionKey = null;
-          let characterID = null;
-          let sessionKeyBalance = null;
-          
-          // Check if response is array-like
-          if (Array.isArray(response)) {
-            sessionKey = response[1];
-            characterID = response[0];
-            sessionKeyBalance = response[2];
-          } else {
-            // Assume object format
-            sessionKey = response.sessionKey;
-            characterID = response.characterID;
-            sessionKeyBalance = response.sessionKeyBalance;
-          }
-          
-          console.log(`[getFullFrontendData] Session key from contract: ${sessionKey} (${typeof sessionKey})`);
-          
-          // Add detailed logging if we have a zero session key with valid character ID
-          if (sessionKey === '0x0000000000000000000000000000000000000000' && 
-              characterID && 
-              characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
-            console.log(`[getFullFrontendData] ZERO SESSION KEY ISSUE DETECTED:`, {
-              ownerAddress,
-              startBlock,
-              characterID,
-              contractAddress: readContract.target
-            });
-          }
-          
-          // Log session key balance
-          console.log(`[getFullFrontendData] Session key balance from contract: ${sessionKeyBalance} (${typeof sessionKeyBalance})`);
-        }
       } catch (callError) {
         console.error(`[getFullFrontendData] Contract call error:`, callError);
         setError(`Contract call failed: ${callError instanceof Error ? callError.message : String(callError)}`);
         return null;
-      }
-      
-      // Debug check for chatLogs in response
-      if (response && response.dataFeeds) {
-        // Check if the response contains dataFeeds
-        const dataFeeds = response.dataFeeds;
-        let foundChatLogs = false;
-        
-        if (Array.isArray(dataFeeds)) {
-          for (const feed of dataFeeds) {
-            if (feed && Array.isArray(feed.chatLogs) && feed.chatLogs.length > 0) {
-              console.log(`[getFullFrontendData] Found ${feed.chatLogs.length} chat messages in dataFeed:`, feed.chatLogs);
-              foundChatLogs = true;
-              break;
-            }
-          }
-          
-          if (!foundChatLogs) {
-            console.log(`[getFullFrontendData] No chat messages found in ${dataFeeds.length} data feeds`);
-          }
-        }
       }
       
       // Initialize result object with default values
@@ -825,10 +732,6 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
           if (response.length > 4) result.balanceShortfall = response[4] || BigInt(0);
           if (response.length > 5) result.unallocatedAttributePoints = response[5] || 0;
           
-          // Debug logging to see what we're getting from the blockchain
-          console.log('[getFullFrontendData] Raw session key balance from blockchain:', 
-            response.length > 2 ? response[2].toString() : 'undefined');
-            
           // Add special debug logging for zero address session key with valid character ID
           const isZeroAddress = response.length > 1 && 
             response[1] === '0x0000000000000000000000000000000000000000';
@@ -850,7 +753,7 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
             console.error('Unallocated attribute points:', response.length > 5 ? response[5].toString() : 'undefined');
             console.error('======================================');
           }
-          
+
           // Check if we're getting a block number instead of a balance
           // Block numbers on most chains are large but < 1 billion, so we can perform a sanity check
           if (response.length > 2 && typeof response[2] === 'bigint' && response[2] > BigInt(100000) && response[2] < BigInt(10000000000)) {
@@ -896,10 +799,6 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
             if ('bondedShMonadBalance' in response) result.bondedShMonadBalance = response.bondedShMonadBalance || BigInt(0);
             if ('balanceShortfall' in response) result.balanceShortfall = response.balanceShortfall || BigInt(0);
             if ('unallocatedAttributePoints' in response) result.unallocatedAttributePoints = response.unallocatedAttributePoints || 0;
-            
-            // Debug logging to see what we're getting from the blockchain
-            console.log('[getFullFrontendData] Raw session key balance from object response:', 
-              response.sessionKeyBalance ? response.sessionKeyBalance.toString() : 'undefined');
             
             // Add special debug logging for zero address session key with valid character ID
             const isZeroAddress = response.sessionKey === '0x0000000000000000000000000000000000000000';
@@ -997,15 +896,16 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
       result.unallocatedAttributePoints = result.unallocatedAttributePoints ? Number(result.unallocatedAttributePoints) : 0;
       
       // Emit events for balance updates so other components can react to them
-      dispatchEvent(new CustomEvent('sessionKeyBalanceUpdated', { 
-        detail: { balance: result.sessionKeyBalance } 
-      }));
+      if (!options.suppressEvents) {
+        dispatchEvent(new CustomEvent('sessionKeyBalanceUpdated', { 
+          detail: { balance: result.sessionKeyBalance } 
+        }));
+      }
       
       // Update the current block for next time
       try {
         const provider = new ethers.JsonRpcProvider(RPC_URL);
         const currentBlock = await provider.getBlockNumber();
-        console.log(`[getFullFrontendData] Updating lastFetchedBlock from ${lastFetchedBlock} to ${currentBlock}`);
         setLastFetchedBlock(currentBlock);
         
         // Store in component state and also in a global variable for immediate access
@@ -1027,7 +927,7 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
             // Only dispatch event if the character ID is valid (non-zero address)
             const isValidId = result.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
             
-            if (isValidId) {
+            if (isValidId && !options.suppressEvents) {
               // Also dispatch a characterIDChanged event to notify components
               const characterChangedEvent = new CustomEvent('characterIDChanged', {
                 detail: { characterId: result.characterID, owner: ownerAddress }
@@ -1044,14 +944,15 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
       // Process data feeds for chat and event logging
       if (Array.isArray(result.dataFeeds) && result.dataFeeds.length > 0) {
         try {
-          const processedDataFeeds = processDataFeeds(result.dataFeeds, highestSeenBlock);
+          // Use the ref value for comparison, not the state value
+          const processedDataFeeds = processDataFeeds(result.dataFeeds, highestSeenBlockRef.current);
           setDataFeeds(processedDataFeeds);
           
           // Find the highest block number among processed feeds for tracking
           if (processedDataFeeds.length > 0) {
             const maxBlockNumber = Math.max(...processedDataFeeds.map(feed => feed.blockNumber));
-            if (maxBlockNumber > highestSeenBlock) {
-              console.log(`[getFullFrontendData] Updating highestSeenBlock from ${highestSeenBlock} to ${maxBlockNumber}`);
+            if (maxBlockNumber > highestSeenBlockRef.current) {
+              highestSeenBlockRef.current = maxBlockNumber;
               setHighestSeenBlock(maxBlockNumber);
             }
           }
@@ -1068,7 +969,10 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
           const chatEvents = allLogs.filter(log => log.logType === LogType.Chat);
           const chatContents = processedDataFeeds.flatMap(feed => feed.chatLogs || []);
           
-          console.log(`[useBattleNads] Found ${chatEvents.length} chat events and ${chatContents.length} chat contents`);
+          // Only log when actually finding chat content (keeping useful logs)
+          if (chatEvents.length > 0 || chatContents.length > 0) {
+            console.log(`[useBattleNads] Found ${chatEvents.length} chat events and ${chatContents.length} chat contents`);
+          }
           
           // Create properly attributed chat messages
           const processedChatMessages: ChatMessage[] = [];
@@ -1166,7 +1070,7 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
       setLoading(false);
       return null;
     }
-  }, [characterId, lastFetchedBlock, options.role, readContract, getOwnerWalletAddress, setCharacterId, setDataFeeds, setEventLogs, setChatMessages, setError, setLoading, highestSeenBlock]);
+  }, [characterId, lastFetchedBlock, options.role, readContract, getOwnerWalletAddress, setCharacterId, setDataFeeds, setEventLogs, setChatMessages, setError, setLoading, highestSeenBlockRef]);
 
   // Implement moveCharacter function
   const moveCharacter = useCallback(async (characterId: string, direction: string) => {
@@ -1370,10 +1274,12 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
   const resetBlockTracking = useCallback((blocksToGoBack = 20) => {
     if (lastFetchedBlock > 0) {
       const newBlockNum = Math.max(0, lastFetchedBlock - blocksToGoBack);
-      console.log(`[useBattleNads] Resetting block tracking from ${highestSeenBlock} to ${newBlockNum}`);
+      console.log(`[useBattleNads] Resetting block tracking from ${highestSeenBlockRef.current} to ${newBlockNum}`);
+      // Update both the ref and the state together
+      highestSeenBlockRef.current = newBlockNum;
       setHighestSeenBlock(newBlockNum);
     }
-  }, [lastFetchedBlock, highestSeenBlock]);
+  }, [lastFetchedBlock]);
 
   // Return all the functions and state that components need
   return {

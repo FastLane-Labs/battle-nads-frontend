@@ -22,10 +22,9 @@ export default function RootLayout({
     
     // Filter out specific warnings
     console.error = (...args) => {
-      if (typeof args[0] === 'string' && 
-          args[0].includes('Warning: React does not recognize the `isActive` prop')) {
-        return;
-      }
+      // We can remove the isActive filter since we've fixed that issue
+      // Keep any other specific filters if needed
+      // If no filters are needed, this entire useEffect can be removed
       originalConsoleError(...args);
     };
     

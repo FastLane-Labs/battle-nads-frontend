@@ -10,7 +10,7 @@ import {
 } from '@chakra-ui/icons';
 
 interface MovementControlsProps {
-  onMove: (direction: string) => void;
+  onMove: (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => void;
   isDisabled?: boolean;
   initialPosition?: { x: number, y: number, depth: number };
 }
@@ -21,12 +21,18 @@ const MovementControls: React.FC<MovementControlsProps> = ({
   initialPosition
 }) => {
   // Keep track of the current position
-  const [currentPosition, setCurrentPosition] = useState(initialPosition || { x: 0, y: 0, depth: 0 });
+  const [currentPosition, setCurrentPosition] = useState(initialPosition || 
+    (window as any).lastKnownCharacterPosition || 
+    { x: 0, y: 0, depth: 0 }
+  );
   
   // Update position from prop changes
   useEffect(() => {
     if (initialPosition) {
       setCurrentPosition(initialPosition);
+    } else if ((window as any).lastKnownCharacterPosition) {
+      console.log("[MovementControls] Using position from window:", (window as any).lastKnownCharacterPosition);
+      setCurrentPosition((window as any).lastKnownCharacterPosition);
     }
   }, [initialPosition]);
   
@@ -48,10 +54,15 @@ const MovementControls: React.FC<MovementControlsProps> = ({
     };
   }, []);
   
+  // Add debug logging for position changes
+  useEffect(() => {
+    console.log("[MovementControls] Position state updated:", currentPosition);
+  }, [currentPosition]);
+  
   // Handle movement with position update
   const handleMovement = (direction: string) => {
     // Call the parent handler
-    onMove(direction);
+    onMove(direction as 'north' | 'south' | 'east' | 'west' | 'up' | 'down');
     
     // Optimistically update position for immediate feedback
     // This will be overridden by the event when it comes in
@@ -80,6 +91,9 @@ const MovementControls: React.FC<MovementControlsProps> = ({
     
     // Update local state for immediate feedback
     setCurrentPosition(newPosition);
+    
+    // Also store in window for cross-component access
+    (window as any).lastKnownCharacterPosition = newPosition;
   };
   
   return (

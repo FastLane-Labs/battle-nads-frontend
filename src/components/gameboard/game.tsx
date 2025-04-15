@@ -49,7 +49,7 @@ import EventFeed from './EventFeed';
 import ChatInterface from './ChatInterface';
 import DataFeed from './DataFeed';
 import { BattleNad, GameState, GameUIState } from '../../types/gameTypes';
-import { convertCharacterData, createGameState, parseFrontendData, calculateMaxHealth } from '../../utils/gameDataConverters';
+import { convertCharacterData, createGameState, parseFrontendData, calculateMaxHealth, extractPositionFromCharacter } from '../../utils/gameDataConverters';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 import { 
   gameStateAtom, 
@@ -67,6 +67,7 @@ import DebugPanel from '../DebugPanel';
 import { ChevronUpIcon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from '@chakra-ui/icons';
 import { CharacterCard } from '../../components/CharacterCard';
 import { useContracts } from '../../hooks/useContracts';
+import MovementControls from './MovementControls';
 
 // Constants from the contract
 const MIN_EXECUTION_GAS = BigInt(900000); // Standard gas limit for operations
@@ -405,7 +406,9 @@ const Game: React.FC = () => {
       
       // Update position from the character data if available
       if (character) {
-        setPosition(character.position);
+        const newPosition = extractPositionFromCharacter(character);
+        setPosition(newPosition);
+        console.log("Updated position from character:", newPosition);
       }
       
       // Add log entries based on the state
@@ -637,6 +640,7 @@ const Game: React.FC = () => {
   // Handle movement with centralized function
   const handleMovement = async (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
     try {
+      console.log(`[Game] Initiating movement in direction: ${direction}`);
       setIsMoving(true);
       
       if (!character) {
@@ -644,14 +648,30 @@ const Game: React.FC = () => {
         return;
       }
       
+      // Store pre-movement position for logging
+      const startPosition = extractPositionFromCharacter(character);
+      console.log(`[Game] Starting position before ${direction} movement: (${startPosition.x}, ${startPosition.y}, ${startPosition.depth})`);
+      
       // Check which direction we're moving and use the appropriate move function
       // Privy will automatically show its loading UI during this blockchain transaction
       await moveCharacter(character.id, direction);
       
+      console.log(`[Game] Movement transaction complete for direction: ${direction}, reloading character data...`);
+      
       // Reload character data after movement
       await loadCharacterData();
       
-      addToCombatLog(`Moved ${direction}`);
+      // Check if position has been updated
+      const updatedPosition = extractPositionFromCharacter(character);
+      console.log(`[Game] Position after ${direction} movement: (${updatedPosition.x}, ${updatedPosition.y}, ${updatedPosition.depth})`);
+      
+      // Update position state directly to ensure it's always updated
+      setPosition(updatedPosition);
+      
+      // Store in window for cross-component access
+      (window as any).lastKnownCharacterPosition = updatedPosition;
+      
+      addToCombatLog(`Moved ${direction} to (${updatedPosition.x}, ${updatedPosition.y}, Depth: ${updatedPosition.depth})`);
     } catch (err: any) {
       console.error('Error during movement:', err);
       setGameState(current => ({ ...current, error: err.message || `Error moving ${direction}` }));
@@ -1036,6 +1056,9 @@ const Game: React.FC = () => {
     const handlePositionChanged = (event: CustomEvent) => {
       console.log("[Game] Received characterPositionChanged event:", event.detail);
       if (event.detail && event.detail.position) {
+        // Log position update clearly
+        console.log(`[Game] Position update: (${position.x}, ${position.y}, ${position.depth}) -> (${event.detail.position.x}, ${event.detail.position.y}, ${event.detail.position.depth})`);
+        
         setPosition(event.detail.position);
         
         // If we have a character, also update position in character state
@@ -1044,12 +1067,23 @@ const Game: React.FC = () => {
             // Only update if character exists
             if (!current.character) return current;
             
+            // Update both the character's position object and the stats for consistency
+            const updatedChar = {
+              ...current.character,
+              position: event.detail.position,
+              stats: {
+                ...current.character.stats,
+                x: event.detail.position.x,
+                y: event.detail.position.y,
+                depth: event.detail.position.depth
+              }
+            };
+            
+            console.log(`[Game] Updated character in game state with new position: (${event.detail.position.x}, ${event.detail.position.y}, ${event.detail.position.depth})`);
+            
             return {
               ...current,
-              character: {
-                ...current.character,
-                position: event.detail.position
-              }
+              character: updatedChar
             };
           });
         }
@@ -1398,74 +1432,16 @@ const Game: React.FC = () => {
                         <Box mb={4} bg="gray.800" p={2} borderRadius="md">
                           <Text fontWeight="bold" mb={1}>Location</Text>
                           <Text fontSize="sm">
-                            Depth: {character?.position?.depth ?? 0}, Position: ({character?.position?.x ?? 0}, {character?.position?.y ?? 0})
+                            Depth: {position.depth}, Position: ({position.x}, {position.y})
                           </Text>
                         </Box>
                         
-                        <SimpleGrid columns={3} spacing={2} mb={4} maxW="200px" mx="auto">
-                          <Box></Box>
-                          <Button 
-                            onClick={() => handleMovement('north')}
-                            isLoading={isMoving}
-                            leftIcon={<ChevronUpIcon />}
-                            size="md"
-                            colorScheme="blue"
-                          >
-                            North
-                          </Button>
-                          <Box></Box>
-                          
-                          <Button 
-                            onClick={() => handleMovement('west')}
-                            isLoading={isMoving}
-                            leftIcon={<ChevronLeftIcon />}
-                            size="md"
-                            colorScheme="blue"
-                          >
-                            West
-                          </Button>
-                          <Box></Box>
-                          <Button 
-                            onClick={() => handleMovement('east')}
-                            isLoading={isMoving}
-                            leftIcon={<ChevronRightIcon />}
-                            size="md"
-                            colorScheme="blue"
-                          >
-                            East
-                          </Button>
-                          
-                          <Box></Box>
-                          <Button 
-                            onClick={() => handleMovement('south')}
-                            isLoading={isMoving}
-                            leftIcon={<ChevronDownIcon />}
-                            size="md"
-                            colorScheme="blue"
-                          >
-                            South
-                          </Button>
-                          <Box></Box>
-                        </SimpleGrid>
-                        
-                        <HStack spacing={4} mb={4} justify="center">
-                          <Button 
-                            onClick={() => handleMovement('up')}
-                            isLoading={isMoving}
-                            size="md"
-                            colorScheme="purple"
-                          >
-                            Up
-                          </Button>
-                          <Button 
-                            onClick={() => handleMovement('down')}
-                            isLoading={isMoving}
-                            size="md"
-                            colorScheme="purple"
-                          >
-                            Down
-                          </Button>
-                        </HStack>
+                        {/* Replace the manual movement buttons with MovementControls component */}
+                        <MovementControls
+                          onMove={handleMovement}
+                          isDisabled={isMoving || isAttacking}
+                          initialPosition={position}
+                        />
                       </Box>
                       
                       {/* Combat Section */}
@@ -1492,11 +1468,11 @@ const Game: React.FC = () => {
                                       <Flex justify="space-between" mb={1}>
                                         <Text fontSize="xs">Health</Text>
                                         <Text fontSize="xs">
-                                          {Number(enemy.stats?.health || 0)} / {calculateMaxHealth(enemy.stats)}
+                                          {Number(enemy.stats?.health || 0)} / {Math.max(calculateMaxHealth(enemy.stats), Number(enemy.stats?.health || 0))}
                                         </Text>
                                       </Flex>
                                       <Progress 
-                                        value={(Number(enemy.stats?.health || 0) / calculateMaxHealth(enemy.stats)) * 100} 
+                                        value={(Number(enemy.stats?.health || 0) / Math.max(calculateMaxHealth(enemy.stats), Number(enemy.stats?.health || 0))) * 100} 
                                         colorScheme="green" 
                                         size="xs" 
                                       />
@@ -1575,6 +1551,11 @@ const Game: React.FC = () => {
       });
     }
   }, [character]);
+
+  // Add debug logging for position changes
+  useEffect(() => {
+    console.log("[Game] Position state changed:", position);
+  }, [position]);
 
   return renderContent;
 };

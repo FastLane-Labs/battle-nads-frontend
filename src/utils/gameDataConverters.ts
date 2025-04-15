@@ -308,8 +308,12 @@ export const calculateMaxHealth = (stats: any): number => {
   // Base health depends on whether it's a monster or player
   const baseHealth = isMonster ? MONSTER_HEALTH_BASE : HEALTH_BASE;
   
+  // Base health depends on whether it's a monster or player
+  const vitalityModifier = isMonster ? MONSTER_VITALITY_HEALTH_MODIFIER : VITALITY_HEALTH_MODIFIER;
+  const sturdinessModifier = isMonster ? MONSTER_STURDINESS_HEALTH_MODIFIER : STURDINESS_HEALTH_MODIFIER;
+
   // Calculate max health according to the formula in Character.sol
-  let maxHealth = baseHealth + (vitality * VITALITY_HEALTH_MODIFIER) + (sturdiness * STURDINESS_HEALTH_MODIFIER);
+  let maxHealth = baseHealth + (vitality * vitalityModifier) + (sturdiness * sturdinessModifier);
   
   // Monsters have 2/3 of the calculated health
   if (isMonster) {
@@ -320,4 +324,62 @@ export const calculateMaxHealth = (stats: any): number => {
   if (maxHealth > 65535 - 1) maxHealth = 65535 - 1;
   
   return maxHealth;
+};
+
+/**
+ * Extract a position object from character stats
+ * This ensures we have a consistent way to get position data
+ * from a character object, whether it has a position field or not
+ */
+export const extractPositionFromCharacter = (character: any): { x: number, y: number, depth: number } => {
+  // If no character object, return zero position
+  if (!character) {
+    return { x: 0, y: 0, depth: 0 };
+  }
+  
+  // Try different paths to extract position data
+  
+  // Path 1: If character has a populated position object, use it
+  if (character.position && 
+     (typeof character.position.x === 'number' || 
+      typeof character.position.x === 'string' || 
+      typeof character.position.x === 'bigint')) {
+    return {
+      x: Number(character.position.x || 0),
+      y: Number(character.position.y || 0),
+      depth: Number(character.position.depth || 0)
+    };
+  }
+  
+  // Path 2: If character has stats, extract from there
+  if (character.stats) {
+    // Log to debug what values we're getting
+    console.log('[extractPositionFromCharacter] Extracting from stats:', {
+      x: character.stats.x,
+      y: character.stats.y,
+      depth: character.stats.depth,
+      typeX: typeof character.stats.x,
+      typeY: typeof character.stats.y,
+      typeDepth: typeof character.stats.depth
+    });
+    
+    return {
+      x: Number(character.stats.x || 0),
+      y: Number(character.stats.y || 0),
+      depth: Number(character.stats.depth || 0)
+    };
+  }
+  
+  // Path 3: If character has direct x, y, depth properties
+  if ((typeof character.x === 'number' || typeof character.x === 'string' || typeof character.x === 'bigint') &&
+      (typeof character.y === 'number' || typeof character.y === 'string' || typeof character.y === 'bigint')) {
+    return {
+      x: Number(character.x || 0),
+      y: Number(character.y || 0),
+      depth: Number(character.depth || 0)
+    };
+  }
+  
+  // Default fallback
+  return { x: 0, y: 0, depth: 0 };
 }; 

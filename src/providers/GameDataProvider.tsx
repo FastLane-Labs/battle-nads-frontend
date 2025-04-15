@@ -5,6 +5,43 @@ import { useBattleNads, LogType } from '../hooks/useBattleNads';
 import { useWallet } from './WalletProvider';
 import { getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKey';
 
+/**
+ * Deep equality check for objects
+ * This helps prevent unnecessary rerenders when objects haven't meaningfully changed
+ */
+const isEqual = (obj1: any, obj2: any): boolean => {
+  // Handle simple cases
+  if (obj1 === obj2) return true;
+  if (obj1 == null || obj2 == null) return false;
+  if (typeof obj1 !== 'object' || typeof obj2 !== 'object') return false;
+  
+  // If one is array but other is not
+  if (Array.isArray(obj1) !== Array.isArray(obj2)) return false;
+  
+  // For arrays, compare length and contents
+  if (Array.isArray(obj1)) {
+    if (obj1.length !== obj2.length) return false;
+    return obj1.every((item, index) => isEqual(item, obj2[index]));
+  }
+  
+  // For objects
+  const keys1 = Object.keys(obj1);
+  const keys2 = Object.keys(obj2);
+  
+  if (keys1.length !== keys2.length) return false;
+  
+  // Special case for BigInt values
+  return keys1.every(key => {
+    if (typeof obj1[key] === 'bigint' && typeof obj2[key] === 'bigint') {
+      return obj1[key].toString() === obj2[key].toString();
+    }
+    if (typeof obj1[key] === 'object' && obj1[key] !== null) {
+      return isEqual(obj1[key], obj2[key]);
+    }
+    return obj1[key] === obj2[key];
+  });
+};
+
 // Create a context for the game data
 interface GameDataContextType {
   gameData: any | null;
@@ -80,6 +117,13 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
   // Ref for tracking interval ID
   const intervalIdRef = useRef<NodeJS.Timeout | null>(null);
   
+  // Add ref to store current game data that persists between renders and polling cycles
+  // This prevents stale closures in the fetchGameData function
+  const gameDataRef = useRef<any>(null);
+  
+  // Add ref to track last known position for more reliable position change detection
+  const lastKnownPositionRef = useRef<{x: number, y: number, depth: number} | null>(null);
+
   // Track this instance
   useEffect(() => {
     const timestamp = new Date().toISOString();
@@ -117,7 +161,8 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
   }, [pollInterval]);
   
   // Pass provider role to useBattleNads to mark this as the authorized instance
-  const battleNadsHook = useBattleNads({ role: 'provider' });
+  // Add suppressEvents:true to prevent duplicate event emissions
+  const battleNadsHook = useBattleNads({ role: 'provider', suppressEvents: true });
   const { getFullFrontendData, getOwnerWalletAddress, chatMessages: hookChatMessages } = battleNadsHook;
   const { injectedWallet, embeddedWallet, connectMetamask } = useWallet();
   
@@ -249,7 +294,8 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
         };
         
         // Make sure we have either valid IDs or clear zero values for comparison
-        const currentId = gameData?.characterID || '0x0000000000000000000000000000000000000000000000000000000000000000';
+        // USE THE REF FOR CURRENT GAME DATA INSTEAD OF STATE to avoid stale closures
+        const currentId = gameDataRef.current?.characterID || '0x0000000000000000000000000000000000000000000000000000000000000000';
         const newId = result.characterID || '0x0000000000000000000000000000000000000000000000000000000000000000';
         
         // Check specifically for zero session key with valid character ID
@@ -265,7 +311,8 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
         }
         
         // Only trigger characterID changed events if we have a valid new ID that's different from the current one
-        if (newId !== currentId && isValidCharacterId(newId)) {
+        // AND we have a reference to existing game data
+        if (gameDataRef.current && newId !== currentId && isValidCharacterId(newId)) {
           console.log(`[GameDataProvider] Valid character ID changed: ${currentId} -> ${newId}`);
           
           // Get wallet-specific localStorage key if we have an owner address
@@ -313,11 +360,9 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
             }
           }
           
-          // Log what we found
+          // Log only when we actually find chat logs (keeping useful logs)
           if (totalChatLogs > 0) {
             console.log(`[GameDataProvider] Found ${totalChatLogs} chat messages in data feeds:`, chatLogsContent);
-          } else {
-            console.log(`[GameDataProvider] No chat messages found in ${result.dataFeeds.length} data feeds`);
           }
         }
         
@@ -325,13 +370,7 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
         if (result.dataFeeds && Array.isArray(result.dataFeeds)) {
           const timestamp = new Date().toISOString();
           
-          // Add more detailed debug for chat logs in dataFeeds
-          console.log(`[GameDataProvider] Data feeds structure check:`, {
-            feedCount: result.dataFeeds.length,
-            firstFeedHasChatLogs: result.dataFeeds[0] && Array.isArray(result.dataFeeds[0].chatLogs),
-            firstFeedChatLogsLength: result.dataFeeds[0] && Array.isArray(result.dataFeeds[0].chatLogs) ? result.dataFeeds[0].chatLogs.length : 0,
-            responseStructure: result.dataFeeds[0] ? Object.keys(result.dataFeeds[0]) : []
-          });
+          // Remove detailed debug for chat logs in dataFeeds
           
           // Process all logs from data feeds
           const allLogs = result.dataFeeds.flatMap((feed: any) => 
@@ -350,7 +389,10 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
             Array.isArray(feed?.chatLogs) ? feed.chatLogs : []
           );
           
-          console.log(`[GameDataProvider] Found ${chatEvents.length} chat events and ${chatContents.length} chat contents`);
+          // Only log when we actually have chat content (keeping useful logs)
+          if (chatEvents.length > 0 || chatContents.length > 0) {
+            console.log(`[GameDataProvider] Found ${chatEvents.length} chat events and ${chatContents.length} chat contents`);
+          }
           
           // Extract event logs (all non-chat logs)
           const events = allLogs.filter((log: any) => log?.logType !== LogType.Chat);
@@ -418,37 +460,38 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
           }
         }
         
-        // Update game data
+        // Important: Update the gameDataRef BEFORE updating state
+        // This ensures the ref always has the latest data for the next polling cycle
+        gameDataRef.current = result;
+        
+        // Update game data state
         setGameData(result);
         setLastUpdated(new Date());
         
         // Update the hasChangedMeaningfully check to be more granular and detect specific changes
-        const hasChangedMeaningfully = !gameData || 
+        // Use gameDataRef.current for comparison to avoid stale closures
+        const hasChangedMeaningfully = !gameDataRef.current || 
           // Character ID changed
-          result.characterID !== gameData.characterID ||
+          result.characterID !== gameDataRef.current.characterID ||
           // Session key balance changed
-          (result.sessionKeyBalance?.toString() !== gameData.sessionKeyBalance?.toString()) ||
+          (result.sessionKeyBalance?.toString() !== gameDataRef.current.sessionKeyBalance?.toString()) ||
           // Bonded balance changed
-          (result.bondedShMonadBalance?.toString() !== gameData.bondedShMonadBalance?.toString()) ||
+          (result.bondedShMonadBalance?.toString() !== gameDataRef.current.bondedShMonadBalance?.toString()) ||
           // Shortfall changed
-          (result.balanceShortfall?.toString() !== gameData.balanceShortfall?.toString()) ||
-          // Character stats/position changed (expanded check)
-          (result.character?.id !== gameData.character?.id ||
-           result.character?.stats?.health !== gameData.character?.stats?.health ||
-           result.character?.stats?.maxHealth !== gameData.character?.stats?.maxHealth ||
-           result.character?.stats?.strength !== gameData.character?.stats?.strength ||
-           result.character?.stats?.vitality !== gameData.character?.stats?.vitality ||
-           result.character?.stats?.dexterity !== gameData.character?.stats?.dexterity ||
-           result.character?.stats?.quickness !== gameData.character?.stats?.quickness ||
-           result.character?.stats?.sturdiness !== gameData.character?.stats?.sturdiness ||
-           result.character?.stats?.luck !== gameData.character?.stats?.luck ||
-           result.character?.position?.x !== gameData.character?.position?.x ||
-           result.character?.position?.y !== gameData.character?.position?.y ||
-           result.character?.position?.depth !== gameData.character?.position?.depth) ||
+          (result.balanceShortfall?.toString() !== gameDataRef.current.balanceShortfall?.toString()) ||
+          // Position changed (check explicitly)
+          (result.character?.stats && 
+           (!gameDataRef.current?.character?.stats ||
+            Number(result.character.stats.x || 0) !== Number(gameDataRef.current.character.stats.x || 0) ||
+            Number(result.character.stats.y || 0) !== Number(gameDataRef.current.character.stats.y || 0) ||
+            Number(result.character.stats.depth || 0) !== Number(gameDataRef.current.character.stats.depth || 0))) ||
+          // Character stats/position changed - use deep comparison
+          !isEqual(result.character, gameDataRef.current.character) ||
           // Combat state changed - check for combatants array changes
-          (result.combatants?.length !== gameData.combatants?.length) ||
+          !isEqual(result.combatants, gameDataRef.current.combatants) ||
           // New data feeds
-          (Array.isArray(result.dataFeeds) && result.dataFeeds.length > 0);
+          (Array.isArray(result.dataFeeds) && result.dataFeeds.length > 0 && 
+           (!gameDataRef.current.dataFeeds || result.dataFeeds.some((feed: any, i: number) => !isEqual(feed, gameDataRef.current.dataFeeds?.[i]))));
         
         if (hasChangedMeaningfully) {
           // Also broadcast a general gameDataUpdated event
@@ -461,24 +504,52 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
           // Add more specific event dispatches for different types of changes
           
           // 1. Check for character position change
-          if (result.character?.position && (!gameData?.character?.position ||
-              result.character.position.x !== gameData.character.position.x ||
-              result.character.position.y !== gameData.character.position.y ||
-              result.character.position.depth !== gameData.character.position.depth)) {
-            const positionChangedEvent = new CustomEvent('characterPositionChanged', {
-              detail: { 
-                position: result.character.position,
-                character: result.character
-              }
-            });
-            window.dispatchEvent(positionChangedEvent);
-            console.log('[GameDataProvider] Dispatched characterPositionChanged event');
+          if (result.character?.stats) {
+            // Extract position values, ensuring we have numbers not undefined
+            const newX = Number(result.character.stats.x || 0);
+            const newY = Number(result.character.stats.y || 0);
+            const newDepth = Number(result.character.stats.depth || 0);
+            
+            // Get current values from lastKnownPositionRef or default to -1 to ensure initial position is always considered a change
+            const currentX = lastKnownPositionRef.current?.x ?? -1;
+            const currentY = lastKnownPositionRef.current?.y ?? -1;
+            const currentDepth = lastKnownPositionRef.current?.depth ?? -1;
+            
+            // Check if position has changed
+            const hasPositionChanged = 
+              newX !== currentX || 
+              newY !== currentY || 
+              newDepth !== currentDepth;
+            
+            if (hasPositionChanged) {
+              console.log('[GameDataProvider] Position changed detected:', 
+                { from: lastKnownPositionRef.current, to: { x: newX, y: newY, depth: newDepth } });
+              
+              // Create a position object from stats for the event
+              const position = { x: newX, y: newY, depth: newDepth };
+              
+              // Update lastKnownPositionRef with the new position
+              lastKnownPositionRef.current = position;
+              
+              // Also store in window for cross-component access
+              (window as any).lastKnownCharacterPosition = position;
+              
+              // Create and dispatch position change event
+              const positionChangedEvent = new CustomEvent('characterPositionChanged', {
+                detail: { 
+                  position: position,
+                  character: result.character
+                }
+              });
+              window.dispatchEvent(positionChangedEvent);
+              console.log('[GameDataProvider] Dispatched characterPositionChanged event with position:', position);
+            }
           }
           
           // 2. Check for character health/stats change
-          if (result.character?.stats && (!gameData?.character?.stats ||
-              result.character.stats.health !== gameData.character.stats.health ||
-              result.character.stats.maxHealth !== gameData.character.stats.maxHealth)) {
+          if (result.character?.stats && (!gameDataRef.current?.character?.stats ||
+              result.character.stats.health !== gameDataRef.current.character.stats.health ||
+              result.character.stats.maxHealth !== gameDataRef.current.character.stats.maxHealth)) {
             const statsChangedEvent = new CustomEvent('characterStatsChanged', {
               detail: { 
                 stats: result.character.stats,
@@ -492,25 +563,26 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
           
           // 3. Check for combatants changes
           if (result.combatants) {
-            // Calculate changes in combatants
-            let combatantsChanged = !gameData?.combatants || 
-                                   result.combatants.length !== gameData.combatants.length;
+            // Improved check for actual combatant changes
+            let combatantsChanged = false;
             
-            // If lengths are the same, check for content changes
-            if (!combatantsChanged && result.combatants.length > 0) {
-              // Simple check - just see if any IDs have changed
-              const oldIds = gameData.combatants.map((c: any) => c.id).sort().join(',');
+            // Only trigger when actually different
+            if (!gameDataRef.current?.combatants) {
+              // First time getting combatants
+              combatantsChanged = result.combatants.length > 0;
+            } else if (result.combatants.length !== gameDataRef.current.combatants.length) {
+              // Length change is meaningful
+              combatantsChanged = true;
+            } else if (result.combatants.length > 0) {
+              // Compare IDs and health values
+              const oldIds = gameDataRef.current.combatants.map((c: any) => c.id).sort().join(',');
               const newIds = result.combatants.map((c: any) => c.id).sort().join(',');
-              combatantsChanged = oldIds !== newIds;
               
-              // Also check if any combatant health has changed
-              if (!combatantsChanged) {
-                for (let i = 0; i < result.combatants.length; i++) {
-                  if (result.combatants[i]?.stats?.health !== gameData.combatants[i]?.stats?.health) {
-                    combatantsChanged = true;
-                    break;
-                  }
-                }
+              if (oldIds !== newIds) {
+                combatantsChanged = true;
+              } else {
+                // Deep compare combatants for health changes
+                combatantsChanged = !isEqual(result.combatants, gameDataRef.current.combatants);
               }
             }
             
@@ -518,7 +590,7 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
               const combatantsChangedEvent = new CustomEvent('combatantsChanged', {
                 detail: { 
                   combatants: result.combatants,
-                  previousCombatants: gameData?.combatants || []
+                  previousCombatants: gameDataRef.current?.combatants || []
                 }
               });
               window.dispatchEvent(combatantsChangedEvent);
@@ -526,9 +598,8 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
             }
           }
           
-          // 4. Check for area info changes (miniMap)
-          if (result.miniMap && (!gameData?.miniMap || 
-              JSON.stringify(result.miniMap) !== JSON.stringify(gameData.miniMap))) {
+          // 4. Check for area info changes (miniMap) - use deep comparison
+          if (result.miniMap && (!gameDataRef.current?.miniMap || !isEqual(result.miniMap, gameDataRef.current.miniMap))) {
             const areaChangedEvent = new CustomEvent('areaInfoChanged', {
               detail: { 
                 miniMap: result.miniMap
@@ -556,7 +627,7 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [getFullFrontendData, getOwnerWalletAddress, isPollingEnabled, gameData]);
+  }, [getFullFrontendData, getOwnerWalletAddress, isPollingEnabled, embeddedWallet?.address]);
 
   // Set up polling interval - this was missing
   useEffect(() => {
@@ -574,7 +645,7 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
     // Create new interval - always polls regardless of isPollingEnabled flag
     // isPollingEnabled is checked inside fetchGameData instead
     intervalIdRef.current = setInterval(() => {
-      console.log(`[GameDataProvider] Polling interval triggered after ${pollInterval}ms`);
+      // Remove noisy polling trigger message
       fetchGameData();
     }, pollInterval);
     
@@ -616,6 +687,14 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
       window.removeEventListener('characterCreated', handleCharacterCreated as EventListener);
     };
   }, [fetchGameData]);
+
+  // Update the useEffect for contextValue to also ensure gameDataRef is in sync with gameData state
+  useEffect(() => {
+    // Keep the ref in sync with state changes
+    if (gameData !== null && gameData !== undefined) {
+      gameDataRef.current = gameData;
+    }
+  }, [gameData]);
 
   // Provide context to children
   const contextValue = useMemo(() => ({

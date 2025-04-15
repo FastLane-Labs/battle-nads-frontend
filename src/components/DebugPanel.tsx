@@ -18,6 +18,8 @@ import {
 } from '@chakra-ui/react';
 import { useBattleNads } from '../hooks/useBattleNads';
 import { useWallet } from '../providers/WalletProvider';
+import { calculateMaxHealth } from '../utils/gameDataConverters';
+import { useGameData } from '../providers/GameDataProvider';
 
 interface DebugPanelProps {
   isVisible?: boolean;
@@ -30,16 +32,19 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
     getEstimatedBuyInAmount,
     characterId,
     loading, 
-    error 
+    error,
   } = useBattleNads();
   
   const { injectedWallet, embeddedWallet } = useWallet();
+  
+  const { gameData } = useGameData();
   
   const [logs, setLogs] = useState<Array<{message: string, timestamp: Date}>>([]);
   const [ownerAddress, setOwnerAddress] = useState<string>('');
   const [startBlock, setStartBlock] = useState<number>(0);
   const [fetchedCharacterId, setFetchedCharacterId] = useState<string | null>(null);
   const [buyInAmount, setBuyInAmount] = useState<string>('');
+  const [isExpanded, setIsExpanded] = useState(false);
   
   const toast = useToast();
   
@@ -145,6 +150,37 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
     }
   };
   
+  // Add a section for monster health details
+  const renderMonsterHealthDebug = () => {
+    if (!gameData?.combatants || gameData.combatants.length === 0) {
+      return <Text>No monsters present</Text>;
+    }
+
+    return (
+      <VStack align="start" spacing={2}>
+        <Text fontWeight="bold">Monster Health Details:</Text>
+        {gameData.combatants.map((combatant: any, index: number) => {
+          const calculatedMaxHealth = calculateMaxHealth(combatant.stats);
+          const actualHealth = Number(combatant.stats.health || 0);
+          
+          return (
+            <Box key={index} p={2} bg="gray.700" borderRadius="md" w="100%">
+              <Text fontSize="sm">Monster: {combatant.name || `ID: ${combatant.id.slice(0, 8)}...`}</Text>
+              <Text fontSize="xs">Current Health: {actualHealth}</Text>
+              <Text fontSize="xs">Calculated Max Health: {calculatedMaxHealth}</Text>
+              <Text fontSize="xs">Health Ratio: {(actualHealth / calculatedMaxHealth).toFixed(2)}</Text>
+              <Text fontSize="xs">
+                isMonster: {combatant.stats.isMonster ? 'Yes' : 'No'},
+                Vitality: {combatant.stats.vitality},
+                Sturdiness: {combatant.stats.sturdiness}
+              </Text>
+            </Box>
+          );
+        })}
+      </VStack>
+    );
+  };
+  
   if (!isVisible) return null;
   
   return (
@@ -244,6 +280,8 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
             </AccordionPanel>
           </AccordionItem>
         </Accordion>
+        
+        {renderMonsterHealthDebug()}
         
         {error && (
           <Box p={2} bg="red.900" borderRadius="md">

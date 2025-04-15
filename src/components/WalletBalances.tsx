@@ -77,8 +77,13 @@ const WalletBalances: React.FC = memo(() => {
       if (injectedWallet?.address) {
         const balance = await provider.getBalance(injectedWallet.address);
         setOwnerBalance(ethers.formatEther(balance));
-        const timestamp = new Date().toISOString();
-        console.log(`[WalletBalances ${timestamp}] ${instanceId.current} Owner balance updated:`, ethers.formatEther(balance));
+        
+        // Only log the first time or on significant changes
+        const formattedBalance = ethers.formatEther(balance);
+        if (!ownerBalance || Math.abs(parseFloat(formattedBalance) - parseFloat(ownerBalance)) > 0.01) {
+          const timestamp = new Date().toISOString();
+          console.log(`[WalletBalances ${timestamp}] ${instanceId.current} Owner balance updated:`, formattedBalance);
+        }
       }
       
       setIsRefreshing(false);
@@ -87,7 +92,7 @@ const WalletBalances: React.FC = memo(() => {
       console.error(`[WalletBalances ${timestamp}] ${instanceId.current} Error fetching balances:`, error);
       setIsRefreshing(false);
     }
-  }, [injectedWallet, instanceId]);
+  }, [injectedWallet, instanceId, ownerBalance]);
 
   // Fetch owner balance on component mount and when wallet changes
   useEffect(() => {
@@ -258,12 +263,11 @@ const WalletBalances: React.FC = memo(() => {
       // Update our reference to avoid duplicate processing
       lastProcessedGameDataRef.current = gameDataId;
       
-      const timestamp = new Date().toISOString();
-      console.log(`[WalletBalances ${timestamp}] ${instanceId.current} (render #${renderCount.current}) Updating from gameData:`, {
-        hasSessionKeyBalance: !!gameData.sessionKeyBalance,
-        hasBondedBalance: !!gameData.bondedShMonadBalance,
-        hasShortfall: !!gameData.balanceShortfall
-      });
+      // Only log every 10 renders to reduce console noise
+      if (renderCount.current <= 3 || renderCount.current % 20 === 0) {
+        const timestamp = new Date().toISOString();
+        console.log(`[WalletBalances ${timestamp}] ${instanceId.current} (render #${renderCount.current}) Updating from gameData`);
+      }
       
       // Update session key balance - directly use the value from the contract without any special handling
       if (gameData.sessionKeyBalance !== undefined) {
@@ -290,8 +294,11 @@ const WalletBalances: React.FC = memo(() => {
       
       setIsLoading(false);
     } else {
-      const timestamp = new Date().toISOString();
-      console.log(`[WalletBalances ${timestamp}] ${instanceId.current} (render #${renderCount.current}) gameData is null or undefined`);
+      // Only log the first few times or occasionally
+      if (renderCount.current <= 3 || renderCount.current % 20 === 0) {
+        const timestamp = new Date().toISOString();
+        console.log(`[WalletBalances ${timestamp}] ${instanceId.current} (render #${renderCount.current}) gameData is null or undefined`);
+      }
     }
   }, [gameData, dataLastUpdated]);
   

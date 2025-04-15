@@ -41,22 +41,24 @@ const NavBar: React.FC = () => {
       // Make sure gameData has a characterID property that's a string
       const gameDataCharacterId = gameData.characterID || null;
       
-      // Log the character ID for debugging
-      console.log(`NavBar: gameData characterID:`, gameDataCharacterId);
-      
       // If gameData has a characterID, check if it's valid
       if (gameDataCharacterId) {
         isValid = isValidCharacterId(gameDataCharacterId);
-        console.log(`NavBar: Using gameData characterID: ${gameDataCharacterId}, valid: ${isValid}`);
+        // Only log on initial valid character detection, not on every check
+        if (isValid && !hasCharacter) {
+          console.log(`NavBar: Valid character ID detected from gameData: ${gameDataCharacterId}`);
+        }
       }
     }
     
-    // Add debug logging to help identify issues
-    console.log(`NavBar: Character check summary:`, {
-      "useBattleNads.characterId": characterId,
-      "gameData.characterID": gameData?.characterID,
-      "isValidCharacter": isValid
-    });
+    // Add debug logging to help identify issues - but only when hasCharacter changes
+    if (isValid !== hasCharacter) {
+      console.log(`NavBar: Character check summary:`, {
+        "useBattleNads.characterId": characterId,
+        "gameData.characterID": gameData?.characterID,
+        "isValidCharacter": isValid
+      });
+    }
     
     setHasCharacter(isValid);
   }, [characterId, gameData]);
@@ -197,6 +199,7 @@ const NavBar: React.FC = () => {
                   _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
                   cursor="pointer"
                   fontSize="md"
+                  data-active={isActive('/game')}
                 >
                   Game
                 </Text>
@@ -220,6 +223,7 @@ const NavBar: React.FC = () => {
                       color={isActive('/create') ? 'white' : undefined}
                       _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
                       cursor="pointer"
+                      data-active={isActive('/create')}
                     >
                       Create Character
                     </Text>

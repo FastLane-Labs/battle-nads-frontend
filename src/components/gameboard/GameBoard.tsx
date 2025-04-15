@@ -15,7 +15,7 @@ import {
 } from '@chakra-ui/react';
 import { ChevronUpIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
 import { Character, AreaInfo } from '../../types/gameTypes';
-import { calculateMaxHealth } from '../../utils/gameDataConverters';
+import { calculateMaxHealth, extractPositionFromCharacter } from '../../utils/gameDataConverters';
 
 interface GameBoardProps {
   character: Character; // Current player's character data
@@ -38,15 +38,32 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 }) => {
   // Add lastMove state to track movement direction for animations
   const [lastMove, setLastMove] = useState<string | null>(null);
+  // Extract position from character.stats if character.position is not available
+  const getInitialPosition = () => {
+    // Try to get from props first
+    if (character) {
+      return extractPositionFromCharacter(character);
+    }
+    
+    // Try to get from window global as fallback if components were recreated
+    if ((window as any).lastKnownCharacterPosition) {
+      console.log("[GameBoard] Using position from window global:", (window as any).lastKnownCharacterPosition);
+      return (window as any).lastKnownCharacterPosition;
+    }
+    
+    return { x: 0, y: 0, depth: 0 };
+  };
+  
   // Add local state for character position that can be updated by events
-  const [currentPosition, setCurrentPosition] = useState(character?.position || { x: 0, y: 0, depth: 0 });
+  const [currentPosition, setCurrentPosition] = useState(getInitialPosition());
   // Add local state for area characters that can be updated by events
   const [currentAreaCharacters, setCurrentAreaCharacters] = useState(areaCharacters || []);
   
   // Update local state when props change
   useEffect(() => {
-    if (character && character.position) {
-      setCurrentPosition(character.position);
+    if (character) {
+      const newPosition = extractPositionFromCharacter(character);
+      setCurrentPosition(newPosition);
     }
     if (areaCharacters) {
       setCurrentAreaCharacters(areaCharacters);
@@ -62,6 +79,17 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       }
     };
     
+    // Check if we have position in window object that's different from current
+    if ((window as any).lastKnownCharacterPosition) {
+      const windowPos = (window as any).lastKnownCharacterPosition;
+      if (windowPos.x !== currentPosition.x || 
+          windowPos.y !== currentPosition.y || 
+          windowPos.depth !== currentPosition.depth) {
+        console.log("[GameBoard] Found updated position in window object:", windowPos);
+        setCurrentPosition(windowPos);
+      }
+    }
+    
     // Listen for combatants changed events
     const handleCombatantsChanged = (event: CustomEvent) => {
       console.log("[GameBoard] Received combatantsChanged event:", event.detail);
@@ -75,18 +103,21 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             // Ensure stats are properly processed
             if (combatant.stats) {
               // Calculate max health and ensure health is never higher than max health
-              const maxHealth = calculateMaxHealth(combatant.stats);
-              const health = Math.min(
-                Number(combatant.stats.health || 0),
-                maxHealth
+              const maxHealth = Math.max(
+                calculateMaxHealth(combatant.stats),
+                Number(combatant.stats.health || 0)
               );
+              
+              // Keep the original health from the blockchain
+              const health = Number(combatant.stats.health || 0);
               
               // Return combatant with processed stats
               return {
                 ...combatant,
                 stats: {
                   ...combatant.stats,
-                  health: health
+                  health: health,
+                  maxHealth: maxHealth  // Add maxHealth for future reference
                 }
               };
             }
