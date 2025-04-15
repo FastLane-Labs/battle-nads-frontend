@@ -44,17 +44,17 @@ export default function EventFeed({ events }: EventFeedProps) {
   // Get color based on log type
   const getLogColor = (logType: LogType) => {
     switch (logType) {
-      case LogType.COMBAT:
+      case LogType.Combat:
         return 'red.400';
-      case LogType.MOVEMENT:
+      case LogType.InstigatedCombat:
+        return 'orange.400';
+      case LogType.EnteredArea:
         return 'blue.400';
-      case LogType.CHARACTER_ACTION:
+      case LogType.LeftArea:
         return 'green.400';
-      case LogType.ITEM:
+      case LogType.Chat:
         return 'purple.400';
-      case LogType.SYSTEM:
-        return 'yellow.400';
-      case LogType.DEATH:
+      case LogType.Sepukku:
         return 'red.600';
       default:
         return 'gray.400';
@@ -64,17 +64,17 @@ export default function EventFeed({ events }: EventFeedProps) {
   // Get badge text based on log type
   const getLogTypeBadge = (logType: LogType) => {
     switch (logType) {
-      case LogType.COMBAT:
+      case LogType.Combat:
         return 'Combat';
-      case LogType.MOVEMENT:
-        return 'Movement';
-      case LogType.CHARACTER_ACTION:
-        return 'Action';
-      case LogType.ITEM:
-        return 'Item';
-      case LogType.SYSTEM:
-        return 'System';
-      case LogType.DEATH:
+      case LogType.InstigatedCombat:
+        return 'Attack';
+      case LogType.EnteredArea:
+        return 'Entered';
+      case LogType.LeftArea:
+        return 'Left';
+      case LogType.Chat:
+        return 'Chat';
+      case LogType.Sepukku:
         return 'Death';
       default:
         return 'Info';

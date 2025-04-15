@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef, useMemo } from 'react';
-import { useBattleNads } from '../hooks/useBattleNads';
+import { useBattleNads, LogType } from '../hooks/useBattleNads';
 import { useWallet } from './WalletProvider';
 import { getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKey';
 
@@ -342,9 +342,9 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
             console.log(`[GameDataProvider] Processing ${allLogs.length} logs from data feeds`);
           }
           
-          // Extract chat messages (logType 6 is chat)
+          // Extract chat messages (logType 4 is Chat)
           const chatLogs = allLogs
-            .filter((log: any) => log?.logType === 6)
+            .filter((log: any) => log?.logType === LogType.Chat)
             .map((log: any) => ({
               characterName: log.characterName || 'Unknown',
               message: log.message || '',
@@ -352,7 +352,7 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
             }));
           
           // Extract event logs (all non-chat logs)
-          const events = allLogs.filter((log: any) => log?.logType !== 6);
+          const events = allLogs.filter((log: any) => log?.logType !== LogType.Chat);
           
           // Update processed data state if we have new logs
           if (chatLogs.length > 0) {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
-import { Box, VStack, Tabs, TabList, TabPanels, Tab, TabPanel } from '@chakra-ui/react';
+import { Box, VStack, Flex, Text } from '@chakra-ui/react';
 import { useGameData } from '../../providers/GameDataProvider';
 import ChatInterface from './ChatInterface';
 import EventFeed from './EventFeed';
@@ -111,28 +111,24 @@ const DataFeed = memo(function DataFeed({ characterId, owner, sendChatMessage }:
   }
   
   return (
-    <Box height="100%" width="100%">
-      <Tabs isFitted variant="enclosed" height="100%" display="flex" flexDirection="column">
-        <TabList>
-          <Tab>Chat</Tab>
-          <Tab>Events</Tab>
-        </TabList>
+    <Box height="100%" width="100%" overflow="hidden">
+      <Flex direction="column" height="100%">
+        {/* Events section (top half) */}
+        <Box flex="1" minHeight="40%" maxHeight="50%" mb={2} overflow="hidden">
+          <EventFeed events={processedEventLogs} />
+        </Box>
         
-        <TabPanels flex="1" overflow="hidden">
-          <TabPanel height="100%" padding={2}>
-            <ChatInterface 
-              characterId={characterId}
-              messages={processedChatMessages}
-              onSendMessage={handleSendMessage}
-            />
-            {/* Trigger useEffect for logging */}
-            {processedChatMessages.length > 0 && <div style={{display: 'none'}} />}
-          </TabPanel>
-          <TabPanel height="100%" padding={2}>
-            <EventFeed events={processedEventLogs} />
-          </TabPanel>
-        </TabPanels>
-      </Tabs>
+        {/* Chat section (bottom half) */}
+        <Box flex="1" minHeight="50%" overflow="hidden">
+          <ChatInterface 
+            characterId={characterId}
+            messages={processedChatMessages}
+            onSendMessage={handleSendMessage}
+          />
+          {/* Trigger useEffect for logging */}
+          {processedChatMessages.length > 0 && <div style={{display: 'none'}} />}
+        </Box>
+      </Flex>
     </Box>
   );
 }, (prevProps, nextProps) => {

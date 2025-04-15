@@ -100,14 +100,12 @@ const processDataFeeds = (dataFeeds: any[], highestProcessedBlock: number): Data
 
 // Add TypeScript definitions for the new data structures
 export enum LogType {
-  NONE = 0,
-  MOVEMENT = 1,
-  COMBAT = 2,
-  CHARACTER_ACTION = 3,
-  ITEM = 4, 
-  SYSTEM = 5,
-  CHAT = 6,
-  DEATH = 7
+  Combat = 0,
+  InstigatedCombat = 1,
+  EnteredArea = 2,
+  LeftArea = 3,
+  Chat = 4,
+  Sepukku = 5
 }
 
 interface Log {
@@ -1040,10 +1038,10 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
           // Extract and collate event logs from all data feeds
           const allLogs = processedDataFeeds.flatMap(feed => feed.logs || []);
           if (allLogs.length > 0) {
-            setEventLogs(prev => [...allLogs.filter(log => log.logType !== LogType.CHAT), ...prev]);
+            setEventLogs(prev => [...allLogs.filter(log => log.logType !== LogType.Chat), ...prev]);
             
-            // Extract chat messages from logs with logType CHAT
-            const chatLogs = allLogs.filter(log => log.logType === LogType.CHAT);
+            // Extract chat messages from logs with logType Chat
+            const chatLogs = allLogs.filter(log => log.logType === LogType.Chat);
             if (chatLogs.length > 0) {
               const newChatMessages = chatLogs.map(log => ({
                 characterName: log.characterName || 'Unknown',
