@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Grid, 
@@ -15,6 +15,7 @@ import {
 } from '@chakra-ui/react';
 import { ChevronUpIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
 import { Character, AreaInfo } from '../../types/gameTypes';
+import { calculateMaxHealth } from '../../utils/gameDataConverters';
 
 interface GameBoardProps {
   character: Character; // Current player's character data
@@ -37,15 +38,99 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 }) => {
   // Add lastMove state to track movement direction for animations
   const [lastMove, setLastMove] = useState<string | null>(null);
+  // Add local state for character position that can be updated by events
+  const [currentPosition, setCurrentPosition] = useState(character?.position || { x: 0, y: 0, depth: 0 });
+  // Add local state for area characters that can be updated by events
+  const [currentAreaCharacters, setCurrentAreaCharacters] = useState(areaCharacters || []);
   
+  // Update local state when props change
+  useEffect(() => {
+    if (character && character.position) {
+      setCurrentPosition(character.position);
+    }
+    if (areaCharacters) {
+      setCurrentAreaCharacters(areaCharacters);
+    }
+  }, [character, areaCharacters]);
+  
+  // Listen for position update events
+  useEffect(() => {
+    const handlePositionChanged = (event: CustomEvent) => {
+      console.log("[GameBoard] Received characterPositionChanged event:", event.detail);
+      if (event.detail && event.detail.position) {
+        setCurrentPosition(event.detail.position);
+      }
+    };
+    
+    // Listen for combatants changed events
+    const handleCombatantsChanged = (event: CustomEvent) => {
+      console.log("[GameBoard] Received combatantsChanged event:", event.detail);
+      if (event.detail && event.detail.combatants) {
+        // Check if we have valid combatants before updating
+        const validCombatants = event.detail.combatants.filter((c: any) => c && c.id && c.stats);
+        
+        if (validCombatants.length > 0) {
+          // Process each combatant to ensure all stats are properly set
+          const processedCombatants = validCombatants.map((combatant: any) => {
+            // Ensure stats are properly processed
+            if (combatant.stats) {
+              // Calculate max health and ensure health is never higher than max health
+              const maxHealth = calculateMaxHealth(combatant.stats);
+              const health = Math.min(
+                Number(combatant.stats.health || 0),
+                maxHealth
+              );
+              
+              // Return combatant with processed stats
+              return {
+                ...combatant,
+                stats: {
+                  ...combatant.stats,
+                  health: health
+                }
+              };
+            }
+            return combatant;
+          });
+          
+          // Update area characters with processed combatants
+          setCurrentAreaCharacters(prev => {
+            // Extract non-combatant characters from previous area characters
+            const nonCombatants = prev.filter(c => 
+              !event.detail.previousCombatants.some((pc: any) => pc.id === c.id)
+            );
+            
+            // Debug log
+            console.log("[GameBoard] Processed combatants:", processedCombatants.length);
+            
+            // Combine non-combatants with processed combatants
+            return [...nonCombatants, ...processedCombatants];
+          });
+        } else {
+          console.log("[GameBoard] No valid combatants in update");
+        }
+      }
+    };
+    
+    // Add event listeners
+    window.addEventListener('characterPositionChanged', handlePositionChanged as EventListener);
+    window.addEventListener('combatantsChanged', handleCombatantsChanged as EventListener);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('characterPositionChanged', handlePositionChanged as EventListener);
+      window.removeEventListener('combatantsChanged', handleCombatantsChanged as EventListener);
+    };
+  }, []);
+
   if (!character) {
     return <Center>Loading character data...</Center>;
   }
 
   // Helper function to determine if a position is adjacent to the player
   const isAdjacentPosition = (x: number, y: number) => {
-    const playerX = character.position.x;
-    const playerY = character.position.y;
+    const playerX = currentPosition.x;
+    const playerY = currentPosition.y;
     
     return (
       (Math.abs(x - playerX) <= 1 && y === playerY) || 
@@ -57,8 +142,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   const getTileWorldCoordinates = (tileX: number, tileY: number) => {
     const gridSize = 5;
     const centerOffset = Math.floor(gridSize / 2);
-    const worldX = character.position.x - centerOffset + tileX;
-    const worldY = character.position.y - centerOffset + tileY;
+    const worldX = currentPosition.x - centerOffset + tileX;
+    const worldY = currentPosition.y - centerOffset + tileY;
     return { worldX, worldY };
   };
 
@@ -71,10 +156,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       const row = [];
       for (let x = 0; x < gridSize; x++) {
         const { worldX, worldY } = getTileWorldCoordinates(x, y);
-        const isPlayerPosition = worldX === character.position.x && worldY === character.position.y;
+        const isPlayerPosition = worldX === currentPosition.x && worldY === currentPosition.y;
         
         // Find characters at this position
-        const charactersAtPosition = areaCharacters.filter(c => 
+        const charactersAtPosition = currentAreaCharacters.filter(c => 
           c.position.x === worldX && c.position.y === worldY
         );
         
@@ -103,7 +188,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             onClick={() => {
               if (isAttackable && !isMoving && !isAttacking) {
                 // Find the target index in the area characters array
-                const targetIndex = areaCharacters.findIndex(c => 
+                const targetIndex = currentAreaCharacters.findIndex(c => 
                   c.position.x === worldX && 
                   c.position.y === worldY && 
                   c.id !== character.id
@@ -294,7 +379,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     <Box bg="gray.800" p={4} borderRadius="md" maxW="500px" mx="auto">
       <Box fontSize="lg" mb={2} color="white" display="flex" alignItems="center">
         <Text>
-          Character: {character.name} at ({character.position.x}, {character.position.y}, Depth: {character.position.depth})
+          Character: {character.name} at ({currentPosition.x}, {currentPosition.y}, Depth: {currentPosition.depth})
         </Text>
         {isMoving && <Spinner size="xs" ml={2} />}
       </Box>

@@ -428,6 +428,26 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
     }
   }, [getOwnerWalletAddress, readContract]);
 
+  // Add a helper function to get the current block number
+  const getCurrentBlockNumber = useCallback(async (): Promise<number> => {
+    try {
+      const provider = new ethers.JsonRpcProvider(RPC_URL);
+      const currentBlock = await provider.getBlockNumber();
+      console.log(`[getCurrentBlockNumber] Current block number: ${currentBlock}`);
+      return currentBlock;
+    } catch (err) {
+      console.error('[getCurrentBlockNumber] Error getting current block number:', err);
+      // Return last fetched block as fallback if available
+      if (lastFetchedBlock > 0) {
+        console.log(`[getCurrentBlockNumber] Using lastFetchedBlock as fallback: ${lastFetchedBlock}`);
+        return lastFetchedBlock;
+      }
+      // Return a reasonable default if everything fails
+      console.log(`[getCurrentBlockNumber] Using default block number`);
+      return 0;
+    }
+  }, [lastFetchedBlock]);
+
   // Add the createCharacter function
   const createCharacter = useCallback(async (
     name: string,
@@ -453,6 +473,10 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
         throw new Error('Contract not available. Please connect your wallet and try again.');
       }
       
+      if (!readContract) {
+        throw new Error('Read contract not available. Please connect your wallet and try again.');
+      }
+      
       // If sessionKey is not provided, try to use embedded wallet
       let sessionKeyAddress = sessionKey;
       if (!sessionKeyAddress && embeddedWallet?.address) {
@@ -464,17 +488,32 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
         throw new Error('No session key available. Please provide a session key or connect an embedded wallet.');
       }
       
-      // Set deadline one week in the future if not provided
+      // Set deadline to current block + 70000 if not provided
       let deadline = sessionKeyDeadline;
       if (!deadline) {
-        // 10,000 blocks ≈ 1 day on most chains
-        deadline = BigInt(70000); // ≈ 7 days worth of blocks
-        console.log(`[createCharacter] Using default deadline: ${deadline} blocks`);
+        // Get current block number
+        const currentBlock = await getCurrentBlockNumber();
+        // Add 70,000 blocks (≈ 7 days worth of blocks)
+        deadline = BigInt(currentBlock + 70000);
+        console.log(`[createCharacter] Setting deadline to current block (${currentBlock}) + 70000 = ${deadline}`);
       }
       
+      // Get estimated buy-in amount and double it for the transaction value
+      const estimatedBuyInAmount = await readContract.estimateBuyInAmountInMON();
+      // Convert to BigInt to ensure proper multiplication
+      const buyInAmountBigInt = BigInt(estimatedBuyInAmount.toString());
+      const txValue = buyInAmountBigInt * BigInt(2);
+      
+      console.log(`[createCharacter] Estimated buy-in amount: ${estimatedBuyInAmount.toString()}`);
+      console.log(`[createCharacter] Transaction value (2x buy-in): ${txValue.toString()}`);
       console.log(`[createCharacter] Creating character with session key: ${sessionKeyAddress}, deadline: ${deadline}`);
       
-      // Call the contract function
+      // Setup transaction options with the value parameter
+      const txOptions = {
+        value: txValue
+      };
+      
+      // Call the contract function with transaction options
       const tx = await injectedContract.createCharacter(
         name,
         BigInt(strength),
@@ -484,7 +523,8 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
         BigInt(sturdiness),
         BigInt(luck),
         sessionKeyAddress,
-        deadline
+        deadline,
+        txOptions
       );
       
       console.log(`[createCharacter] Transaction sent: ${tx.hash}`);
@@ -552,7 +592,7 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
         throw new Error(err.message || "Error creating character");
       }
     }
-  }, [injectedContract, injectedWallet, embeddedWallet, getPlayerCharacterID]);
+  }, [injectedContract, injectedWallet, embeddedWallet, readContract, getPlayerCharacterID, getCurrentBlockNumber]);
 
   // Add getCharacterIdByTransactionHash to look up character ID by transaction hash
   const getCharacterIdByTransactionHash = useCallback(async (txHash: string): Promise<string | null> => {
@@ -655,9 +695,63 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
       
       let response;
       try {
+        // Add logging for detailed debugging of contract call parameters
+        console.log(`[getFullFrontendData] Making contract call with parameters:`, {
+          ownerAddress,
+          startBlock,
+          contractAddress: readContract.target
+        });
+        
+        // Call contract method
         response = await readContract.getFullFrontendData(ownerAddress, startBlock);
-      } catch (fetchErr) {
-        setError(`Contract call failed: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`);
+        
+        // Check response type and add detailed logging
+        console.log(`[getFullFrontendData] Contract response type: ${typeof response}`);
+        
+        // Log top-level structure of the response
+        if (typeof response === 'object') {
+          console.log(`[getFullFrontendData] Top level keys: ${Object.keys(response)}`);
+        }
+        
+        // Log specific fields we're interested in for debugging
+        if (response) {
+          // Handle both array and object response formats
+          let sessionKey = null;
+          let characterID = null;
+          let sessionKeyBalance = null;
+          
+          // Check if response is array-like
+          if (Array.isArray(response)) {
+            sessionKey = response[1];
+            characterID = response[0];
+            sessionKeyBalance = response[2];
+          } else {
+            // Assume object format
+            sessionKey = response.sessionKey;
+            characterID = response.characterID;
+            sessionKeyBalance = response.sessionKeyBalance;
+          }
+          
+          console.log(`[getFullFrontendData] Session key from contract: ${sessionKey} (${typeof sessionKey})`);
+          
+          // Add detailed logging if we have a zero session key with valid character ID
+          if (sessionKey === '0x0000000000000000000000000000000000000000' && 
+              characterID && 
+              characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000') {
+            console.log(`[getFullFrontendData] ZERO SESSION KEY ISSUE DETECTED:`, {
+              ownerAddress,
+              startBlock,
+              characterID,
+              contractAddress: readContract.target
+            });
+          }
+          
+          // Log session key balance
+          console.log(`[getFullFrontendData] Session key balance from contract: ${sessionKeyBalance} (${typeof sessionKeyBalance})`);
+        }
+      } catch (callError) {
+        console.error(`[getFullFrontendData] Contract call error:`, callError);
+        setError(`Contract call failed: ${callError instanceof Error ? callError.message : String(callError)}`);
         return null;
       }
       
@@ -712,6 +806,53 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
           if (response.length > 4) result.balanceShortfall = response[4] || BigInt(0);
           if (response.length > 5) result.unallocatedAttributePoints = response[5] || 0;
           
+          // Debug logging to see what we're getting from the blockchain
+          console.log('[getFullFrontendData] Raw session key balance from blockchain:', 
+            response.length > 2 ? response[2].toString() : 'undefined');
+            
+          // Add special debug logging for zero address session key with valid character ID
+          const isZeroAddress = response.length > 1 && 
+            response[1] === '0x0000000000000000000000000000000000000000';
+          const hasValidCharacterID = response.length > 0 && 
+            response[0] && 
+            response[0] !== '0x0000000000000000000000000000000000000000000000000000000000000000';
+            
+          if (isZeroAddress && hasValidCharacterID) {
+            console.error('======== SESSION KEY DEBUGGING ========');
+            console.error('ISSUE DETECTED: Zero address session key with valid character ID');
+            console.error('Owner address used for query:', ownerAddress);
+            console.error('Start block used for query:', startBlock);
+            console.error('Response structure: Array with', response.length, 'elements');
+            console.error('Character ID:', response[0]);
+            console.error('Session key (zero address):', response[1]);
+            console.error('Session key balance:', response.length > 2 ? response[2].toString() : 'undefined');
+            console.error('Bonded shMONAD balance:', response.length > 3 ? response[3].toString() : 'undefined');
+            console.error('Balance shortfall:', response.length > 4 ? response[4].toString() : 'undefined');
+            console.error('Unallocated attribute points:', response.length > 5 ? response[5].toString() : 'undefined');
+            console.error('======================================');
+          }
+          
+          // Check if we're getting a block number instead of a balance
+          // Block numbers on most chains are large but < 1 billion, so we can perform a sanity check
+          if (response.length > 2 && typeof response[2] === 'bigint' && response[2] > BigInt(100000) && response[2] < BigInt(10000000000)) {
+            console.warn('[getFullFrontendData] Received suspiciously large value that might be a block number:', response[2].toString());
+            
+            // If the value looks like a block number, override it with a safer default
+            result.sessionKeyBalance = BigInt(0);
+            
+            // Let's try to get the actual balance using ethers directly if we have the session key
+            if (response.length > 1 && response[1] && typeof response[1] === 'string') {
+              try {
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                const actualBalance = await provider.getBalance(response[1]);
+                console.log('[getFullFrontendData] Retrieved actual session key balance:', actualBalance.toString());
+                result.sessionKeyBalance = actualBalance;
+              } catch (balanceErr) {
+                console.error('[getFullFrontendData] Error getting actual session key balance:', balanceErr);
+              }
+            }
+          }
+          
           // Handle complex types in a separate try/catch to avoid losing the balance data
           try {
             if (response.length > 6) result.character = response[6];
@@ -736,6 +877,48 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
             if ('bondedShMonadBalance' in response) result.bondedShMonadBalance = response.bondedShMonadBalance || BigInt(0);
             if ('balanceShortfall' in response) result.balanceShortfall = response.balanceShortfall || BigInt(0);
             if ('unallocatedAttributePoints' in response) result.unallocatedAttributePoints = response.unallocatedAttributePoints || 0;
+            
+            // Debug logging to see what we're getting from the blockchain
+            console.log('[getFullFrontendData] Raw session key balance from object response:', 
+              response.sessionKeyBalance ? response.sessionKeyBalance.toString() : 'undefined');
+            
+            // Add special debug logging for zero address session key with valid character ID
+            const isZeroAddress = response.sessionKey === '0x0000000000000000000000000000000000000000';
+            const hasValidCharacterID = response.characterID && 
+              response.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
+              
+            if (isZeroAddress && hasValidCharacterID) {
+              console.error('======== SESSION KEY DEBUGGING (Object Format) ========');
+              console.error('ISSUE DETECTED: Zero address session key with valid character ID');
+              console.error('Owner address used for query:', ownerAddress);
+              console.error('Start block used for query:', startBlock);
+              console.error('Character ID:', response.characterID);
+              console.error('Session key (zero address):', response.sessionKey);
+              console.error('Session key balance:', response.sessionKeyBalance ? response.sessionKeyBalance.toString() : 'undefined');
+              console.error('Bonded shMONAD balance:', response.bondedShMonadBalance ? response.bondedShMonadBalance.toString() : 'undefined');
+              console.error('Balance shortfall:', response.balanceShortfall ? response.balanceShortfall.toString() : 'undefined');
+              console.error('Unallocated attribute points:', response.unallocatedAttributePoints || 'undefined');
+              console.error('=================================================');
+            }
+            
+            // Trust the session key balance from the blockchain directly
+            // The contract already retrieves this correctly with: sessionKeyBalance = address(sessionKey).balance;
+            if (response.sessionKeyBalance) {
+              result.sessionKeyBalance = response.sessionKeyBalance;
+            } else if (response.sessionKey && typeof response.sessionKey === 'string') {
+              // Only as a fallback if we didn't get the balance but we have the session key
+              try {
+                const provider = new ethers.JsonRpcProvider(RPC_URL);
+                const actualBalance = await provider.getBalance(response.sessionKey);
+                console.log('[getFullFrontendData] Retrieved fallback session key balance:', actualBalance.toString());
+                result.sessionKeyBalance = actualBalance;
+              } catch (balanceErr) {
+                console.error('[getFullFrontendData] Error getting fallback session key balance:', balanceErr);
+                result.sessionKeyBalance = BigInt(0);
+              }
+            } else {
+              result.sessionKeyBalance = BigInt(0);
+            }
           } catch (scalarErr) {
             console.error(`Error extracting scalar values: ${scalarErr instanceof Error ? scalarErr.message : String(scalarErr)}`);
           }
@@ -821,6 +1004,18 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
           const storageKey = getCharacterLocalStorageKey(ownerAddress);
           if (storageKey) {
             localStorage.setItem(storageKey, result.characterID);
+            
+            // Only dispatch event if the character ID is valid (non-zero address)
+            const isValidId = result.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
+            
+            if (isValidId) {
+              // Also dispatch a characterIDChanged event to notify components
+              const characterChangedEvent = new CustomEvent('characterIDChanged', {
+                detail: { characterId: result.characterID, owner: ownerAddress }
+              });
+              window.dispatchEvent(characterChangedEvent);
+              console.log(`[getFullFrontendData] Dispatched characterIDChanged event with ID: ${result.characterID}`);
+            }
           }
         } catch (storageErr) {
           setError(`Failed to save character ID to localStorage: ${storageErr instanceof Error ? storageErr.message : String(storageErr)}`);
@@ -1164,7 +1359,8 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
     moveCharacter,
     replenishGasBalance,
     sendChatMessage,
-    resetBlockTracking
+    resetBlockTracking,
+    getCurrentBlockNumber
   };
 };
 
@@ -1276,6 +1472,10 @@ export const useGameActions = () => {
         throw new Error('Contract not available. Please connect your wallet and try again.');
       }
       
+      if (!readContract) {
+        throw new Error('Read contract not available. Please connect your wallet and try again.');
+      }
+      
       // Use provided session key or embedded wallet as fallback
       const sessionKeyToUse = sessionKey || embeddedWallet?.address;
       
@@ -1285,13 +1485,34 @@ export const useGameActions = () => {
       
       console.log(`[updateSessionKey] Using session key: ${sessionKeyToUse}`);
       
-      // Set deadline one week in the future (≈70,000 blocks)
-      const sessionKeyDeadline = BigInt(70000);
+      // Create a provider to get current block number
+      const provider = new ethers.JsonRpcProvider(RPC_URL);
+      const currentBlock = await provider.getBlockNumber();
       
-      // Call the contract function
+      // Set deadline to current block + 70000 (≈ 7 days worth of blocks)
+      const sessionKeyDeadline = BigInt(currentBlock + 70000);
+      console.log(`[updateSessionKey] Setting deadline to current block (${currentBlock}) + 70000 = ${sessionKeyDeadline}`);
+      
+      // Get estimated buy-in amount and double it for the transaction value
+      const estimatedBuyInAmount = await readContract.estimateBuyInAmountInMON();
+      // Convert to BigInt to ensure proper multiplication
+      const buyInAmountBigInt = BigInt(estimatedBuyInAmount.toString());
+      const txValue = buyInAmountBigInt * BigInt(2);
+      
+      console.log(`[updateSessionKey] Estimated buy-in amount: ${estimatedBuyInAmount.toString()}`);
+      console.log(`[updateSessionKey] Transaction value (2x buy-in): ${txValue.toString()}`);
+      
+      // Setup transaction options with the value parameter and gas limit
+      const txOptions = {
+        value: txValue,
+        gasLimit: 950000
+      };
+      
+      // Call the contract function with transaction options
       const tx = await injectedContract.updateSessionKey(
         sessionKeyToUse,
-        sessionKeyDeadline
+        sessionKeyDeadline,
+        txOptions
       );
       
       console.log(`[updateSessionKey] Transaction sent: ${tx.hash}`);
@@ -1302,7 +1523,7 @@ export const useGameActions = () => {
         throw new Error('No receipt returned from transaction');
       }
       
-      console.log(`[updateSessionKey] Session key updated: ${receipt.hash}`);
+      console.log(`[updateSessionKey] Session key updated: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
       return { success: true, hash: receipt.hash };
     } catch (err) {
       console.error("[updateSessionKey] Error:", err);

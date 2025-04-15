@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Grid, GridItem, Button, Tooltip } from '@chakra-ui/react';
 import { 
   ArrowUpIcon, 
@@ -12,12 +12,76 @@ import {
 interface MovementControlsProps {
   onMove: (direction: string) => void;
   isDisabled?: boolean;
+  initialPosition?: { x: number, y: number, depth: number };
 }
 
 const MovementControls: React.FC<MovementControlsProps> = ({ 
   onMove, 
-  isDisabled = false 
+  isDisabled = false,
+  initialPosition
 }) => {
+  // Keep track of the current position
+  const [currentPosition, setCurrentPosition] = useState(initialPosition || { x: 0, y: 0, depth: 0 });
+  
+  // Update position from prop changes
+  useEffect(() => {
+    if (initialPosition) {
+      setCurrentPosition(initialPosition);
+    }
+  }, [initialPosition]);
+  
+  // Listen for position changes from events
+  useEffect(() => {
+    const handlePositionChanged = (event: CustomEvent) => {
+      console.log("[MovementControls] Received characterPositionChanged event:", event.detail);
+      if (event.detail && event.detail.position) {
+        setCurrentPosition(event.detail.position);
+      }
+    };
+    
+    // Add event listener
+    window.addEventListener('characterPositionChanged', handlePositionChanged as EventListener);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('characterPositionChanged', handlePositionChanged as EventListener);
+    };
+  }, []);
+  
+  // Handle movement with position update
+  const handleMovement = (direction: string) => {
+    // Call the parent handler
+    onMove(direction);
+    
+    // Optimistically update position for immediate feedback
+    // This will be overridden by the event when it comes in
+    let newPosition = { ...currentPosition };
+    
+    switch (direction) {
+      case 'north':
+        newPosition.y = currentPosition.y - 1;
+        break;
+      case 'south':
+        newPosition.y = currentPosition.y + 1;
+        break;
+      case 'east':
+        newPosition.x = currentPosition.x + 1;
+        break;
+      case 'west':
+        newPosition.x = currentPosition.x - 1;
+        break;
+      case 'up':
+        newPosition.depth = currentPosition.depth - 1;
+        break;
+      case 'down':
+        newPosition.depth = currentPosition.depth + 1;
+        break;
+    }
+    
+    // Update local state for immediate feedback
+    setCurrentPosition(newPosition);
+  };
+  
   return (
     <Grid
       templateAreas={`
@@ -33,10 +97,10 @@ const MovementControls: React.FC<MovementControlsProps> = ({
       alignItems="center"
     >
       <GridItem area="up" justifySelf="center">
-        <Tooltip label="Move North" hasArrow>
+        <Tooltip label={`Move North (${currentPosition.x}, ${currentPosition.y - 1})`} hasArrow>
           <Button
             colorScheme="blue"
-            onClick={() => onMove('north')}
+            onClick={() => handleMovement('north')}
             isDisabled={isDisabled}
             aria-label="Move North"
           >
@@ -46,10 +110,10 @@ const MovementControls: React.FC<MovementControlsProps> = ({
       </GridItem>
       
       <GridItem area="west" justifySelf="center">
-        <Tooltip label="Move West" hasArrow>
+        <Tooltip label={`Move West (${currentPosition.x - 1}, ${currentPosition.y})`} hasArrow>
           <Button
             colorScheme="blue"
-            onClick={() => onMove('west')}
+            onClick={() => handleMovement('west')}
             isDisabled={isDisabled}
             aria-label="Move West"
           >
@@ -59,10 +123,10 @@ const MovementControls: React.FC<MovementControlsProps> = ({
       </GridItem>
       
       <GridItem area="east" justifySelf="center">
-        <Tooltip label="Move East" hasArrow>
+        <Tooltip label={`Move East (${currentPosition.x + 1}, ${currentPosition.y})`} hasArrow>
           <Button
             colorScheme="blue"
-            onClick={() => onMove('east')}
+            onClick={() => handleMovement('east')}
             isDisabled={isDisabled}
             aria-label="Move East"
           >
@@ -72,10 +136,10 @@ const MovementControls: React.FC<MovementControlsProps> = ({
       </GridItem>
       
       <GridItem area="down" justifySelf="center">
-        <Tooltip label="Move South" hasArrow>
+        <Tooltip label={`Move South (${currentPosition.x}, ${currentPosition.y + 1})`} hasArrow>
           <Button
             colorScheme="blue"
-            onClick={() => onMove('south')}
+            onClick={() => handleMovement('south')}
             isDisabled={isDisabled}
             aria-label="Move South"
           >
@@ -85,10 +149,10 @@ const MovementControls: React.FC<MovementControlsProps> = ({
       </GridItem>
       
       <GridItem area="ascend" justifySelf="center">
-        <Tooltip label="Move Up" hasArrow>
+        <Tooltip label={`Move Up (Depth: ${currentPosition.depth - 1})`} hasArrow>
           <Button
             colorScheme="purple"
-            onClick={() => onMove('up')}
+            onClick={() => handleMovement('up')}
             isDisabled={isDisabled}
             aria-label="Move Up"
             size="sm"
@@ -99,10 +163,10 @@ const MovementControls: React.FC<MovementControlsProps> = ({
       </GridItem>
       
       <GridItem area="descend" justifySelf="center">
-        <Tooltip label="Move Down" hasArrow>
+        <Tooltip label={`Move Down (Depth: ${currentPosition.depth + 1})`} hasArrow>
           <Button
             colorScheme="purple"
-            onClick={() => onMove('down')}
+            onClick={() => handleMovement('down')}
             isDisabled={isDisabled}
             aria-label="Move Down"
             size="sm"

@@ -36,6 +36,7 @@ import { useRouter } from 'next/navigation';
 import { useBattleNads } from '../../hooks/useBattleNads';
 import { useWallet } from '../../providers/WalletProvider';
 import { isValidCharacterId } from '../../utils/getCharacterLocalStorageKey';
+import { ethers } from 'ethers';
 
 interface AttributeInputProps {
   value: number;
@@ -125,6 +126,39 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
     // Clean up
     return () => {
       window.removeEventListener('characterCreated', handleCharacterCreated as EventListener);
+    };
+  }, [router]);
+  
+  // Add a new effect to listen for character ID changes from GameDataProvider
+  useEffect(() => {
+    const handleCharacterIDChanged = (event: CustomEvent) => {
+      console.log("CharacterCreation received characterIDChanged event:", event.detail);
+      if (event.detail && event.detail.characterId && isValidCharacterId(event.detail.characterId)) {
+        console.log("Valid characterID from event, will redirect to game:", event.detail.characterId);
+        router.push('/game');
+      }
+    };
+
+    // Add event listener
+    window.addEventListener('characterIDChanged', handleCharacterIDChanged as EventListener);
+    
+    // Also listen for gameDataUpdated events to check character ID
+    const handleGameDataUpdated = (event: CustomEvent) => {
+      console.log("CharacterCreation received gameDataUpdated event");
+      
+      // Check if the event detail has a characterID
+      if (event.detail && event.detail.characterID && isValidCharacterId(event.detail.characterID)) {
+        console.log(`CharacterCreation: Valid character ID from gameDataUpdated event: ${event.detail.characterID}`);
+        router.push('/game');
+      }
+    };
+    
+    window.addEventListener('gameDataUpdated', handleGameDataUpdated as EventListener);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('characterIDChanged', handleCharacterIDChanged as EventListener);
+      window.removeEventListener('gameDataUpdated', handleGameDataUpdated as EventListener);
     };
   }, [router]);
   
@@ -231,7 +265,10 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
     setIsCreating(true);
     
     try {
+      // Log the embedded wallet address that will be used as the session key
       console.log("Creating character with session key:", embeddedWallet.address);
+      console.log("Session key address type:", typeof embeddedWallet.address);
+      console.log("Session key address validity:", ethers.isAddress(embeddedWallet.address));
       console.log("Character stats:", { name, strength, vitality, dexterity, quickness, sturdiness, luck });
       
       // Call the createCharacter function from the hook

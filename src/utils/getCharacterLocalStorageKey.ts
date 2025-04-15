@@ -18,10 +18,22 @@ export const getCharacterLocalStorageKey = (ownerAddress: string | null | undefi
 };
 
 // Add a new helper function to validate character IDs
-export const isValidCharacterId = (characterId: string | null | undefined): boolean => {
+export const isValidCharacterId = (characterId?: string | null): boolean => {
   if (!characterId) return false;
   
-  // Check if the character ID is the zero address (bytes32(0))
-  const zeroAddress = "0x0000000000000000000000000000000000000000000000000000000000000000";
-  return characterId !== zeroAddress;
+  // Must be a string
+  if (typeof characterId !== 'string') return false;
+  
+  // Must be 66 characters (0x + 64 hex chars)
+  if (characterId.length !== 66) return false;
+  
+  // Must start with 0x
+  if (!characterId.startsWith('0x')) return false;
+  
+  // Must not be the zero address
+  if (characterId === '0x0000000000000000000000000000000000000000000000000000000000000000') return false;
+  
+  // Should be a valid hex string
+  const hexRegex = /^0x[0-9a-fA-F]{64}$/;
+  return hexRegex.test(characterId);
 };

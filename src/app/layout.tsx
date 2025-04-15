@@ -43,7 +43,7 @@ export default function RootLayout({
           <WalletProvider>
             <RecoilRoot>
               <ChakraProvider theme={theme}>
-                <GameDataProvider pollInterval={1000}>
+                <GameDataProvider pollInterval={5000}>
                   {children}
                 </GameDataProvider>
               </ChakraProvider>

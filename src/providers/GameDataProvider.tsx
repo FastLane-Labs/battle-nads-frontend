@@ -3,40 +3,53 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef, useMemo } from 'react';
 import { useBattleNads } from '../hooks/useBattleNads';
 import { useWallet } from './WalletProvider';
-import { isValidCharacterId, getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKey';
-// Comment out the problematic import
-// import { useWeb3Onboard } from '@web3-onboard/react';
-// Remove or comment out imports that are causing errors
-// import { useOnAccountChanged } from "@/hooks/useOnAccountChanged";
-// import { defaultGameState } from "@/game/character";
-// import { CreateCharacterResponse } from "@/game/character/create";
-// import { useConnectWallet } from "@web3-onboard/react";
+import { getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKey';
 
 // Create a context for the game data
-export interface GameDataContextType {
-  gameData: any;
-  lastUpdated: number;
+interface GameDataContextType {
+  gameData: any | null;
+  lastUpdated: Date | null;
   isLoading: boolean;
-  error: Error | null;
+  error: string | null;
+  connectWallet: () => Promise<void>; // Add wallet connection function to context
   refetch: () => Promise<void>;
-  startPolling: () => void;
-  stopPolling: () => void;
-  isPolling: boolean;
-  connectWallet: () => void;
-  characterId: string | null;
-  setCharacterId: (characterId: string | null) => void;
+  enablePolling: () => void;
+  disablePolling: () => void;
+  isPollingEnabled: boolean;
+  pollCount: number;
+  // Add new fields for processed data
   processedChatMessages: any[];
-  eventLogs: any[];
+  processedEventLogs: any[];
 }
 
-export const GameDataContext = createContext<GameDataContextType | undefined>(undefined);
+const GameDataContext = createContext<GameDataContextType>({
+  gameData: null,
+  lastUpdated: null,
+  isLoading: false,
+  error: null,
+  connectWallet: async () => {}, // Default no-op function
+  refetch: async () => {}, // Default no-op function
+  enablePolling: () => {}, // Default no-op function
+  disablePolling: () => {}, // Default no-op function
+  isPollingEnabled: true,
+  pollCount: 0,
+  // Initialize new fields
+  processedChatMessages: [],
+  processedEventLogs: []
+});
 
 // Custom hook to use the game data context
 export const useGameData = () => {
   const context = useContext(GameDataContext);
-  if (context === undefined) {
-    throw new Error('useGameData must be used within a GameDataProvider');
-  }
+  
+  // Add debug logging to see what's in the context
+  useEffect(() => {
+    console.log(`[useGameData] Context has ${context.processedChatMessages.length} chat messages`);
+    if (context.processedChatMessages.length > 0) {
+      console.log('[useGameData] Messages:', context.processedChatMessages);
+    }
+  }, [context.processedChatMessages]);
+  
   return context;
 };
 
@@ -48,38 +61,12 @@ interface GameDataProviderProps {
 // Track all provider instances to help debug multiple polling
 const PROVIDER_INSTANCES: { id: string; timestamp: string; active: boolean }[] = [];
 
-// Helper functions for character ID management
-// Remove duplicate functions that conflict with imports
-// const isValidCharacterId = (characterId: string): boolean => {
-//   return characterId !== undefined && characterId !== null && characterId !== "0x0000000000000000000000000000000000000000000000000000000000000000";
-// };
-
-// const getCharacterLocalStorageKey = (walletAddress: string): string => {
-//   return `characterId_${walletAddress?.toLowerCase()}`;
-// };
-
-export const GameDataProvider: React.FC<GameDataProviderProps> = ({ children, pollInterval = 1000 }) => {
-  const { connectMetamask: connectToWallet, injectedWallet, address } = useWallet();
-  // const { connecting } = useWeb3Onboard(); // Commented out problematic import
-  
-  // State for character ID
-  const [characterId, setCharacterId] = useState<string | null>(null);
-  const [lastValidCharacterIdTimestamp, setLastValidCharacterIdTimestamp] = useState<number>(0);
-  
-  // State for game data
-  const [gameData, setGameData] = useState<any>(null);
-  const [lastUpdated, setLastUpdated] = useState<number>(0);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<Error | null>(null);
-  
-  // Polling configuration
-  const [isPolling, setIsPolling] = useState<boolean>(true);
-  const [pollCount, setPollCount] = useState<number>(0);
-  const [consecutiveErrors, setConsecutiveErrors] = useState<number>(0);
-  
-  // Processed data for UI
-  const [processedChatMessages, setProcessedChatMessages] = useState<any[]>([]);
-  const [eventLogs, setEventLogs] = useState<any[]>([]);
+export const GameDataProvider: React.FC<GameDataProviderProps> = ({ 
+  children, 
+  pollInterval: propPollInterval = 1000 // Changed from 5000 to 1000 (1 second polling)
+}) => {
+  // Force 1 second polling regardless of prop value
+  const pollInterval = 1000;
   
   // Generate unique ID for this provider instance
   const instanceId = useRef<string>(`GameDataProvider-${Math.random().toString(36).substring(2, 9)}`);
@@ -131,10 +118,20 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({ children, po
   
   // Pass provider role to useBattleNads to mark this as the authorized instance
   const battleNadsHook = useBattleNads({ role: 'provider' });
-  const { getFullFrontendData, getOwnerWalletAddress: hookGetOwnerWalletAddress, chatMessages: hookChatMessages } = battleNadsHook;
-  const { connectMetamask } = useWallet();
-  // Comment out the problematic line
-  // const { connecting } = useWeb3Onboard();
+  const { getFullFrontendData, getOwnerWalletAddress, chatMessages: hookChatMessages } = battleNadsHook;
+  const { injectedWallet, embeddedWallet, connectMetamask } = useWallet();
+  
+  // State for game data and loading status
+  const [gameData, setGameData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [consecutiveErrors, setConsecutiveErrors] = useState<number>(0);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isPollingEnabled, setIsPollingEnabled] = useState<boolean>(true);
+  
+  // Add state for processed data
+  const [processedChatMessages, setProcessedChatMessages] = useState<any[]>([]);
+  const [processedEventLogs, setProcessedEventLogs] = useState<any[]>([]);
   
   // Add effect to sync chat messages from the hook
   useEffect(() => {
@@ -145,14 +142,37 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({ children, po
     }
   }, [hookChatMessages]);
   
-  // Get owner wallet address properly inside the component
-  const getOwnerWalletAddress = useCallback((): string | undefined => {
-    return address?.toLowerCase();
-  }, [address]);
-  
+  // Function to prompt user to connect wallet
+  const connectWallet = useCallback(async () => {
+    const timestamp = new Date().toISOString();
+    console.log(`[POLL-DEBUG ${timestamp}] Prompting user to connect wallet`);
+    
+    try {
+      if (connectMetamask) {
+        // Attempt to connect MetaMask
+        await connectMetamask();
+        
+        // Check if connection was successful
+        if (window.ethereum && (window.ethereum as any).selectedAddress) {
+          console.log(`[POLL-DEBUG ${timestamp}] Successfully connected wallet: ${(window.ethereum as any).selectedAddress}`);
+          setError(null);
+          
+          // Trigger a data fetch after connection
+          fetchGameData();
+        }
+      }
+      
+      console.warn(`[POLL-DEBUG ${timestamp}] Failed to connect wallet`);
+      setError("Failed to connect wallet. Please try again or refresh the page.");
+    } catch (err) {
+      console.error(`[POLL-DEBUG ${timestamp}] Error connecting wallet:`, err);
+      setError(`Error connecting wallet: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }, [connectMetamask]);
+
   // Function to fetch game data
-  const fetchGameData = useCallback(async (refresh = false) => {
-    if (!isPolling) {
+  const fetchGameData = useCallback(async () => {
+    if (!isPollingEnabled) {
       console.log('[GameDataProvider] Polling disabled, skipping fetch');
       return;
     }
@@ -161,88 +181,124 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({ children, po
     const shouldLogDetailed = pollCountRef.current <= 5 || pollCountRef.current % 10 === 0;
     
     try {
-      setIsLoading(true);
-      
       // Get owner wallet address using the enhanced function
       const ownerAddress = getOwnerWalletAddress();
-      
-      if (shouldLogDetailed) {
-        console.log(`[GameDataProvider] Fetching game data with owner address: ${ownerAddress}`);
-      }
-      
-      // Check if we have a stored characterId for this wallet
-      const storageKey = ownerAddress ? getCharacterLocalStorageKey(ownerAddress) : null;
-      const storedCharacterId = storageKey ? localStorage.getItem(storageKey) : null;
-      
-      // Also check fallback key for backwards compatibility
-      const fallbackStoredId = localStorage.getItem('battleNadsCharacterId');
-      
-      if (shouldLogDetailed) {
-        console.log(`[GameDataProvider] Found stored characterId: ${storedCharacterId || fallbackStoredId || 'none'}`);
-      }
       
       // We'll try to fetch data even without a wallet connected
       const result = await getFullFrontendData();
       
-      // Process the character ID from the result
+      // Check if the sessionKey is the zero address or null/undefined, and if so, set sessionKeyBalance to zero
+      // This prevents showing a balance for an address the user doesn't have access to
+      if (!result.sessionKey || result.sessionKey === '0x0000000000000000000000000000000000000000') {
+        console.log('[GameDataProvider] Zero address or null sessionKey detected - setting sessionKeyBalance to zero');
+        result.sessionKeyBalance = BigInt(0);
+      }
+      
+      // Check if we need to update session key
+      // Conditions: valid owner address (not zero address) AND valid characterID AND (zero address session key OR session key doesn't match embedded wallet)
+      const validOwnerAddress = ownerAddress && ownerAddress !== '0x0000000000000000000000000000000000000000';
+      const validCharId = result.characterID && result.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
+      const zeroSessionKey = !result.sessionKey || result.sessionKey === '0x0000000000000000000000000000000000000000';
+      const sessionKeyMismatch = embeddedWallet?.address && result.sessionKey && result.sessionKey !== embeddedWallet.address;
+      
+      if (validOwnerAddress && validCharId && (zeroSessionKey || sessionKeyMismatch)) {
+        console.log('[GameDataProvider] Session key update needed:', {
+          ownerAddress,
+          characterID: result.characterID,
+          currentSessionKey: result.sessionKey,
+          embeddedWalletAddress: embeddedWallet?.address || 'Not available'
+        });
+        
+        // Dispatch event to trigger session key update page
+        const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
+          detail: { 
+            characterId: result.characterID,
+            owner: ownerAddress,
+            currentSessionKey: result.sessionKey,
+            embeddedWalletAddress: embeddedWallet?.address
+          }
+        });
+        window.dispatchEvent(sessionKeyUpdateEvent);
+      }
+      
+      // Debug logging for zero session key with valid character ID
+      const isZeroSessionKey = result.sessionKey === '0x0000000000000000000000000000000000000000';
+      const isValidCharacterId = result.characterID && 
+        result.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
+      
+      if (isZeroSessionKey && isValidCharacterId) {
+        console.log(`[GameDataProvider] ZERO SESSION KEY DETECTED with valid characterID`, {
+          ownerAddress,
+          startBlock: result.lastFetchedBlock || 'unknown', // or the value passed to getFullFrontendData
+          characterID: result.characterID,
+          sessionKey: result.sessionKey,
+          sessionKeyBalance: result.sessionKeyBalance?.toString(),
+          bondedShMonadBalance: result.bondedShMonadBalance?.toString(),
+          balanceShortfall: result.balanceShortfall?.toString(),
+          unallocatedAttributePoints: result.unallocatedAttributePoints?.toString()
+        });
+      }
+      
+      // If we got a result, reset consecutive errors counter
       if (result) {
-        // Check the character ID from the contract
-        const contractCharacterId = result.characterID || null;
-        
-        if (shouldLogDetailed) {
-          console.log(`[GameDataProvider] Contract returned characterId: ${contractCharacterId}`);
-        }
-        
-        // Process the character ID logic with priority ordering:
-        let finalCharacterId = null;
-        
-        // 1. Use valid character ID from contract first
-        if (contractCharacterId && isValidCharacterId(contractCharacterId)) {
-          if (shouldLogDetailed) {
-            console.log(`[GameDataProvider] Using valid contract characterId: ${contractCharacterId}`);
-          }
-          finalCharacterId = contractCharacterId;
-        } 
-        // 2. If contract returned zero but we have a stored ID from less than 5 minutes ago, prefer that
-        else if (
-          ((storedCharacterId && isValidCharacterId(storedCharacterId)) || 
-           (fallbackStoredId && isValidCharacterId(fallbackStoredId))) && 
-          (Date.now() - lastValidCharacterIdTimestamp < 5 * 60 * 1000)
-        ) {
-          finalCharacterId = storedCharacterId || fallbackStoredId;
-          if (shouldLogDetailed) {
-            console.log(`[GameDataProvider] Using stored characterId: ${finalCharacterId} (contract returned zero/invalid address)`);
-          }
-        }
-        // 3. Otherwise go with whatever the contract says
-        else {
-          finalCharacterId = contractCharacterId;
-          if (shouldLogDetailed) {
-            console.log(`[GameDataProvider] Using contract characterId: ${contractCharacterId} (may be zero)`);
-          }
-        }
-        
-        // Update the state with the character ID we've determined
-        setCharacterId(finalCharacterId);
-        
-        // Check if we have a valid non-zero character ID
-        const hasValidCharacter = finalCharacterId && isValidCharacterId(finalCharacterId);
-        
-        // If we have a valid character ID, store it
-        if (hasValidCharacter) {
-          if (storageKey) {
-            localStorage.setItem(storageKey, finalCharacterId!);
-          }
-          localStorage.setItem('battleNadsCharacterId', finalCharacterId!);
-          setLastValidCharacterIdTimestamp(Date.now());
-          
-          // Make sure the result object has the correct characterID
-          result.characterID = finalCharacterId;
-          result.hasCharacter = true;
-        }
-
-        // If we got a result, reset consecutive errors counter
         setConsecutiveErrors(0);
+        
+        // Helper function to check if a character ID is valid (non-zero) 
+        const isValidCharacterId = (id: string | null | undefined): boolean => {
+          return !!id && id !== '0x0000000000000000000000000000000000000000000000000000000000000000';
+        };
+        
+        // Make sure we have either valid IDs or clear zero values for comparison
+        const currentId = gameData?.characterID || '0x0000000000000000000000000000000000000000000000000000000000000000';
+        const newId = result.characterID || '0x0000000000000000000000000000000000000000000000000000000000000000';
+        
+        // Check specifically for zero session key with valid character ID
+        if (isValidCharacterId(newId) && result.sessionKey === '0x0000000000000000000000000000000000000000') {
+          console.log(`[GameDataProvider] WARNING: Zero session key with valid character ID detected`, {
+            characterID: newId,
+            sessionKey: result.sessionKey,
+            sessionKeyBalance: result.sessionKeyBalance?.toString(),
+            bondedShMonadBalance: result.bondedShMonadBalance?.toString(),
+            balanceShortfall: result.balanceShortfall?.toString(),
+            ownerAddress: getOwnerWalletAddress() || 'unknown'
+          });
+        }
+        
+        // Only trigger characterID changed events if we have a valid new ID that's different from the current one
+        if (newId !== currentId && isValidCharacterId(newId)) {
+          console.log(`[GameDataProvider] Valid character ID changed: ${currentId} -> ${newId}`);
+          
+          // Get wallet-specific localStorage key if we have an owner address
+          if (ownerAddress) {
+            const storageKey = getCharacterLocalStorageKey(ownerAddress);
+            
+            if (storageKey) {
+              // Only update localStorage if this is a valid (non-zero) character ID
+              if (isValidCharacterId(newId)) {
+                localStorage.setItem(storageKey, newId);
+                console.log(`[GameDataProvider] Updated localStorage with new character ID: ${newId}`);
+                
+                // Also use fixed key for backwards compatibility
+                localStorage.setItem('battleNadsCharacterId', newId);
+              } else {
+                // Remove any existing character ID if new ID is invalid/zero
+                localStorage.removeItem(storageKey);
+                localStorage.removeItem('battleNadsCharacterId');
+                console.log(`[GameDataProvider] Removed invalid character ID from localStorage`);
+              }
+            }
+          }
+          
+          // Broadcast a global event for the character ID change
+          const characterChangedEvent = new CustomEvent('characterIDChanged', {
+            detail: { characterId: newId, owner: ownerAddress }
+          });
+          window.dispatchEvent(characterChangedEvent);
+          console.log(`[GameDataProvider] Dispatched characterIDChanged event with ID: ${newId}`);
+        } else if (currentId !== newId) {
+          // Log if IDs are different but we're not triggering an event (zero address case)
+          console.log(`[GameDataProvider] Character ID change not significant: ${currentId} -> ${newId}`);
+        }
         
         // Add debug check specifically for chatLogs
         if (result.dataFeeds && Array.isArray(result.dataFeeds)) {
@@ -314,27 +370,138 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({ children, po
             if (shouldLogDetailed) {
               console.log(`[GameDataProvider] Adding ${events.length} new event logs`);
             }
-            setEventLogs(prev => [...events, ...prev]);
+            setProcessedEventLogs(prev => [...events, ...prev]);
           }
         }
         
         // Update game data
         setGameData(result);
-        setLastUpdated(Date.now());
+        setLastUpdated(new Date());
         
-        // Dispatch gameDataUpdated event to notify listening components about the new data
-        // This is CRITICAL for character ID updates to propagate to the NavBar and other components
-        const gameDataUpdatedEvent = new CustomEvent('gameDataUpdated', { 
-          detail: result 
-        });
-        console.log('[GameDataProvider] Dispatching gameDataUpdated event with characterID:', result.characterID);
-        window.dispatchEvent(gameDataUpdatedEvent);
+        // Update the hasChangedMeaningfully check to be more granular and detect specific changes
+        const hasChangedMeaningfully = !gameData || 
+          // Character ID changed
+          result.characterID !== gameData.characterID ||
+          // Session key balance changed
+          (result.sessionKeyBalance?.toString() !== gameData.sessionKeyBalance?.toString()) ||
+          // Bonded balance changed
+          (result.bondedShMonadBalance?.toString() !== gameData.bondedShMonadBalance?.toString()) ||
+          // Shortfall changed
+          (result.balanceShortfall?.toString() !== gameData.balanceShortfall?.toString()) ||
+          // Character stats/position changed (expanded check)
+          (result.character?.id !== gameData.character?.id ||
+           result.character?.stats?.health !== gameData.character?.stats?.health ||
+           result.character?.stats?.maxHealth !== gameData.character?.stats?.maxHealth ||
+           result.character?.stats?.strength !== gameData.character?.stats?.strength ||
+           result.character?.stats?.vitality !== gameData.character?.stats?.vitality ||
+           result.character?.stats?.dexterity !== gameData.character?.stats?.dexterity ||
+           result.character?.stats?.quickness !== gameData.character?.stats?.quickness ||
+           result.character?.stats?.sturdiness !== gameData.character?.stats?.sturdiness ||
+           result.character?.stats?.luck !== gameData.character?.stats?.luck ||
+           result.character?.position?.x !== gameData.character?.position?.x ||
+           result.character?.position?.y !== gameData.character?.position?.y ||
+           result.character?.position?.depth !== gameData.character?.position?.depth) ||
+          // Combat state changed - check for combatants array changes
+          (result.combatants?.length !== gameData.combatants?.length) ||
+          // New data feeds
+          (Array.isArray(result.dataFeeds) && result.dataFeeds.length > 0);
+        
+        if (hasChangedMeaningfully) {
+          // Also broadcast a general gameDataUpdated event
+          const gameDataUpdatedEvent = new CustomEvent('gameDataUpdated', { 
+            detail: result 
+          });
+          window.dispatchEvent(gameDataUpdatedEvent);
+          console.log('[GameDataProvider] Dispatched gameDataUpdated event with changed data');
+          
+          // Add more specific event dispatches for different types of changes
+          
+          // 1. Check for character position change
+          if (result.character?.position && (!gameData?.character?.position ||
+              result.character.position.x !== gameData.character.position.x ||
+              result.character.position.y !== gameData.character.position.y ||
+              result.character.position.depth !== gameData.character.position.depth)) {
+            const positionChangedEvent = new CustomEvent('characterPositionChanged', {
+              detail: { 
+                position: result.character.position,
+                character: result.character
+              }
+            });
+            window.dispatchEvent(positionChangedEvent);
+            console.log('[GameDataProvider] Dispatched characterPositionChanged event');
+          }
+          
+          // 2. Check for character health/stats change
+          if (result.character?.stats && (!gameData?.character?.stats ||
+              result.character.stats.health !== gameData.character.stats.health ||
+              result.character.stats.maxHealth !== gameData.character.stats.maxHealth)) {
+            const statsChangedEvent = new CustomEvent('characterStatsChanged', {
+              detail: { 
+                stats: result.character.stats,
+                character: result.character,
+                isPlayerCharacter: true // Flag to identify this is the player character
+              }
+            });
+            window.dispatchEvent(statsChangedEvent);
+            console.log('[GameDataProvider] Dispatched characterStatsChanged event');
+          }
+          
+          // 3. Check for combatants changes
+          if (result.combatants) {
+            // Calculate changes in combatants
+            let combatantsChanged = !gameData?.combatants || 
+                                   result.combatants.length !== gameData.combatants.length;
+            
+            // If lengths are the same, check for content changes
+            if (!combatantsChanged && result.combatants.length > 0) {
+              // Simple check - just see if any IDs have changed
+              const oldIds = gameData.combatants.map((c: any) => c.id).sort().join(',');
+              const newIds = result.combatants.map((c: any) => c.id).sort().join(',');
+              combatantsChanged = oldIds !== newIds;
+              
+              // Also check if any combatant health has changed
+              if (!combatantsChanged) {
+                for (let i = 0; i < result.combatants.length; i++) {
+                  if (result.combatants[i]?.stats?.health !== gameData.combatants[i]?.stats?.health) {
+                    combatantsChanged = true;
+                    break;
+                  }
+                }
+              }
+            }
+            
+            if (combatantsChanged) {
+              const combatantsChangedEvent = new CustomEvent('combatantsChanged', {
+                detail: { 
+                  combatants: result.combatants,
+                  previousCombatants: gameData?.combatants || []
+                }
+              });
+              window.dispatchEvent(combatantsChangedEvent);
+              console.log('[GameDataProvider] Dispatched combatantsChanged event');
+            }
+          }
+          
+          // 4. Check for area info changes (miniMap)
+          if (result.miniMap && (!gameData?.miniMap || 
+              JSON.stringify(result.miniMap) !== JSON.stringify(gameData.miniMap))) {
+            const areaChangedEvent = new CustomEvent('areaInfoChanged', {
+              detail: { 
+                miniMap: result.miniMap
+              }
+            });
+            window.dispatchEvent(areaChangedEvent);
+            console.log('[GameDataProvider] Dispatched areaInfoChanged event');
+          }
+        } else {
+          console.log('[GameDataProvider] Skipping gameDataUpdated event - no meaningful changes detected');
+        }
       } else if (shouldLogDetailed) {
         console.log('[GameDataProvider] No data returned from getFullFrontendData');
       }
     } catch (error) {
       console.log('[GameDataProvider] Error in fetchGameData:', error);
-      setConsecutiveErrors((prev: number) => {
+      setConsecutiveErrors(prev => {
         const newCount = prev + 1;
         // Only log detailed error information after 3 consecutive errors to reduce noise
         if (newCount >= 3 || shouldLogDetailed) {
@@ -345,7 +512,7 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({ children, po
     } finally {
       setIsLoading(false);
     }
-  }, [getFullFrontendData, isPolling]);
+  }, [getFullFrontendData, getOwnerWalletAddress, isPollingEnabled, gameData]);
 
   // Set up polling interval - this was missing
   useEffect(() => {
@@ -376,135 +543,53 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({ children, po
     };
   }, [pollInterval]); // Remove fetchGameData from dependencies
 
-  // Start the polling mechanism
-  const startPolling = useCallback(() => {
-    setIsPolling(true);
+  // Enable/disable polling functions
+  const enablePolling = useCallback(() => {
+    console.log('[GameDataProvider] Enabling polling');
+    setIsPollingEnabled(true);
   }, []);
 
-  // Stop the polling mechanism
-  const stopPolling = useCallback(() => {
-    setIsPolling(false);
+  const disablePolling = useCallback(() => {
+    console.log('[GameDataProvider] Disabling polling');
+    setIsPollingEnabled(false);
   }, []);
-  
-  // Connect wallet function
-  const connectWallet = useCallback(() => {
-    connectToWallet();
-  }, [connectToWallet]);
 
-  // Listen for character created events
+  // Add a listener for character creation events to trigger immediate data fetch
   useEffect(() => {
-    const handleCharacterCreated = (event: CustomEvent<{characterId: string, owner: string}>) => {
-      console.log("GameDataProvider received characterCreated event:", event.detail);
-      
-      // Explicitly save the created character ID to localStorage and state
-      if (event.detail?.characterId && isValidCharacterId(event.detail.characterId)) {
-        console.log(`GameDataProvider: Saving valid characterId ${event.detail.characterId} to state and localStorage`);
-        
-        // Set the character ID in provider state
-        setCharacterId(event.detail.characterId);
-        
-        // Set in localStorage with the wallet-specific key if possible
-        if (event.detail.owner) {
-          const storageKey = getCharacterLocalStorageKey(event.detail.owner);
-          if (storageKey) {
-            localStorage.setItem(storageKey, event.detail.characterId);
-            console.log(`Saved characterId to localStorage with key ${storageKey}`);
-          }
-        }
-        
-        // Also use fixed key for backwards compatibility
-        localStorage.setItem('battleNadsCharacterId', event.detail.characterId);
-        
-        // Increment the lastValidCharacterIdTimestamp to track when we last confirmed a valid ID
-        setLastValidCharacterIdTimestamp(Date.now());
-        
-        // IMPORTANT: Make sure we manually update the gameData object with the new characterID
-        // This ensures it's included in the gameDataUpdated event
-        if (gameData) {
-          const updatedGameData = {
-            ...gameData,
-            characterID: event.detail.characterId,
-            hasCharacter: true
-          };
-          
-          // Update gameData state
-          setGameData(updatedGameData);
-          
-          // Immediately dispatch an event to notify components like NavBar
-          const gameDataUpdatedEvent = new CustomEvent('gameDataUpdated', { 
-            detail: updatedGameData 
-          });
-          console.log('[GameDataProvider] Dispatching immediate gameDataUpdated event for new character:', event.detail.characterId);
-          window.dispatchEvent(gameDataUpdatedEvent);
-        }
-        
-        // Reset the error state in case there was a previous error
-        setError(null);
-        
-        // Trigger a data refresh after a short delay to ensure blockchain state is updated
-        setTimeout(() => {
-          fetchGameData(true);
-        }, 2000);
-      } else {
-        console.error("Invalid characterId received:", event.detail?.characterId);
+    const handleCharacterCreated = (event: CustomEvent) => {
+      console.log("[GameDataProvider] Received characterCreated event:", event.detail);
+      if (event.detail && event.detail.characterId) {
+        console.log("[GameDataProvider] Triggering immediate data fetch for new character");
+        fetchGameData();
       }
     };
 
+    // Add event listener
     window.addEventListener('characterCreated', handleCharacterCreated as EventListener);
     
+    // Clean up
     return () => {
       window.removeEventListener('characterCreated', handleCharacterCreated as EventListener);
     };
-  }, [fetchGameData, gameData]);
+  }, [fetchGameData]);
 
-  // Try to get the character ID from localStorage if we have an active wallet connection
-  useEffect(() => {
-    // Use the address that was already obtained at the component level
-    if (address) {
-      const storageKey = getCharacterLocalStorageKey(address);
-      if (storageKey) {
-        const storedCharacterId = localStorage.getItem(storageKey);
-        
-        console.log(`[GameDataProvider] Checking localStorage with key ${storageKey} for wallet ${address}`);
-        console.log(`[GameDataProvider] Found stored characterId: ${storedCharacterId}`);
-        
-        if (storedCharacterId && isValidCharacterId(storedCharacterId)) {
-          console.log(`[GameDataProvider] Setting valid characterId from localStorage: ${storedCharacterId}`);
-          setCharacterId(storedCharacterId);
-        }
-      }
-    }
-  }, [address]);
-
-  // Create the context value object
+  // Provide context to children
   const contextValue = useMemo(() => ({
     gameData,
-    lastUpdated,
     isLoading,
     error,
+    lastUpdated,
     refetch: fetchGameData,
-    startPolling,
-    stopPolling,
-    isPolling,
+    enablePolling,
+    disablePolling,
+    isPollingEnabled,
+    pollCount: pollCountRef.current,
     connectWallet,
-    characterId,
-    setCharacterId,
+    // Add processed data to context
     processedChatMessages,
-    eventLogs
-  }), [
-    gameData,
-    lastUpdated,
-    isLoading,
-    error,
-    fetchGameData,
-    startPolling,
-    stopPolling,
-    isPolling,
-    connectWallet,
-    characterId,
-    processedChatMessages,
-    eventLogs
-  ]);
+    processedEventLogs
+  }), [gameData, isLoading, error, lastUpdated, fetchGameData, enablePolling, disablePolling, 
+       isPollingEnabled, connectWallet, processedChatMessages, processedEventLogs]);
 
   return (
     <GameDataContext.Provider value={contextValue}>

@@ -6,7 +6,7 @@
 export interface CharacterStats {
   level: number;
   health: number; // Corresponds to uint16 health in the contract
-  maxHealth: number; // Calculated property, not directly in contract
+  maxHealth?: number; // Made optional - will be calculated on-the-fly using calculateMaxHealth
   strength: number;
   vitality: number;
   dexterity: number;

@@ -1,8 +1,9 @@
-import React, { useMemo, useState } from 'react';
-import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Select, Button } from '@chakra-ui/react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Select, Button, Stat, StatLabel, StatNumber } from '@chakra-ui/react';
 import { BattleNad } from '../types/gameTypes';
 import { useGameData } from '../providers/GameDataProvider';
 import { useContracts } from '../hooks/useContracts';
+import { calculateMaxHealth } from '../utils/gameDataConverters';
 
 // Character component for displaying BattleNad information
 interface CharacterCardProps {
@@ -42,22 +43,86 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
   // Use contracts for equipment change functionality
   const { embeddedContract } = useContracts();
 
+  // Add local state for character stats that can be updated by events
+  const [currentStats, setCurrentStats] = useState<BattleNad['stats'] | undefined>(character?.stats);
+  
+  // Update current stats when props change
+  useEffect(() => {
+    if (character?.stats) {
+      setCurrentStats(character.stats);
+    }
+  }, [character?.stats]);
+  
+  // Listen for character stats updates
+  useEffect(() => {
+    const handleStatsChanged = (event: CustomEvent) => {
+      console.log("[CharacterCard] Received characterStatsChanged event:", event.detail);
+      
+      // Debug log to help identify matching issues
+      if (event.detail?.character?.id && character?.id) {
+        console.log("[CharacterCard] Comparing IDs:", {
+          "event.detail.character.id": event.detail.character.id,
+          "character.id": character.id,
+          "match": event.detail.character.id === character.id
+        });
+      }
+      
+      // Check if this event is for our character - either IDs match or we're using the player character
+      const isPlayerCharacter = event.detail?.isPlayerCharacter || (character && !character.stats?.isMonster);
+      const isMatchingId = event.detail?.character?.id === character?.id;
+      
+      // Apply stats update if this is for our character
+      if (event.detail?.stats && (isMatchingId || isPlayerCharacter)) {
+        console.log("[CharacterCard] Updating character stats:", event.detail.stats);
+        
+        // Process stats before setting them
+        const processedStats = { ...event.detail.stats };
+        
+        // Calculate maxHealth using the smart contract formula
+        const calculatedMaxHealth = calculateMaxHealth(processedStats);
+        console.log("[CharacterCard] Calculated maxHealth:", calculatedMaxHealth);
+        
+        // Ensure health never exceeds max health
+        if (processedStats.health && typeof processedStats.health !== 'undefined') {
+          processedStats.health = Math.min(
+            Number(processedStats.health),
+            calculatedMaxHealth
+          );
+        }
+        
+        // Update stats
+        setCurrentStats(processedStats);
+      }
+    };
+    
+    // Listen to the characterStatsChanged event
+    window.addEventListener('characterStatsChanged', handleStatsChanged as EventListener);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('characterStatsChanged', handleStatsChanged as EventListener);
+    };
+  }, [character]);
+
   if (!character) return null;
 
-  const { stats, weapon, armor, name, inventory } = character;
-  const healthPercentage = (Number(stats.health) / Number(stats.maxHealth)) * 100;
+  const { weapon, armor, name, inventory } = character;
+  
+  // Calculate max health using the utility function that matches the smart contract
+  const maxHealth = calculateMaxHealth(currentStats);
+  const healthPercentage = currentStats?.health ? (Number(currentStats.health) / maxHealth) * 100 : 0;
   
   // Calculate experience progress using the same formula as the smart contract
   const experienceProgress = useMemo(() => {
-    const currentLevel = Number(stats.level);
-    const currentExperience = Number(stats.experience);
+    const currentLevel = Number(currentStats?.level);
+    const currentExperience = Number(currentStats?.experience);
     
     // Formula from Character.sol: (currentLevel * EXP_BASE) + (currentLevel * currentLevel * EXP_SCALE)
     const experienceNeededForNextLevel = (currentLevel * EXP_BASE) + (currentLevel * currentLevel * EXP_SCALE);
     
     // Calculate percentage of progress to next level
     return (currentExperience / experienceNeededForNextLevel) * 100;
-  }, [stats.level, stats.experience]);
+  }, [currentStats?.level, currentStats?.experience]);
 
   return (
     <Box borderWidth="1px" borderRadius="lg" p={4} boxShadow="md" bg="gray.800" color="white">
@@ -67,32 +132,59 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
           <Heading as="h3" size="md">
             {name || 'Unnamed Character'}
           </Heading>
-          <Badge colorScheme="purple" fontSize="sm" p={1}>
-            Level {stats.level}
-          </Badge>
+          {currentStats?.level && (
+            <Badge colorScheme="purple" fontSize="sm" p={1}>
+              Level {currentStats.level}
+            </Badge>
+          )}
         </Flex>
         
         <Divider />
         
         {/* Health Bar */}
-        <Box>
-          <Flex justify="space-between" mb={1}>
-            <Text fontSize="sm">Health</Text>
-            <Text fontSize="sm">{stats.health} / {stats.maxHealth}</Text>
-          </Flex>
-          <Progress value={healthPercentage} colorScheme="green" size="sm" />
-        </Box>
+        {currentStats?.health !== undefined && (
+          <Box>
+            <Flex justify="space-between" mb={1}>
+              <Text fontSize="sm">Health</Text>
+              <Text fontSize="sm">{Math.max(0, Number(currentStats.health))} / {maxHealth}</Text>
+            </Flex>
+            <Progress 
+              value={healthPercentage} 
+              colorScheme="green" 
+              size="sm" 
+              borderRadius="md"
+            />
+          </Box>
+        )}
         
         {/* Character Stats */}
         <Box>
           <Text fontWeight="bold" mb={2}>Stats</Text>
           <Flex wrap="wrap" justify="space-between">
-            <StatItem label="STR" value={stats.strength} />
-            <StatItem label="VIT" value={stats.vitality} />
-            <StatItem label="DEX" value={stats.dexterity} />
-            <StatItem label="QCK" value={stats.quickness} />
-            <StatItem label="STR" value={stats.sturdiness} />
-            <StatItem label="LCK" value={stats.luck} />
+            <Stat size="sm">
+              <StatLabel fontSize="xs">STR</StatLabel>
+              <StatNumber>{Number(currentStats?.strength)}</StatNumber>
+            </Stat>
+            <Stat size="sm">
+              <StatLabel fontSize="xs">VIT</StatLabel>
+              <StatNumber>{Number(currentStats?.vitality)}</StatNumber>
+            </Stat>
+            <Stat size="sm">
+              <StatLabel fontSize="xs">DEX</StatLabel>
+              <StatNumber>{Number(currentStats?.dexterity)}</StatNumber>
+            </Stat>
+            <Stat size="sm">
+              <StatLabel fontSize="xs">QCK</StatLabel>
+              <StatNumber>{Number(currentStats?.quickness)}</StatNumber>
+            </Stat>
+            <Stat size="sm">
+              <StatLabel fontSize="xs">STR</StatLabel>
+              <StatNumber>{Number(currentStats?.sturdiness)}</StatNumber>
+            </Stat>
+            <Stat size="sm">
+              <StatLabel fontSize="xs">LCK</StatLabel>
+              <StatNumber>{Number(currentStats?.luck)}</StatNumber>
+            </Stat>
           </Flex>
         </Box>
         
@@ -121,7 +213,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
             <Flex justify="space-between" align="center">
               <Text fontSize="sm">Weapon:</Text>
               <Flex align="center">
-                <Text fontSize="sm" fontWeight="medium" mr={2}>{weapon.name}</Text>
+                <Text fontSize="sm" fontWeight="medium" mr={2}>{weapon?.name}</Text>
                 {gameData?.equipableWeaponIDs?.length > 0 && (
                   <Select 
                     size="xs" 
@@ -147,7 +239,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
             <Flex justify="space-between" align="center">
               <Text fontSize="sm">Armor:</Text>
               <Flex align="center">
-                <Text fontSize="sm" fontWeight="medium" mr={2}>{armor.name}</Text>
+                <Text fontSize="sm" fontWeight="medium" mr={2}>{armor?.name}</Text>
                 {gameData?.equipableArmorIDs?.length > 0 && (
                   <Select 
                     size="xs" 
@@ -182,7 +274,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
               <Flex justify="space-between" mb={1}>
                 <Text fontSize="sm">Experience</Text>
                 <Text fontSize="sm">
-                  {Number(stats.experience)} / {(Number(stats.level) * EXP_BASE) + (Number(stats.level) * Number(stats.level) * EXP_SCALE)}
+                  {Number(currentStats?.experience)} / {(Number(currentStats?.level) * EXP_BASE) + (Number(currentStats?.level) * Number(currentStats?.level) * EXP_SCALE)}
                 </Text>
               </Flex>
               <Progress 

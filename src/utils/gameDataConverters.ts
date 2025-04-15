@@ -45,7 +45,6 @@ export function convertCharacterData(rawCharacter: any): BattleNad {
   let stats: CharacterStats = {
     level: Number(rawCharacter.stats?.level || 1),
     health: Number(rawCharacter.stats?.health || rawCharacter.stats?.hp || 0),
-    maxHealth: 100 + (Number(rawCharacter.stats?.vitality || 0) * 100) + (Number(rawCharacter.stats?.level || 1) * 50),
     strength: Number(rawCharacter.stats?.strength || 0),
     vitality: Number(rawCharacter.stats?.vitality || 0),
     dexterity: Number(rawCharacter.stats?.dexterity || 0),
@@ -67,8 +66,8 @@ export function convertCharacterData(rawCharacter: any): BattleNad {
     armorID: Number(rawCharacter.stats?.armorID || 0)
   };
   
-  // Apply cap to health
-  stats.health = Math.min(stats.health, stats.maxHealth);
+  // Apply cap to health using calculateMaxHealth
+  stats.health = Math.min(stats.health, calculateMaxHealth(stats));
   
   // Extract weapon equipment
   const weapon: Weapon = rawCharacter.weapon ? {
@@ -284,4 +283,41 @@ export function parseFrontendData(frontendDataRaw: any): any {
   
   // Return the original data if we can't parse it
   return frontendDataRaw;
-} 
+}
+
+// Constants from the smart contract
+const HEALTH_BASE = 1000;
+const MONSTER_HEALTH_BASE = 300;
+const VITALITY_HEALTH_MODIFIER = 100;
+const STURDINESS_HEALTH_MODIFIER = 20;
+const MONSTER_VITALITY_HEALTH_MODIFIER = 40;
+const MONSTER_STURDINESS_HEALTH_MODIFIER = 40;
+
+/**
+ * Calculate the max health for a character based on their stats
+ * Implementation based on Character.sol _maxHealth function
+ */
+export const calculateMaxHealth = (stats: any): number => {
+  if (!stats) return 0;
+  
+  // Convert any potential BigInt values to numbers
+  const vitality = typeof stats.vitality === 'bigint' ? Number(stats.vitality) : Number(stats.vitality || 0);
+  const sturdiness = typeof stats.sturdiness === 'bigint' ? Number(stats.sturdiness) : Number(stats.sturdiness || 0);
+  const isMonster = Boolean(stats.isMonster);
+  
+  // Base health depends on whether it's a monster or player
+  const baseHealth = isMonster ? MONSTER_HEALTH_BASE : HEALTH_BASE;
+  
+  // Calculate max health according to the formula in Character.sol
+  let maxHealth = baseHealth + (vitality * VITALITY_HEALTH_MODIFIER) + (sturdiness * STURDINESS_HEALTH_MODIFIER);
+  
+  // Monsters have 2/3 of the calculated health
+  if (isMonster) {
+    maxHealth = Math.floor(maxHealth * 2 / 3);
+  }
+  
+  // Cap at uint16 max value (65535)
+  if (maxHealth > 65535 - 1) maxHealth = 65535 - 1;
+  
+  return maxHealth;
+}; 

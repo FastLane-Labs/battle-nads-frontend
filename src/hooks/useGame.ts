@@ -267,12 +267,6 @@ export const useGame = () => {
       const currentSessionKey = gameData.sessionKey;
       console.log("Current session key:", currentSessionKey);
       
-      // Check if session key is zero address (meaning no session key assigned yet)
-      if (currentSessionKey === "0x0000000000000000000000000000000000000000") {
-        console.log("Session key is zero address, will be set during character creation");
-        return true; // Continue without warning
-      }
-      
       // Use either the current embedded wallet address or the stored reference
       const embeddedAddress = embeddedWallet?.address || embeddedWalletRef.current;
       console.log("Using embedded wallet address for comparison:", embeddedAddress);
@@ -284,6 +278,18 @@ export const useGame = () => {
         setStatus('error');
         processingRef.current = false;
         return false;
+      }
+      
+      // Check if session key is zero address
+      if (currentSessionKey === "0x0000000000000000000000000000000000000000") {
+        console.log("Session key is zero address but we have an embedded wallet to use");
+        
+        // Set a warning that session key needs to be updated from zero address
+        const warningMessage = "Your session key is not set. Game actions will fail until you update your session key.";
+        console.log("Setting session key warning:", warningMessage);
+        setSessionKeyWarning(warningMessage);
+        
+        return true; // Continue with game initialization but with the warning
       }
       
       // Check if current session key matches the embedded wallet

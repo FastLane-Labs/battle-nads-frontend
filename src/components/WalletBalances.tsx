@@ -265,40 +265,17 @@ const WalletBalances: React.FC = memo(() => {
         hasShortfall: !!gameData.balanceShortfall
       });
       
-      // Update session key balance
+      // Update session key balance - directly use the value from the contract without any special handling
       if (gameData.sessionKeyBalance !== undefined) {
-        try {
-          // Check if this is already a BigInt or needs conversion
-          const valueToParse = typeof gameData.sessionKeyBalance === 'bigint' ? 
-              gameData.sessionKeyBalance : 
-              (typeof gameData.sessionKeyBalance === 'string' ? 
-                  BigInt(gameData.sessionKeyBalance) : gameData.sessionKeyBalance);
-          
-          const formattedBalance = ethers.formatEther(valueToParse);
-          setSessionKeyBalance(formattedBalance);
-        } catch (e) {
-          const timestamp = new Date().toISOString();
-          console.error(`[WalletBalances ${timestamp}] ${instanceId.current} Error formatting session key balance:`, e);
-          setSessionKeyBalance(String(gameData.sessionKeyBalance));
-        }
+        // Format the balance from Wei to ETH - trust the blockchain value completely
+        const formattedBalance = ethers.formatEther(gameData.sessionKeyBalance);
+        setSessionKeyBalance(formattedBalance);
       }
       
       // Update bonded balance
       if (gameData.bondedShMonadBalance !== undefined) {
-        try {
-          // Check if this is already a BigInt or needs conversion
-          const valueToParse = typeof gameData.bondedShMonadBalance === 'bigint' ? 
-              gameData.bondedShMonadBalance : 
-              (typeof gameData.bondedShMonadBalance === 'string' ? 
-                  BigInt(gameData.bondedShMonadBalance) : gameData.bondedShMonadBalance);
-          
-          const formattedBalance = ethers.formatEther(valueToParse);
-          setBondedBalance(formattedBalance);
-        } catch (e) {
-          const timestamp = new Date().toISOString();
-          console.error(`[WalletBalances ${timestamp}] ${instanceId.current} Error formatting bonded balance:`, e);
-          setBondedBalance(String(gameData.bondedShMonadBalance));
-        }
+        const formattedBalance = ethers.formatEther(gameData.bondedShMonadBalance);
+        setBondedBalance(formattedBalance);
       }
       
       // Update shortfall directly from gameData
@@ -308,7 +285,7 @@ const WalletBalances: React.FC = memo(() => {
       
       // Update last updated time
       if (dataLastUpdated) {
-        setLastUpdated(new Date(dataLastUpdated));
+        setLastUpdated(dataLastUpdated);
       }
       
       setIsLoading(false);
@@ -368,7 +345,10 @@ const WalletBalances: React.FC = memo(() => {
               <Badge colorScheme="purple" size="sm">MON</Badge>
             </Flex>
           </StatLabel>
-          <StatNumber fontSize="lg">{parseFloat(sessionKeyBalance).toFixed(4)} MON</StatNumber>
+          <StatNumber fontSize="lg">
+            {/* Display the session key balance */}
+            {`${parseFloat(sessionKeyBalance).toFixed(4)} MON`}
+          </StatNumber>
         </Stat>
         
         {/* Bonded shMONAD Balance */}

@@ -41,7 +41,7 @@ import {
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import { useWallet } from '../../providers/WalletProvider';
-import { useBattleNads, LogType, ChatMessage } from '../../hooks/useBattleNads';
+import { useBattleNads, LogType, ChatMessage, useGameActions } from '../../hooks/useBattleNads';
 import { useGame } from '../../hooks/useGame';
 import { usePrivy } from '@privy-io/react-auth';
 import { GameBoard } from './GameBoard';
@@ -49,7 +49,7 @@ import EventFeed from './EventFeed';
 import ChatInterface from './ChatInterface';
 import DataFeed from './DataFeed';
 import { BattleNad, GameState, GameUIState } from '../../types/gameTypes';
-import { convertCharacterData, createGameState, parseFrontendData } from '../../utils/gameDataConverters';
+import { convertCharacterData, createGameState, parseFrontendData, calculateMaxHealth } from '../../utils/gameDataConverters';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
 import { 
   gameStateAtom, 
@@ -107,6 +107,9 @@ const Game: React.FC = () => {
     hasAllRequiredWallets,
     getStoredEmbeddedWalletAddress
   } = useGame();
+
+  // Get game actions for updating session key
+  const { updateSessionKey } = useGameActions();
 
   // Recoil state
   const setGameState = useSetRecoilState(gameStateAtom);
@@ -527,44 +530,6 @@ const Game: React.FC = () => {
     initializeGameData();
   }, []);
 
-  // Listen for gameDataUpdated event
-  useEffect(() => {
-    const handleGameDataUpdated = (event: CustomEvent) => {
-      console.log("[Game] Received gameDataUpdated event:", event.detail);
-      
-      // If we already have a character ID in state, no need to update
-      if (characterId && characterId !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
-        console.log("[Game] Already have character ID in state:", characterId);
-        return;
-      }
-      
-      // Extract and update the character ID from the updated game data
-      if (event.detail && event.detail.characterID) {
-        const newCharId = event.detail.characterID;
-        console.log("[Game] Setting character ID from gameDataUpdated event:", newCharId);
-        
-        // If this is a valid character ID (not zero address), update state and trigger data load
-        if (newCharId && newCharId !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
-          setCharacterId(newCharId);
-          
-          // If we're in need-character state, try to load character data
-          if (gameUIState === 'need-character') {
-            console.log("[Game] Currently in need-character state, loading character data");
-            loadCharacterData();
-          }
-        }
-      }
-    };
-
-    // Add event listener
-    window.addEventListener('gameDataUpdated', handleGameDataUpdated as EventListener);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('gameDataUpdated', handleGameDataUpdated as EventListener);
-    };
-  }, [characterId, gameUIState]);
-
   // Update effect to track status changes with debounce
   useEffect(() => {
     console.log("Game status changed to:", status);
@@ -769,19 +734,34 @@ const Game: React.FC = () => {
         return;
       }
       
-      // Since setSessionKeyToEmbeddedWallet is not available, inform the user
-      // We need to implement this feature properly in the future
-      toast({
-        title: "Session key update",
-        description: "Session key update functionality is not implemented yet",
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-      });
+      // Set loading state
+      setGameState(prev => ({ ...prev, loading: true }));
       
-      // For now, we need to reload game data to reflect any changes
-      if (character) {
+      // Call the actual session key update function
+      const result = await updateSessionKey(sessionKey);
+      
+      if (result.success) {
+        toast({
+          title: "Session key updated",
+          description: "Your session key has been successfully updated",
+          status: "success",
+          duration: 5000,
+          isClosable: true,
+        });
+        
+        // Reset the session key warning
+        resetSessionKeyWarning();
+        
+        // Reload character data to reflect changes
         await loadCharacterData();
+      } else {
+        toast({
+          title: "Session key update failed",
+          description: result.error || "Unknown error",
+          status: "error",
+          duration: 5000,
+          isClosable: true,
+        });
       }
     } catch (err) {
       console.error(err);
@@ -792,6 +772,8 @@ const Game: React.FC = () => {
         duration: 3000,
         isClosable: true,
       });
+    } finally {
+      setGameState(prev => ({ ...prev, loading: false }));
     }
   };
 
@@ -806,6 +788,24 @@ const Game: React.FC = () => {
   useEffect(() => {
     debugGameData();
   }, [character]);
+
+  // Add listener for sessionKeyUpdateNeeded events from GameDataProvider
+  useEffect(() => {
+    const handleSessionKeyUpdateNeeded = (event: CustomEvent) => {
+      console.log("[Game] Received sessionKeyUpdateNeeded event:", event.detail);
+      
+      // No need to set sessionKeyWarning, we'll use resetSessionKeyWarning to clear it when needed
+      // The warning will be set by the useGame hook based on the session key check
+    };
+
+    // Add event listener
+    window.addEventListener('sessionKeyUpdateNeeded', handleSessionKeyUpdateNeeded as EventListener);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('sessionKeyUpdateNeeded', handleSessionKeyUpdateNeeded as EventListener);
+    };
+  }, []);
 
   // Function to handle sending chat messages
   const handleSendChatMessage = (message: string) => {
@@ -943,6 +943,138 @@ const Game: React.FC = () => {
     handleEquipArmor(itemId);
   };
 
+  // Add event listeners for the specific game data update events
+  useEffect(() => {
+    // Handler for character position changes
+    const handlePositionChanged = (event: CustomEvent) => {
+      console.log("[Game] Received characterPositionChanged event:", event.detail);
+      if (event.detail && event.detail.position) {
+        setPosition(event.detail.position);
+        
+        // If we have a character, also update position in character state
+        if (character) {
+          setGameState(current => {
+            // Only update if character exists
+            if (!current.character) return current;
+            
+            return {
+              ...current,
+              character: {
+                ...current.character,
+                position: event.detail.position
+              }
+            };
+          });
+        }
+        
+        // Add to combat log if relevant
+        addToCombatLog(`Position updated to (${event.detail.position.x}, ${event.detail.position.y}, Depth: ${event.detail.position.depth})`);
+      }
+    };
+    
+    // Handler for character stats changes
+    const handleStatsChanged = (event: CustomEvent) => {
+      console.log("[Game] Received characterStatsChanged event:", event.detail);
+      if (event.detail && event.detail.stats) {
+        setGameState(current => {
+          // Only update if character exists
+          if (!current.character) return current;
+          
+          return {
+            ...current,
+            character: {
+              ...current.character,
+              stats: event.detail.stats
+            }
+          };
+        });
+        
+        // Add to combat log if health changed
+        if (character && character.stats && event.detail.stats.health !== character.stats.health) {
+          addToCombatLog(`Health changed to ${event.detail.stats.health}/${event.detail.stats.maxHealth}`);
+        }
+      }
+    };
+    
+    // Handler for combatants changes
+    const handleCombatantsChanged = (event: CustomEvent) => {
+      console.log("[Game] Received combatantsChanged event:", event.detail);
+      if (event.detail && event.detail.combatants) {
+        // Filter out any invalid combatants that don't have proper data
+        const validCombatants = event.detail.combatants.filter((c: any) => c && c.id && c.stats);
+        
+        if (validCombatants.length > 0) {
+          console.log("[Game] Valid combatants received:", validCombatants.length);
+          
+          // Process each combatant to ensure stats are properly set
+          const processedCombatants = validCombatants.map((combatant: any) => {
+            if (combatant.stats) {
+              // Calculate max health and ensure health never exceeds it
+              const maxHealth = calculateMaxHealth(combatant.stats);
+              const health = Math.min(
+                Number(combatant.stats.health || 0),
+                maxHealth
+              );
+              
+              // Return combatant with processed stats
+              return {
+                ...combatant,
+                stats: {
+                  ...combatant.stats,
+                  health: health
+                }
+              };
+            }
+            return combatant;
+          });
+          
+          // Update state with processed combatants
+          setGameState(current => ({
+            ...current,
+            combatants: processedCombatants
+          }));
+          
+          // Log changes in combatants
+          const newCount = processedCombatants.length;
+          const oldCount = event.detail.previousCombatants.length;
+          
+          if (newCount > oldCount) {
+            addToCombatLog(`New enemies appeared! Now facing ${newCount} opponents.`);
+          } else if (newCount < oldCount) {
+            addToCombatLog(`Some enemies are gone. ${newCount} opponents remain.`);
+          } else {
+            // Same number but different combatants or health changes
+            addToCombatLog(`Combat situation has changed.`);
+          }
+        } else {
+          console.log("[Game] Received combatants update with no valid combatants");
+        }
+      }
+    };
+    
+    // Handler for area info changes
+    const handleAreaChanged = (event: CustomEvent) => {
+      console.log("[Game] Received areaInfoChanged event:", event.detail);
+      if (event.detail && event.detail.miniMap) {
+        setMiniMap(event.detail.miniMap);
+      }
+    };
+
+    // Add event listeners
+    window.addEventListener('characterPositionChanged', handlePositionChanged as EventListener);
+    window.addEventListener('characterStatsChanged', handleStatsChanged as EventListener);
+    window.addEventListener('combatantsChanged', handleCombatantsChanged as EventListener);
+    window.addEventListener('areaInfoChanged', handleAreaChanged as EventListener);
+    
+    // Clean up
+    return () => {
+      window.removeEventListener('characterPositionChanged', handlePositionChanged as EventListener);
+      window.removeEventListener('characterStatsChanged', handleStatsChanged as EventListener);
+      window.removeEventListener('combatantsChanged', handleCombatantsChanged as EventListener);
+      window.removeEventListener('areaInfoChanged', handleAreaChanged as EventListener);
+    };
+  }, [character, addToCombatLog]);
+
   // Replace conditional rendering with a switch statement based on gameUIState
   let renderContent;
   switch (gameUIState) {
@@ -1026,7 +1158,9 @@ const Game: React.FC = () => {
             <Image 
               src="/BattleNadsLogo.png" 
               alt="Battle Nads Logo"
-              maxWidth="250px" 
+              width="300px"
+              maxWidth="80%"
+              objectFit="contain"
               mb={4}
             />
             <Heading size="md" color="blue.400">Character Required</Heading>
@@ -1060,7 +1194,9 @@ const Game: React.FC = () => {
               <Image 
                 src="/BattleNadsLogo.png" 
                 alt="Battle Nads Logo"
-                maxWidth="250px" 
+                width="300px"
+                maxWidth="80%"
+                objectFit="contain"
                 mb={4}
               />
               <Heading size="md" color="yellow.400">Session Key Warning</Heading>
@@ -1091,7 +1227,9 @@ const Game: React.FC = () => {
               <Image 
                 src="/BattleNadsLogo.png" 
                 alt="Battle Nads Logo"
-                maxWidth="250px" 
+                width="300px"
+                maxWidth="80%"
+                objectFit="contain"
                 mb={4}
               />
               <Text fontSize="xl" color="white">Preparing game environment...</Text>
@@ -1111,7 +1249,9 @@ const Game: React.FC = () => {
               <Image 
                 src="/BattleNadsLogo.png" 
                 alt="Battle Nads Logo"
-                maxWidth="250px" 
+                width="300px"
+                maxWidth="80%"
+                objectFit="contain"
                 mb={4}
               />
               <Text fontSize="xl" color="white">Character data not available</Text>
@@ -1258,16 +1398,18 @@ const Game: React.FC = () => {
                                     <Flex justify="space-between" align="center">
                                       <Text fontWeight="bold" fontSize="sm">{enemy.name || 'Unknown'}</Text>
                                       <Badge colorScheme="purple" fontSize="xs" p={1}>
-                                        Level {enemy.stats.level}
+                                        Level {enemy.stats?.level || 1}
                                       </Badge>
                                     </Flex>
                                     <Box>
                                       <Flex justify="space-between" mb={1}>
                                         <Text fontSize="xs">Health</Text>
-                                        <Text fontSize="xs">{Number(enemy.stats.health)} / {Number(enemy.stats.maxHealth)}</Text>
+                                        <Text fontSize="xs">
+                                          {Number(enemy.stats?.health || 0)} / {calculateMaxHealth(enemy.stats)}
+                                        </Text>
                                       </Flex>
                                       <Progress 
-                                        value={(Number(enemy.stats.health) / Number(enemy.stats.maxHealth)) * 100} 
+                                        value={(Number(enemy.stats?.health || 0) / calculateMaxHealth(enemy.stats)) * 100} 
                                         colorScheme="green" 
                                         size="xs" 
                                       />
@@ -1319,7 +1461,9 @@ const Game: React.FC = () => {
             <Image 
               src="/BattleNadsLogo.png" 
               alt="Battle Nads Logo"
-              maxWidth="250px" 
+              width="300px"
+              maxWidth="80%"
+              objectFit="contain"
               mb={4}
             />
             <Spinner size="xl" thickness="4px" speed="0.8s" color="blue.500" />
@@ -1329,6 +1473,21 @@ const Game: React.FC = () => {
       );
       break;
   }
+
+  // Add debugging for zero position values
+  React.useEffect(() => {
+    if (character && character.position?.x === 0 && character.position?.y === 0) {
+      console.log("[DEBUG] Zero position detected:", {
+        position: character.position,
+        characterId: character.id,
+        characterStats: character.stats,
+        hasStatsXY: character.stats?.x !== undefined && character.stats?.y !== undefined,
+        statsX: character.stats?.x,
+        statsY: character.stats?.y,
+        statsDepth: character.stats?.depth
+      });
+    }
+  }, [character]);
 
   return renderContent;
 };
