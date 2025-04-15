@@ -1,20 +1,26 @@
-import { ethers } from 'ethers';
+import { ENTRYPOINT_ADDRESS, STORAGE_KEY_PREFIX } from '../config/config';
 
 /**
  * Generates a unique localStorage key for a character ID based on the owner address and contract address.
- * This ensures that character IDs are stored per wallet address, preventing cross-wallet contamination.
+ * This ensures that character IDs are stored per wallet address and contract address, allowing for game upgrades.
  * 
  * @param ownerAddress - The owner's wallet address.
+ * @param contractAddress - Contract address to create a contract-specific storage key. Defaults to ENTRYPOINT_ADDRESS from config.
  * @returns The localStorage key string or null if the address is invalid.
  */
-export const getCharacterLocalStorageKey = (ownerAddress: string | null | undefined): string | null => {
+export const getCharacterLocalStorageKey = (ownerAddress: string | null | undefined, contractAddress: string = ENTRYPOINT_ADDRESS): string | null => {
   if (!ownerAddress) {
     console.warn("[getCharacterLocalStorageKey] Invalid or missing owner address provided.");
     return null;
   }
+
+  if (!contractAddress) {
+    console.warn("[getCharacterLocalStorageKey] Invalid or missing contract address provided.");
+    return null;
+  }
   
-  // For this specific wallet address, generate a unique storage key
-  return `battleNads:character:${ownerAddress.toLowerCase()}`;
+  // Create a consistent format using the storage key prefix and addresses
+  return `${STORAGE_KEY_PREFIX}_${contractAddress.toLowerCase()}_${ownerAddress.toLowerCase()}`;
 };
 
 // Add a new helper function to validate character IDs

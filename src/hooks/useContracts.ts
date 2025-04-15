@@ -3,6 +3,7 @@ import * as ethers from 'ethers';
 import { useWallet } from '../providers/WalletProvider';
 import ENTRYPOINT_ABI from '../abis/battleNads.json';
 import { MovementOptions } from '../types/gameTypes';
+import { ENTRYPOINT_ADDRESS, RPC_URL, FALLBACK_RPC_URL } from '../config/config';
 
 // Debug log the imported ABI to check if it's properly loaded
 console.log("[useContracts] Loaded ABI from file:", 
@@ -15,13 +16,6 @@ export interface TransactionOptions {
   nonce?: number;
 }
 
-// Use environment variables for contract addresses and RPC URLs
-const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0x1E85b64E23Cf13b305b4c056438DD5242d93BB76";
-
-// Primary and fallback RPC URLs
-const PRIMARY_RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";
-const FALLBACK_RPC_URL = "https://monad-testnet-rpc.dwellir.com";
-const RPC_URL = process.env.NEXT_PUBLIC_MONAD_RPC_URL || PRIMARY_RPC_URL;
 
 // Define a type for our contract with the specific methods we need
 export type BattleNadsContract = ethers.Contract & {

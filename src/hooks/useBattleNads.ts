@@ -3,6 +3,8 @@ import * as ethers from 'ethers';
 import { useWallet } from '../providers/WalletProvider';
 import { useContracts } from './useContracts';
 import { getCharacterLocalStorageKey, isValidCharacterId } from '../utils/getCharacterLocalStorageKey';
+import { RPC_URL, ENTRYPOINT_ADDRESS, LAST_KNOWN_OWNER_KEY } from '../config/config';
+import { getStoredCharacterId, saveCharacterId } from '../utils/characterStorage';
 
 /**
  * Safely stringifies objects containing BigInt values
@@ -16,7 +18,7 @@ const safeStringify = (obj: any): string => {
 };
 
 // Constants
-const RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";
+// Using RPC_URL from config.ts
 // Gas limit constants from the smart contract
 const MIN_EXECUTION_GAS = BigInt(900000); // From Constants.sol
 const MOVEMENT_GAS_LIMIT = MIN_EXECUTION_GAS + BigInt(550000); // Double gas limit only for movement
@@ -213,7 +215,9 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
         }
         
         if (ownerAddress) {
-          const storageKey = getCharacterLocalStorageKey(ownerAddress);
+          // Get storage key with contract address
+          const storageKey = getCharacterLocalStorageKey(ownerAddress, ENTRYPOINT_ADDRESS);
+          
           if (storageKey) {
             const storedId = localStorage.getItem(storageKey);
             if (storedId) {
@@ -267,7 +271,7 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
    */
   const getOwnerWalletAddress = useCallback(() => {
     // First check if we have a cached address in localStorage
-    const cachedAddress = localStorage.getItem('lastKnownOwnerAddress');
+    const cachedAddress = localStorage.getItem(LAST_KNOWN_OWNER_KEY);
     
     // Default to the injectedWallet from context
     let ownerAddress = injectedWallet?.address;
@@ -289,7 +293,7 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
         window.ethereum.request({ method: 'eth_requestAccounts' })
           .then((accounts: string[]) => {
             if (accounts && accounts.length > 0) {
-              localStorage.setItem('lastKnownOwnerAddress', accounts[0]);
+              localStorage.setItem(LAST_KNOWN_OWNER_KEY, accounts[0]);
             }
           })
           .catch((err: any) => {
@@ -307,7 +311,7 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
     
     // If we found an address, cache it for future use
     if (ownerAddress) {
-      localStorage.setItem('lastKnownOwnerAddress', ownerAddress);
+      localStorage.setItem(LAST_KNOWN_OWNER_KEY, ownerAddress);
     }
     
     return ownerAddress;
@@ -323,27 +327,16 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
         console.warn("No valid owner address available to check for character ID");
         return null;
       }
-      
-      // Get wallet-specific localStorage key
-      const storageKey = getCharacterLocalStorageKey(ownerAddress);
-      
-      if (!storageKey) {
-        console.warn(`[getPlayerCharacterID] Could not generate storage key for address: ${ownerAddress}`);
-        return null;
-      }
-      
-      // FIRST PRIORITY: Check localStorage but ensure it's not the zero address
-      const storedCharacterId = localStorage.getItem(storageKey);
-      if (storedCharacterId && isValidCharacterId(storedCharacterId)) {
+
+      // First, try localStorage
+      const storedCharacterId = getStoredCharacterId(ownerAddress);
+      if (storedCharacterId) {
         console.log(`Using stored character ID from localStorage for ${ownerAddress}:`, storedCharacterId);
         setCharacterId(storedCharacterId);
         return storedCharacterId;
-      } else if (storedCharacterId && !isValidCharacterId(storedCharacterId)) {
-        console.log(`Found invalid zero-address character ID in localStorage for ${ownerAddress}, removing it`);
-        localStorage.removeItem(storageKey);
       }
       
-      // SECOND PRIORITY: Only if no valid localStorage value, check the blockchain using owner address
+      // If no valid localStorage value, check the blockchain using owner address
       debugLog("No valid character in localStorage, checking blockchain...");
       
       if (!readContract) {
@@ -357,7 +350,7 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
       if (characterIdFromChain && isValidCharacterId(characterIdFromChain)) {
         debugLog(`Found valid character ID on blockchain for ${ownerAddress}:`, characterIdFromChain);
         setCharacterId(characterIdFromChain);
-        localStorage.setItem(storageKey, characterIdFromChain);
+        saveCharacterId(ownerAddress, characterIdFromChain);
         return characterIdFromChain;
       } else if (characterIdFromChain) {
         // We got a character ID from the chain, but it's the zero address
@@ -509,16 +502,10 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
           // Explicitly update state
           setCharacterId(characterId);
           
-          // Get wallet-specific localStorage key and update storage
-          const storageKey = getCharacterLocalStorageKey(injectedWallet.address);
-          if (storageKey) {
-            localStorage.setItem(storageKey, characterId);
-            console.log(`[createCharacter] Saved character ID to localStorage using key: ${storageKey}`);
+          // Save character ID to localStorage using the helper
+          if (injectedWallet?.address) {
+            saveCharacterId(injectedWallet.address, characterId);
           }
-          
-          // Also use a fixed key for backwards compatibility
-          localStorage.setItem('battleNadsCharacterId', characterId);
-          console.log(`[createCharacter] Saved character ID to localStorage with fixed key for compatibility`);
           
           // Broadcast an event when character is created - this helps with UI updates
           const characterCreatedEvent = new CustomEvent('characterCreated', { 
@@ -818,9 +805,8 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer' } = { ro
        
         // Store in localStorage for persistence
         try {
-          const storageKey = getCharacterLocalStorageKey(ownerAddress);
-          if (storageKey) {
-            localStorage.setItem(storageKey, result.characterID);
+          if (ownerAddress) {
+            saveCharacterId(ownerAddress, result.characterID);
           }
         } catch (storageErr) {
           setError(`Failed to save character ID to localStorage: ${storageErr instanceof Error ? storageErr.message : String(storageErr)}`);

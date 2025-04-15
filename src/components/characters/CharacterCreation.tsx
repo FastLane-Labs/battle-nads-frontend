@@ -36,6 +36,7 @@ import { useRouter } from 'next/navigation';
 import { useBattleNads } from '../../hooks/useBattleNads';
 import { useWallet } from '../../providers/WalletProvider';
 import { isValidCharacterId } from '../../utils/getCharacterLocalStorageKey';
+import { getStoredCharacterId } from '../../utils/characterStorage';
 
 interface AttributeInputProps {
   value: number;
@@ -75,16 +76,14 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
   
   // Check if character already exists and redirect if it does
   useEffect(() => {
-    const storedCharacterId = localStorage.getItem('battleNadsCharacterId');
-    if (storedCharacterId && isValidCharacterId(storedCharacterId)) {
-      console.log("Found existing valid character, redirecting to game:", storedCharacterId);
-      router.push('/game');
-    } else if (storedCharacterId) {
-      console.log("Found invalid zero-address character ID in localStorage, not redirecting");
-      // Remove invalid character ID from localStorage
-      localStorage.removeItem('battleNadsCharacterId');
+    if (injectedWallet?.address) {
+      const storedCharacterId = getStoredCharacterId(injectedWallet.address);
+      if (storedCharacterId) {
+        console.log("Found existing valid character, redirecting to game:", storedCharacterId);
+        router.push('/game');
+      }
     }
-  }, [router]);
+  }, [router, injectedWallet?.address]);
   
   // Check if character was created and redirect to game
   useEffect(() => {
@@ -273,11 +272,13 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
         }
         
         // Force check localStorage to ensure it was updated
-        const storedCharacterId = localStorage.getItem('battleNadsCharacterId');
-        console.log("Checking localStorage after creation:", { 
-          storedCharacterId,
-          isValid: storedCharacterId ? isValidCharacterId(storedCharacterId) : false
-        });
+        if (injectedWallet?.address) {
+          const storedCharacterId = getStoredCharacterId(injectedWallet.address);
+          console.log("Checking localStorage after creation:", { 
+            storedCharacterId,
+            isValid: !!storedCharacterId
+          });
+        }
         
         // Navigation will happen via useEffect or the event listener
         console.log("Waiting for navigation to game page...");
