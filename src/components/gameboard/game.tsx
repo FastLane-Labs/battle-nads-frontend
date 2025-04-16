@@ -93,6 +93,7 @@ const Game: React.FC = () => {
     eventLogs,
     chatMessages,
     lastFetchedBlock,
+    highestSeenBlock,
     sendChatMessage
   } = useBattleNads();
   
@@ -582,6 +583,8 @@ const Game: React.FC = () => {
   // Update effect to track status changes with debounce
   useEffect(() => {
     console.log("Game status changed to:", status);
+    console.log("Current sessionKeyWarning state:", sessionKeyWarning);
+    console.log("Current gameUIState:", gameUIState);
     
     // Clear any previous timeout
     if (statusTimeoutRef.current) {
@@ -901,8 +904,38 @@ const Game: React.FC = () => {
     const handleSessionKeyUpdateNeeded = (event: CustomEvent) => {
       console.log("[Game] Received sessionKeyUpdateNeeded event:", event.detail);
       
-      // No need to set sessionKeyWarning, we'll use resetSessionKeyWarning to clear it when needed
-      // The warning will be set by the useGame hook based on the session key check
+      // If sessionKeyWarning isn't already set, we need to manually trigger the UI update
+      if (!sessionKeyWarning) {
+        console.log("[Game] No session key warning set yet, forcing warning state");
+        
+        // Get the reason for the warning from the event
+        const reason = event.detail.reason || 'unknown';
+        
+        // Set a relevant warning message based on the reason
+        let warningMessage = "Your session key needs to be updated. Game actions may fail.";
+        
+        if (reason === 'expired') {
+          const currentBlock = event.detail.currentBlock || highestSeenBlock;
+          const expirationBlock = event.detail.expirationBlock || "unknown";
+          warningMessage = `Your session key has expired at block ${expirationBlock} (current block: ${currentBlock}). Game actions will fail until you update your session key.`;
+        } else if (reason === 'mismatch') {
+          warningMessage = "Your session key doesn't match your current wallet. Game actions may fail.";
+        }
+        
+        // Call resetSessionKeyWarning to clear any existing warning
+        resetSessionKeyWarning();
+        
+        // Use setTimeout to avoid state updates during render
+        setTimeout(() => {
+          // Manually set the session key warning through the useGame hook
+          const tempEvent = new CustomEvent('forceSessionKeyWarning', {
+            detail: { 
+              warning: warningMessage
+            }
+          });
+          window.dispatchEvent(tempEvent);
+        }, 100);
+      }
     };
 
     // Add event listener
@@ -912,7 +945,7 @@ const Game: React.FC = () => {
     return () => {
       window.removeEventListener('sessionKeyUpdateNeeded', handleSessionKeyUpdateNeeded as EventListener);
     };
-  }, []);
+  }, [sessionKeyWarning, resetSessionKeyWarning, highestSeenBlock]);
 
   // Function to handle sending chat messages
   const handleSendChatMessage = (message: string) => {

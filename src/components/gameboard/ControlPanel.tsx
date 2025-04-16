@@ -1,5 +1,25 @@
-import React, { useState, useEffect } from 'react';
-import { Box, VStack, HStack, Button, Text, Heading, Tooltip, useToast } from '@chakra-ui/react';
+import React, { useState, useEffect, useRef } from 'react';
+import { 
+  Box, 
+  VStack, 
+  HStack, 
+  Button, 
+  Text, 
+  Heading, 
+  Tooltip, 
+  useToast,
+  Modal, 
+  ModalOverlay, 
+  ModalContent, 
+  ModalHeader, 
+  ModalFooter, 
+  ModalBody, 
+  ModalCloseButton, 
+  useDisclosure,
+  Alert,
+  AlertIcon,
+  Image
+} from '@chakra-ui/react';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads, useGameActions, useCharacterData } from '../../hooks/useBattleNads';
 import { useGameData } from '../../providers/GameDataProvider';
@@ -14,13 +34,86 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
   const { moveCharacter, updateSessionKey, getCurrentSessionKey } = useGameActions();
   const { gameData } = useGameData();
   
+  // Use Chakra UI's useDisclosure for Modal state management
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  
+  // Generate unique instance ID for debugging
+  const instanceId = useRef<string>(`ControlPanel-${Math.random().toString(36).substring(2, 9)}`);
+  
   const [isMoving, setIsMoving] = useState(false);
   const [movementError, setMovementError] = useState<string | null>(null);
+  const [isUpdatingSessionKey, setIsUpdatingSessionKey] = useState(false);
   const toast = useToast();
+  
+  // Register this component instance in the mount effect for debugging
+  useEffect(() => {
+    const timestamp = new Date().toISOString();
+    console.log(`[ControlPanel ${timestamp}] Component instance ${instanceId.current} created`);
+    
+    return () => {
+      const cleanupTime = new Date().toISOString();
+      console.log(`[ControlPanel ${cleanupTime}] Component instance ${instanceId.current} destroyed`);
+    };
+  }, []);
+  
+  // Listen for sessionKeyUpdateNeeded event
+  useEffect(() => {
+    const handleSessionKeyUpdateNeeded = (event: CustomEvent) => {
+      console.log(`[ControlPanel ${instanceId.current}] Received sessionKeyUpdateNeeded event:`, event.detail);
+      // Force window to open even if we're not ready for other reasons
+      onOpen();
+    };
+    
+    // Listen for sessionKeyValid event to close dialog if open
+    const handleSessionKeyValid = (event: CustomEvent) => {
+      console.log(`[ControlPanel ${instanceId.current}] Received sessionKeyValid event:`, event.detail);
+      if (isOpen) {
+        onClose();
+        toast({
+          title: "Session key is now valid",
+          description: "Your session key has been updated successfully",
+          status: "success",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    };
+    
+    console.log(`[ControlPanel ${instanceId.current}] Setting up session key event listeners`);
+    
+    // Add event listeners
+    window.addEventListener('sessionKeyUpdateNeeded', handleSessionKeyUpdateNeeded as EventListener);
+    window.addEventListener('sessionKeyValid', handleSessionKeyValid as EventListener);
+    
+    // Clean up
+    return () => {
+      console.log(`[ControlPanel ${instanceId.current}] Removing session key event listeners`);
+      window.removeEventListener('sessionKeyUpdateNeeded', handleSessionKeyUpdateNeeded as EventListener);
+      window.removeEventListener('sessionKeyValid', handleSessionKeyValid as EventListener);
+    };
+  }, [isOpen, onOpen, onClose, toast, instanceId]);
+  
+  // Manually emit the session key update event for testing
+  const testSessionKeyUpdateEvent = () => {
+    console.log(`[ControlPanel ${instanceId.current}] Manually dispatching sessionKeyUpdateNeeded event for testing`);
+    const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
+      detail: { 
+        characterId,
+        owner: injectedWallet?.address,
+        currentSessionKey: embeddedWallet?.address,
+        embeddedWalletAddress: embeddedWallet?.address,
+        reason: 'test'
+      }
+    });
+    window.dispatchEvent(sessionKeyUpdateEvent);
+  };
   
   // Function to check session key health and fix if needed
   const checkSessionKey = async () => {
     try {
+      // Show dialog immediately if it's triggered from the button click
+      onOpen();
+      
       // Display a toast to inform user we're checking
       toast({
         title: "Checking session key status...",
@@ -29,47 +122,107 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
         isClosable: true,
       });
       
+      console.log(`[ControlPanel ${instanceId.current}] Manually checking session key for character: ${characterId}`);
+      
       // First get the current character's session key
-      const currentSessionKey = await getCurrentSessionKey(characterId);
-      console.log(`[checkSessionKey] Current session key for character:`, currentSessionKey);
+      const sessionKeyData = await getCurrentSessionKey(characterId);
+      console.log(`[ControlPanel ${instanceId.current}] Current session key for character:`, sessionKeyData);
       
-      // Compare with embedded wallet address
-      const matchesEmbedded = currentSessionKey === embeddedWallet?.address;
-      console.log(`[checkSessionKey] Matches embedded wallet:`, matchesEmbedded);
-      
-      if (!matchesEmbedded) {
-        // Show a toast explaining we need to update the session key
+      if (!sessionKeyData) {
+        console.log(`[ControlPanel ${instanceId.current}] No session key found, needs update`);
         toast({
-          title: "Session key mismatch",
-          description: "Updating your session key to fix movement issues...",
+          title: "Session key issue",
+          description: "No session key found. Please update it to continue playing.",
           status: "warning",
           duration: 5000,
           isClosable: true,
         });
         
-        // Request update of session key using the embedded wallet address
-        const result = await updateSessionKey(embeddedWallet?.address || undefined);
+        // Manually dispatch the update needed event
+        const updateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
+          detail: { 
+            characterId,
+            owner: injectedWallet?.address,
+            currentSessionKey: null,
+            embeddedWalletAddress: embeddedWallet?.address,
+            reason: 'manual-check-missing',
+            source: 'ControlPanel'
+          }
+        });
+        window.dispatchEvent(updateEvent);
+        console.log(`[ControlPanel ${instanceId.current}] Dispatched sessionKeyUpdateNeeded event due to missing key`);
+        return;
+      }
+      
+      // Check if session key is expired
+      const currentBlock = (gameData?.lastFetchedBlock || 0);
+      const isExpired = sessionKeyData.expiration < currentBlock;
+      
+      if (isExpired) {
+        console.log(`[ControlPanel ${instanceId.current}] Session key expired - expiration: ${sessionKeyData.expiration}, current block: ${currentBlock}`);
+        toast({
+          title: "Session key expired",
+          description: `Your session key expired at block ${sessionKeyData.expiration} (current block: ${currentBlock}).`,
+          status: "warning",
+          duration: 5000,
+          isClosable: true,
+        });
         
-        if (result?.success) {
-          toast({
-            title: "Session key updated",
-            description: "Your session key has been updated. You should now be able to move.",
-            status: "success",
-            duration: 5000,
-            isClosable: true,
-          });
-        }
+        // Manually dispatch the update needed event
+        const updateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
+          detail: { 
+            characterId,
+            owner: injectedWallet?.address,
+            currentSessionKey: sessionKeyData.key,
+            embeddedWalletAddress: embeddedWallet?.address,
+            reason: 'manual-check-expired',
+            source: 'ControlPanel'
+          }
+        });
+        window.dispatchEvent(updateEvent);
+        console.log(`[ControlPanel ${instanceId.current}] Dispatched sessionKeyUpdateNeeded event due to expired key`);
+        return;
+      }
+      
+      // If not expired, compare with embedded wallet address
+      const matchesEmbedded = sessionKeyData.key.toLowerCase() === embeddedWallet?.address?.toLowerCase();
+      console.log(`[ControlPanel ${instanceId.current}] Session key matches embedded wallet:`, matchesEmbedded);
+      
+      if (!matchesEmbedded) {
+        // Show a toast explaining we need to update the session key
+        toast({
+          title: "Session key mismatch",
+          description: "Session key doesn't match your current wallet. Update needed.",
+          status: "warning",
+          duration: 5000,
+          isClosable: true,
+        });
+        
+        // Manually dispatch the update needed event
+        const updateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
+          detail: { 
+            characterId,
+            owner: injectedWallet?.address,
+            currentSessionKey: sessionKeyData.key,
+            embeddedWalletAddress: embeddedWallet?.address,
+            reason: 'manual-check-mismatch',
+            source: 'ControlPanel'
+          }
+        });
+        window.dispatchEvent(updateEvent);
+        console.log(`[ControlPanel ${instanceId.current}] Dispatched sessionKeyUpdateNeeded event due to mismatched key`);
       } else {
         toast({
           title: "Session key is valid",
-          description: "Your session key is correctly set",
+          description: "Your session key is correctly set and not expired",
           status: "success",
           duration: 3000,
           isClosable: true,
         });
+        onClose();
       }
     } catch (error) {
-      console.error("[checkSessionKey] Error:", error);
+      console.error(`[ControlPanel ${instanceId.current}] Error checking session key:`, error);
       toast({
         title: "Error checking session key",
         description: error instanceof Error ? error.message : "Unknown error",
@@ -77,6 +230,43 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
         duration: 5000,
         isClosable: true,
       });
+    }
+  };
+  
+  // Function to handle session key update
+  const handleUpdateSessionKey = async () => {
+    try {
+      setIsUpdatingSessionKey(true);
+      
+      if (!embeddedWallet?.address) {
+        throw new Error("No embedded wallet available to use as session key");
+      }
+      
+      const result = await updateSessionKey(embeddedWallet.address);
+      
+      if (result?.success) {
+        toast({
+          title: "Session key updated",
+          description: "Your session key has been updated successfully",
+          status: "success",
+          duration: 5000,
+          isClosable: true,
+        });
+        onClose();
+      } else {
+        throw new Error(result?.error || "Unknown error updating session key");
+      }
+    } catch (error) {
+      console.error("[handleUpdateSessionKey] Error:", error);
+      toast({
+        title: "Session key update failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        status: "error",
+        duration: 5000,
+        isClosable: true,
+      });
+    } finally {
+      setIsUpdatingSessionKey(false);
     }
   };
   
@@ -112,8 +302,18 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
         isClosable: true,
       });
       
-      // If the error suggests a session key issue, offer to fix it
-      if (errorMessage.includes("session key") || errorMessage.includes("Transaction failed")) {
+      // Check if error indicates expired session key
+      if (errorMessage.includes("session key has expired")) {
+        toast({
+          title: "Session key expired",
+          description: "Your session key has expired. Click 'Fix Session Key' to update it.",
+          status: "warning",
+          duration: 10000,
+          isClosable: true,
+        });
+      }
+      // Also check for other session key related issues
+      else if (errorMessage.includes("session key") || errorMessage.includes("Transaction failed")) {
         toast({
           title: "Session key issue detected",
           description: "Click 'Fix Session Key' to resolve",
@@ -171,6 +371,9 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
                   }
                 });
                 
+                // Also test the session key update event
+                testSessionKeyUpdateEvent();
+                
                 toast({
                   title: "Debug info logged",
                   description: "Check the console for wallet details",
@@ -183,6 +386,59 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
             </Button>
           </Tooltip>
         </HStack>
+        
+        {/* Session Key Update Modal - using Chakra UI's Modal component */}
+        <Modal isOpen={isOpen} onClose={onClose} isCentered size="md">
+          <ModalOverlay />
+          <ModalContent bg="gray.800" color="white">
+            <ModalHeader>Session Key Update Required</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody pb={6}>
+              <VStack spacing={4} align="center">
+                <Image 
+                  src="/BattleNadsLogo.png" 
+                  alt="Battle Nads Logo"
+                  width="200px"
+                  maxWidth="80%"
+                  objectFit="contain"
+                  mb={2}
+                />
+                
+                <Alert status="warning" borderRadius="md">
+                  <AlertIcon />
+                  <Text fontSize="sm">
+                    Your session key needs to be updated to continue playing.
+                  </Text>
+                </Alert>
+                
+                <Text fontSize="sm">This can happen when:</Text>
+                
+                <VStack align="start" spacing={1} w="100%" pl={4}>
+                  <Text fontSize="sm">• Your session key has expired</Text>
+                  <Text fontSize="sm">• Your session key doesn't match your current wallet</Text>
+                  <Text fontSize="sm">• Your session key is not set</Text>
+                </VStack>
+                
+                <Text fontSize="sm">
+                  Click the button below to update your session key. This will require a transaction from your main wallet.
+                </Text>
+              </VStack>
+            </ModalBody>
+
+            <ModalFooter>
+              <Button 
+                colorScheme="green" 
+                mr={3} 
+                onClick={handleUpdateSessionKey}
+                isLoading={isUpdatingSessionKey}
+                loadingText="Updating..."
+              >
+                Update Session Key
+              </Button>
+              <Button variant="outline" onClick={onClose}>Cancel</Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
       </VStack>
     </Box>
   );

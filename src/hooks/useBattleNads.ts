@@ -18,7 +18,7 @@ const safeStringify = (obj: any): string => {
 // Constants
 const RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";
 // Gas limit constants from the smart contract
-const MIN_EXECUTION_GAS = BigInt(900000); // From Constants.sol
+const MIN_EXECUTION_GAS = BigInt(950000); // From Constants.sol
 const MOVEMENT_GAS_LIMIT = MIN_EXECUTION_GAS + BigInt(550000); // Double gas limit only for movement
 
 // Flag to control debug logging (set to false in production)
@@ -147,6 +147,9 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
   
   // Add a ref to track the current highest seen block to prevent closure issues
   const highestSeenBlockRef = useRef<number>(0);
+
+  // Add a dedicated ref to track startBlock for data fetching, separate from highest seen block
+  const startBlockRef = useRef<number>(0);
 
   // Effect to keep ref in sync with state changes
   useEffect(() => {
@@ -680,17 +683,58 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
         return null;
       }
 
-      // Calculate start block - use override or lastFetchedBlock or global fallback or 0
+      // Calculate start block with the requested sanity checks
       let startBlock;
       if (startBlockOverride !== undefined) {
+        // Always honor explicit override if provided
         startBlock = startBlockOverride;
-      } else if (lastFetchedBlock > 0) {
-        startBlock = lastFetchedBlock;
-      } else if ((window as any).lastKnownBlockNumber) {
-        startBlock = (window as any).lastKnownBlockNumber;
+        console.log(`[getFullFrontendData] Using explicit startBlockOverride: ${startBlock}`);
       } else {
-        startBlock = 0;
+        // Apply the sanity checks as specified
+        const currentStartBlock = startBlockRef.current;
+        const currentHighestBlock = highestSeenBlockRef.current;
+        
+        // Case 1: Both refs are invalid (0 or very low)
+        if (currentHighestBlock <= 5 && currentStartBlock <= 5) {
+          // Get current block using the function from useBattleNads
+          try {
+            const currentBlock = await getCurrentBlockNumber();
+            if (currentBlock > 0) {
+              startBlock = Math.max(0, currentBlock - 5);
+              console.log(`[getFullFrontendData] Both blocks invalid, got current block: ${currentBlock}, using startBlock: ${startBlock}`);
+            } else {
+              startBlock = 0;
+              console.log(`[getFullFrontendData] Failed to get current block, using startBlock: 0`);
+            }
+          } catch (err) {
+            startBlock = 0;
+            console.error(`[getFullFrontendData] Error getting current block:`, err);
+          }
+        }
+        // Case 2: Start block is invalid but highest block is valid
+        else if (currentStartBlock <= 5 && currentHighestBlock > 5) {
+          startBlock = Math.max(0, currentHighestBlock - 5);
+          console.log(`[getFullFrontendData] Invalid startBlock but valid highestBlock: ${currentHighestBlock}, using startBlock: ${startBlock}`);
+        }
+        // Case 3: Start block is >= highest block (unusual but could happen)
+        else if (currentStartBlock >= currentHighestBlock) {
+          // Keep using current startBlock
+          startBlock = currentStartBlock;
+          console.log(`[getFullFrontendData] startBlock (${currentStartBlock}) >= highestBlock (${currentHighestBlock}), keeping startBlock`);
+        }
+        // Case 4: Highest block is significantly ahead of start block
+        else if (currentHighestBlock - 5 > currentStartBlock) {
+          startBlock = currentHighestBlock - 5;
+          console.log(`[getFullFrontendData] highestBlock (${currentHighestBlock}) > startBlock (${currentStartBlock}) by more than 5, updating startBlock to ${startBlock}`);
+        }
+        // Case 5: Default case - current start block is reasonable
+        else {
+          startBlock = currentStartBlock;
+          console.log(`[getFullFrontendData] Using existing startBlock: ${startBlock}`);
+        }
       }
+      
+      console.log(`[getFullFrontendData] Final startBlock: ${startBlock}`);
       
       let response;
       try {
@@ -906,7 +950,17 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
       try {
         const provider = new ethers.JsonRpcProvider(RPC_URL);
         const currentBlock = await provider.getBlockNumber();
-        setLastFetchedBlock(currentBlock);
+        
+        // Set lastFetchedBlock to a value slightly less than the current block
+        // This ensures we don't miss any data feeds while still avoiding duplicates
+        const safeLastFetchedBlock = Math.max(0, currentBlock - 3);
+        console.log(`[getFullFrontendData] Setting lastFetchedBlock to current block - 3: ${safeLastFetchedBlock}`);
+        setLastFetchedBlock(safeLastFetchedBlock);
+        
+        // Update our startBlockRef to be the current lastFetchedBlock
+        // This ensures next time we fetch, we start from where we left off
+        startBlockRef.current = safeLastFetchedBlock;
+        console.log(`[getFullFrontendData] Updated startBlockRef to: ${startBlockRef.current}`);
         
         // Store in component state and also in a global variable for immediate access
         (window as any).lastKnownBlockNumber = currentBlock;
@@ -1086,42 +1140,42 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
       }
       
       // Create transaction options
-        const txOptions = { 
+      const txOptions = { 
         gasLimit: MOVEMENT_GAS_LIMIT
       };
       
       let tx;
-        switch (direction.toLowerCase()) {
+      switch (direction.toLowerCase()) {
         case 'north':
-            tx = await embeddedContract.moveNorth(characterId, txOptions);
+          tx = await embeddedContract.moveNorth(characterId, txOptions);
           break;
         case 'south':
-            tx = await embeddedContract.moveSouth(characterId, txOptions);
+          tx = await embeddedContract.moveSouth(characterId, txOptions);
           break;
         case 'east':
-            tx = await embeddedContract.moveEast(characterId, txOptions);
+          tx = await embeddedContract.moveEast(characterId, txOptions);
           break;
         case 'west':
-            tx = await embeddedContract.moveWest(characterId, txOptions);
+          tx = await embeddedContract.moveWest(characterId, txOptions);
           break;
         case 'up':
-            tx = await embeddedContract.moveUp(characterId, txOptions);
+          tx = await embeddedContract.moveUp(characterId, txOptions);
           break;
         case 'down':
-            tx = await embeddedContract.moveDown(characterId, txOptions);
+          tx = await embeddedContract.moveDown(characterId, txOptions);
           break;
-          default:
-            throw new Error(`Invalid direction: ${direction}`);
-        }
-        
-        console.log(`[moveCharacter] Transaction sent: ${tx.hash}`);
+        default:
+          throw new Error(`Invalid direction: ${direction}`);
+      }
+      
+      console.log(`[moveCharacter] Transaction sent: ${tx.hash}`);
       
       // Wait for transaction to be mined
       try {
         const receipt = await tx.wait();
         if (receipt) {
-        console.log(`[moveCharacter] Move completed: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
-        return receipt;
+          console.log(`[moveCharacter] Move completed: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+          return receipt;
         } else {
           throw new Error('No receipt returned from transaction');
         }
@@ -1131,6 +1185,39 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
       }
     } catch (err: any) {
       console.error("[moveCharacter] Error:", err);
+      
+      // Get session key info to check if it's expired
+      try {
+        if (readContract) {
+          // Directly get session key data from the contract
+          const sessionKeyData = await readContract.getCurrentSessionKey(characterId);
+          
+          // Parse the session key data
+          let sessionKey = null;
+          if (Array.isArray(sessionKeyData)) {
+            sessionKey = {
+              key: sessionKeyData[0],
+              expiration: Number(sessionKeyData[1])
+            };
+          } else if (sessionKeyData && typeof sessionKeyData === 'object') {
+            sessionKey = {
+              key: sessionKeyData.key,
+              expiration: Number(sessionKeyData.expiration)
+            };
+          }
+          
+          // Check if session key is expired
+          if (sessionKey && sessionKey.expiration < highestSeenBlock) {
+            console.error("[moveCharacter] SESSION KEY EXPIRED! Transaction failed because the session key expired. Please update your session key.", {
+              sessionKeyExpiration: sessionKey.expiration,
+              currentBlock: highestSeenBlock
+            });
+            throw new Error('Your session key has expired. Please update your session key to continue playing.');
+          }
+        }
+      } catch (sessionKeyErr) {
+        console.warn("[moveCharacter] Failed to check session key expiration:", sessionKeyErr);
+      }
       
       // Provide better error message for common issues
       if (err.message && err.message.includes('insufficient funds')) {
@@ -1143,7 +1230,7 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
         throw new Error(err.message || "Error moving character");
       }
     }
-  }, [embeddedContract, embeddedWallet]);
+  }, [embeddedContract, embeddedWallet, highestSeenBlock, readContract]);
 
   // Implement replenishGasBalance function
   const replenishGasBalance = useCallback(async (amount?: string) => {
@@ -1235,6 +1322,39 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
     } catch (err: any) {
       console.error("[sendChatMessage] Error:", err);
       
+      // Check for expired session key
+      try {
+        if (readContract && characterId) {
+          // Directly get session key data from the contract
+          const sessionKeyData = await readContract.getCurrentSessionKey(characterId);
+          
+          // Parse the session key data
+          let sessionKey = null;
+          if (Array.isArray(sessionKeyData)) {
+            sessionKey = {
+              key: sessionKeyData[0],
+              expiration: Number(sessionKeyData[1])
+            };
+          } else if (sessionKeyData && typeof sessionKeyData === 'object') {
+            sessionKey = {
+              key: sessionKeyData.key,
+              expiration: Number(sessionKeyData.expiration)
+            };
+          }
+          
+          // Check if session key is expired
+          if (sessionKey && sessionKey.expiration < highestSeenBlock) {
+            console.error("[sendChatMessage] SESSION KEY EXPIRED! Transaction failed because the session key expired. Please update your session key.", {
+              sessionKeyExpiration: sessionKey.expiration,
+              currentBlock: highestSeenBlock
+            });
+            throw new Error('Your session key has expired. Please update your session key to continue playing.');
+          }
+        }
+      } catch (sessionKeyErr) {
+        console.warn("[sendChatMessage] Failed to check session key expiration:", sessionKeyErr);
+      }
+      
       // Handle transaction errors more specifically
       const errorMessage = err.message || "Unknown error";
       
@@ -1268,7 +1388,7 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
         throw new Error(`Error sending chat message: ${errorMessage}`);
       }
     }
-  }, [embeddedContract, embeddedWallet, characterId]);
+  }, [embeddedContract, embeddedWallet, characterId, readContract, highestSeenBlock]);
 
   // Function to reset the block tracking for fetching historical data
   const resetBlockTracking = useCallback((blocksToGoBack = 20) => {
@@ -1280,6 +1400,84 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
       setHighestSeenBlock(newBlockNum);
     }
   }, [lastFetchedBlock]);
+
+  // Add getCurrentSessionKey function that uses the contract
+  const getCurrentSessionKey = async (characterId: string): Promise<{ key: string; expiration: number } | null> => {
+    try {
+      console.log(`[getCurrentSessionKey] Fetching session key for character: ${characterId}`);
+      
+      if (!characterId) {
+        throw new Error('No character ID provided');
+      }
+      
+      if (!readContract) {
+        throw new Error('Contract not available for reading');
+      }
+      
+      // Call the contract function
+      const sessionKeyData = await readContract.getCurrentSessionKey(characterId);
+      
+      // Handle different response formats
+      let sessionKey: { key: string; expiration: number } | null = null;
+      
+      if (Array.isArray(sessionKeyData)) {
+        // Handle array response [key, expiration]
+        sessionKey = {
+          key: sessionKeyData[0],
+          expiration: Number(sessionKeyData[1])
+        };
+      } else if (sessionKeyData && typeof sessionKeyData === 'object') {
+        // Handle object response {key, expiration}
+        sessionKey = {
+          key: sessionKeyData.key,
+          expiration: Number(sessionKeyData.expiration)
+        };
+      }
+      
+      if (sessionKey && typeof sessionKey.key === 'string') {
+        console.log(`[getCurrentSessionKey] Current session key: ${sessionKey.key}, expires at block: ${sessionKey.expiration}`);
+        
+        // Check if session key is expired
+        if (highestSeenBlock && sessionKey.expiration < highestSeenBlock) {
+          console.warn(`[getCurrentSessionKey] SESSION KEY EXPIRED! Expiration block: ${sessionKey.expiration}, Current block: ${highestSeenBlock}`);
+          
+          // Dispatch the sessionKeyUpdateNeeded event
+          const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
+            detail: { 
+              characterId,
+              owner: injectedWallet?.address,
+              currentSessionKey: sessionKey.key,
+              embeddedWalletAddress: embeddedWallet?.address,
+              reason: 'expired' // Add reason so UI can show appropriate message
+            }
+          });
+          
+          window.dispatchEvent(sessionKeyUpdateEvent);
+        }
+        
+        return sessionKey;
+      }
+      
+      console.log('[getCurrentSessionKey] No valid session key found');
+      return null;
+    } catch (err) {
+      console.error("[getCurrentSessionKey] Error:", err);
+      return null;
+    }
+  };
+  
+  // Add helper function to check if the session key is expired
+  const isSessionKeyExpired = async (characterId: string): Promise<boolean> => {
+    try {
+      const sessionKey = await getCurrentSessionKey(characterId);
+      if (!sessionKey) return true; // Consider null session key as expired
+      
+      return highestSeenBlock > 0 && sessionKey.expiration < highestSeenBlock;
+    } catch (err) {
+      console.error("[isSessionKeyExpired] Error:", err);
+      return true; // Consider error as expired to be safe
+    }
+  };
 
   // Return all the functions and state that components need
   return {
@@ -1373,7 +1571,8 @@ export const useGameActions = () => {
   const { 
     moveCharacter, 
     sendChatMessage: battleNadsSendChatMessage,
-    characterId 
+    characterId,
+    highestSeenBlock 
   } = useBattleNads();
   const { 
     injectedWallet, 
@@ -1477,7 +1676,7 @@ export const useGameActions = () => {
   };
   
   // Add getCurrentSessionKey function that uses the contract
-  const getCurrentSessionKey = async (characterId: string): Promise<string | null> => {
+  const getCurrentSessionKey = async (characterId: string): Promise<{ key: string; expiration: number } | null> => {
     try {
       console.log(`[getCurrentSessionKey] Fetching session key for character: ${characterId}`);
       
@@ -1493,18 +1692,43 @@ export const useGameActions = () => {
       const sessionKeyData = await readContract.getCurrentSessionKey(characterId);
       
       // Handle different response formats
-      let sessionKey: string | null = null;
+      let sessionKey: { key: string; expiration: number } | null = null;
       
       if (Array.isArray(sessionKeyData)) {
         // Handle array response [key, expiration]
-        sessionKey = sessionKeyData[0];
+        sessionKey = {
+          key: sessionKeyData[0],
+          expiration: Number(sessionKeyData[1])
+        };
       } else if (sessionKeyData && typeof sessionKeyData === 'object') {
         // Handle object response {key, expiration}
-        sessionKey = sessionKeyData.key;
+        sessionKey = {
+          key: sessionKeyData.key,
+          expiration: Number(sessionKeyData.expiration)
+        };
       }
       
-      if (sessionKey && typeof sessionKey === 'string') {
-        console.log(`[getCurrentSessionKey] Current session key: ${sessionKey}`);
+      if (sessionKey && typeof sessionKey.key === 'string') {
+        console.log(`[getCurrentSessionKey] Current session key: ${sessionKey.key}, expires at block: ${sessionKey.expiration}`);
+        
+        // Check if session key is expired
+        if (highestSeenBlock && sessionKey.expiration < highestSeenBlock) {
+          console.warn(`[getCurrentSessionKey] SESSION KEY EXPIRED! Expiration block: ${sessionKey.expiration}, Current block: ${highestSeenBlock}`);
+          
+          // Dispatch the sessionKeyUpdateNeeded event
+          const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
+            detail: { 
+              characterId,
+              owner: injectedWallet?.address,
+              currentSessionKey: sessionKey.key,
+              embeddedWalletAddress: embeddedWallet?.address,
+              reason: 'expired' // Add reason so UI can show appropriate message
+            }
+          });
+          
+          window.dispatchEvent(sessionKeyUpdateEvent);
+        }
+        
         return sessionKey;
       }
       
@@ -1516,10 +1740,24 @@ export const useGameActions = () => {
     }
   };
   
+  // Add helper function to check if the session key is expired
+  const isSessionKeyExpired = async (characterId: string): Promise<boolean> => {
+    try {
+      const sessionKey = await getCurrentSessionKey(characterId);
+      if (!sessionKey) return true; // Consider null session key as expired
+      
+      return highestSeenBlock > 0 && sessionKey.expiration < highestSeenBlock;
+    } catch (err) {
+      console.error("[isSessionKeyExpired] Error:", err);
+      return true; // Consider error as expired to be safe
+    }
+  };
+  
   return {
     moveCharacter,
     sendChatMessage,
     updateSessionKey,
-    getCurrentSessionKey
+    getCurrentSessionKey,
+    isSessionKeyExpired
   };
 }; 

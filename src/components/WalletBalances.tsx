@@ -49,10 +49,26 @@ const WalletBalances: React.FC = memo(() => {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [balanceShortfall, setBalanceShortfall] = useState<bigint | null>(null);
   
+  // Use ref to maintain lastUpdated across renders
+  const lastUpdatedRef = useRef<Date | null>(null);
+  
   const toast = useToast();
 
   // Track if we've already processed the current gameData to prevent duplicate processing
   const lastProcessedGameDataRef = useRef<string | null>(null);
+
+  // Listen for session key update events for debugging
+  useEffect(() => {
+    const handleSessionKeyUpdateNeeded = (event: CustomEvent) => {
+      console.log(`[WalletBalances ${instanceId.current}] Received sessionKeyUpdateNeeded event:`, event.detail);
+    };
+    
+    window.addEventListener('sessionKeyUpdateNeeded', handleSessionKeyUpdateNeeded as EventListener);
+    
+    return () => {
+      window.removeEventListener('sessionKeyUpdateNeeded', handleSessionKeyUpdateNeeded as EventListener);
+    };
+  }, [instanceId]);
 
   // Register this component instance in the mount effect
   useEffect(() => {
@@ -287,8 +303,9 @@ const WalletBalances: React.FC = memo(() => {
         setBalanceShortfall(gameData.balanceShortfall > 0 ? gameData.balanceShortfall : null);
       }
       
-      // Update last updated time
+      // Update last updated time - store in both state and ref
       if (dataLastUpdated) {
+        lastUpdatedRef.current = dataLastUpdated;
         setLastUpdated(dataLastUpdated);
       }
       
@@ -320,13 +337,16 @@ const WalletBalances: React.FC = memo(() => {
         setBalanceShortfall(walletBalances.balanceShortfall > 0 ? walletBalances.balanceShortfall : null);
       }
       
+      // Update last updated time - store in both state and ref
       if (!lastUpdated) {
-        setLastUpdated(new Date());
+        const newDate = new Date();
+        lastUpdatedRef.current = newDate;
+        setLastUpdated(newDate);
       }
       
       setIsLoading(false);
     }
-  }, [walletBalances, gameData]);
+  }, [walletBalances, gameData, lastUpdated]);
 
   if (isLoading) {
     return (

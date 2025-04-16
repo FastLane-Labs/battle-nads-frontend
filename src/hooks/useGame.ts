@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useWallet } from '../providers/WalletProvider';
-import { useBattleNads } from './useBattleNads';
+import { useBattleNads, useGameActions } from './useBattleNads';
 import { useSetRecoilState, useRecoilValue } from 'recoil';
 import { gameStateAtom } from '../state/gameState';
 import { parseFrontendData, createGameState } from '../utils/gameDataConverters';
@@ -19,11 +19,16 @@ export const useGame = () => {
     characterId: battleNadsCharacterId, 
     getFullFrontendData,
     moveCharacter: contractMoveCharacter,
+    highestSeenBlock,
+    getCurrentBlockNumber
   } = useBattleNads();
   
   // Use Recoil for global state management - MUST be at the top level
   const setGameState = useSetRecoilState(gameStateAtom);
   const gameState = useRecoilValue(gameStateAtom);
+  
+  // Get the game actions for session key operations
+  const { getCurrentSessionKey } = useGameActions();
   
   // Local state for initialization and session key validation
   const [status, setStatus] = useState<string>('checking');
@@ -39,6 +44,9 @@ export const useGame = () => {
   // Store embedded wallet address to keep it stable during state transitions
   const embeddedWalletRef = useRef<string | null>(null);
   
+  // Add a ref to keep track of the highest seen block
+  const highestSeenBlockRef = useRef<number>(0);
+  
   // Update embedded wallet reference when it changes
   useEffect(() => {
     if (embeddedWallet?.address && !embeddedWalletRef.current) {
@@ -46,6 +54,14 @@ export const useGame = () => {
       embeddedWalletRef.current = embeddedWallet.address;
     }
   }, [embeddedWallet]);
+  
+  // Update highestSeenBlockRef when highestSeenBlock changes
+  useEffect(() => {
+    if (highestSeenBlock && highestSeenBlock > highestSeenBlockRef.current) {
+      console.log(`Updating highestSeenBlockRef from ${highestSeenBlockRef.current} to ${highestSeenBlock}`);
+      highestSeenBlockRef.current = highestSeenBlock;
+    }
+  }, [highestSeenBlock]);
   
   // Reset transaction flags
   const resetTransactionFlags = useCallback(() => {
@@ -232,12 +248,9 @@ export const useGame = () => {
     }
   }, [battleNadsCharacterId, getPlayerCharacterID, injectedWallet, address]);
   
-  // Function to check session key
+  // Function to check session key health and fix if needed
   const checkSessionKey = useCallback(async (charId: string) => {
     try {
-      // Clear previous warnings
-      setSessionKeyWarning(null);
-      
       // Skip if a transaction has already been sent
       if (transactionSentRef.current) {
         console.log("Transaction already sent, skipping session key check");
@@ -254,18 +267,40 @@ export const useGame = () => {
         console.log("Character ID is zero/null, skipping session key check");
         return true; // Continue with game initialization without warning
       }
-      
-      // Get session key from game data
-      const gameData = await getFullFrontendData();
-      
-      if (!gameData || !gameData.sessionKey) {
-        console.error("Failed to retrieve current session key");
-        setSessionKeyWarning("Unable to verify session key. Some game actions may fail.");
-        return true; // Continue with game initialization despite warning
+
+      // Get the full session key data including expiration
+      // First try to use the useBattleNads hook's getCurrentSessionKey function
+      let sessionKeyData;
+      try {
+        if (getCurrentSessionKey) {
+          sessionKeyData = await getCurrentSessionKey(charId);
+          console.log("Got session key data from getCurrentSessionKey:", sessionKeyData);
+        }
+      } catch (err) {
+        console.warn("Failed to get session key data directly, will use gameData as fallback:", err);
       }
       
-      const currentSessionKey = gameData.sessionKey;
-      console.log("Current session key:", currentSessionKey);
+      // Fallback: If we couldn't get the full session key data or it doesn't have an expiration,
+      // use the game data to get the address part
+      let sessionKeyAddress = sessionKeyData?.key;
+      let sessionKeyExpiration = sessionKeyData?.expiration;
+      
+      if (!sessionKeyAddress) {
+        // Get session key from game data
+        const gameData = await getFullFrontendData();
+        
+        if (!gameData || !gameData.sessionKey) {
+          console.error("Failed to retrieve current session key");
+          setSessionKeyWarning("Unable to verify session key. Some game actions may fail.");
+          return true; // Continue with game initialization despite warning
+        }
+        
+        sessionKeyAddress = gameData.sessionKey;
+        console.log("Current session key address (from gameData):", sessionKeyAddress);
+      } else {
+        console.log("Current session key address (from direct call):", sessionKeyAddress);
+        console.log("Session key expiration block:", sessionKeyExpiration);
+      }
       
       // Use either the current embedded wallet address or the stored reference
       const embeddedAddress = embeddedWallet?.address || embeddedWalletRef.current;
@@ -281,7 +316,7 @@ export const useGame = () => {
       }
       
       // Check if session key is zero address
-      if (currentSessionKey === "0x0000000000000000000000000000000000000000") {
+      if (sessionKeyAddress === "0x0000000000000000000000000000000000000000") {
         console.log("Session key is zero address but we have an embedded wallet to use");
         
         // Set a warning that session key needs to be updated from zero address
@@ -292,13 +327,111 @@ export const useGame = () => {
         return true; // Continue with game initialization but with the warning
       }
       
+      // Check for session key expiration
+      if (sessionKeyExpiration) {
+        // Use the ref value for highestSeenBlock
+        console.log(`Current highestSeenBlockRef value: ${highestSeenBlockRef.current || 'undefined'}`);
+        
+        // Use highestSeenBlockRef if available, or try to get the current block as fallback
+        let currentBlock = highestSeenBlockRef.current;
+        
+        // If highestSeenBlockRef is 0 or undefined, try to get current block via other means
+        if (!currentBlock || currentBlock === 0) {
+          try {
+            console.log("highestSeenBlockRef not available, trying to get current block from chain data");
+            const gameData = await getFullFrontendData();
+            if (gameData && gameData.lastFetchedBlock) {
+              currentBlock = gameData.lastFetchedBlock;
+              console.log(`Got current block from chain data: ${currentBlock}`);
+            }
+            
+            // If still no block, use getCurrentBlockNumber as last resort
+            if (!currentBlock || currentBlock === 0) {
+              currentBlock = await getCurrentBlockNumber();
+              console.log(`Got current block from getCurrentBlockNumber: ${currentBlock}`);
+              
+              // Update the ref with this value
+              if (currentBlock > 0) {
+                highestSeenBlockRef.current = currentBlock;
+              }
+            }
+          } catch (err) {
+            console.warn("Failed to get current block from chain data:", err);
+          }
+        }
+        
+        // Force checking the expiration if we have any block number
+        if (currentBlock) {
+          console.log(`Checking session key expiration: ${sessionKeyExpiration} vs current block ${currentBlock}`);
+          
+          if (sessionKeyExpiration < currentBlock) {
+            console.log("SESSION KEY EXPIRED! Expiration block is lower than current block");
+            
+            // Set a warning that session key has expired
+            const warningMessage = `Your session key has expired at block ${sessionKeyExpiration} (current block: ${currentBlock}). Game actions will fail until you update your session key.`;
+            console.log("Setting session key warning:", warningMessage);
+            setSessionKeyWarning(warningMessage);
+            
+            // Dispatch an event to trigger the update session key dialog
+            const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
+              detail: { 
+                characterId: charId,
+                owner: address,
+                currentSessionKey: sessionKeyAddress,
+                embeddedWalletAddress: embeddedAddress,
+                reason: 'expired',
+                expirationBlock: sessionKeyExpiration,
+                currentBlock: currentBlock
+              }
+            });
+            window.dispatchEvent(sessionKeyUpdateEvent);
+            
+            // Set the status to explicitly indicate warning
+            setStatus('session-key-warning');
+            
+            // Return true to continue with initialization but with the warning
+            return true;
+          }
+        } else {
+          // If we still don't have a current block, assume expired as a safety measure
+          console.warn("Could not get current block to check expiration - assuming expired for safety");
+          
+          // Set a warning that session key expiration couldn't be verified
+          const warningMessage = `Your session key expiration couldn't be verified (expiration block: ${sessionKeyExpiration}). Game actions may fail.`;
+          console.log("Setting session key warning:", warningMessage);
+          setSessionKeyWarning(warningMessage);
+          
+          // Dispatch an event to trigger the update session key dialog
+          const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
+            detail: { 
+              characterId: charId,
+              owner: address,
+              currentSessionKey: sessionKeyAddress,
+              embeddedWalletAddress: embeddedAddress,
+              reason: 'unknown',
+              expirationBlock: sessionKeyExpiration,
+              currentBlock: 0
+            }
+          });
+          window.dispatchEvent(sessionKeyUpdateEvent);
+          
+          // Set the status to explicitly indicate warning
+          setStatus('session-key-warning');
+          
+          // Return true to continue with initialization but with the warning
+          return true;
+        }
+      } else {
+        console.warn("Session key expiration data not available - cannot verify if expired");
+      }
+      
       // Check if current session key matches the embedded wallet
-      const sessionKeyMatches = currentSessionKey.toLowerCase() === embeddedAddress.toLowerCase();
+      const sessionKeyMatches = sessionKeyAddress?.toLowerCase() === embeddedAddress.toLowerCase();
       console.log("Session key matches embedded wallet:", sessionKeyMatches);
       
       if (!sessionKeyMatches) {
         console.log("Session key mismatch. Needs update.");
-        console.log("Current session key:", currentSessionKey);
+        console.log("Current session key:", sessionKeyAddress || "Not available");
         console.log("Embedded wallet address:", embeddedAddress);
         
         // Set a warning that session keys don't match
@@ -326,7 +459,7 @@ export const useGame = () => {
     } finally {
       console.log("=== SESSION KEY CHECK COMPLETED ===");
     }
-  }, [embeddedWallet, embeddedWalletRef, getFullFrontendData]);
+  }, [embeddedWallet, embeddedWalletRef, getFullFrontendData, highestSeenBlockRef, getCurrentBlockNumber, address, getCurrentSessionKey]);
   
   // Function to reset session key warning
   const resetSessionKeyWarning = useCallback(() => {
@@ -421,16 +554,20 @@ export const useGame = () => {
       
       // Step 4: Check session key - but don't try to update it even if it's invalid
       setStatus('checking-session-key');
-      await checkSessionKey(charId);
+      const sessionKeyCheckResult = await checkSessionKey(charId);
       
       // Step 5: Load game data
       setStatus('loading-game-data');
       await loadGameState(charId);
       
-      // All necessary checks completed - update status to ready
-      // Use a state update callback to ensure the status is updated
-      // before returning from this function
-      setStatus('ready');
+      // All necessary checks completed - update status based on session key warning
+      if (sessionKeyWarning) {
+        console.log("Session key warning exists, setting status to session-key-warning");
+        setStatus('session-key-warning');
+      } else {
+        console.log("No session key warning, setting status to ready");
+        setStatus('ready');
+      }
       
       // Give a small delay to ensure state updates propagate
       await new Promise(resolve => setTimeout(resolve, 100));
@@ -551,6 +688,30 @@ export const useGame = () => {
   const hasAllRequiredWallets = useCallback(() => {
     return !!(injectedWallet?.address && (embeddedWallet?.address || embeddedWalletRef.current));
   }, [injectedWallet, embeddedWallet]);
+  
+  // Add effect to listen for forceSessionKeyWarning events
+  useEffect(() => {
+    const handleForceSessionKeyWarning = (event: CustomEvent) => {
+      if (event.detail && event.detail.warning) {
+        console.log(`[useGame] Received forceSessionKeyWarning event with warning: ${event.detail.warning}`);
+        setSessionKeyWarning(event.detail.warning);
+      }
+    };
+
+    window.addEventListener('forceSessionKeyWarning', handleForceSessionKeyWarning as EventListener);
+    
+    return () => {
+      window.removeEventListener('forceSessionKeyWarning', handleForceSessionKeyWarning as EventListener);
+    };
+  }, []);
+  
+  // Debug log to check if we're getting highestSeenBlock
+  useEffect(() => {
+    console.log(`[useGame] Received highestSeenBlock from useBattleNads: ${highestSeenBlock || 'undefined'}`);
+    if (highestSeenBlock > 0) {
+      highestSeenBlockRef.current = highestSeenBlock;
+    }
+  }, [highestSeenBlock]);
   
   return {
     // Game status
