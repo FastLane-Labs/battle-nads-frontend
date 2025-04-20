@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import * as ethers from 'ethers';
 import { useWallet } from '../providers/WalletProvider';
 import { useContracts } from './useContracts';
+import { useEmbeddedContract } from './useEmbeddedContract';
 import { getCharacterLocalStorageKey, isValidCharacterId } from '../utils/getCharacterLocalStorageKey';
 
 /**
@@ -127,7 +128,7 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
   // Generate a unique instance ID for tracking this hook instance
   const instanceIdRef = useRef<string>(`useBattleNads-${Math.random().toString(36).substring(2, 9)}`);
 
-  const { injectedWallet, embeddedWallet } = useWallet();
+  const { injectedWallet, embeddedWallet, sendPrivyTransaction } = useWallet();
   const { readContract, injectedContract, embeddedContract, error: contractError } = useContracts();
 
   // Keep minimal state for the hook itself
@@ -144,6 +145,7 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [lastFetchedBlock, setLastFetchedBlock] = useState<number>(0);
   const [highestSeenBlock, setHighestSeenBlock] = useState<number>(0);
+  const { moveNorth, moveSouth, moveEast, moveWest, moveUp, moveDown, zoneChat, attack, equipWeapon, equipArmor, allocatePoints } = useEmbeddedContract();
   
   // Add a ref to track the current highest seen block to prevent closure issues
   const highestSeenBlockRef = useRef<number>(0);
@@ -1135,34 +1137,25 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
         throw new Error('Session key wallet not available or not properly set up. Please reload the page and try again.');
       }
       
-      if (!embeddedContract) {
-        throw new Error('Session key wallet not available. Please connect your wallet and try again.');
-      }
-      
-      // Create transaction options
-      const txOptions = { 
-        gasLimit: MOVEMENT_GAS_LIMIT
-      };
-      
       let tx;
       switch (direction.toLowerCase()) {
         case 'north':
-          tx = await embeddedContract.moveNorth(characterId, txOptions);
+          tx = await moveNorth(characterId);
           break;
         case 'south':
-          tx = await embeddedContract.moveSouth(characterId, txOptions);
+          tx = await moveSouth(characterId);
           break;
         case 'east':
-          tx = await embeddedContract.moveEast(characterId, txOptions);
+          tx = await moveEast(characterId);
           break;
         case 'west':
-          tx = await embeddedContract.moveWest(characterId, txOptions);
+          tx = await moveWest(characterId);
           break;
         case 'up':
-          tx = await embeddedContract.moveUp(characterId, txOptions);
+          tx = await moveUp(characterId);
           break;
         case 'down':
-          tx = await embeddedContract.moveDown(characterId, txOptions);
+          tx = await moveDown(characterId);
           break;
         default:
           throw new Error(`Invalid direction: ${direction}`);
@@ -1232,6 +1225,8 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
     }
   }, [embeddedContract, embeddedWallet, highestSeenBlock, readContract]);
 
+
+
   // Implement replenishGasBalance function
   const replenishGasBalance = useCallback(async (amount?: string) => {
     try {
@@ -1280,6 +1275,149 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
     }
   }, [injectedContract, injectedWallet]);
 
+  const changeAttackTarget = useCallback(async (characterId: string, targetIndex: number) => {
+    let tx: ethers.TransactionResponse | undefined;
+    try {
+      console.log(`[changeAttackTarget] Changing attack target for character ${characterId} to target index ${targetIndex}`);
+      
+      if (!embeddedWallet?.signer || !embeddedWallet?.address) {
+        throw new Error('Session key wallet not available or not properly set up. Please reload the page and try again.');
+      }
+      
+      if (!characterId) {
+        throw new Error('No character ID available. Please reload the page and try again.');
+      }
+      
+      tx = await attack(characterId, targetIndex);
+      console.log(`[changeAttackTarget] Transaction sent: ${tx.hash}`);
+
+    } catch (err: any) {
+      console.error("[changeAttackTarget] Error:", err);
+    }
+
+    if (tx) {
+      try {
+        const receipt = await tx.wait();
+        if (receipt) {
+          console.log(`[changeAttackTarget] Transaction completed: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+          return receipt;
+        } else {
+          throw new Error('No receipt returned from transaction');
+        }
+      } catch (receiptErr) {
+        console.error('[changeAttackTarget] Error getting transaction receipt:', receiptErr);
+        throw new Error(`[changeAttackTarget] Error occurred while waiting for confirmation: ${receiptErr instanceof Error ? receiptErr.message : String(receiptErr)}`);
+      }
+    }
+  }, [attack, embeddedWallet]);
+
+  const changeEquippedWeapon = useCallback(async (characterId: string, weaponId: number) => {
+    let tx: ethers.TransactionResponse | undefined;
+    try {
+      console.log(`[equipWeapon] Equipping weapon ${weaponId} for character ${characterId}`);
+      
+      if (!embeddedWallet?.signer || !embeddedWallet?.address) {
+        throw new Error('Session key wallet not available or not properly set up. Please reload the page and try again.');
+      }
+      
+      if (!characterId) {
+        throw new Error('No character ID available. Please reload the page and try again.');
+      }
+      
+      tx = await equipWeapon(characterId, weaponId);
+      console.log(`[equipWeapon] Transaction sent: ${tx.hash}`);
+
+    } catch (err: any) {
+      console.error("[equipWeapon] Error:", err);
+    }
+
+    if (tx) {
+      try {
+        const receipt = await tx.wait();
+        if (receipt) {
+          console.log(`[equipWeapon] Transaction completed: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+          return receipt;
+        } else {
+          throw new Error('No receipt returned from transaction');
+        }
+      } catch (receiptErr) {
+        console.error('[equipWeapon] Error getting transaction receipt:', receiptErr);
+        throw new Error(`[equipWeapon] Error occurred while waiting for confirmation: ${receiptErr instanceof Error ? receiptErr.message : String(receiptErr)}`);
+      }
+    }
+  }, [equipWeapon, embeddedWallet]);
+
+  const changeEquippedArmor = useCallback(async (characterId: string, armorId: number) => {
+    let tx: ethers.TransactionResponse | undefined;
+    try {
+      console.log(`[equipArmor] Equipping armor ${armorId} for character ${characterId}`);
+      
+      if (!embeddedWallet?.signer || !embeddedWallet?.address) {
+        throw new Error('Session key wallet not available or not properly set up. Please reload the page and try again.');
+      }
+      
+      if (!characterId) {
+        throw new Error('No character ID available. Please reload the page and try again.');
+      }
+      
+      tx = await equipArmor(characterId, armorId);
+      console.log(`[equipArmor] Transaction sent: ${tx.hash}`);
+
+    } catch (err: any) {
+      console.error("[equipArmor] Error:", err);
+    }
+
+    if (tx) {
+      try {
+        const receipt = await tx.wait();
+        if (receipt) {
+          console.log(`[equipArmor] Transaction completed: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+          return receipt;
+        } else {
+          throw new Error('No receipt returned from transaction');
+        }
+      } catch (receiptErr) {
+        console.error('[equipArmor] Error getting transaction receipt:', receiptErr);
+        throw new Error(`[equipArmor] Error occurred while waiting for confirmation: ${receiptErr instanceof Error ? receiptErr.message : String(receiptErr)}`);
+      }
+    }
+  }, [equipArmor, embeddedWallet]);
+
+  const assignNewPoints = useCallback(async (characterId: string, strength: bigint, vitality: bigint, dexterity: bigint, quickness: bigint, sturdiness: bigint, luck: bigint) => {
+    let tx: ethers.TransactionResponse | undefined;
+    try {
+      console.log(`[allocatePoints] Allocating points for character ${characterId}`);
+      
+      if (!embeddedWallet?.signer || !embeddedWallet?.address) {
+        throw new Error('Session key wallet not available or not properly set up. Please reload the page and try again.');
+      }
+      
+      if (!characterId) {
+        throw new Error('No character ID available. Please reload the page and try again.');
+      }   
+
+      tx = await allocatePoints(characterId, strength, vitality, dexterity, quickness, sturdiness, luck);
+      console.log(`[allocatePoints] Transaction sent: ${tx.hash}`);
+
+    } catch (err: any) {
+      console.error("[allocatePoints] Error:", err);
+    }
+
+    if (tx) {
+      try {
+        const receipt = await tx.wait();
+        if (receipt) {
+          console.log(`[allocatePoints] Transaction completed: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
+        } else {
+          throw new Error('No receipt returned from transaction');
+        }
+      } catch (receiptErr) {
+        console.error('[allocatePoints] Error getting transaction receipt:', receiptErr);
+        throw new Error(`[allocatePoints] Error occurred while waiting for confirmation: ${receiptErr instanceof Error ? receiptErr.message : String(receiptErr)}`);
+      }
+    }
+  }, [allocatePoints, embeddedWallet]);
+
   // Implement sendChatMessage function
   const sendChatMessage = useCallback(async (message: string) => {
     try {
@@ -1289,24 +1427,14 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
         throw new Error('Session key wallet not available or not properly set up. Please reload the page and try again.');
       }
       
-      if (!embeddedContract) {
-        throw new Error('Contract not available. Please connect your wallet and try again.');
-      }
-      
       if (!characterId) {
         throw new Error('No character ID available. Please reload the page and try again.');
       }
       
-      // Create transaction options with a higher gas limit for chat
-      const txOptions = { 
-        gasLimit: MIN_EXECUTION_GAS // Standard gas limit for chat
-      };
-      
-      console.log(`[sendChatMessage] Sending with character ID: ${characterId}, message: "${message}", gas limit: ${txOptions.gasLimit}`);
-      
       // Call the zoneChat method - this is the actual method name in the contract
       console.log(`[sendChatMessage] Executing contract call...`);
-      const tx = await embeddedContract.zoneChat(characterId, message, txOptions);
+      
+      const tx = await zoneChat(characterId, message);
       console.log(`[sendChatMessage] Transaction sent: ${tx.hash}`);
       
       // Wait for transaction to be mined
@@ -1499,6 +1627,10 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
     moveCharacter,
     replenishGasBalance,
     sendChatMessage,
+    changeAttackTarget,
+    changeEquippedWeapon,
+    changeEquippedArmor,
+    assignNewPoints,
     resetBlockTracking,
     getCurrentBlockNumber
   };

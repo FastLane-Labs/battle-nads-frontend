@@ -4,13 +4,6 @@ import { useGameData } from '../../providers/GameDataProvider';
 import ChatInterface from './ChatInterface';
 import EventFeed from './EventFeed';
 
-// Replace tracking array with singleton object
-const ACTIVE_DATAFEED = {
-  instance: null as string | null,
-  timestamp: null as string | null,
-  isMounted: false
-};
-
 interface DataFeedProps {
   characterId: string;
   owner?: string;
@@ -19,16 +12,13 @@ interface DataFeedProps {
 
 // Use React.memo to prevent unnecessary re-renders
 const DataFeed = memo(function DataFeed({ characterId, owner, sendChatMessage }: DataFeedProps) {
-  // Generate unique instance ID for this component
+  // Generate unique instance ID for this component - only for debugging
   const instanceId = useRef<string>(`DataFeed-${Math.random().toString(36).substring(2, 9)}`);
   
-  // Track render count
+  // Track render count for debugging
   const renderCount = useRef<number>(0);
   
-  // Track if we should render - initialized to false
-  const [shouldRender, setShouldRender] = useState<boolean>(false);
-  
-  // Use game data context for access to shared state - always call this hook
+  // Use game data context for access to shared state
   const { isLoading, processedChatMessages, processedEventLogs } = useGameData();
   
   // Debug log to check if chat messages are being received
@@ -40,7 +30,7 @@ const DataFeed = memo(function DataFeed({ characterId, owner, sendChatMessage }:
     }
   }, [processedChatMessages]);
   
-  // Memoize the send message handler to avoid recreating it on each render - always call this hook
+  // Memoize the send message handler to avoid recreating it on each render
   const handleSendMessage = useMemo(() => {
     return (message: string) => {
       if (message.trim()) {
@@ -51,50 +41,20 @@ const DataFeed = memo(function DataFeed({ characterId, owner, sendChatMessage }:
     };
   }, [sendChatMessage, instanceId]);
   
-  // Register/unregister singleton instance - always call this hook last
+  // Log component lifecycle for debugging
   useEffect(() => {
-    renderCount.current = 0;
     const timestamp = new Date().toISOString();
-    
-    // Check if an instance is already active
-    if (!ACTIVE_DATAFEED.isMounted) {
-      // Claim the singleton spot
-      ACTIVE_DATAFEED.instance = instanceId.current;
-      ACTIVE_DATAFEED.timestamp = timestamp;
-      ACTIVE_DATAFEED.isMounted = true;
-      
-      // Use setTimeout to avoid state updates during render
-      setTimeout(() => {
-        setShouldRender(true);
-      }, 0);
-      
-      console.log(`[DATAFEED-DEBUG ${timestamp}] DataFeed singleton instance ${instanceId.current} created with characterId=${characterId}`);
-      
-      // Log the component stack that created this instance to help trace parent components
-      console.log(`[DATAFEED-DEBUG ${timestamp}] DataFeed ${instanceId.current} - Created from:`, 
-        new Error('Component stack trace').stack);
-    } else {
-      // Another instance is already active
-      console.log(`[DATAFEED-DEBUG ${timestamp}] DataFeed instance ${instanceId.current} not rendered - singleton already exists: ${ACTIVE_DATAFEED.instance}`);
-    }
+    console.log(`[DATAFEED-DEBUG ${timestamp}] DataFeed instance ${instanceId.current} created with characterId=${characterId}`);
     
     return () => {
-      // Only clean up if this is the active instance
-      if (ACTIVE_DATAFEED.instance === instanceId.current) {
-        const cleanupTime = new Date().toISOString();
-        console.log(`[DATAFEED-DEBUG ${cleanupTime}] DataFeed singleton instance ${instanceId.current} destroyed`);
-        
-        // Release the singleton spot
-        ACTIVE_DATAFEED.instance = null;
-        ACTIVE_DATAFEED.timestamp = null;
-        ACTIVE_DATAFEED.isMounted = false;
-      }
+      const cleanupTime = new Date().toISOString();
+      console.log(`[DATAFEED-DEBUG ${cleanupTime}] DataFeed instance ${instanceId.current} destroyed`);
     };
   }, [characterId]);
   
-  // Skip rendering if this isn't the active instance
-  if (!shouldRender) {
-    return null;
+  // Skip rendering if no characterId is provided
+  if (!characterId) {
+    return <Box p={4}>No character selected</Box>;
   }
   
   // Track each render - but only log occasionally to reduce noise

@@ -51,6 +51,7 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
     console.warn("Using fallback Privy App ID - preferably set NEXT_PUBLIC_PRIVY_APP_ID in your environment variables.");
   }
   
+  /*
   // Create a fake token price API endpoint by overriding fetch
   React.useEffect(() => {
     // Store the original fetch
@@ -84,6 +85,7 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
       window.fetch = originalFetch;
     };
   }, []);
+  */
   
   // Comprehensive configuration to bypass transaction approvals
   const privyConfig: any = {
@@ -112,16 +114,6 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
           token: "MON"
         }
       }
-    },
-    // These are unofficial properties used to bypass transaction confirmation
-    // May only work with specific Privy versions - check compatibility
-    autoApprove: true,
-    autoApproveSignature: true,
-    autoApproveTransactions: true,
-    embeddedWalletOptions: {
-      noPromptForSignatures: true, 
-      autoApproveAllTransactions: true,
-      skipFundingWalletCreation: false
     },
     // Mock token prices to help Privy
     _tokenPrices: {

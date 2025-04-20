@@ -4,6 +4,7 @@ import { BattleNad } from '../types/gameTypes';
 import { useGameData } from '../providers/GameDataProvider';
 import { useContracts } from '../hooks/useContracts';
 import { calculateMaxHealth } from '../utils/gameDataConverters';
+import { useBattleNads } from '../hooks/useBattleNads';
 
 // Character component for displaying BattleNad information
 interface CharacterCardProps {
@@ -40,8 +41,8 @@ const formatGold = (value: number | bigint | undefined): string => {
 export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
   // Use GameDataProvider for access to equipable items and gameData
   const { gameData } = useGameData();
-  // Use contracts for equipment change functionality
-  const { embeddedContract } = useContracts();
+
+  const { changeEquippedWeapon, changeEquippedArmor } = useBattleNads();
 
   // Add local state for character stats that can be updated by events
   const [currentStats, setCurrentStats] = useState<BattleNad['stats'] | undefined>(character?.stats);
@@ -219,8 +220,8 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
                     size="xs" 
                     width="auto" 
                     onChange={(e) => {
-                      if (embeddedContract && character.id) {
-                        embeddedContract.equipWeapon(character.id, Number(e.target.value));
+                      if (character.id) {
+                        changeEquippedWeapon(character.id, Number(e.target.value));
                       }
                     }}
                     placeholder="Change"
@@ -245,8 +246,8 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
                     size="xs" 
                     width="auto"
                     onChange={(e) => {
-                      if (embeddedContract && character.id) {
-                        embeddedContract.equipArmor(character.id, Number(e.target.value));
+                      if (character.id) {
+                        changeEquippedArmor(character.id, Number(e.target.value));
                       }
                     }}
                     placeholder="Change"
@@ -336,7 +337,7 @@ const StatAllocationPanel: React.FC<{
   character: BattleNad;
   unallocatedPoints: number;
 }> = ({ character, unallocatedPoints }) => {
-  const { embeddedContract } = useContracts();
+  const { assignNewPoints } = useBattleNads();
   const [allocation, setAllocation] = useState({
     strength: BigInt(0),
     vitality: BigInt(0),
@@ -347,8 +348,8 @@ const StatAllocationPanel: React.FC<{
   });
 
   const allocatePoints = () => {
-    if (embeddedContract && character.id) {
-      embeddedContract.allocatePoints(
+    if (character.id) {
+      assignNewPoints(
         character.id,
         allocation.strength,
         allocation.vitality,

@@ -2,8 +2,8 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { ethers } from 'ethers';
+import { usePrivy, useWallets, useSendTransaction, UnsignedTransactionRequest  } from '@privy-io/react-auth';
+import { ethers, TransactionRequest, TransactionResponse } from 'ethers';
 import { getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKey';
 
 // Define wallet client types based on Privy's supported wallets
@@ -51,6 +51,7 @@ interface WalletContextType {
   connectMetamask: () => Promise<void>;
   connectPrivyEmbedded: () => Promise<void>;
   logout: () => Promise<void>;
+  sendPrivyTransaction: (unsignedTx: TransactionRequest) => Promise<TransactionResponse>;
   isInitialized: boolean;
 }
 
@@ -67,6 +68,7 @@ const WalletContext = createContext<WalletContextType>({
   connectMetamask: async () => undefined,
   connectPrivyEmbedded: async () => undefined,
   logout: async () => undefined,
+  sendPrivyTransaction: async () => { throw new Error('Transaction function not initialized'); },
   isInitialized: false,
 });
 
@@ -108,6 +110,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [injectedWallet, setInjectedWallet] = useState<WalletInfo | null>(null);
   const [embeddedWallet, setEmbeddedWallet] = useState<WalletInfo | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const {sendTransaction} = useSendTransaction();
   
   // References for timers and wallet management
   const lastEmbeddedWalletRef = useRef<string | null>(null);
@@ -415,6 +418,58 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
   };
 
+  const sendPrivyTransaction = useCallback(async (unsignedTx: TransactionRequest): Promise<TransactionResponse> => {
+    console.log(`[WalletProvider] sending transaction`); 
+    try {
+      let unsignedTransactionRequest: UnsignedTransactionRequest = {
+        to: unsignedTx.to as string,
+        gasLimit: Number(unsignedTx.gasLimit)
+      }
+      if (unsignedTx.value) {
+        unsignedTransactionRequest.value = unsignedTx.value;
+      }
+      if (unsignedTx.data) {
+        unsignedTransactionRequest.data = unsignedTx.data as string;
+      }
+      if (unsignedTx.gasPrice) {
+        unsignedTransactionRequest.gasPrice = unsignedTx.gasPrice;
+      }
+      if (unsignedTx.maxFeePerGas) {
+        unsignedTransactionRequest.maxFeePerGas = unsignedTx.maxFeePerGas;
+      }
+      if (unsignedTx.maxPriorityFeePerGas) {
+        unsignedTransactionRequest.maxPriorityFeePerGas = unsignedTx.maxPriorityFeePerGas;
+      }
+      if (unsignedTx.nonce) {
+        unsignedTransactionRequest.nonce = unsignedTx.nonce;
+      }
+      if (unsignedTx.chainId) {
+        unsignedTransactionRequest.chainId = Number(unsignedTx.chainId);
+      }
+
+      // Send transaction using Privy
+      const hash = await sendTransaction(
+        unsignedTransactionRequest,
+        {uiOptions: {showWalletUIs: false}}
+      );
+      console.log(`[WalletProvider] transaction sent with hash: ${hash}`);
+
+      // Create a minimal TransactionResponse object that satisfies the required interface
+      return {
+        hash,
+        wait: async () => {
+          if (embeddedWallet?.provider) {
+            return embeddedWallet.provider.waitForTransaction(hash.toString());
+          }
+          throw new Error('No provider available to wait for transaction');
+        }
+      } as unknown as TransactionResponse;
+    } catch (error) {
+      console.error('[WalletProvider] Error during embedded wallet transaction send:', error);
+      throw error;
+    }
+  }, [embeddedWallet?.address, embeddedWallet?.provider, sendTransaction]);
+
   return (
     <WalletContext.Provider
       value={{
@@ -430,6 +485,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         connectMetamask,
         connectPrivyEmbedded,
         logout: handleLogout,
+        sendPrivyTransaction,
         isInitialized,
       }}
     >

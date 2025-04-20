@@ -59,6 +59,7 @@ interface GameDataContextType {
   // Add new fields for processed data
   processedChatMessages: any[];
   processedEventLogs: any[];
+  addManualCombatEvent: (eventData: any) => void;
 }
 
 const GameDataContext = createContext<GameDataContextType>({
@@ -74,7 +75,8 @@ const GameDataContext = createContext<GameDataContextType>({
   pollCount: 0,
   // Initialize new fields
   processedChatMessages: [],
-  processedEventLogs: []
+  processedEventLogs: [],
+  addManualCombatEvent: () => {}
 });
 
 // Custom hook to use the game data context
@@ -479,9 +481,13 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
       
       // Check if the sessionKey is the zero address or null/undefined, and if so, set sessionKeyBalance to zero
       // This prevents showing a balance for an address the user doesn't have access to
-      if (!result.sessionKey || result.sessionKey === '0x0000000000000000000000000000000000000000') {
-        console.log('[GameDataProvider] Zero address or null sessionKey detected - setting sessionKeyBalance to zero');
-        result.sessionKeyBalance = BigInt(0);
+      if (result) {
+        if (!result.sessionKey || result.sessionKey === '0x0000000000000000000000000000000000000000') {
+          console.log('[GameDataProvider] Zero address or null sessionKey detected - setting sessionKeyBalance to zero');
+          result.sessionKeyBalance = BigInt(0);
+        }
+      } else {
+        console.log('[GameDataProvider] No result from getFullFrontendData');
       }
       
       // Update session key address ref from result
@@ -703,7 +709,10 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
           console.log(`[GameDataProvider] Dispatched characterIDChanged event with ID: ${newId}`);
         } else if (currentId !== newId) {
           // Log if IDs are different but we're not triggering an event (zero address case)
-          console.log(`[GameDataProvider] Character ID change not significant: ${currentId} -> ${newId}`);
+          console.log(`[GameDataProvider] Character ID change: ${currentId} -> ${newId}`);
+          if (!gameDataRef.current) {
+            console.log('[GameDataProvider] gameDataRef not current - no character ID change event dispatched');
+          }
         }
         
         // Add debug check specifically for chatLogs
@@ -1192,6 +1201,46 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
     };
   }, [embeddedWallet?.address, embeddedWalletAddressRef]);
 
+  // Add method to manually add combat events
+  const addManualCombatEvent = useCallback((eventData: any) => {
+    console.log('[GameDataProvider] Adding manual combat event:', eventData);
+    setProcessedEventLogs(prev => [eventData, ...prev]);
+  }, []);
+
+  // Add listener for manual combat events
+  useEffect(() => {
+    const handleManualCombatEvent = (event: CustomEvent) => {
+      console.log('[GameDataProvider] Received manual combat event:', event.detail);
+      if (event.detail && event.detail.event) {
+        addManualCombatEvent(event.detail.event);
+      }
+    };
+
+    window.addEventListener('manualCombatEvent', handleManualCombatEvent as EventListener);
+    
+    return () => {
+      window.removeEventListener('manualCombatEvent', handleManualCombatEvent as EventListener);
+    };
+  }, [addManualCombatEvent]);
+
+  // Add listener for game data refresh requests
+  useEffect(() => {
+    const handleGameDataRefreshRequest = (event: CustomEvent) => {
+      console.log('[GameDataProvider] Received requestGameDataRefresh event:', event.detail);
+      
+      // Trigger immediate data refresh
+      fetchGameData();
+      
+      console.log('[GameDataProvider] Game data refresh initiated from external request');
+    };
+
+    window.addEventListener('requestGameDataRefresh', handleGameDataRefreshRequest as EventListener);
+    
+    return () => {
+      window.removeEventListener('requestGameDataRefresh', handleGameDataRefreshRequest as EventListener);
+    };
+  }, [fetchGameData]);
+
   // Provide context to children
   const contextValue = useMemo(() => ({
     gameData,
@@ -1206,9 +1255,11 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
     connectWallet,
     // Add processed data to context
     processedChatMessages,
-    processedEventLogs
+    processedEventLogs,
+    // Add manual event function
+    addManualCombatEvent
   }), [gameData, isLoading, error, lastUpdated, fetchGameData, enablePolling, disablePolling, 
-       isPollingEnabled, connectWallet, processedChatMessages, processedEventLogs]);
+       isPollingEnabled, connectWallet, processedChatMessages, processedEventLogs, addManualCombatEvent]);
 
   return (
     <GameDataContext.Provider value={contextValue}>

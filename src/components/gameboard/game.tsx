@@ -69,17 +69,6 @@ import { CharacterCard } from '../../components/CharacterCard';
 import { useContracts } from '../../hooks/useContracts';
 import MovementControls from './MovementControls';
 
-// Constants from the contract
-const MIN_EXECUTION_GAS = BigInt(900000); // Standard gas limit for operations
-
-interface Combatant {
-  id: string;
-  stats: any;
-  name: string;
-  weapon?: any;
-  armor?: any;
-}
-
 const Game: React.FC = () => {
   const router = useRouter();
   const { address, injectedWallet, embeddedWallet } = useWallet();
@@ -94,7 +83,11 @@ const Game: React.FC = () => {
     chatMessages,
     lastFetchedBlock,
     highestSeenBlock,
-    sendChatMessage
+    sendChatMessage,
+    changeAttackTarget,
+    changeEquippedWeapon,
+    changeEquippedArmor,
+    assignNewPoints
   } = useBattleNads();
   
   // Use our new game initialization hook
@@ -215,232 +208,34 @@ const Game: React.FC = () => {
     setCombatLog(prev => [message, ...prev].slice(0, 20));
   };
 
-  // Load character data from chain using centralized state
-  const loadCharacterData = async () => {
+  /**
+   * Load character data, load game state and initialize
+   * @param characterId
+   * @returns
+   */
+  const loadCharacterData = async (characterId: string) => {
+    setGameState(current => ({ ...current, loading: true }));
+    if (characterId === '') {
+      setGameState(current => ({ ...current, loadingState: 'character-select' }));
+      return;
+    }
+
     try {
-      // Update the loading state if this isn't during movement
-      if (!isMoving) {
-        setGameState(current => ({ ...current, loading: true }));
-      }
-      
-      console.log("=== LOAD CHARACTER DATA STARTED ===");
-      console.log("Current state:", { 
-        characterId, 
-        status,
-        loadingComplete: loadingComplete,
-        hasLoadedData: hasLoadedData.current
+      // Dispatch an event requesting the GameDataProvider to refresh data
+      const requestEvent = new CustomEvent('requestGameDataRefresh', {
+        detail: { characterId }
       });
+      window.dispatchEvent(requestEvent);
+      console.log('[Game] Dispatched requestGameDataRefresh event for character:', characterId);
       
-      // Only proceed if necessary
-      if (status !== 'ready') {
-        console.log("Game not ready (status: " + status + "), skipping character data load");
-        return;
-      }
+      // Update loading state to waiting for data
+      setGameState(current => ({ ...current, loadingState: 'waiting-for-data' }));
       
-      console.log("==========================================");
-      console.log("LOADING CHARACTER DATA STARTED");
-      
-      // First check if the game status is ready
-      console.log("Current game status:", status);
-      console.log("Wallet state:", { 
-        address, 
-        injectedWallet: injectedWallet?.address,
-        embeddedWallet: embeddedWallet?.address,
-        storedEmbeddedWallet: getStoredEmbeddedWalletAddress()
-      });
-      
-      // Clear error state if status is ready
-      if (status === 'ready' && error) {
-        setGameState(current => ({ ...current, error: null }));
-      }
-      
-      // Ensure wallet connection
-      if (!injectedWallet?.address && !address) {
-        console.log("No wallet detected - attempting to reconnect wallet...");
-        const walletConnected = await checkOwnerWallet();
-        console.log("Wallet reconnection result:", walletConnected);
-        
-        if (!walletConnected) {
-          throw new Error("Need owner wallet: No wallet connected. Please connect wallet manually.");
-        }
-      }
-      
-      // Make sure embedded wallet is available for session key operations
-      const storedEmbeddedWalletAddress = getStoredEmbeddedWalletAddress();
-      if (!embeddedWallet?.address && !storedEmbeddedWalletAddress) {
-        console.log("No embedded wallet detected - attempting to reconnect...");
-        
-        // Add retry logic with delays
-        let embeddedConnected = false;
-        for (let attempt = 1; attempt <= 3; attempt++) {
-          console.log(`Attempt ${attempt}/3 to connect embedded wallet...`);
-          embeddedConnected = await checkEmbeddedWallet();
-          
-          if (embeddedConnected) {
-            console.log("Successfully connected embedded wallet on attempt", attempt);
-            break;
-          }
-          
-          // Wait between attempts, but only if we have more attempts left
-          if (attempt < 3) {
-            console.log("Waiting before next attempt...");
-            await new Promise(resolve => setTimeout(resolve, 800));
-          }
-        }
-        
-        if (!embeddedConnected) {
-          throw new Error("Need embedded wallet: Session wallet not available after multiple attempts. Please refresh the page.");
-        }
-      } else if (!embeddedWallet?.address && storedEmbeddedWalletAddress) {
-        console.log("Using stored embedded wallet address:", storedEmbeddedWalletAddress);
-      }
-      
-      // Check game status - allow for initialization in progress
-      const statusStr = status as string; // Add proper type assertion
-      if (statusStr !== 'ready' && !statusStr.includes('loading-game-data')) {
-        console.log("Game not ready (status:", statusStr, ") - cannot load character data");
-        throw new Error(`Game not initialized properly (status: ${statusStr})`);
-      }
-      
-      console.log("Game status is ready, proceeding to load character data");
-      
-      // Get the character ID
-      console.log("Looking for character ID");
-      let existingCharId = characterId || character?.id;
-      
-      if (!existingCharId) {
-        // If no character ID in state, get it from the player's address
-        const ownerAddress = injectedWallet?.address || address;
-        console.log("No character ID in state, checking using address:", ownerAddress);
-        
-        if (ownerAddress) {
-          const charId = await getPlayerCharacterID(ownerAddress);
-          console.log("Character ID from contract:", charId);
-          
-          if (!charId) {
-            throw new Error("No character found for this wallet");
-          }
-          
-          // Important: Save the character ID immediately
-          existingCharId = charId;
-          setCharacterId(charId);
-        } else {
-          throw new Error("No wallet connected");
-        }
-      } else {
-        console.log("Using existing character ID:", existingCharId);
-        setCharacterId(existingCharId);
-      }
-      
-      // Get character data using centralized state management
-      const charToUse = existingCharId; // Use the local variable that we know has a value
-      console.log("Loading data for character ID:", charToUse);
-      
-      if (!charToUse) {
-        console.error("Character ID is null despite checks:", {
-          characterId,
-          existingCharId
-        });
-        throw new Error("No character ID available");
-      }
-      
-      // Wait briefly to ensure state is updated
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Double-check that we have a valid character ID before proceeding
-      const finalCharId = charToUse;
-      if (!finalCharId) {
-        throw new Error("Character ID was lost during loading process");
-      }
-      
-      // Use the centralized getGameState function that updates Recoil atom
-      const gameStateData = await getFullFrontendData(finalCharId);
-      
-      // Add validation for position and health values
-      if (gameStateData && gameStateData.character) {
-        // Validate position data - don't allow (0,0) position unless it's confirmed valid
-        if (gameStateData.character.position && 
-            gameStateData.character.position.x === 0 && 
-            gameStateData.character.position.y === 0) {
-          console.warn("Suspicious position data (0,0) detected, validating...");
-          
-          // Only accept if depth is also 0 (valid starting point) and not in combat
-          const isValidStartingPoint = gameStateData.character.position.depth === 0 && 
-                                     (!gameStateData.combatants || gameStateData.combatants.length === 0);
-          
-          if (!isValidStartingPoint && character && character.position) {
-            console.warn("Invalid position data detected, keeping current position");
-            // Keep the current position instead of using the invalid data
-            gameStateData.character.position = character.position;
-          }
-        }
-        
-        // Validate health values for combatants
-        if (gameStateData.combatants && gameStateData.combatants.length > 0) {
-          const validatedCombatants = gameStateData.combatants.map((combatant: Combatant) => {
-            if (combatant && combatant.stats) {
-              // Calculate expected max health
-              const maxHealth = calculateMaxHealth(combatant.stats);
-              
-              // If health is unreasonably high, cap it
-              if (combatant.stats.health > maxHealth * 10) {
-                console.warn(`Suspicious health value detected for combatant: ${combatant.stats.health}, capping to ${maxHealth}`);
-                combatant.stats.health = maxHealth;
-              }
-            }
-            return combatant;
-          });
-          
-          gameStateData.combatants = validatedCombatants;
-        }
-      }
-      
-      // Update Recoil game state with the returned data
-      if (gameStateData) {
-        setGameState(current => ({
-          ...current,
-          ...gameStateData,
-          loading: false,
-          error: null
-        }));
-      }
-      
-      // Update position from the character data if available
-      if (character) {
-        const newPosition = extractPositionFromCharacter(character);
-        setPosition(newPosition);
-        console.log("Updated position from character:", newPosition);
-      }
-      
-      // Add log entries based on the state
-      if (areaInfo) {
-        addToCombatLog(`Area has ${areaInfo.playerCount || 0} players and ${areaInfo.monsterCount || 0} monsters.`);
-      }
-      
-      if (isInCombat) {
-        addToCombatLog(`You are in combat with ${combatants.length} enemies.`);
-      }
-      
-      console.log("Character data loaded successfully");
-      isInitialLoadComplete.current = true;
-      hasLoadedData.current = true;
-      setLoadingComplete(true);
-    } catch (err) {
-      console.error("Error loading character data:", err);
-      const errorMessage = err instanceof Error ? err.message : "Unknown error loading character data";
-      setGameState(current => ({ ...current, error: errorMessage }));
-      toast({
-        title: "Error",
-        description: errorMessage,
-        status: "error",
-        duration: 5000,
-        isClosable: true,
-      });
-    } finally {
-      // Only update loading state if not during movement
-      if (!isMoving) {
-        setGameState(current => ({ ...current, loading: false }));
-      }
+      // The actual data will be received through the gameState context from GameDataProvider
+    } catch (error) {
+      console.error('[Game] Error dispatching refresh event:', error);
+      const errorMessage = error instanceof Error ? error.message : "Unknown error refreshing game data";
+      setGameState(current => ({ ...current, loadingState: 'error', error: errorMessage }));
     }
   };
 
@@ -619,7 +414,7 @@ const Game: React.FC = () => {
         
         // Use a slight delay with debounce to ensure all state is updated
         statusTimeoutRef.current = setTimeout(() => {
-          loadCharacterData();
+          loadCharacterData(availableCharId);
           statusTimeoutRef.current = null;
         }, 500); // Increase delay to ensure initialization is fully complete
       } else {
@@ -640,7 +435,7 @@ const Game: React.FC = () => {
     };
   }, [status, loadingComplete, loading, characterId, error]);
 
-  // Handle movement with centralized function
+  // Update the handleMovement function to skip loading state
   const handleMovement = async (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
     try {
       console.log(`[Game] Initiating movement in direction: ${direction}`);
@@ -657,34 +452,63 @@ const Game: React.FC = () => {
       
       // Check which direction we're moving and use the appropriate move function
       // Privy will automatically show its loading UI during this blockchain transaction
-      await moveCharacter(character.id, direction);
+      try {
+        await moveCharacter(character.id, direction);
+      } catch (err) {
+        console.error(err);
+        toast({
+          title: "Failed to move character",
+          description: String(err),
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
+      }
       
       console.log(`[Game] Movement transaction complete for direction: ${direction}, reloading character data...`);
       
-      // Reload character data after movement
-      await loadCharacterData();
-      
-      // Check if position has been updated
-      const updatedPosition = extractPositionFromCharacter(character);
-      console.log(`[Game] Position after ${direction} movement: (${updatedPosition.x}, ${updatedPosition.y}, ${updatedPosition.depth})`);
-      
-      // Update position state directly to ensure it's always updated
-      setPosition(updatedPosition);
-      
-      // Store in window for cross-component access
-      (window as any).lastKnownCharacterPosition = updatedPosition;
-      
+      // Create and dispatch a manual movement event
+      const movementEvent = {
+        logType: LogType.LeftArea, // Use the appropriate LogType for movement
+        source: "player",
+        message: `You moved ${direction}`,
+        characterName: character.name || "You",
+        characterID: character.id,
+        timestamp: Date.now(),
+        x: startPosition.x,
+        y: startPosition.y,
+        depth: startPosition.depth
+      };
+
+      // Dispatch the movement event
+      window.dispatchEvent(new CustomEvent('manualCombatEvent', {
+        detail: { event: movementEvent }
+      }));
+
+      const updatedPosition = startPosition;
+      if (direction === 'north') {
+        updatedPosition.y += 1;
+      } else if (direction === 'south') {
+        updatedPosition.y -= 1;
+      } else if (direction === 'east') {
+        updatedPosition.x += 1;
+      } else if (direction === 'west') {
+        updatedPosition.x -= 1;
+      } else if (direction === 'up') {
+        updatedPosition.depth += 1;
+      } else if (direction === 'down') {
+        updatedPosition.depth -= 1;
+      }
       addToCombatLog(`Moved ${direction} to (${updatedPosition.x}, ${updatedPosition.y}, Depth: ${updatedPosition.depth})`);
     } catch (err: any) {
       console.error('Error during movement:', err);
-      setGameState(current => ({ ...current, error: err.message || `Error moving ${direction}` }));
       addToCombatLog(`Failed to move ${direction}: ${err.message}`);
     } finally {
       setIsMoving(false);
     }
   };
   
-  // Handle attacks with centralized function
+  // Update the handleAttack function to skip loading state
   const handleAttack = async (targetIndex: number) => {
     try {
       setIsAttacking(true);
@@ -698,57 +522,48 @@ const Game: React.FC = () => {
       console.log(`[handleAttack] Attempting to attack target with index ${targetIndex}`);
       addToCombatLog(`Attempting to attack target ${targetIndex}`);
       
-      // Use the embeddedContract to call the attack function on the blockchain
-      if (!embeddedContract) {
-        throw new Error('Session key wallet not available. Please connect your wallet and try again.');
-      }
-      
-      // Create transaction options with appropriate gas limit
-      const txOptions = { 
-        gasLimit: MIN_EXECUTION_GAS 
-      };
-      
       // Call the attack function on the contract
       console.log(`[handleAttack] Sending attack transaction to blockchain`);
-      const tx = await embeddedContract.attack(character.id, targetIndex, txOptions);
-      console.log(`[handleAttack] Attack transaction sent: ${tx.hash}`);
-      
-      // Wait for transaction confirmation
-      console.log(`[handleAttack] Waiting for transaction confirmation...`);
-      const receipt = await tx.wait();
-      
-      if (!receipt) {
-        throw new Error('No receipt returned from attack transaction');
+
+      try {
+        await changeAttackTarget(character.id, targetIndex);
+      } catch (err) {
+        console.error(err);
+        toast({
+          title: "Failed to change attack target",
+          description: String(err),
+          status: "error",
+          duration: 3000,
+          isClosable: true,
+        });
       }
       
-      console.log(`[handleAttack] Attack completed: ${receipt.hash}, gas used: ${receipt.gasUsed.toString()}`);
-      
+      // Create and dispatch a manual combat event
+      const attackEvent = {
+        logType: LogType.InstigatedCombat,
+        source: "player",
+        message: `You attacked target ${targetIndex}`,
+        characterName: character.name || "You",
+        characterID: character.id,
+        timestamp: Date.now()
+      };
+
+      // Dispatch the event
+      window.dispatchEvent(new CustomEvent('manualCombatEvent', {
+        detail: { event: attackEvent }
+      }));
+
       // Add success message to combat log
       addToCombatLog(`Successfully attacked target ${targetIndex}`);
-      
-      // Allow a short delay before reloading data to ensure blockchain state is updated
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Reload character data to reflect changes
-      console.log(`[handleAttack] Reloading character data after attack`);
-      await loadCharacterData();
     } catch (err) {
-      console.error("Error in handleAttack:", err);
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      
-      // Provide better error messages for common issues
-      let userMessage = `Attack failed: ${errorMessage}`;
-      
-      if (errorMessage.includes('execution reverted')) {
-        userMessage = "Attack failed: Target is not valid or no longer available";
-      } else if (errorMessage.includes('insufficient funds')) {
-        userMessage = "Attack failed: Insufficient gas balance. Please replenish your gas.";
-      }
-      
-      setGameState(current => ({ ...current, error: userMessage }));
-      addToCombatLog(userMessage);
-    } finally {
-      setIsAttacking(false);
+      console.error(err);
+      toast({
+        title: "Failed to attack target",
+        description: String(err),
+        status: "error",
+        duration: 3000,
+        isClosable: true,
+      });
     }
   };
 
@@ -863,7 +678,7 @@ const Game: React.FC = () => {
         resetSessionKeyWarning();
         
         // Reload character data to reflect changes
-        await loadCharacterData();
+        await loadCharacterData(character?.id || characterId || '');
       } else {
         toast({
           title: "Session key update failed",
@@ -1005,17 +820,7 @@ const Game: React.FC = () => {
     }
     
     try {
-      // Since equipWeapon is not available, inform the user
-      toast({
-        title: "Equipment system not implemented",
-        description: "Weapon equipping is not yet available",
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-      });
-      
-      // Reload data to show updated state
-      await loadCharacterData();
+      await changeEquippedWeapon(character.id, weaponId);
     } catch (err) {
       console.error(err);
       toast({
@@ -1041,17 +846,7 @@ const Game: React.FC = () => {
     }
     
     try {
-      // Since equipArmor is not available, inform the user
-      toast({
-        title: "Equipment system not implemented",
-        description: "Armor equipping is not yet available",
-        status: "warning",
-        duration: 3000,
-        isClosable: true,
-      });
-      
-      // Reload data to show updated state
-      await loadCharacterData();
+      await changeEquippedArmor(character.id, armorId);
     } catch (err) {
       console.error(err);
       toast({
@@ -1059,28 +854,8 @@ const Game: React.FC = () => {
         description: String(err),
         status: "error",
         duration: 3000,
-        isClosable: true,
       });
     }
-  };
-
-  // Handle chat message submission
-  const handleChatSubmit = (message: string) => {
-    if (!message.trim()) return;
-    
-    // Simply pass the message to the send handler
-    // No local state updates since we're using the blockchain as source of truth
-    handleSendChatMessage(message);
-  };
-
-  // Handle weapon equip click
-  const handleWeaponEquip = (itemId: number) => {
-    handleEquipWeapon(itemId);
-  };
-
-  // Handle armor equip click
-  const handleArmorEquip = (itemId: number) => {
-    handleEquipArmor(itemId);
   };
 
   // Add event listeners for the specific game data update events
@@ -1409,7 +1184,7 @@ const Game: React.FC = () => {
                 mb={4}
               />
               <Text fontSize="xl" color="white">Character data not available</Text>
-              <Button onClick={loadCharacterData} colorScheme="blue">Retry Loading</Button>
+              <Button onClick={() => loadCharacterData((character as any)?.id || characterId || '')} colorScheme="blue">Retry Loading</Button>
             </VStack>
           </Center>
         );
@@ -1536,7 +1311,7 @@ const Game: React.FC = () => {
                 <Box flexBasis="30%" bg="gray.900" height="100%" overflowY="auto">
                   <DataFeed
                     key="singleton-data-feed"
-                    characterId={character ? character.id : ''}
+                    characterId={character?.id || characterId || ''}
                     sendChatMessage={handleSendChatMessage}
                   />
                 </Box>
@@ -1590,7 +1365,21 @@ const Game: React.FC = () => {
     console.log("[Game] Position state changed:", position);
   }, [position]);
 
-  return renderContent;
+  return (
+    <>
+      {/* Always render DataFeed in hidden container to keep it alive */}
+      <div style={{ display: 'none', position: 'absolute', zIndex: -1 }}>
+        <DataFeed
+          key="persistent-data-feed"
+          characterId={character?.id || characterId || ''}
+          sendChatMessage={handleSendChatMessage}
+        />
+      </div>
+      
+      {/* Render main content based on state */}
+      {renderContent}
+    </>
+  );
 };
 
 export default Game;

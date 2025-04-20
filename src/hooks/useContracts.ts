@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import * as ethers from 'ethers';
 import { useWallet } from '../providers/WalletProvider';
 import ENTRYPOINT_ABI from '../abis/battleNads.json';
@@ -25,6 +25,40 @@ const RPC_URL = process.env.NEXT_PUBLIC_MONAD_RPC_URL || PRIMARY_RPC_URL;
 
 // Define a type for our contract with the specific methods we need
 export type BattleNadsContract = ethers.Contract & {
+  // Add populateTransaction interface
+  populateTransaction: {
+    // Movement methods
+    moveNorth: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
+    moveSouth: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
+    moveEast: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
+    moveWest: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
+    moveUp: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
+    moveDown: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
+    
+    // Combat methods
+    attack: (characterId: string, targetIndex: number, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
+    
+    // Chat methods - include all possible variants the contract might use
+    zoneChat?: (characterId: string, message: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
+    chat?: (characterId: string, message: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
+    sendMessage?: (characterId: string, message: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
+    sendChatMessage?: (characterId: string, message: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
+    
+    // Equipment methods
+    equipWeapon: (characterId: string, weaponId: number, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
+    equipArmor: (characterId: string, armorId: number, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
+    
+    // Other methods - add as needed
+    updateSessionKey: (
+      sessionKey: string, 
+      sessionKeyDeadline: bigint, 
+      options?: TransactionOptions
+    ) => Promise<ethers.TransactionRequest>;
+    
+    replenishGasBalance: (options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
+    allocatePoints: (characterId: string, strength: bigint, vitality: bigint, dexterity: bigint, quickness: bigint, sturdiness: bigint, luck: bigint, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
+  };
+  
   // Movement methods
   moveNorth: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
   moveSouth: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
@@ -35,6 +69,9 @@ export type BattleNadsContract = ethers.Contract & {
   
   // Combat methods
   attack: (characterId: string, targetIndex: number, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
+  
+  // Chat methods
+  zoneChat: (characterId: string, message: string, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
   
   // Equipment methods
   equipWeapon: (characterId: string, weaponId: number, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
@@ -266,7 +303,7 @@ export const useContracts = () => {
         ENTRYPOINT_ADDRESS,
         ENTRYPOINT_ABI,
         embeddedWallet.signer
-      ) as BattleNadsContract;
+      );
     } catch (error) {
       console.error('[useContracts] Failed to create embedded contract:', error);
       setError(`Embedded contract creation failed: ${(error as Error)?.message || "Unknown error"}`);
