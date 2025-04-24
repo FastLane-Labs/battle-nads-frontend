@@ -199,7 +199,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
             </Flex>
             <StatAllocationPanel 
               character={character}
-              unallocatedPoints={gameData.unallocatedAttributePoints}
+              unspentAttributePoints={gameData.unallocatedAttributePoints}
             />
           </Box>
         )}
@@ -335,8 +335,8 @@ const StatAllocator: React.FC<{
 // Component to manage stat allocation
 const StatAllocationPanel: React.FC<{
   character: BattleNad;
-  unallocatedPoints: number;
-}> = ({ character, unallocatedPoints }) => {
+  unspentAttributePoints: number;
+}> = ({ character, unspentAttributePoints }) => {
   const { assignNewPoints } = useBattleNads();
   const [allocation, setAllocation] = useState({
     strength: BigInt(0),
@@ -381,7 +381,7 @@ const StatAllocationPanel: React.FC<{
         currentValue={Number(character.stats.strength)}
         allocation={Number(allocation.strength)}
         onIncrement={() => {
-          if (pointsUsed < unallocatedPoints) {
+          if (pointsUsed < unspentAttributePoints) {
             setAllocation({...allocation, strength: allocation.strength + BigInt(1)});
           }
         }}
@@ -397,7 +397,7 @@ const StatAllocationPanel: React.FC<{
         currentValue={Number(character.stats.vitality)}
         allocation={Number(allocation.vitality)}
         onIncrement={() => {
-          if (pointsUsed < unallocatedPoints) {
+          if (pointsUsed < unspentAttributePoints) {
             setAllocation({...allocation, vitality: allocation.vitality + BigInt(1)});
           }
         }}
@@ -413,7 +413,7 @@ const StatAllocationPanel: React.FC<{
         currentValue={Number(character.stats.dexterity)}
         allocation={Number(allocation.dexterity)}
         onIncrement={() => {
-          if (pointsUsed < unallocatedPoints) {
+          if (pointsUsed < unspentAttributePoints) {
             setAllocation({...allocation, dexterity: allocation.dexterity + BigInt(1)});
           }
         }}
@@ -429,7 +429,7 @@ const StatAllocationPanel: React.FC<{
         currentValue={Number(character.stats.quickness)}
         allocation={Number(allocation.quickness)}
         onIncrement={() => {
-          if (pointsUsed < unallocatedPoints) {
+          if (pointsUsed < unspentAttributePoints) {
             setAllocation({...allocation, quickness: allocation.quickness + BigInt(1)});
           }
         }}
@@ -445,7 +445,7 @@ const StatAllocationPanel: React.FC<{
         currentValue={Number(character.stats.sturdiness)}
         allocation={Number(allocation.sturdiness)}
         onIncrement={() => {
-          if (pointsUsed < unallocatedPoints) {
+          if (pointsUsed < unspentAttributePoints) {
             setAllocation({...allocation, sturdiness: allocation.sturdiness + BigInt(1)});
           }
         }}
@@ -461,7 +461,7 @@ const StatAllocationPanel: React.FC<{
         currentValue={Number(character.stats.luck)}
         allocation={Number(allocation.luck)}
         onIncrement={() => {
-          if (pointsUsed < unallocatedPoints) {
+          if (pointsUsed < unspentAttributePoints) {
             setAllocation({...allocation, luck: allocation.luck + BigInt(1)});
           }
         }}
@@ -474,8 +474,8 @@ const StatAllocationPanel: React.FC<{
       
       <Flex justify="space-between" width="100%" mt={1}>
         <Text fontSize="sm">Points remaining:</Text>
-        <Badge colorScheme={unallocatedPoints - pointsUsed > 0 ? "green" : "yellow"}>
-          {unallocatedPoints - pointsUsed}
+        <Badge colorScheme={unspentAttributePoints - pointsUsed > 0 ? "green" : "yellow"}>
+          {unspentAttributePoints - pointsUsed}
         </Badge>
       </Flex>
       

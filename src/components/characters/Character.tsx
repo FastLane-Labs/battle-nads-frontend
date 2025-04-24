@@ -36,7 +36,7 @@ const CharacterDashboard = () => {
   const [luck, setLuck] = useState(MIN_STAT_VALUE);
   
   // Unallocated points counter
-  const [unallocatedPoints, setUnallocatedPoints] = useState(STARTING_UNALLOCATED_POINTS);
+  const [unspentAttributePoints, setunspentAttributePoints] = useState(STARTING_UNALLOCATED_POINTS);
   
   const [selectedCharacter, setSelectedCharacter] = useState<any>(null);
   const [areaCharacters, setAreaCharacters] = useState<any[]>([]);
@@ -46,9 +46,9 @@ const CharacterDashboard = () => {
 
   // Function to increase a stat
   const increaseStat = (statSetter: React.Dispatch<React.SetStateAction<number>>, currentValue: number) => {
-    if (unallocatedPoints > 0) {
+    if (unspentAttributePoints > 0) {
       statSetter(currentValue + 1);
-      setUnallocatedPoints(unallocatedPoints - 1);
+      setunspentAttributePoints(unspentAttributePoints - 1);
     }
   };
 
@@ -56,7 +56,7 @@ const CharacterDashboard = () => {
   const decreaseStat = (statSetter: React.Dispatch<React.SetStateAction<number>>, currentValue: number) => {
     if (currentValue > MIN_STAT_VALUE) {
       statSetter(currentValue - 1);
-      setUnallocatedPoints(unallocatedPoints + 1);
+      setunspentAttributePoints(unspentAttributePoints + 1);
     }
   };
 
@@ -186,7 +186,7 @@ const CharacterDashboard = () => {
               {/* Points Counter */}
               <Stat textAlign="center" p={2} bg="blue.50" borderRadius="md">
                 <StatLabel>Unallocated Points</StatLabel>
-                <StatNumber>{unallocatedPoints}</StatNumber>
+                <StatNumber>{unspentAttributePoints}</StatNumber>
                 <StatHelpText>All stats must sum to {STARTING_STAT_SUM}</StatHelpText>
               </Stat>
               
@@ -216,7 +216,7 @@ const CharacterDashboard = () => {
                       aria-label="Increase strength"
                       icon={<AddIcon />}
                       onClick={() => increaseStat(setStrength, strength)}
-                      isDisabled={unallocatedPoints <= 0}
+                      isDisabled={unspentAttributePoints <= 0}
                       size="sm"
                       ml={2}
                     />
@@ -248,7 +248,7 @@ const CharacterDashboard = () => {
                       aria-label="Increase vitality"
                       icon={<AddIcon />}
                       onClick={() => increaseStat(setVitality, vitality)}
-                      isDisabled={unallocatedPoints <= 0}
+                      isDisabled={unspentAttributePoints <= 0}
                       size="sm"
                       ml={2}
                     />
@@ -262,7 +262,7 @@ const CharacterDashboard = () => {
                 colorScheme="blue" 
                 width="full" 
                 onClick={handleCreateCharacter}
-                isDisabled={!characterName || unallocatedPoints !== 0}
+                isDisabled={!characterName || unspentAttributePoints !== 0}
               >
                 Create Character
               </Button>

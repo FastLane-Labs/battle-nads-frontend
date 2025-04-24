@@ -1,10 +1,11 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef, useMemo } from 'react';
-import { useBattleNads, LogType } from '../hooks/useBattleNads';
+import { useBattleNads } from '../hooks/useBattleNads';
 import { useWallet } from './WalletProvider';
 import { getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKey';
 import { useContracts } from '../hooks/useContracts';
+import { LogType, Log, DataFeed, ChatMessage, PollResponse, SessionKeyData, BattleNadUnformatted, BattleNadLiteUnformatted, BattleNadLite, BattleNad, GameUpdates, GameState } from '../types/gameTypes';
 import { ethers } from 'ethers';
 
 /**
@@ -46,7 +47,7 @@ const isEqual = (obj1: any, obj2: any): boolean => {
 
 // Create a context for the game data
 interface GameDataContextType {
-  gameData: any | null;
+  gameData: GameState;
   lastUpdated: Date | null;
   isLoading: boolean;
   error: string | null;
@@ -62,8 +63,50 @@ interface GameDataContextType {
   addManualCombatEvent: (eventData: any) => void;
 }
 
+const initialGameData: GameState = {
+  owner: null,
+  character: null,
+  others: new Array<BattleNadLite>(65),
+  position: { x: 0, y: 0, depth: 0 },
+  movementOptions: {
+    canMoveNorth: false,
+    canMoveSouth: false,
+    canMoveEast: false,
+    canMoveWest: false,
+    canMoveUp: false,
+    canMoveDown: false
+  },
+  eventLogs: [],
+  chatLogs: [],
+  updates: {
+    owner: false,
+    character: false,
+    sessionKey: false,
+    others: new Array<boolean>(65).fill(false),
+    position: false,
+    combat: false,
+    movementOptions: false,
+    eventLogs: false,
+    chatLogs: false,
+    lastBlock: false,
+    error: false
+  },
+  sessionKey: {
+    owner: '',
+    key: '',
+    balance: BigInt(0),
+    targetBalance: BigInt(0),
+    ownerCommittedAmount: BigInt(0),
+    ownerCommittedShares: BigInt(0),
+    expiration: 0
+  },
+  lastBlock: 0,
+  loading: false,
+  error: null
+}
+
 const GameDataContext = createContext<GameDataContextType>({
-  gameData: null,
+  gameData: initialGameData,
   lastUpdated: null,
   isLoading: false,
   error: null,
@@ -111,9 +154,6 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
   
   // Generate unique ID for this provider instance
   const instanceId = useRef<string>(`GameDataProvider-${Math.random().toString(36).substring(2, 9)}`);
-  
-  // Track last poll time for this instance
-  const lastPollTime = useRef<number>(0);
   
   // Using a ref for poll count instead of state
   const pollCountRef = useRef<number>(0);
@@ -183,20 +223,13 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
   // Pass provider role to useBattleNads to mark this as the authorized instance
   // Add suppressEvents:true to prevent duplicate event emissions
   const battleNadsHook = useBattleNads({ role: 'provider', suppressEvents: true });
-  const { getFullFrontendData, getOwnerWalletAddress, chatMessages: hookChatMessages, highestSeenBlock } = battleNadsHook;
+  const { pollForFrontendData, getOwnerWalletAddress } = battleNadsHook;
   const { injectedWallet, embeddedWallet, connectMetamask } = useWallet();
   const { readContract } = useContracts(); // Directly get readContract from useContracts
   
-  // Effect to update highestSeenBlockRef whenever highestSeenBlock changes
-  useEffect(() => {
-    if (highestSeenBlock > 0 && (highestSeenBlockRef.current === 0 || highestSeenBlock > highestSeenBlockRef.current)) {
-      console.log(`[GameDataProvider] Updating highestSeenBlockRef from ${highestSeenBlockRef.current} to ${highestSeenBlock}`);
-      highestSeenBlockRef.current = highestSeenBlock;
-    }
-  }, [highestSeenBlock]);
   
   // State for game data and loading status
-  const [gameData, setGameData] = useState<any>(null);
+  const [gameData, setGameData] = useState<GameState>(initialGameData);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [consecutiveErrors, setConsecutiveErrors] = useState<number>(0);
@@ -209,12 +242,21 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
 
   // Add effect to sync chat messages from the hook
   useEffect(() => {
-    console.log(`[GameDataProvider] Received ${hookChatMessages.length} chat messages from useBattleNads`);
-    if (hookChatMessages.length > 0) {
-      console.log('[GameDataProvider] Messages from hook:', hookChatMessages);
-      setProcessedChatMessages(hookChatMessages);
+    console.log(`[GameDataProvider] Received ${gameData.chatLogs.length} chat messages from useBattleNads`);
+    if (gameData.chatLogs.length > 0) {
+      console.log('[GameDataProvider] Messages from hook:', gameData.chatLogs);
+      setProcessedChatMessages(gameData.chatLogs);
     }
-  }, [hookChatMessages]);
+  }, [gameData.chatLogs]);
+
+  // Add effect to sync chat messages from the hook
+  useEffect(() => {
+    console.log(`[GameDataProvider] Received ${gameData.eventLogs.length} chat messages from useBattleNads`);
+    if (gameData.eventLogs.length > 0) {
+      console.log('[GameDataProvider] Messages from hook:', gameData.eventLogs);
+      setProcessedEventLogs(gameData.eventLogs);
+    }
+  }, [gameData.eventLogs]);
 
   // Effect to update embedded wallet address ref when it changes
   useEffect(() => {
@@ -477,153 +519,150 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
       const ownerAddress = getOwnerWalletAddress();
       
       // We'll try to fetch data even without a wallet connected
-      const result = await getFullFrontendData();
+      let newGameData : GameState = await pollForFrontendData(gameData);
       
       // Check if the sessionKey is the zero address or null/undefined, and if so, set sessionKeyBalance to zero
       // This prevents showing a balance for an address the user doesn't have access to
-      if (result) {
-        if (!result.sessionKey || result.sessionKey === '0x0000000000000000000000000000000000000000') {
-          console.log('[GameDataProvider] Zero address or null sessionKey detected - setting sessionKeyBalance to zero');
-          result.sessionKeyBalance = BigInt(0);
-        }
-      } else {
-        console.log('[GameDataProvider] No result from getFullFrontendData');
-      }
-      
-      // Update session key address ref from result
-      if (result.sessionKey) {
-        // Store session key address for validation
-        const previousSessionKey = sessionKeyAddressRef.current;
-        sessionKeyAddressRef.current = result.sessionKey;
-        
-        // If session key changed, log it
-        if (previousSessionKey && previousSessionKey !== result.sessionKey) {
-          console.log(`[GameDataProvider] Session key changed from ${previousSessionKey} to ${result.sessionKey}`);
-          // Reset validation flag when session key changes
-          sessionKeyValidationInitializedRef.current = false;
+      if (newGameData) {
+        if (newGameData.sessionKey) {
+          // Store session key address for validation
+          const previousSessionKey = sessionKeyAddressRef.current;
+          sessionKeyAddressRef.current = newGameData.sessionKey.key;
+          
+          // If session key changed, log it
+          if (previousSessionKey && previousSessionKey !== newGameData.sessionKey.key) {
+            console.log(`[GameDataProvider] Session key changed from ${previousSessionKey} to ${newGameData.sessionKey.key}`);
+            // Reset validation flag when session key changes
+            sessionKeyValidationInitializedRef.current = false;
+          }
         }
       }
+
+
+      // FINISHED HERE. RESUME HERE. NEED TO FINISH FORMATTING THE PUSHING OF DATA TO THE GAME STATE.
       
       // Check variables needed for session key validity
-      const validCharacterId = result.characterID && 
+      if (newGameData) {
+        const validCharacterId = newGameData.characterID && 
                              result.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
-      const hasEmbeddedWallet = !!(embeddedWallet?.address || embeddedWalletAddressRef.current);
-      
-      // If we have both a valid character ID and embedded wallet, fetch session key expiration
-      if (validCharacterId && hasEmbeddedWallet && !gameDataRef.current?.isFetchingSessionKey &&
-          (!sessionKeyValidationInitializedRef.current || !validSessionKeyRef.current || callCounterRef.current % 50 === 0)) {
-        // Only fetch session key data once per several cycles to avoid spamming RPC
-        if (!sessionKeyValidationInitializedRef.current || sessionKeyExpirationRef.current === 0) {
-          gameDataRef.current = { ...gameDataRef.current, isFetchingSessionKey: true };
-          console.log('[GameDataProvider] Fetching session key data for validation');
-          const success = await fetchSessionKeyData();
-          gameDataRef.current = { ...gameDataRef.current, isFetchingSessionKey: false };
-          
-          // Always validate after fetching new session key data
-          if (success) {
-            console.log('[GameDataProvider] Session key data fetched successfully, validating...');
-            validateSessionKey();
-            
-            // Mark session key validation as initialized
-            sessionKeyValidationInitializedRef.current = true;
-          }
-        } else if (validSessionKeyRef.current) {
-          // Just do a quick validation using existing data (no RPC calls)
-          console.log('[GameDataProvider] Periodic session key check with existing data');
-          validateSessionKey();
-        } else {
-          // Always validate with existing data
-          console.log('[GameDataProvider] Validating session key with existing data');
-          validateSessionKey();
-        }
-      }
-      
-      // Check for session key address mismatch
-      const validOwnerAddr = ownerAddress && ownerAddress !== '0x0000000000000000000000000000000000000000';
-      const emptySessionKey = !result.sessionKey || result.sessionKey === '0x0000000000000000000000000000000000000000';
-      const embeddedWalletAddress = embeddedWallet?.address || embeddedWalletAddressRef.current;
-      const addressMismatch = embeddedWalletAddress && result.sessionKey && 
-                            result.sessionKey.toLowerCase() !== embeddedWalletAddress.toLowerCase();
-      
-      // If session key is invalid due to address mismatch, dispatch event
-      if (validOwnerAddr && validCharacterId && (emptySessionKey || addressMismatch)) {
-        console.log('[GameDataProvider] Session key address mismatch detected:', {
-          ownerAddress,
-          characterID: result.characterID,
-          currentSessionKey: result.sessionKey,
-          embeddedWalletAddress: embeddedWalletAddress || 'Not available'
-        });
+        const hasEmbeddedWallet = !!(embeddedWallet?.address || embeddedWalletAddressRef.current);
         
-        // This will still be triggered for address mismatches
-        // Expiration mismatches will be handled by validateSessionKey
-        if (validSessionKeyRef.current) {
+        // If we have both a valid character ID and embedded wallet, fetch session key expiration
+        if (validCharacterId && hasEmbeddedWallet && !gameDataRef.current?.isFetchingSessionKey &&
+            (!sessionKeyValidationInitializedRef.current || !validSessionKeyRef.current || callCounterRef.current % 50 === 0)) {
+          // Only fetch session key data once per several cycles to avoid spamming RPC
+          if (!sessionKeyValidationInitializedRef.current || sessionKeyExpirationRef.current === 0) {
+            gameDataRef.current = { ...gameDataRef.current, isFetchingSessionKey: true };
+            console.log('[GameDataProvider] Fetching session key data for validation');
+            const success = await fetchSessionKeyData();
+            gameDataRef.current = { ...gameDataRef.current, isFetchingSessionKey: false };
+            
+            // Always validate after fetching new session key data
+            if (success) {
+              console.log('[GameDataProvider] Session key data fetched successfully, validating...');
+              validateSessionKey();
+              
+              // Mark session key validation as initialized
+              sessionKeyValidationInitializedRef.current = true;
+            }
+          } else if (validSessionKeyRef.current) {
+            // Just do a quick validation using existing data (no RPC calls)
+            console.log('[GameDataProvider] Periodic session key check with existing data');
+            validateSessionKey();
+          } else {
+            // Always validate with existing data
+            console.log('[GameDataProvider] Validating session key with existing data');
+            validateSessionKey();
+          }
+        }
+        
+        // Check for session key address mismatch
+        const validOwnerAddr = ownerAddress && ownerAddress !== '0x0000000000000000000000000000000000000000';
+        const emptySessionKey = !result.sessionKey || result.sessionKey === '0x0000000000000000000000000000000000000000';
+        const embeddedWalletAddress = embeddedWallet?.address || embeddedWalletAddressRef.current;
+        const addressMismatch = embeddedWalletAddress && result.sessionKey && 
+                              result.sessionKey.toLowerCase() !== embeddedWalletAddress.toLowerCase();
+        
+        // If session key is invalid due to address mismatch, dispatch event
+        if (validOwnerAddr && validCharacterId && (emptySessionKey || addressMismatch)) {
+          console.log('[GameDataProvider] Session key address mismatch detected:', {
+            ownerAddress,
+            characterID: result.characterID,
+            currentSessionKey: result.sessionKey,
+            embeddedWalletAddress: embeddedWalletAddress || 'Not available'
+          });
+          
+          // This will still be triggered for address mismatches
+          // Expiration mismatches will be handled by validateSessionKey
+          if (validSessionKeyRef.current) {
+            const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
+              detail: { 
+                characterId: result.characterID,
+                owner: ownerAddress,
+                currentSessionKey: result.sessionKey,
+                embeddedWalletAddress: embeddedWalletAddress,
+                reason: 'mismatch'
+              }
+            });
+            window.dispatchEvent(sessionKeyUpdateEvent);
+            
+            // Update validity ref
+            validSessionKeyRef.current = false;
+            // Reset validation initialized flag to force a recheck next cycle
+            sessionKeyValidationInitializedRef.current = false;
+          }
+        }
+        
+        // Check if we need to update session key
+        // Conditions: valid owner address (not zero address) AND valid characterID AND (zero address session key OR session key doesn't match embedded wallet)
+        const validOwnerAddress = ownerAddress && ownerAddress !== '0x0000000000000000000000000000000000000000';
+        const validCharId = result.characterID && result.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
+        const zeroSessionKey = !result.sessionKey || result.sessionKey === '0x0000000000000000000000000000000000000000';
+        const sessionKeyMismatch = embeddedWalletAddress && result.sessionKey && 
+                                result.sessionKey.toLowerCase() !== embeddedWalletAddress.toLowerCase();
+        
+        if (validOwnerAddress && validCharId && (zeroSessionKey || sessionKeyMismatch)) {
+          console.log('[GameDataProvider] Session key update needed:', {
+            ownerAddress,
+            characterID: result.characterID,
+            currentSessionKey: result.sessionKey,
+            embeddedWalletAddress: embeddedWalletAddress || 'Not available'
+          });
+          
+          // Dispatch event to trigger session key update page
           const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
             detail: { 
               characterId: result.characterID,
               owner: ownerAddress,
               currentSessionKey: result.sessionKey,
-              embeddedWalletAddress: embeddedWalletAddress,
-              reason: 'mismatch'
+              embeddedWalletAddress: embeddedWalletAddress
             }
           });
           window.dispatchEvent(sessionKeyUpdateEvent);
           
-          // Update validity ref
-          validSessionKeyRef.current = false;
-          // Reset validation initialized flag to force a recheck next cycle
+          // Reset validation initialized flag to force a recheck after update
           sessionKeyValidationInitializedRef.current = false;
         }
-      }
-      
-      // Check if we need to update session key
-      // Conditions: valid owner address (not zero address) AND valid characterID AND (zero address session key OR session key doesn't match embedded wallet)
-      const validOwnerAddress = ownerAddress && ownerAddress !== '0x0000000000000000000000000000000000000000';
-      const validCharId = result.characterID && result.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
-      const zeroSessionKey = !result.sessionKey || result.sessionKey === '0x0000000000000000000000000000000000000000';
-      const sessionKeyMismatch = embeddedWalletAddress && result.sessionKey && 
-                              result.sessionKey.toLowerCase() !== embeddedWalletAddress.toLowerCase();
-      
-      if (validOwnerAddress && validCharId && (zeroSessionKey || sessionKeyMismatch)) {
-        console.log('[GameDataProvider] Session key update needed:', {
-          ownerAddress,
-          characterID: result.characterID,
-          currentSessionKey: result.sessionKey,
-          embeddedWalletAddress: embeddedWalletAddress || 'Not available'
-        });
         
-        // Dispatch event to trigger session key update page
-        const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
-          detail: { 
-            characterId: result.characterID,
-            owner: ownerAddress,
-            currentSessionKey: result.sessionKey,
-            embeddedWalletAddress: embeddedWalletAddress
-          }
-        });
-        window.dispatchEvent(sessionKeyUpdateEvent);
+        // Debug logging for zero session key with valid character ID
+        const isZeroSessionKey = result.sessionKey === '0x0000000000000000000000000000000000000000';
+        const isValidCharacterId = result.characterID && 
+          result.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
         
-        // Reset validation initialized flag to force a recheck after update
-        sessionKeyValidationInitializedRef.current = false;
+        if (isZeroSessionKey && isValidCharacterId) {
+          console.log(`[GameDataProvider] ZERO SESSION KEY DETECTED with valid characterID`, {
+            ownerAddress,
+            startBlock: result.lastFetchedBlock || 'unknown', // or the value passed to getFullFrontendData
+            characterID: result.characterID,
+            sessionKey: result.sessionKey,
+            sessionKeyBalance: result.sessionKeyBalance?.toString(),
+            bondedShMonadBalance: result.bondedShMonadBalance?.toString(),
+            balanceShortfall: result.balanceShortfall?.toString(),
+            unallocatedAttributePoints: result.unallocatedAttributePoints?.toString()
+          });
+        }
       }
-      
-      // Debug logging for zero session key with valid character ID
-      const isZeroSessionKey = result.sessionKey === '0x0000000000000000000000000000000000000000';
-      const isValidCharacterId = result.characterID && 
-        result.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
-      
-      if (isZeroSessionKey && isValidCharacterId) {
-        console.log(`[GameDataProvider] ZERO SESSION KEY DETECTED with valid characterID`, {
-          ownerAddress,
-          startBlock: result.lastFetchedBlock || 'unknown', // or the value passed to getFullFrontendData
-          characterID: result.characterID,
-          sessionKey: result.sessionKey,
-          sessionKeyBalance: result.sessionKeyBalance?.toString(),
-          bondedShMonadBalance: result.bondedShMonadBalance?.toString(),
-          balanceShortfall: result.balanceShortfall?.toString(),
-          unallocatedAttributePoints: result.unallocatedAttributePoints?.toString()
-        });
-      }
-      
+
       // If we got a result, reset consecutive errors counter
       if (result) {
         setConsecutiveErrors(0);
@@ -991,17 +1030,6 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
               window.dispatchEvent(combatantsChangedEvent);
               console.log('[GameDataProvider] Dispatched combatantsChanged event');
             }
-          }
-          
-          // 4. Check for area info changes (miniMap) - use deep comparison
-          if (result.miniMap && (!gameDataRef.current?.miniMap || !isEqual(result.miniMap, gameDataRef.current.miniMap))) {
-            const areaChangedEvent = new CustomEvent('areaInfoChanged', {
-              detail: { 
-                miniMap: result.miniMap
-              }
-            });
-            window.dispatchEvent(areaChangedEvent);
-            console.log('[GameDataProvider] Dispatched areaInfoChanged event');
           }
         } else {
           console.log('[GameDataProvider] Skipping gameDataUpdated event - no meaningful changes detected');

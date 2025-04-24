@@ -1,9 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useWallet } from '../providers/WalletProvider';
 import { useBattleNads, useGameActions } from './useBattleNads';
-import { useSetRecoilState, useRecoilValue } from 'recoil';
-import { gameStateAtom } from '../state/gameState';
-import { parseFrontendData, createGameState } from '../utils/gameDataConverters';
 import { isValidCharacterId } from '../utils/getCharacterLocalStorageKey';
 
 // This hook handles game state management and orchestration
@@ -22,10 +19,6 @@ export const useGame = () => {
     highestSeenBlock,
     getCurrentBlockNumber
   } = useBattleNads();
-  
-  // Use Recoil for global state management - MUST be at the top level
-  const setGameState = useSetRecoilState(gameStateAtom);
-  const gameState = useRecoilValue(gameStateAtom);
   
   // Get the game actions for session key operations
   const { getCurrentSessionKey } = useGameActions();

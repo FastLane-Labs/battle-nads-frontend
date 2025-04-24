@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import * as ethers from 'ethers';
 import { useWallet } from '../providers/WalletProvider';
 import ENTRYPOINT_ABI from '../abis/battleNads.json';
-import { MovementOptions } from '../types/gameTypes';
+import { SessionKeyData, BattleNadLiteUnformatted, BattleNadUnformatted, DataFeed, PollResponse } from '../types/gameTypes';
 
 // Debug log the imported ABI to check if it's properly loaded
 console.log("[useContracts] Loaded ABI from file:", 
@@ -16,7 +16,7 @@ export interface TransactionOptions {
 }
 
 // Use environment variables for contract addresses and RPC URLs
-const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0x1E85b64E23Cf13b305b4c056438DD5242d93BB76";
+const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0xa86D47E26D1486D5Add2194f9AeDc5C2589749A5";
 
 // Primary and fallback RPC URLs
 const PRIMARY_RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";
@@ -25,57 +25,6 @@ const RPC_URL = process.env.NEXT_PUBLIC_MONAD_RPC_URL || PRIMARY_RPC_URL;
 
 // Define a type for our contract with the specific methods we need
 export type BattleNadsContract = ethers.Contract & {
-  // Add populateTransaction interface
-  populateTransaction: {
-    // Movement methods
-    moveNorth: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
-    moveSouth: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
-    moveEast: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
-    moveWest: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
-    moveUp: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
-    moveDown: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
-    
-    // Combat methods
-    attack: (characterId: string, targetIndex: number, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
-    
-    // Chat methods - include all possible variants the contract might use
-    zoneChat?: (characterId: string, message: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
-    chat?: (characterId: string, message: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
-    sendMessage?: (characterId: string, message: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
-    sendChatMessage?: (characterId: string, message: string, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
-    
-    // Equipment methods
-    equipWeapon: (characterId: string, weaponId: number, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
-    equipArmor: (characterId: string, armorId: number, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
-    
-    // Other methods - add as needed
-    updateSessionKey: (
-      sessionKey: string, 
-      sessionKeyDeadline: bigint, 
-      options?: TransactionOptions
-    ) => Promise<ethers.TransactionRequest>;
-    
-    replenishGasBalance: (options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
-    allocatePoints: (characterId: string, strength: bigint, vitality: bigint, dexterity: bigint, quickness: bigint, sturdiness: bigint, luck: bigint, options?: TransactionOptions) => Promise<ethers.TransactionRequest>;
-  };
-  
-  // Movement methods
-  moveNorth: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
-  moveSouth: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
-  moveEast: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
-  moveWest: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
-  moveUp: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
-  moveDown: (characterId: string, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
-  
-  // Combat methods
-  attack: (characterId: string, targetIndex: number, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
-  
-  // Chat methods
-  zoneChat: (characterId: string, message: string, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
-  
-  // Equipment methods
-  equipWeapon: (characterId: string, weaponId: number, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
-  equipArmor: (characterId: string, armorId: number, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
   
   // Character methods
   createCharacter: (
@@ -91,18 +40,7 @@ export type BattleNadsContract = ethers.Contract & {
     options?: TransactionOptions
   ) => Promise<ethers.TransactionResponse>;
   
-  allocatePoints: (
-    characterId: string,
-    strength: bigint,
-    vitality: bigint,
-    dexterity: bigint,
-    quickness: bigint,
-    sturdiness: bigint,
-    luck: bigint,
-    options?: TransactionOptions
-  ) => Promise<ethers.TransactionResponse>;
-  
-  // Session key methods
+  // Cashier methods
   updateSessionKey: (
     sessionKey: string, 
     sessionKeyDeadline: bigint, 
@@ -111,85 +49,22 @@ export type BattleNadsContract = ethers.Contract & {
   
   replenishGasBalance: (options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
   
-  // Tuple type for session key return
-  getCurrentSessionKey: (characterId: string) => Promise<{ key: string; expiration: number } | [string, number]>;
+  deactivateSessionKey: (sessionKeyAddress: string, options?: TransactionOptions) => Promise<ethers.TransactionResponse>;
   
-  // Query methods with defined return types
-  getBattleNad: (characterId: string) => Promise<any>; // Raw data for BattleNad, will be converted by utils
-  getBattleNadsInArea: (depth: number, x: number, y: number) => Promise<any[]>; // Raw data for BattleNad[], will be converted by utils
-  getPlayerCharacterIDs: (address: string) => Promise<string[]>;
+  // Getter methods
+  getCurrentSessionKeyData: (owner: string) => Promise<SessionKeyData>;
   
-  getAreaInfo: (depth: number, x: number, y: number) => Promise<{
-    area: any; // Raw data for AreaInfo, will be converted by utils
-    playerCount: number;
-    monsterCount: number;
-    avgPlayerLevel: number;
-    avgMonsterLevel: number;
-  }>;
+  getPlayerCharacterID: (address: string) => Promise<string>;
   
-  getAreaCombatState: (characterId: string) => Promise<{
-    inCombat: boolean;
-    combatantCount: number;
-    enemies: any[]; // Raw data for BattleNad[], will be converted by utils
-    targetIndex: number;
-  }>;
-  
-  getMovementOptions: (characterId: string) => Promise<MovementOptions>;
-  
-  getAttackOptions: (characterId: string) => Promise<{
-    canAttack: boolean;
-    targets: string[];
-    targetIndexes: number[];
-  }>;
-  
-  // Key comprehensive function that gets all frontend data in one call
-  getFrontendData: (characterId: string) => Promise<{
-    character: any; // Raw data for BattleNad
-    combatants: any[]; // Raw data for BattleNad[]
-    noncombatants: any[]; // Raw data for BattleNad[]
-    miniMap: any[][]; // Raw data for area grid
-    equipableWeaponIDs: number[];
-    equipableWeaponNames: string[];
-    equipableArmorIDs: number[];
-    equipableArmorNames: string[];
-    unallocatedAttributePoints: number;
-    equipment?: { // Optional equipment data
-      weapons?: {
-        ids: number[];
-        names: string[];
-        currentId?: number;
-      };
-      armor?: {
-        ids: number[];
-        names: string[];
-        currentId?: number;
-      };
-    };
-  }>;
-  
-  // Function to get all frontend data including balances in one call
-  getFullFrontendData: (owner: string, startBlock: number) => Promise<{
-    characterID: string;
-    sessionKey: string;
-    sessionKeyBalance: bigint;
-    bondedShMonadBalance: bigint;
-    balanceShortfall: bigint;
-    unallocatedAttributePoints: number;
-    character: any; // Raw data for BattleNad
-    combatants: any[]; // Raw data for BattleNad[]
-    noncombatants: any[]; // Raw data for BattleNad[]
-    miniMap: any[][]; // Raw data for area grid
-    equipableWeaponIDs: number[];
-    equipableWeaponNames: string[];
-    equipableArmorIDs: number[];
-    equipableArmorNames: string[];
-    dataFeeds: any[];
-  }>;
+  // Poll function to get all frontend data including balances in one call
+  pollForFrontendData: (
+    owner: string, 
+    startBlock: number
+  ) => Promise<PollResponse>;
   
   // Estimation methods
   estimateBuyInAmountInMON: () => Promise<ethers.BigNumberish>;
   shortfallToRecommendedBalanceInMON: (characterId: string) => Promise<ethers.BigNumberish>;
-  shortfallToRecommendedBalanceInShMON: (characterId: string) => Promise<ethers.BigNumberish>;
 };
 
 export const useContracts = () => {

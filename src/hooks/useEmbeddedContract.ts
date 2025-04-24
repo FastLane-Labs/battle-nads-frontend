@@ -4,7 +4,7 @@ import { useWallet } from '../providers/WalletProvider';
 import ENTRYPOINT_ABI from '../abis/battleNads.json';
 
 // Use environment variables for contract addresses and RPC URLs
-const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0x1E85b64E23Cf13b305b4c056438DD5242d93BB76";
+const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || "0xa86D47E26D1486D5Add2194f9AeDc5C2589749A5";
 const MIN_EXECUTION_GAS = BigInt(950000); // From Constants.sol
 const MOVEMENT_GAS_LIMIT = MIN_EXECUTION_GAS + BigInt(550000); // Double gas limit only for movement
 
@@ -118,6 +118,15 @@ export const useEmbeddedContract = () => {
     return sendTransaction(txRequest);
   }
 
+  const useAbility = async (characterId: string, targetIndex: number, ability: number): Promise<TransactionResponse> => {
+    const options: TransactionOptions = {
+        gasLimit: MIN_EXECUTION_GAS,
+    }   
+    const txArgs = [characterId, targetIndex, ability];
+    const txRequest: TransactionRequest = getTransactionRequest('useAbility', txArgs, options || {});
+    return sendTransaction(txRequest);
+  }
+
   const equipWeapon = async (characterId: string, weaponId: number): Promise<TransactionResponse> => {
     const options: TransactionOptions = {
         gasLimit: MIN_EXECUTION_GAS,
@@ -154,6 +163,7 @@ export const useEmbeddedContract = () => {
     moveUp,
     moveDown,
     attack,
+    useAbility,
     equipWeapon,
     equipArmor,
     allocatePoints

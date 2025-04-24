@@ -4,17 +4,8 @@ import { useWallet } from '../providers/WalletProvider';
 import { useContracts } from './useContracts';
 import { useEmbeddedContract } from './useEmbeddedContract';
 import { getCharacterLocalStorageKey, isValidCharacterId } from '../utils/getCharacterLocalStorageKey';
-
-/**
- * Safely stringifies objects containing BigInt values
- * @param obj - The object to stringify
- * @returns A JSON string representation of the object with BigInts converted to strings
- */
-const safeStringify = (obj: any): string => {
-  return JSON.stringify(obj, (_, value) => 
-    typeof value === 'bigint' ? value.toString() : value
-  );
-};
+import { LogType, Log, DataFeed, ChatMessage, PollResponse, SessionKeyData, EventMessage, CharacterClass, BattleNadUnformatted, BattleNadLiteUnformatted, BattleNad, BattleNadLite, Ability, AbilityTracker, GameState, StatusEffect } from '../types/gameTypes';
+import { useSetRecoilState, useRecoilValue } from 'recoil';
 
 // Constants
 const RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";
@@ -39,96 +30,8 @@ const gameDataCache = {
   isProvider: false, // Tracks if the provider instance has been created
 };
 
-// Function to process data feeds from the contract
-const processDataFeeds = (dataFeeds: any[], highestProcessedBlock: number): DataFeed[] => {
-  if (!dataFeeds || dataFeeds.length === 0) {
-    return [];
-  }
-  
-  // Filter out data feeds from blocks we've already processed
-  const newDataFeeds = dataFeeds.filter(feed => {
-    const blockNumber = Number(feed.blockNumber);
-    const isNew = blockNumber > highestProcessedBlock;
-    return isNew;
-  });
-  
-  return newDataFeeds.map(feed => {
-    const blockNumber = Number(feed.blockNumber);
-    
-    // Process logs array
-    const logs = Array.isArray(feed.logs) 
-      ? feed.logs.map((log: any) => {
-          // Ensure we capture all relevant fields, especially for chat logs
-          const processedLog: Log = {
-            logType: Number(log.logType),
-            source: log.source,
-            message: log.message,
-            characterID: log.characterID, 
-            characterName: log.characterName,
-            x: log.x !== undefined ? Number(log.x) : undefined,
-            y: log.y !== undefined ? Number(log.y) : undefined,
-            depth: log.depth !== undefined ? Number(log.depth) : undefined,
-            extraData: log.extraData,
-            // Ensure we capture the index field for chat logs - this is critical for matching
-            index: log.index !== undefined ? Number(log.index) : undefined
-          };
-          
-          return processedLog;
-        })
-      : [];
-    
-    // Process chatLogs array if it exists
-    const chatLogs = Array.isArray(feed.chatLogs) ? feed.chatLogs : [];
-    
-    // Only log when actually finding chat logs (keeping useful logs)
-    if (chatLogs.length > 0) {
-      console.log(`[processDataFeeds] Found ${chatLogs.length} chat logs in feed with block ${blockNumber}`);
-    }
-    
-    return { blockNumber, logs, chatLogs };
-  });
-};
-
-// Add TypeScript definitions for the new data structures
-export enum LogType {
-  Combat = 0,
-  InstigatedCombat = 1,
-  EnteredArea = 2,
-  LeftArea = 3,
-  Chat = 4,
-  Sepukku = 5
-}
-
-interface Log {
-  logType: LogType;
-  source: string;
-  message: string;
-  characterID?: string;
-  characterName?: string;
-  x?: number;
-  y?: number;
-  depth?: number;
-  extraData?: any;
-  index?: number;
-}
-
-export interface DataFeed {
-  blockNumber: number;
-  logs: Log[];
-  chatLogs?: string[];
-}
-
-export interface ChatMessage {
-  characterName: string;
-  message: string;
-  timestamp?: number;
-}
-
 export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppressEvents?: boolean } = { role: 'consumer', suppressEvents: false }) => {
-  // Generate a unique instance ID for tracking this hook instance
-  const instanceIdRef = useRef<string>(`useBattleNads-${Math.random().toString(36).substring(2, 9)}`);
-
-  const { injectedWallet, embeddedWallet, sendPrivyTransaction } = useWallet();
+  const { injectedWallet, embeddedWallet } = useWallet();
   const { readContract, injectedContract, embeddedContract, error: contractError } = useContracts();
 
   // Keep minimal state for the hook itself
@@ -139,58 +42,14 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
   // Use ref to track initialization status and prevent multiple initializations
   const initializedRef = useRef(false);
 
-  // Add state for data feeds
-  const [dataFeeds, setDataFeeds] = useState<DataFeed[]>([]);
-  const [eventLogs, setEventLogs] = useState<Log[]>([]);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [lastFetchedBlock, setLastFetchedBlock] = useState<number>(0);
-  const [highestSeenBlock, setHighestSeenBlock] = useState<number>(0);
   const { moveNorth, moveSouth, moveEast, moveWest, moveUp, moveDown, zoneChat, attack, equipWeapon, equipArmor, allocatePoints } = useEmbeddedContract();
   
-  // Add a ref to track the current highest seen block to prevent closure issues
-  const highestSeenBlockRef = useRef<number>(0);
-
-  // Add a dedicated ref to track startBlock for data fetching, separate from highest seen block
-  const startBlockRef = useRef<number>(0);
-
-  // Effect to keep ref in sync with state changes
-  useEffect(() => {
-    // Update ref if state changes from an external source
-    if (highestSeenBlock !== highestSeenBlockRef.current) {
-      highestSeenBlockRef.current = highestSeenBlock;
-    }
-  }, [highestSeenBlock]);
-
   // Set this instance as the provider if the role is provider and no provider exists yet
   useEffect(() => {
     if (options.role === 'provider' && !gameDataCache.isProvider) {
       gameDataCache.isProvider = true;
     }
   }, [options.role]);
-
-  // Initialize highestSeenBlock on mount if not set yet
-  useEffect(() => {
-    const initializeHighestBlock = async () => {
-      if (highestSeenBlock === 0 && highestSeenBlockRef.current === 0 && readContract) {
-        try {
-          // Get the current block and set highestSeenBlock to a few blocks before
-          // to avoid missing very recent messages
-          const provider = new ethers.JsonRpcProvider(RPC_URL);
-          const currentBlock = await provider.getBlockNumber();
-          // Set to a few blocks back to avoid missing recent transactions
-          const initialBlock = Math.max(0, currentBlock - 10);
-          console.log(`[useBattleNads] Initializing highestSeenBlock to ${initialBlock} (current block: ${currentBlock})`);
-          // Update both ref and state
-          highestSeenBlockRef.current = initialBlock;
-          setHighestSeenBlock(initialBlock);
-        } catch (err) {
-          console.error('[useBattleNads] Failed to initialize highestSeenBlock:', err);
-        }
-      }
-    };
-    
-    initializeHighestBlock();
-  }, [highestSeenBlock, readContract, highestSeenBlockRef]);
 
   // Update error state when contract error changes
   useEffect(() => {
@@ -237,13 +96,338 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
     loadInitialCharacterId();
   }, [injectedWallet?.address]);
 
-  // Helper function to ensure transaction receipt
-  const ensureReceipt = (receipt: any, operationName: string) => {
-    if (!receipt) {
-      throw new Error(`No receipt returned for ${operationName} operation`);
+  const processDataFeeds = (dataFeeds: DataFeed[], lastBlock: number) : DataFeed[] => {
+    const processedDataFeeds: DataFeed[] = [];
+    for (const feed of dataFeeds) {
+      const processedFeed = { ...feed };
+      processedFeed.logs = processedFeed.logs.filter((log: Log) => feed.blockNumber > lastBlock);
     }
-    return receipt;
-  };
+    return processedDataFeeds;
+  }
+
+  const getAbilityName = (ability: Ability) : string => {
+    switch (ability) {
+      case Ability.SingSong:
+        return 'Sing Song'; 
+      case Ability.DoDance:
+        return 'Do Dance';
+      case Ability.ShieldBash:
+        return 'Shield Bash';
+      case Ability.ShieldWall:
+        return 'Shield Wall';
+      case Ability.EvasiveManeuvers:
+        return 'Evasive Maneuvers';
+      case Ability.ApplyPoison:
+        return 'Apply Poison';
+      case Ability.Pray:
+        return 'Pray';
+      case Ability.Smite:
+        return 'Smite';
+      case Ability.Fireball:
+        return 'Fireball';
+      case Ability.ChargeUp:
+        return 'Charge Up';
+      default:
+        return 'Unknown';
+    }
+  }
+
+  const getBuffsFromBitmap = (bitmap: number) : StatusEffect[] => {
+    const buffs : StatusEffect[] = [];
+    if (bitmap & (1 << StatusEffect.ChargedUp)) {
+      buffs.push(StatusEffect.ChargedUp);
+    }
+    if (bitmap & (1 << StatusEffect.Evasion)) {
+      buffs.push(StatusEffect.Evasion);
+    }
+    if (bitmap & (1 << StatusEffect.Praying)) {
+      buffs.push(StatusEffect.Praying);
+    }
+    if (bitmap & (1 << StatusEffect.ShieldWall)) {
+      buffs.push(StatusEffect.ShieldWall);
+    }
+    return buffs;
+  }
+
+  const getDebuffsFromBitmap = (bitmap: number) : StatusEffect[] => {
+    const debuffs : StatusEffect[] = [];
+    if (bitmap & (1 << StatusEffect.ChargingUp)) {
+      debuffs.push(StatusEffect.ChargingUp);
+    }
+    if (bitmap & (1 << StatusEffect.Cursed)) {
+      debuffs.push(StatusEffect.Cursed);
+    }
+    if (bitmap & (1 << StatusEffect.Poisoned)) {
+      debuffs.push(StatusEffect.Poisoned);
+    }
+    if (bitmap & (1 << StatusEffect.Stunned)) {
+      debuffs.push(StatusEffect.Stunned);
+    }
+    return debuffs;
+  }
+
+  const formatBattleNad = (unformatted: BattleNadUnformatted, availableWeapons: string[], availableArmors: string[]) : BattleNad => {
+    const battleNad : BattleNad = {
+      id: unformatted.id,
+      index: unformatted.stats.index,
+      name: unformatted.name,
+      class: unformatted.stats.class,
+      level: unformatted.stats.level,
+      health: unformatted.stats.health,
+      maxHealth: unformatted.maxHealth,
+      buffs: getBuffsFromBitmap(unformatted.stats.buffs),
+      debuffs: getDebuffsFromBitmap(unformatted.stats.debuffs),
+      stats: unformatted.stats,
+      weapon: unformatted.weapon,
+      armor: unformatted.armor,
+      availableWeapons: availableWeapons,
+      availableArmors: availableArmors,
+      position: {
+        x: unformatted.stats.x,
+        y: unformatted.stats.y,
+        depth: unformatted.stats.depth
+      },
+      owner: unformatted.owner,
+      activeTask: unformatted.activeTask,
+      ability: unformatted.activeAbility,
+      inventory: unformatted.inventory,
+      unspentAttributePoints: unformatted.stats.unspentAttributePoints,
+      isInCombat: unformatted.stats.combatants > 0,
+      isDead: unformatted.stats.health <= 0
+    }
+    return battleNad;
+  }
+
+  const formatBattleNadLite = (unformatted: BattleNadLiteUnformatted, isHostile: boolean) : BattleNadLite => {
+    const battleNadLite : BattleNadLite = {
+      id: unformatted.id,
+      index: unformatted.index,
+      name: unformatted.name,
+      class: unformatted.class,
+      level: unformatted.level,
+      health: unformatted.health,
+      maxHealth: unformatted.maxHealth,
+      buffs: getBuffsFromBitmap(unformatted.buffs),
+      debuffs: getDebuffsFromBitmap(unformatted.debuffs),
+      weaponName: unformatted.weaponName,
+      armorName: unformatted.armorName,
+      ability: {
+        ability: unformatted.ability,
+        stage: unformatted.abilityStage,
+        targetIndex: 0,
+        taskAddress: '',
+        targetBlock: unformatted.abilityTargetBlock
+      } as AbilityTracker,
+      isMonster: unformatted.class == CharacterClass.Basic || unformatted.class == CharacterClass.Elite || unformatted.class == CharacterClass.Boss,
+      isHostile: isHostile,
+      isDead: unformatted.isDead,
+    }
+    return battleNadLite;
+  }
+
+  const getEmptyBattleNadLite = () : BattleNadLite => {
+    return {
+      id: '',
+      index: 0,
+      name: '',
+      class: CharacterClass.Basic,
+      level: 0,
+      health: 0,
+      maxHealth: 0,
+      buffs: [],
+      debuffs: [],
+      ability: {
+        ability: Ability.None,
+        stage: 0,
+        targetIndex: 0,
+        taskAddress: '',
+        targetBlock: 0
+      },
+      weaponName: '',
+      armorName: '',
+      isMonster: false,
+      isHostile: false,
+      isDead: false 
+    }
+  }
+
+  const checkPositionForUpdate = (character: BattleNad | null, update: BattleNadUnformatted) : boolean => {
+    if (character == null) {
+      return true;
+    }
+    if (character.position.x != update.stats.x) {
+      return true;
+    }
+
+    if (character.position.y != update.stats.y) {
+      return true;
+    }
+
+    if (character.position.depth != update.stats.depth) {
+      return true;
+    }
+
+    return false;
+  }
+
+  const checkCombatDataForUpdate = (character: BattleNad | null, update: BattleNadUnformatted) : boolean => {
+    if (character == null) {
+      return true;
+    }
+    if (character.health != update.stats.health) {
+      return true;
+    }
+
+    if (character.ability.stage != update.activeAbility.stage) {
+      return true;
+    }
+
+    if (character.ability.targetIndex != update.activeAbility.targetIndex) {
+      return true;
+    }
+
+    if (character.ability.ability != update.activeAbility.ability) {
+      return true;
+    }
+    
+    if (character.ability.targetBlock != update.activeAbility.targetBlock) {
+      return true;
+    }
+    
+    if (character.stats.buffs != update.stats.buffs) {
+      return true;
+    }
+
+    if (character.stats.debuffs != update.stats.debuffs) {
+      return true;
+    }
+    
+    return false;
+  }
+  
+  const checkForCharacterStatsUpdate = (character: BattleNad | null, update: BattleNadUnformatted) : boolean => {
+    if (character == null) {
+      return true;
+    }
+
+    if (character?.id != update.id) {
+      return true;
+    }
+
+    if (character.name != update.name) {
+      return true;
+    }
+
+    if (character.class != update.stats.class) {
+      return true;
+    }
+
+    if (character.level != update.stats.level) {
+      return true;
+    }
+
+    if (character.maxHealth != update.maxHealth) {
+      return true;
+    }
+
+    if (character.stats.unspentAttributePoints != update.stats.unspentAttributePoints) {
+      return true;
+    }
+
+    if (character.stats.experience != update.stats.experience) {
+      return true;
+    }
+    
+    if (character.inventory.weaponBitmap != update.inventory.weaponBitmap) {
+      return true;
+    }
+
+    if (character.inventory.armorBitmap != update.inventory.armorBitmap) {
+      return true;
+    }
+
+    if (character.inventory.balance != update.inventory.balance) {
+      return true;
+    }
+
+    if (character.weapon.id != update.weapon.id) {
+      return true;
+    }
+
+    if (character.armor.id != update.armor.id) {
+      return true;
+    }
+    return false;
+  }
+
+  const checkForLiteStatsUpdate = (character: BattleNadLite, update: BattleNadLiteUnformatted) : boolean => {
+    if (character?.id != update.id) {
+      return true;
+    }
+
+    if (character.name != update.name) {
+      return true;
+    }
+
+    if (character.class != update.class) {
+      return true;
+    }
+
+    if (character.level != update.level) {
+      return true;
+    }
+
+    if (character.maxHealth != update.maxHealth) {
+      return true;
+    }
+
+    if (character.weaponName != update.weaponName) {
+      return true;
+    }
+
+    if (character.armorName != update.armorName) {
+      return true;
+    }
+
+    if (character.isDead != update.isDead) {
+      return true;
+    }
+    return false;
+  }
+
+  const checkLiteCombatDataForUpdate = (character: BattleNadLite, update: BattleNadLiteUnformatted, isHostile: boolean) : boolean => {
+    if (character.health != update.health) {
+      return true;
+    }
+
+    if (character.ability.stage != update.abilityStage) {
+      return true;
+    }
+
+    if (character.ability.ability != update.ability) {
+      return true;
+    }
+    
+    if (character.ability.targetBlock != update.abilityTargetBlock) {
+      return true;
+    }
+
+    if (character.isHostile != isHostile) {
+      return true;
+    }
+    /*
+    // TODO: Add buff / debuff detection back in. 
+    if (character.stats.buffs != update.stats.buffs) {
+      return true;
+    }
+
+    if (character.stats.debuffs != update.stats.debuffs) {
+      return true;
+    }
+    */
+    return false;
+  }
+  
 
   // Function to convert BigInt values in an object to strings
   const convertBigIntToString = (obj: any): any => {
@@ -445,15 +629,12 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
     } catch (err) {
       console.error('[getCurrentBlockNumber] Error getting current block number:', err);
       // Return last fetched block as fallback if available
-      if (lastFetchedBlock > 0) {
-        console.log(`[getCurrentBlockNumber] Using lastFetchedBlock as fallback: ${lastFetchedBlock}`);
-        return lastFetchedBlock;
-      }
+      
       // Return a reasonable default if everything fails
       console.log(`[getCurrentBlockNumber] Using default block number`);
       return 0;
     }
-  }, [lastFetchedBlock]);
+  }, []);
 
   // Add the createCharacter function
   const createCharacter = useCallback(async (
@@ -663,470 +844,347 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
   }, [readContract]);
 
   // Get full frontend data including chat/event logs
-  const getFullFrontendData = useCallback(async (characterIdOrOwnerAddress?: string, startBlockOverride?: number) => {
+  const pollForFrontendData = useCallback(async (gameState: GameState) : Promise<GameState> => {
     // Return cached data if this is not the provider and cache exists
-    if (options.role !== 'provider' && gameDataCache.data) {
-      return gameDataCache.data;
+    if (options.role !== 'provider') {
+      return gameState;
     }
 
     try {
       setLoading(true);
       
-      // For getFullFrontendData, we need an owner address, not a character ID
-      const ownerAddress = characterIdOrOwnerAddress || getOwnerWalletAddress() || '';
-      
-      if (!ownerAddress) {
-        setError("No owner address available");
-        return null;
+      // For pollForFrontendData, we need an owner address, not a character ID
+      const ownerAddress = gameState.owner || getOwnerWalletAddress() || '';
+      if (ownerAddress != gameState.owner) {
+        gameState.owner = ownerAddress;
+        gameState.updates.owner = true;
       }
-      
+
       if (!readContract) {
         setError("No contract available");
-        return null;
+        gameState.updates.error = true;
+        return gameState;
       }
 
-      // Calculate start block with the requested sanity checks
-      let startBlock;
-      if (startBlockOverride !== undefined) {
-        // Always honor explicit override if provided
-        startBlock = startBlockOverride;
-        console.log(`[getFullFrontendData] Using explicit startBlockOverride: ${startBlock}`);
-      } else {
-        // Apply the sanity checks as specified
-        const currentStartBlock = startBlockRef.current;
-        const currentHighestBlock = highestSeenBlockRef.current;
-        
-        // Case 1: Both refs are invalid (0 or very low)
-        if (currentHighestBlock <= 5 && currentStartBlock <= 5) {
-          // Get current block using the function from useBattleNads
-          try {
-            const currentBlock = await getCurrentBlockNumber();
-            if (currentBlock > 0) {
-              startBlock = Math.max(0, currentBlock - 5);
-              console.log(`[getFullFrontendData] Both blocks invalid, got current block: ${currentBlock}, using startBlock: ${startBlock}`);
-            } else {
-              startBlock = 0;
-              console.log(`[getFullFrontendData] Failed to get current block, using startBlock: 0`);
-            }
-          } catch (err) {
-            startBlock = 0;
-            console.error(`[getFullFrontendData] Error getting current block:`, err);
-          }
-        }
-        // Case 2: Start block is invalid but highest block is valid
-        else if (currentStartBlock <= 5 && currentHighestBlock > 5) {
-          startBlock = Math.max(0, currentHighestBlock - 5);
-          console.log(`[getFullFrontendData] Invalid startBlock but valid highestBlock: ${currentHighestBlock}, using startBlock: ${startBlock}`);
-        }
-        // Case 3: Start block is >= highest block (unusual but could happen)
-        else if (currentStartBlock >= currentHighestBlock) {
-          // Keep using current startBlock
-          startBlock = currentStartBlock;
-          console.log(`[getFullFrontendData] startBlock (${currentStartBlock}) >= highestBlock (${currentHighestBlock}), keeping startBlock`);
-        }
-        // Case 4: Highest block is significantly ahead of start block
-        else if (currentHighestBlock - 5 > currentStartBlock) {
-          startBlock = currentHighestBlock - 5;
-          console.log(`[getFullFrontendData] highestBlock (${currentHighestBlock}) > startBlock (${currentStartBlock}) by more than 5, updating startBlock to ${startBlock}`);
-        }
-        // Case 5: Default case - current start block is reasonable
-        else {
-          startBlock = currentStartBlock;
-          console.log(`[getFullFrontendData] Using existing startBlock: ${startBlock}`);
+      let startBlock = gameState.lastBlock;
+      if (startBlock == 0) {
+        startBlock = await getCurrentBlockNumber();
+        if (startBlock != 0) {
+          startBlock -= 1;
         }
       }
       
-      console.log(`[getFullFrontendData] Final startBlock: ${startBlock}`);
+      console.log(`[pollForFrontendData] Final startBlock: ${startBlock}`);
       
-      let response;
+      let result : PollResponse;
       try {
         // Remove detailed parameter logging
-        response = await readContract.getFullFrontendData(ownerAddress, startBlock);
+        result = await readContract.pollForFrontendData(ownerAddress, startBlock);
       } catch (callError) {
-        console.error(`[getFullFrontendData] Contract call error:`, callError);
+        console.error(`[pollForFrontendData] Contract call error:`, callError);
         setError(`Contract call failed: ${callError instanceof Error ? callError.message : String(callError)}`);
-        return null;
+        gameState.updates.error = true;
+        return gameState;
       }
-      
-      // Initialize result object with default values
-      const result: any = {
-        characterID: null,
-        sessionKey: null,
-        sessionKeyBalance: BigInt(0),
-        bondedShMonadBalance: BigInt(0),
-        balanceShortfall: BigInt(0),
-        unallocatedAttributePoints: 0,
-        character: null,
-        combatants: [],
-        noncombatants: [],
-        miniMap: [],
-        equipableWeaponIDs: [],
-        equipableWeaponNames: [],
-        equipableArmorIDs: [],
-        equipableArmorNames: [],
-        dataFeeds: []
-      };
-      
-      try {
-        // Process response based on its format
-        if (Array.isArray(response)) {
-          // Extract basic scalar values first - these are unlikely to cause decoding errors
-          if (response.length > 0) result.characterID = response[0];
-          if (response.length > 1) result.sessionKey = response[1];
-          if (response.length > 2) result.sessionKeyBalance = response[2] || BigInt(0);
-          if (response.length > 3) result.bondedShMonadBalance = response[3] || BigInt(0);
-          if (response.length > 4) result.balanceShortfall = response[4] || BigInt(0);
-          if (response.length > 5) result.unallocatedAttributePoints = response[5] || 0;
-          
-          // Add special debug logging for zero address session key with valid character ID
-          const isZeroAddress = response.length > 1 && 
-            response[1] === '0x0000000000000000000000000000000000000000';
-          const hasValidCharacterID = response.length > 0 && 
-            response[0] && 
-            response[0] !== '0x0000000000000000000000000000000000000000000000000000000000000000';
-            
-          if (isZeroAddress && hasValidCharacterID) {
-            console.error('======== SESSION KEY DEBUGGING ========');
-            console.error('ISSUE DETECTED: Zero address session key with valid character ID');
-            console.error('Owner address used for query:', ownerAddress);
-            console.error('Start block used for query:', startBlock);
-            console.error('Response structure: Array with', response.length, 'elements');
-            console.error('Character ID:', response[0]);
-            console.error('Session key (zero address):', response[1]);
-            console.error('Session key balance:', response.length > 2 ? response[2].toString() : 'undefined');
-            console.error('Bonded shMONAD balance:', response.length > 3 ? response[3].toString() : 'undefined');
-            console.error('Balance shortfall:', response.length > 4 ? response[4].toString() : 'undefined');
-            console.error('Unallocated attribute points:', response.length > 5 ? response[5].toString() : 'undefined');
-            console.error('======================================');
-          }
 
-          // Check if we're getting a block number instead of a balance
-          // Block numbers on most chains are large but < 1 billion, so we can perform a sanity check
-          if (response.length > 2 && typeof response[2] === 'bigint' && response[2] > BigInt(100000) && response[2] < BigInt(10000000000)) {
-            console.warn('[getFullFrontendData] Received suspiciously large value that might be a block number:', response[2].toString());
-            
-            // If the value looks like a block number, override it with a safer default
-            result.sessionKeyBalance = BigInt(0);
-            
-            // Let's try to get the actual balance using ethers directly if we have the session key
-            if (response.length > 1 && response[1] && typeof response[1] === 'string') {
-              try {
-                const provider = new ethers.JsonRpcProvider(RPC_URL);
-                const actualBalance = await provider.getBalance(response[1]);
-                console.log('[getFullFrontendData] Retrieved actual session key balance:', actualBalance.toString());
-                result.sessionKeyBalance = actualBalance;
-              } catch (balanceErr) {
-                console.error('[getFullFrontendData] Error getting actual session key balance:', balanceErr);
-              }
-            }
-          }
-          
-          // Handle complex types in a separate try/catch to avoid losing the balance data
-          try {
-            if (response.length > 6) result.character = response[6];
-            if (response.length > 7) result.combatants = Array.isArray(response[7]) ? response[7] : [];
-            if (response.length > 8) result.noncombatants = Array.isArray(response[8]) ? response[8] : [];
-            if (response.length > 9) result.miniMap = response[9] || [];
-            if (response.length > 10) result.equipableWeaponIDs = Array.isArray(response[10]) ? response[10] : [];
-            if (response.length > 11) result.equipableWeaponNames = Array.isArray(response[11]) ? response[11] : [];
-            if (response.length > 12) result.equipableArmorIDs = Array.isArray(response[12]) ? response[12] : [];
-            if (response.length > 13) result.equipableArmorNames = Array.isArray(response[13]) ? response[13] : [];
-            if (response.length > 14) result.dataFeeds = Array.isArray(response[14]) ? response[14] : [];
-          } catch (complexFieldErr) {
-            console.error(`Error processing complex fields: ${complexFieldErr instanceof Error ? complexFieldErr.message : String(complexFieldErr)}`);
-          }
-        } else if (typeof response === 'object' && response !== null) {
-          // Object format (ethers.js structured data)
-          // First extract scalar values that are less likely to cause issues
-          try {
-            if ('characterID' in response) result.characterID = response.characterID;
-            if ('sessionKey' in response) result.sessionKey = response.sessionKey;
-            if ('sessionKeyBalance' in response) result.sessionKeyBalance = response.sessionKeyBalance || BigInt(0);
-            if ('bondedShMonadBalance' in response) result.bondedShMonadBalance = response.bondedShMonadBalance || BigInt(0);
-            if ('balanceShortfall' in response) result.balanceShortfall = response.balanceShortfall || BigInt(0);
-            if ('unallocatedAttributePoints' in response) result.unallocatedAttributePoints = response.unallocatedAttributePoints || 0;
-            
-            // Add special debug logging for zero address session key with valid character ID
-            const isZeroAddress = response.sessionKey === '0x0000000000000000000000000000000000000000';
-            const hasValidCharacterID = response.characterID && 
-              response.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
-              
-            if (isZeroAddress && hasValidCharacterID) {
-              console.error('======== SESSION KEY DEBUGGING (Object Format) ========');
-              console.error('ISSUE DETECTED: Zero address session key with valid character ID');
-              console.error('Owner address used for query:', ownerAddress);
-              console.error('Start block used for query:', startBlock);
-              console.error('Character ID:', response.characterID);
-              console.error('Session key (zero address):', response.sessionKey);
-              console.error('Session key balance:', response.sessionKeyBalance ? response.sessionKeyBalance.toString() : 'undefined');
-              console.error('Bonded shMONAD balance:', response.bondedShMonadBalance ? response.bondedShMonadBalance.toString() : 'undefined');
-              console.error('Balance shortfall:', response.balanceShortfall ? response.balanceShortfall.toString() : 'undefined');
-              console.error('Unallocated attribute points:', response.unallocatedAttributePoints || 'undefined');
-              console.error('=================================================');
-            }
-            
-            // Trust the session key balance from the blockchain directly
-            // The contract already retrieves this correctly with: sessionKeyBalance = address(sessionKey).balance;
-            if (response.sessionKeyBalance) {
-              result.sessionKeyBalance = response.sessionKeyBalance;
-            } else if (response.sessionKey && typeof response.sessionKey === 'string') {
-              // Only as a fallback if we didn't get the balance but we have the session key
-              try {
-                const provider = new ethers.JsonRpcProvider(RPC_URL);
-                const actualBalance = await provider.getBalance(response.sessionKey);
-                console.log('[getFullFrontendData] Retrieved fallback session key balance:', actualBalance.toString());
-                result.sessionKeyBalance = actualBalance;
-              } catch (balanceErr) {
-                console.error('[getFullFrontendData] Error getting fallback session key balance:', balanceErr);
-                result.sessionKeyBalance = BigInt(0);
-              }
-            } else {
-              result.sessionKeyBalance = BigInt(0);
-            }
-          } catch (scalarErr) {
-            console.error(`Error extracting scalar values: ${scalarErr instanceof Error ? scalarErr.message : String(scalarErr)}`);
-          }
-          
-          // Then try to handle complex fields
-          try {
-            // Assign more complex properties
-            if ('character' in response) result.character = response.character;
-            if ('combatants' in response) result.combatants = Array.isArray(response.combatants) ? response.combatants : [];
-            if ('noncombatants' in response) result.noncombatants = Array.isArray(response.noncombatants) ? response.noncombatants : [];
-            if ('miniMap' in response) result.miniMap = response.miniMap || [];
-            if ('equipableWeaponIDs' in response) result.equipableWeaponIDs = Array.isArray(response.equipableWeaponIDs) ? response.equipableWeaponIDs : [];
-            if ('equipableWeaponNames' in response) result.equipableWeaponNames = Array.isArray(response.equipableWeaponNames) ? response.equipableWeaponNames : [];
-            if ('equipableArmorIDs' in response) result.equipableArmorIDs = Array.isArray(response.equipableArmorIDs) ? response.equipableArmorIDs : [];
-            if ('equipableArmorNames' in response) result.equipableArmorNames = Array.isArray(response.equipableArmorNames) ? response.equipableArmorNames : [];
-            if ('dataFeeds' in response) result.dataFeeds = Array.isArray(response.dataFeeds) ? response.dataFeeds : [];
-          } catch (complexObjErr) {
-            console.error(`Error processing complex object fields: ${complexObjErr instanceof Error ? complexObjErr.message : String(complexObjErr)}`);
-          }
-        }
-        
-        if (result.characterID) {
-          const isHex = /^0x[0-9a-f]{64}$/i.test(result.characterID);
-          
-          if (!isHex && typeof result.characterID === 'string' && result.characterID.startsWith('0x')) {
-            // Pad if too short
-            if (result.characterID.length < 66) {
-              result.characterID = result.characterID.padEnd(66, '0');
-            }
-          }
-        } else if (characterId) {
-          // Use fallback from state if available
-          result.characterID = characterId;
-        } else {
-          // Try to get from localStorage
-          try {
-            const storageKey = getCharacterLocalStorageKey(ownerAddress);
-            if (storageKey && localStorage.getItem(storageKey) !== null) {
-              const storedId = localStorage.getItem(storageKey);
-              if (storedId) {
-                result.characterID = storedId;
-              }
-            }
-          } catch (storageErr) {
-            setError(`Error checking localStorage: ${storageErr instanceof Error ? storageErr.message : String(storageErr)}`);
-          }
-        }
-      } catch (parseErr) {
-        setError(`Error processing contract data: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`);
-        return null;
+      if (result.endBlock <= startBlock) {
+        console.log(`[pollForFrontendData] End block is less than or equal to start block, returning early`);
+        return gameState;
       }
-      
-      // Ensure BigInt values are handled properly
-      result.sessionKeyBalance = result.sessionKeyBalance || BigInt(0);
-      result.bondedShMonadBalance = result.bondedShMonadBalance || BigInt(0);
-      result.balanceShortfall = result.balanceShortfall || BigInt(0);
-      result.unallocatedAttributePoints = result.unallocatedAttributePoints ? Number(result.unallocatedAttributePoints) : 0;
-      
+
       // Emit events for balance updates so other components can react to them
       if (!options.suppressEvents) {
         dispatchEvent(new CustomEvent('sessionKeyBalanceUpdated', { 
-          detail: { balance: result.sessionKeyBalance } 
+          detail: { balance: result.sessionKeyData.balance } 
         }));
       }
       
-      // Update the current block for next time
-      try {
-        const provider = new ethers.JsonRpcProvider(RPC_URL);
-        const currentBlock = await provider.getBlockNumber();
-        
-        // Set lastFetchedBlock to a value slightly less than the current block
-        // This ensures we don't miss any data feeds while still avoiding duplicates
-        const safeLastFetchedBlock = Math.max(0, currentBlock - 3);
-        console.log(`[getFullFrontendData] Setting lastFetchedBlock to current block - 3: ${safeLastFetchedBlock}`);
-        setLastFetchedBlock(safeLastFetchedBlock);
-        
-        // Update our startBlockRef to be the current lastFetchedBlock
-        // This ensures next time we fetch, we start from where we left off
-        startBlockRef.current = safeLastFetchedBlock;
-        console.log(`[getFullFrontendData] Updated startBlockRef to: ${startBlockRef.current}`);
-        
-        // Store in component state and also in a global variable for immediate access
-        (window as any).lastKnownBlockNumber = currentBlock;
-      } catch (blockErr) {
-        setError(`Could not get current block: ${blockErr instanceof Error ? blockErr.message : String(blockErr)}`);
+      if (result.characterID != gameState.character?.id) {
+        gameState.updates.character = true;
+        setCharacterId(result.characterID);
       }
       
       // Store characterID in state if it's valid and not already stored
       if (result.characterID && (!characterId || characterId !== result.characterID)) {
         setCharacterId(result.characterID);
-       
-        // Store in localStorage for persistence
-        try {
-          const storageKey = getCharacterLocalStorageKey(ownerAddress);
-          if (storageKey) {
-            localStorage.setItem(storageKey, result.characterID);
+
+        // Only dispatch event if the character ID is valid (non-zero address)
+        const isValidId = result.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
             
-            // Only dispatch event if the character ID is valid (non-zero address)
-            const isValidId = result.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
-            
-            if (isValidId && !options.suppressEvents) {
-              // Also dispatch a characterIDChanged event to notify components
-              const characterChangedEvent = new CustomEvent('characterIDChanged', {
-                detail: { characterId: result.characterID, owner: ownerAddress }
-              });
-              window.dispatchEvent(characterChangedEvent);
-              console.log(`[getFullFrontendData] Dispatched characterIDChanged event with ID: ${result.characterID}`);
-            }
+        if (isValidId && !options.suppressEvents) {
+          // Also dispatch a characterIDChanged event to notify components
+          const characterChangedEvent = new CustomEvent('characterIDChanged', {
+            detail: { characterId: result.characterID, owner: ownerAddress }
+          });
+          window.dispatchEvent(characterChangedEvent);
+          console.log(`[getFullFrontendData] Dispatched characterIDChanged event with ID: ${result.characterID}`);
+        }
+      }
+
+      // Check for updates to the character
+      if (checkPositionForUpdate(gameState.character, result.character)) {
+        gameState.updates.position = true;
+      }
+
+      if (checkCombatDataForUpdate(gameState.character, result.character)) {
+        gameState.updates.combat = true;
+      }
+      
+      if (checkForCharacterStatsUpdate(gameState.character, result.character)) {
+        gameState.updates.character = true;
+      }
+
+      if (gameState.updates.character || gameState.updates.combat || gameState.updates.position) {
+        gameState.character = formatBattleNad(result.character, result.equipableWeaponNames, result.equipableArmorNames);
+      }
+      if (gameState.updates.position) {
+        gameState.position = {
+          x: result.character.stats.x,
+          y: result.character.stats.y,
+          depth: result.character.stats.depth
+        };
+        gameState.updates.movementOptions = true;
+      }
+
+      // Check for updates to the others
+      let friendlyIndex : number = 0;
+      let hostileIndex : number = 0;
+      let loadedExisting : boolean = false;
+      let loadedNew : boolean = false;
+      let existingBattleNadLite : BattleNadLite;
+      let newBattleNadLite : BattleNadLiteUnformatted;
+      
+      // There's no 0 index in the others array
+      for (let i = 1; i < 65; i++) {
+        loadedExisting = false;
+        loadedNew = false;
+
+        if (gameState.others[i] != null) {
+          if (gameState.others[i].index  == i) {
+            loadedExisting = true;
           }
-        } catch (storageErr) {
-          setError(`Failed to save character ID to localStorage: ${storageErr instanceof Error ? storageErr.message : String(storageErr)}`);
+        }
+        
+        if (result.combatants.length > hostileIndex && result.combatants[hostileIndex] != null) {
+          if (result.combatants[hostileIndex].index == i) {
+            newBattleNadLite = result.combatants[hostileIndex];
+            if (!loadedExisting) {
+              gameState.updates.others[i] = true;
+              gameState.others[i] = formatBattleNadLite(newBattleNadLite, true);
+            } else {
+              existingBattleNadLite = gameState.others[i];
+              if (checkForLiteStatsUpdate(existingBattleNadLite, newBattleNadLite) || checkLiteCombatDataForUpdate(existingBattleNadLite, newBattleNadLite, true)) {
+                gameState.updates.others[i] = true;
+                gameState.others[i] = formatBattleNadLite(newBattleNadLite, true);
+              }
+            }
+            hostileIndex++;
+            continue;
+          }
+        }
+
+        if (result.noncombatants.length > friendlyIndex && result.noncombatants[friendlyIndex] != null) {
+          if (result.noncombatants[friendlyIndex].index == i) {
+            newBattleNadLite = result.noncombatants[friendlyIndex];
+            if (!loadedExisting) {
+              gameState.updates.others[i] = true;
+              gameState.others[i] = formatBattleNadLite(newBattleNadLite, false);
+            } else {
+              existingBattleNadLite = gameState.others[i];
+              if (checkForLiteStatsUpdate(existingBattleNadLite, newBattleNadLite) || checkLiteCombatDataForUpdate(existingBattleNadLite, newBattleNadLite, false)) {
+                gameState.updates.others[i] = true;
+                gameState.others[i] = formatBattleNadLite(newBattleNadLite, false);
+              }
+            }
+            friendlyIndex++;
+            continue;
+          }
+        }
+
+        if (loadedExisting && !loadedNew) {
+          gameState.updates.others[i] = true;
+          gameState.others[i] = getEmptyBattleNadLite();
+          continue;
         }
       }
       
-      // Process data feeds for chat and event logging
-      if (Array.isArray(result.dataFeeds) && result.dataFeeds.length > 0) {
-        try {
-          // Use the ref value for comparison, not the state value
-          const processedDataFeeds = processDataFeeds(result.dataFeeds, highestSeenBlockRef.current);
-          setDataFeeds(processedDataFeeds);
-          
-          // Find the highest block number among processed feeds for tracking
-          if (processedDataFeeds.length > 0) {
-            const maxBlockNumber = Math.max(...processedDataFeeds.map(feed => feed.blockNumber));
-            if (maxBlockNumber > highestSeenBlockRef.current) {
-              highestSeenBlockRef.current = maxBlockNumber;
-              setHighestSeenBlock(maxBlockNumber);
-            }
+      if (result.dataFeeds.length > 0) {
+     
+        const processedDataFeeds : DataFeed[] = processDataFeeds(result.dataFeeds, startBlock);
+      
+        for (let j = 0; j < processedDataFeeds.length; j++) {
+          const dataFeed = processedDataFeeds[j];
+          if (dataFeed.logs.length == 0) {
+            continue;
           }
+
+          const logs = dataFeed.logs || [];
+          const chatLogs = dataFeed.chatLogs || [];
+          let chatLogCount : number = 0;
           
-          // Extract and collate event logs from all data feeds
-          const allLogs = processedDataFeeds.flatMap(feed => feed.logs || []);
-          if (allLogs.length > 0) {
-            // Only keep non-chat logs for the event log display
-            setEventLogs(prev => [...allLogs.filter(log => log.logType !== LogType.Chat), ...prev]);
-          }
-          
-          // Process chat messages by combining chat events with their content
-          // First, collect all chat logs and chat events from all data feeds
-          const chatEvents = allLogs.filter(log => log.logType === LogType.Chat);
-          const chatContents = processedDataFeeds.flatMap(feed => feed.chatLogs || []);
-          
-          // Only log when actually finding chat content (keeping useful logs)
-          if (chatEvents.length > 0 || chatContents.length > 0) {
-            console.log(`[useBattleNads] Found ${chatEvents.length} chat events and ${chatContents.length} chat contents`);
-          }
-          
-          // Create properly attributed chat messages
-          const processedChatMessages: ChatMessage[] = [];
-          
-          // Only process if we have both chat events and contents
-          if (chatEvents.length > 0 && chatContents.length > 0) {
-            // Match chat events with chat contents by index
-            // Each chat event should have an index that corresponds to the chat content
-            for (let i = 0; i < Math.min(chatEvents.length, chatContents.length); i++) {
-              const chatEvent = chatEvents[i];
-              const chatContent = chatContents[i];
-              
-              if (chatEvent && chatContent) {
-                // Use the character name from the event and the message from the content
-                processedChatMessages.push({
-                  characterName: chatEvent.characterName || 'Unknown',
-                  message: typeof chatContent === 'string' ? chatContent : 
-                          (typeof chatContent === 'object' && 'message' in chatContent) ? 
-                          (chatContent as {message: string}).message : String(chatContent),
-                  timestamp: Date.now()
-                });
-              }
+          // Match chat events with chat contents by index
+          // Each chat event should have an index that corresponds to the chat content
+          for (let i = 0; i < logs.length; i++) {
+            const log = logs[i];
+
+            let characterName : string;
+            let weaponName : string;
+            let otherArmorName : string;
+            let otherWeaponName : string;
+            let otherName: string;
+            if (log.mainPlayerIndex == gameState.character?.index) {
+              characterName = gameState.character?.name || 'Unknown';
+              weaponName = gameState.character?.weapon.name || 'pointy reference of badness';
+            } else {
+              characterName = gameState.others[log.mainPlayerIndex]?.name || 'Unknown';
+              weaponName = gameState.others[log.mainPlayerIndex]?.weaponName || 'pointy reference of badness';
             }
-            
-            if (processedChatMessages.length > 0) {
-              console.log(`[useBattleNads] Processed ${processedChatMessages.length} combined chat messages`);
-              setChatMessages(prev => [...prev, ...processedChatMessages]);
-            }
-          } else if (chatContents.length > 0) {
-            // Fallback: If we only have chat contents but no events, process them directly
-            console.log('[useBattleNads] Processing chat contents without matching events');
-            
-            // Parse and map chat logs to the right format
-            for (const chatLog of chatContents) {
-              if (!chatLog) continue;
-              
-              let message: ChatMessage;
-              
-              // Try to parse the chat log if it's in a string format
-              if (typeof chatLog === 'object' && 'characterName' in chatLog && 'message' in chatLog) {
-                message = {
-                  characterName: (chatLog as {characterName?: string}).characterName || 'Unknown',
-                  message: (chatLog as {message?: string}).message || '',
-                  timestamp: Date.now()
-                };
-              } else if (typeof chatLog === 'string') {
-                // Try to parse it as JSON if it's a string
-                try {
-                  const parsed = JSON.parse(chatLog);
-                  message = {
-                    characterName: parsed.characterName || parsed.name || 'Unknown',
-                    message: parsed.message || parsed.text || '',
-                    timestamp: Date.now()
-                  };
-                } catch {
-                  // If parsing fails, use the string as the message
-                  message = {
-                    characterName: 'System',
-                    message: chatLog,
-                    timestamp: Date.now()
-                  };
-                }
+
+            if (log.otherPlayerIndex != 0) {
+              if (log.otherPlayerIndex == gameState.character?.index) {
+                otherName = gameState.character?.name || 'Unknown';
+                otherArmorName = gameState.character?.armor.name || 'Unknown';
+                otherWeaponName = gameState.character?.weapon.name || 'Unknown';  
               } else {
-                // Fallback for any other format
-                message = {
-                  characterName: 'Unknown',
-                  message: String(chatLog) || '',
-                  timestamp: Date.now()
-                };
+                otherName = gameState.others[log.otherPlayerIndex]?.name || 'Unknown';
+                otherArmorName = gameState.others[log.otherPlayerIndex]?.armorName || 'Unknown';
+                otherWeaponName = gameState.others[log.otherPlayerIndex]?.weaponName || 'Unknown';
               }
-              
-              processedChatMessages.push(message);
+            } else {
+              otherName = '';
+              otherArmorName = '';
+              otherWeaponName = '';
             }
-            
-            if (processedChatMessages.length > 0) {
-              console.log('[useBattleNads] Processed chat messages without events:', processedChatMessages);
-              setChatMessages(prev => [...prev, ...processedChatMessages]);
+
+            if (log.logType == LogType.Chat) {
+              const chatContent = chatLogs[chatLogCount];
+              chatLogCount++;
+              
+              // Use the character name from the event and the message from the content
+              gameState.chatLogs.push({
+                characterName: characterName,
+                message: typeof chatContent === 'string' ? chatContent : 
+                        (typeof chatContent === 'object' && 'message' in chatContent) ? 
+                        (chatContent as {message: string}).message : String(chatContent),
+                timestamp: Date.now()
+              });
+              gameState.updates.eventLogs = true;
+
+            } else {
+              let message : string;
+
+              if (log.logType == LogType.Ability) {
+                message = `${characterName} reached stage ${log.lootedArmorID} of ${getAbilityName(log.lootedWeaponID)}`;
+                if (otherName != '') {
+                  message += ` targeting ${otherName}`;
+                }
+                if (log.hit) {
+                  message += ` and hit`;
+                  if (log.critical) {
+                    message += ` critically`;
+                  }
+                  if (log.damageDone > 0) {
+                    message += ` and did ${log.damageDone} damage`;
+                  }
+                } else {
+                  message += ` but missed`;
+                }
+                if (log.healthHealed > 0) {
+                  message += `.  They recovered ${log.healthHealed} health`;
+                }
+                message += `.`;
+              } else if (log.logType == LogType.Combat) {
+                message = `${characterName} attacked ${otherName} with their ${weaponName}`;
+             
+                if (log.hit) {
+                  message += ` and hit`;
+                
+                  if (log.critical) {
+                    message += ` critically`;
+                  }
+                  if (log.damageDone > 0) {
+                    message += ` for ${log.damageDone} damage`;
+                  }
+                } else {
+                  message += ` but missed`;
+                }
+                message += `.`;
+                if (log.targetDied) {
+                  message += ` ${otherName} was killed by ${characterName}`;
+                  if (log.lootedWeaponID != 0) {
+                    message += ` and looted their ${otherWeaponName}`;
+                    if (log.lootedArmorID != 0) {
+                      message += ` and ${otherArmorName}`;
+                    }
+                  }
+                  if (log.lootedArmorID != 0) {
+                    message += ` and looted their ${otherArmorName}`;
+                  }
+                  message += `!`;
+                }
+                if (log.healthHealed > 0) {
+                  message += `  ${characterName} recovered ${log.healthHealed} health.`;
+                }
+              } else if (log.logType == LogType.Sepukku) {
+                message = `${characterName} has ascended to mainnet - their shMonad gold is no longer in the BattleNad universe!`;
+              } else if (log.logType == LogType.EnteredArea) {
+                message = `${characterName} has entered the area!`;
+              } else if (log.logType == LogType.LeftArea) {
+                message = `${characterName} has left the area!`; // This will probably say "unknown!" beause their char name was already pruned TODO: fix
+              } else if (log.logType == LogType.InstigatedCombat) {
+                message = `${characterName} initiated combat with ${otherName}!`; // This will probably say "unknown!" beause their char name was already pruned TODO: fix
+              } else {
+                message = '';
+              }
+
+              gameState.eventLogs.push({
+                message: message,
+                timestamp: Date.now()
+              });
+              gameState.updates.eventLogs = true;
             }
           }
-        } catch (dataFeedErr) {
-          setError(`Error processing data feeds: ${dataFeedErr instanceof Error ? dataFeedErr.message : String(dataFeedErr)}`);
         }
       }
+
+      if (result.sessionKeyData) {
+        if (result.sessionKeyData.expiration != gameState.sessionKey.expiration) {
+          gameState.updates.sessionKey = true;
+          gameState.sessionKey = result.sessionKeyData;
+        } else if (result.sessionKeyData.balance != gameState.sessionKey.balance) {
+          gameState.updates.sessionKey = true;
+          gameState.sessionKey = result.sessionKeyData;
+        } else if (result.sessionKeyData.targetBalance != gameState.sessionKey.targetBalance) {
+          gameState.updates.sessionKey = true;
+          gameState.sessionKey = result.sessionKeyData;
+        } else if (result.sessionKeyData.ownerCommittedAmount != gameState.sessionKey.ownerCommittedAmount) {
+          gameState.updates.sessionKey = true;
+          gameState.sessionKey = result.sessionKeyData;
+        } else if (result.sessionKeyData.ownerCommittedShares != gameState.sessionKey.ownerCommittedShares) {
+          gameState.updates.sessionKey = true;
+          gameState.sessionKey = result.sessionKeyData;
+        } else if (result.sessionKeyData.owner != gameState.sessionKey.owner) {
+          gameState.updates.sessionKey = true;
+          gameState.updates.owner = true;
+          gameState.sessionKey = result.sessionKeyData;
+        }
+      }
+      gameState.lastBlock = Number(result.endBlock);
+      gameState.updates.lastBlock = true;
       
       // Update cache with the result
       gameDataCache.data = result;
       gameDataCache.lastUpdated = new Date();
       setLoading(false);
-      
-      // Convert BigInt values to strings to avoid JSON serialization issues
-      const safeResult = convertBigIntToString(result);
-      return safeResult;
+
+      return gameState;
     } catch (err) {
       setError(`Unexpected error in getFullFrontendData: ${err instanceof Error ? err.message : String(err)}`);
       setLoading(false);
-      return null;
+      gameState.updates.error = true;
+      return gameState;
     }
-  }, [characterId, lastFetchedBlock, options.role, readContract, getOwnerWalletAddress, setCharacterId, setDataFeeds, setEventLogs, setChatMessages, setError, setLoading, highestSeenBlockRef]);
+  }, [characterId, options.role, readContract, getOwnerWalletAddress, setCharacterId, setError, setLoading]);
 
   // Implement moveCharacter function
   const moveCharacter = useCallback(async (characterId: string, direction: string) => {
@@ -1200,12 +1258,15 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
           }
           
           // Check if session key is expired
-          if (sessionKey && sessionKey.expiration < highestSeenBlock) {
-            console.error("[moveCharacter] SESSION KEY EXPIRED! Transaction failed because the session key expired. Please update your session key.", {
-              sessionKeyExpiration: sessionKey.expiration,
-              currentBlock: highestSeenBlock
-            });
-            throw new Error('Your session key has expired. Please update your session key to continue playing.');
+          if (sessionKey) {
+            let highestSeenBlock : number = await getCurrentBlockNumber();
+            if (sessionKey.expiration < highestSeenBlock) {
+              console.error("[moveCharacter] SESSION KEY EXPIRED! Transaction failed because the session key expired. Please update your session key.", {
+                sessionKeyExpiration: sessionKey.expiration,
+                currentBlock: highestSeenBlock
+              });
+              throw new Error('Your session key has expired. Please update your session key to continue playing.');
+            }
           }
         }
       } catch (sessionKeyErr) {
@@ -1223,7 +1284,7 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
         throw new Error(err.message || "Error moving character");
       }
     }
-  }, [embeddedContract, embeddedWallet, highestSeenBlock, readContract]);
+  }, [embeddedContract, embeddedWallet, readContract]);
 
 
 
@@ -1450,39 +1511,6 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
     } catch (err: any) {
       console.error("[sendChatMessage] Error:", err);
       
-      // Check for expired session key
-      try {
-        if (readContract && characterId) {
-          // Directly get session key data from the contract
-          const sessionKeyData = await readContract.getCurrentSessionKey(characterId);
-          
-          // Parse the session key data
-          let sessionKey = null;
-          if (Array.isArray(sessionKeyData)) {
-            sessionKey = {
-              key: sessionKeyData[0],
-              expiration: Number(sessionKeyData[1])
-            };
-          } else if (sessionKeyData && typeof sessionKeyData === 'object') {
-            sessionKey = {
-              key: sessionKeyData.key,
-              expiration: Number(sessionKeyData.expiration)
-            };
-          }
-          
-          // Check if session key is expired
-          if (sessionKey && sessionKey.expiration < highestSeenBlock) {
-            console.error("[sendChatMessage] SESSION KEY EXPIRED! Transaction failed because the session key expired. Please update your session key.", {
-              sessionKeyExpiration: sessionKey.expiration,
-              currentBlock: highestSeenBlock
-            });
-            throw new Error('Your session key has expired. Please update your session key to continue playing.');
-          }
-        }
-      } catch (sessionKeyErr) {
-        console.warn("[sendChatMessage] Failed to check session key expiration:", sessionKeyErr);
-      }
-      
       // Handle transaction errors more specifically
       const errorMessage = err.message || "Unknown error";
       
@@ -1516,114 +1544,21 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
         throw new Error(`Error sending chat message: ${errorMessage}`);
       }
     }
-  }, [embeddedContract, embeddedWallet, characterId, readContract, highestSeenBlock]);
+  }, [embeddedContract, embeddedWallet, characterId, readContract]);
 
-  // Function to reset the block tracking for fetching historical data
-  const resetBlockTracking = useCallback((blocksToGoBack = 20) => {
-    if (lastFetchedBlock > 0) {
-      const newBlockNum = Math.max(0, lastFetchedBlock - blocksToGoBack);
-      console.log(`[useBattleNads] Resetting block tracking from ${highestSeenBlockRef.current} to ${newBlockNum}`);
-      // Update both the ref and the state together
-      highestSeenBlockRef.current = newBlockNum;
-      setHighestSeenBlock(newBlockNum);
-    }
-  }, [lastFetchedBlock]);
-
-  // Add getCurrentSessionKey function that uses the contract
-  const getCurrentSessionKey = async (characterId: string): Promise<{ key: string; expiration: number } | null> => {
-    try {
-      console.log(`[getCurrentSessionKey] Fetching session key for character: ${characterId}`);
-      
-      if (!characterId) {
-        throw new Error('No character ID provided');
-      }
-      
-      if (!readContract) {
-        throw new Error('Contract not available for reading');
-      }
-      
-      // Call the contract function
-      const sessionKeyData = await readContract.getCurrentSessionKey(characterId);
-      
-      // Handle different response formats
-      let sessionKey: { key: string; expiration: number } | null = null;
-      
-      if (Array.isArray(sessionKeyData)) {
-        // Handle array response [key, expiration]
-        sessionKey = {
-          key: sessionKeyData[0],
-          expiration: Number(sessionKeyData[1])
-        };
-      } else if (sessionKeyData && typeof sessionKeyData === 'object') {
-        // Handle object response {key, expiration}
-        sessionKey = {
-          key: sessionKeyData.key,
-          expiration: Number(sessionKeyData.expiration)
-        };
-      }
-      
-      if (sessionKey && typeof sessionKey.key === 'string') {
-        console.log(`[getCurrentSessionKey] Current session key: ${sessionKey.key}, expires at block: ${sessionKey.expiration}`);
-        
-        // Check if session key is expired
-        if (highestSeenBlock && sessionKey.expiration < highestSeenBlock) {
-          console.warn(`[getCurrentSessionKey] SESSION KEY EXPIRED! Expiration block: ${sessionKey.expiration}, Current block: ${highestSeenBlock}`);
-          
-          // Dispatch the sessionKeyUpdateNeeded event
-          const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
-            detail: { 
-              characterId,
-              owner: injectedWallet?.address,
-              currentSessionKey: sessionKey.key,
-              embeddedWalletAddress: embeddedWallet?.address,
-              reason: 'expired' // Add reason so UI can show appropriate message
-            }
-          });
-          
-          window.dispatchEvent(sessionKeyUpdateEvent);
-        }
-        
-        return sessionKey;
-      }
-      
-      console.log('[getCurrentSessionKey] No valid session key found');
-      return null;
-    } catch (err) {
-      console.error("[getCurrentSessionKey] Error:", err);
-      return null;
-    }
-  };
-  
-  // Add helper function to check if the session key is expired
-  const isSessionKeyExpired = async (characterId: string): Promise<boolean> => {
-    try {
-      const sessionKey = await getCurrentSessionKey(characterId);
-      if (!sessionKey) return true; // Consider null session key as expired
-      
-      return highestSeenBlock > 0 && sessionKey.expiration < highestSeenBlock;
-    } catch (err) {
-      console.error("[isSessionKeyExpired] Error:", err);
-      return true; // Consider error as expired to be safe
-    }
-  };
 
   // Return all the functions and state that components need
   return {
     characterId,
     loading,
     error,
-    dataFeeds,
-    eventLogs,
-    chatMessages,
-    lastFetchedBlock,
-    highestSeenBlock,
     getOwnerWalletAddress,
     getPlayerCharacterID,
     getPlayerCharacters,
     createCharacter,
     getCharacterIdByTransactionHash,
     getEstimatedBuyInAmount,
-    getFullFrontendData,
+    pollForFrontendData,
     moveCharacter,
     replenishGasBalance,
     sendChatMessage,
@@ -1631,7 +1566,6 @@ export const useBattleNads = (options: { role?: 'provider' | 'consumer'; suppres
     changeEquippedWeapon,
     changeEquippedArmor,
     assignNewPoints,
-    resetBlockTracking,
     getCurrentBlockNumber
   };
 };
@@ -1703,8 +1637,8 @@ export const useGameActions = () => {
   const { 
     moveCharacter, 
     sendChatMessage: battleNadsSendChatMessage,
-    characterId,
-    highestSeenBlock 
+    characterId, 
+    getCurrentBlockNumber
   } = useBattleNads();
   const { 
     injectedWallet, 
@@ -1844,8 +1778,9 @@ export const useGameActions = () => {
         console.log(`[getCurrentSessionKey] Current session key: ${sessionKey.key}, expires at block: ${sessionKey.expiration}`);
         
         // Check if session key is expired
-        if (highestSeenBlock && sessionKey.expiration < highestSeenBlock) {
-          console.warn(`[getCurrentSessionKey] SESSION KEY EXPIRED! Expiration block: ${sessionKey.expiration}, Current block: ${highestSeenBlock}`);
+        const currentBlock = await getCurrentBlockNumber();
+        if (currentBlock && sessionKey.expiration < currentBlock) {
+          console.warn(`[getCurrentSessionKey] SESSION KEY EXPIRED! Expiration block: ${sessionKey.expiration}, Current block: ${currentBlock}`);
           
           // Dispatch the sessionKeyUpdateNeeded event
           const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
@@ -1877,8 +1812,8 @@ export const useGameActions = () => {
     try {
       const sessionKey = await getCurrentSessionKey(characterId);
       if (!sessionKey) return true; // Consider null session key as expired
-      
-      return highestSeenBlock > 0 && sessionKey.expiration < highestSeenBlock;
+      const currentBlock = await getCurrentBlockNumber();
+      return currentBlock > 0 && sessionKey.expiration < currentBlock;
     } catch (err) {
       console.error("[isSessionKeyExpired] Error:", err);
       return true; // Consider error as expired to be safe

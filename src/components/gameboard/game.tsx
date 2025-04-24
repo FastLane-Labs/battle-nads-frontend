@@ -48,20 +48,9 @@ import { GameBoard } from './GameBoard';
 import EventFeed from './EventFeed';
 import ChatInterface from './ChatInterface';
 import DataFeed from './DataFeed';
-import { BattleNad, GameState, GameUIState } from '../../types/gameTypes';
+import { BattleNad, BattleNadLite, GameState, GameUIState } from '../../types/gameTypes';
 import { convertCharacterData, createGameState, parseFrontendData, calculateMaxHealth, extractPositionFromCharacter } from '../../utils/gameDataConverters';
 import { useRecoilValue, useSetRecoilState } from 'recoil';
-import { 
-  gameStateAtom, 
-  playerCharacterSelector, 
-  combatantsSelector, 
-  noncombatantsSelector,
-  areaInfoSelector,
-  movementOptionsSelector,
-  isInCombatSelector,
-  loadingSelector,
-  errorSelector
-} from '../../state/gameState';
 import WalletBalances from '../WalletBalances';
 import DebugPanel from '../DebugPanel';
 import { ChevronUpIcon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from '@chakra-ui/icons';
@@ -109,27 +98,15 @@ const Game: React.FC = () => {
 
   // Get game actions for updating session key
   const { updateSessionKey } = useGameActions();
-
-  // Recoil state
-  const setGameState = useSetRecoilState(gameStateAtom);
-  const character = useRecoilValue(playerCharacterSelector);
-  const combatants = useRecoilValue(combatantsSelector);
-  const noncombatants = useRecoilValue(noncombatantsSelector);
-  const areaInfo = useRecoilValue(areaInfoSelector);
-  const movementOptions = useRecoilValue(movementOptionsSelector);
-  const isInCombat = useRecoilValue(isInCombatSelector);
-  const loading = useRecoilValue(loadingSelector);
-  const error = useRecoilValue(errorSelector);
   
   // Local component state (not blockchain related)
   const [characterId, setCharacterId] = useState<string | null>(null);
   const [isMoving, setIsMoving] = useState<boolean>(false);
   const [position, setPosition] = useState({ x: 0, y: 0, depth: 1 });
-  const [selectedCombatant, setSelectedCombatant] = useState<BattleNad | null>(null);
+  const [selectedCombatant, setSelectedCombatant] = useState<BattleNadLite | null>(null);
   const [combatLog, setCombatLog] = useState<string[]>([]);
   const [isAttacking, setIsAttacking] = useState(false);
   const [loadingComplete, setLoadingComplete] = useState<boolean>(false);
-  const [miniMap, setMiniMap] = useState<any[][]>([]);
 
   // Reference to track initial load state
   const isInitialLoadComplete = useRef(false);
@@ -214,11 +191,7 @@ const Game: React.FC = () => {
    * @returns
    */
   const loadCharacterData = async (characterId: string) => {
-    setGameState(current => ({ ...current, loading: true }));
-    if (characterId === '') {
-      setGameState(current => ({ ...current, loadingState: 'character-select' }));
-      return;
-    }
+    
 
     try {
       // Dispatch an event requesting the GameDataProvider to refresh data
@@ -228,14 +201,12 @@ const Game: React.FC = () => {
       window.dispatchEvent(requestEvent);
       console.log('[Game] Dispatched requestGameDataRefresh event for character:', characterId);
       
-      // Update loading state to waiting for data
-      setGameState(current => ({ ...current, loadingState: 'waiting-for-data' }));
       
       // The actual data will be received through the gameState context from GameDataProvider
     } catch (error) {
       console.error('[Game] Error dispatching refresh event:', error);
       const errorMessage = error instanceof Error ? error.message : "Unknown error refreshing game data";
-      setGameState(current => ({ ...current, loadingState: 'error', error: errorMessage }));
+
     }
   };
 
@@ -930,42 +901,20 @@ const Game: React.FC = () => {
       console.log("[Game] Received combatantsChanged event:", event.detail);
       if (event.detail && event.detail.combatants) {
         // Filter out any invalid combatants that don't have proper data
-        const validCombatants = event.detail.combatants.filter((c: any) => c && c.id && c.stats);
+        const validCombatants = event.detail.combatants.filter((c: any) => c && c.id);
         
         if (validCombatants.length > 0) {
           console.log("[Game] Valid combatants received:", validCombatants.length);
           
-          // Process each combatant to ensure stats are properly set
-          const processedCombatants = validCombatants.map((combatant: any) => {
-            if (combatant.stats) {
-              // Calculate max health and ensure health never exceeds it
-              const maxHealth = calculateMaxHealth(combatant.stats);
-              const health = Math.min(
-                Number(combatant.stats.health || 0),
-                maxHealth
-              );
-              
-              // Return combatant with processed stats
-              return {
-                ...combatant,
-                stats: {
-                  ...combatant.stats,
-                  health: health
-                }
-              };
-            }
-            return combatant;
-          });
-          
-          // Update state with processed combatants
+          // Update state with the combatants
           setGameState(current => ({
             ...current,
-            combatants: processedCombatants
+            combatants: validCombatants
           }));
           
           // Log changes in combatants
-          const newCount = processedCombatants.length;
-          const oldCount = event.detail.previousCombatants.length;
+          const newCount = validCombatants.length;
+          const oldCount = event.detail.previousCombatants?.length || 0;
           
           if (newCount > oldCount) {
             addToCombatLog(`New enemies appeared! Now facing ${newCount} opponents.`);
@@ -1257,46 +1206,56 @@ const Game: React.FC = () => {
                         <Heading size="md" mb={4}>Combat</Heading>
                         {combatants.length > 0 ? (
                           <VStack align="stretch" spacing={2}>
-                            {combatants.map((enemy, index) => (
-                              <Box 
-                                key={index} 
-                                p={3} 
-                                bg="gray.600" 
-                                borderRadius="md"
-                              >
-                                <HStack justify="space-between" align="flex-start">
-                                  <VStack align="stretch" spacing={2} flex="1">
-                                    <Flex justify="space-between" align="center">
-                                      <Text fontWeight="bold" fontSize="sm">{enemy.name || 'Unknown'}</Text>
-                                      <Badge colorScheme="purple" fontSize="xs" p={1}>
-                                        Level {enemy.stats?.level || 1}
-                                      </Badge>
-                                    </Flex>
-                                    <Box>
-                                      <Flex justify="space-between" mb={1}>
-                                        <Text fontSize="xs">Health</Text>
-                                        <Text fontSize="xs">
-                                          {Number(enemy.stats?.health || 0)} / {Math.max(calculateMaxHealth(enemy.stats), Number(enemy.stats?.health || 0))}
-                                        </Text>
+                            {combatants.map((enemy, index) => {
+                              // Safely extract properties from either BattleNad or BattleNadLite
+                              const name = enemy.name || 'Unknown';
+                              const level = 'level' in enemy ? enemy.level : ('stats' in enemy ? enemy.stats?.level : 1);
+                              const health = 'health' in enemy ? enemy.health : ('stats' in enemy ? enemy.stats?.health : 0);
+                              const maxHealth = 'maxHealth' in enemy ? enemy.maxHealth : 
+                                ('stats' in enemy && enemy.stats?.maxHealth) ? enemy.stats.maxHealth : 
+                                ('stats' in enemy) ? calculateMaxHealth(enemy.stats) : 100;
+                              
+                              return (
+                                <Box 
+                                  key={index} 
+                                  p={3} 
+                                  bg="gray.600" 
+                                  borderRadius="md"
+                                >
+                                  <HStack justify="space-between" align="flex-start">
+                                    <VStack align="stretch" spacing={2} flex="1">
+                                      <Flex justify="space-between" align="center">
+                                        <Text fontWeight="bold" fontSize="sm">{name}</Text>
+                                        <Badge colorScheme="purple" fontSize="xs" p={1}>
+                                          Level {level || 1}
+                                        </Badge>
                                       </Flex>
-                                      <Progress 
-                                        value={(Number(enemy.stats?.health || 0) / Math.max(calculateMaxHealth(enemy.stats), Number(enemy.stats?.health || 0))) * 100} 
-                                        colorScheme="green" 
-                                        size="xs" 
-                                      />
-                                    </Box>
-                                  </VStack>
-                                  <Button
-                                    colorScheme="red"
-                                    onClick={() => handleAttack(index)}
-                                    isLoading={isAttacking}
-                                    size="sm"
-                                  >
-                                    Attack
-                                  </Button>
-                                </HStack>
-                              </Box>
-                            ))}
+                                      <Box>
+                                        <Flex justify="space-between" mb={1}>
+                                          <Text fontSize="xs">Health</Text>
+                                          <Text fontSize="xs">
+                                            {Number(health || 0)} / {Number(maxHealth || 1)}
+                                          </Text>
+                                        </Flex>
+                                        <Progress 
+                                          value={(Number(health || 0) / Number(maxHealth || 1)) * 100} 
+                                          colorScheme="green" 
+                                          size="xs" 
+                                        />
+                                      </Box>
+                                    </VStack>
+                                    <Button
+                                      colorScheme="red"
+                                      onClick={() => handleAttack(index)}
+                                      isLoading={isAttacking}
+                                      size="sm"
+                                    >
+                                      Attack
+                                    </Button>
+                                  </HStack>
+                                </Box>
+                              );
+                            })}
                           </VStack>
                         ) : (
                           <Alert status="info" variant="subtle">

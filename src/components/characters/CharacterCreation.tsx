@@ -166,7 +166,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
   const TOTAL_POINTS = 32;
   const BASE_POINTS_USED = MIN_STAT_VALUE * 6; // 6 attributes starting at 3 each
   const usedPoints = strength + vitality + dexterity + quickness + sturdiness + luck;
-  const unallocatedPoints = TOTAL_POINTS - usedPoints;
+  const unspentAttributePoints = TOTAL_POINTS - usedPoints;
   
   const handleTransactionLookup = async () => {
     if (!transactionHash) {
@@ -226,10 +226,10 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
       return;
     }
     
-    if (unallocatedPoints !== 0) {
+    if (unspentAttributePoints !== 0) {
       toast({
         title: 'Error',
-        description: `Please allocate all attribute points. You have ${unallocatedPoints} points unallocated.`,
+        description: `Please allocate all attribute points. You have ${unspentAttributePoints} points unallocated.`,
         status: 'error',
         duration: 3000,
         isClosable: true,
@@ -407,11 +407,11 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             />
           </FormControl>
           
-          <Alert status={unallocatedPoints > 0 ? "info" : unallocatedPoints < 0 ? "error" : "success"} variant="subtle">
+          <Alert status={unspentAttributePoints > 0 ? "info" : unspentAttributePoints < 0 ? "error" : "success"} variant="subtle">
             <AlertIcon />
             <AlertDescription>
               <Text fontWeight="bold">
-                Unallocated Attribute Points: {unallocatedPoints}
+                Unallocated Attribute Points: {unspentAttributePoints}
               </Text>
             </AlertDescription>
           </Alert>
@@ -456,7 +456,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             colorScheme="blue" 
             width="full"
             onClick={handleCreateCharacter}
-            isDisabled={unallocatedPoints !== 0 || !name || isCreating}
+            isDisabled={unspentAttributePoints !== 0 || !name || isCreating}
           >
             Create Character
           </Button>
