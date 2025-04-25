@@ -972,7 +972,7 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
               const positionChangedEvent = new CustomEvent('characterPositionChanged', {
                 detail: { 
                   position: position,
-                  character: result.character
+                  character: newGameData.character
                 }
               });
               window.dispatchEvent(positionChangedEvent);
@@ -981,13 +981,13 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
           }
           
           // 2. Check for character health/stats change
-          if (result.character?.stats && (!gameDataRef.current?.character?.stats ||
-              result.character.stats.health !== gameDataRef.current.character.stats.health ||
-              result.character.stats.maxHealth !== gameDataRef.current.character.stats.maxHealth)) {
+          if (newGameData.character?.stats && (!gameDataRef.current?.character?.stats ||
+            newGameData.character.health !== gameDataRef.current.character.stats.health ||
+            newGameData.character.maxHealth !== gameDataRef.current.character.stats.maxHealth)) {
             const statsChangedEvent = new CustomEvent('characterStatsChanged', {
               detail: { 
-                stats: result.character.stats,
-                character: result.character,
+                stats: newGameData.character.stats,
+                character: newGameData.character,
                 isPlayerCharacter: true // Flag to identify this is the player character
               }
             });
@@ -1050,7 +1050,7 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [getFullFrontendData, getOwnerWalletAddress, isPollingEnabled, embeddedWallet?.address, fetchSessionKeyData, validateSessionKey]);
+  }, [pollForFrontendData, getOwnerWalletAddress, isPollingEnabled, embeddedWallet?.address, fetchSessionKeyData, validateSessionKey]);
 
   // Set up polling interval - this was missing
   useEffect(() => {
