@@ -543,8 +543,8 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
       
       // Check variables needed for session key validity
       if (newGameData) {
-        const validCharacterId = newGameData.characterID && 
-                             result.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
+        const validCharacterId = newGameData.character?.id && 
+                             newGameData.character.id !== '0x0000000000000000000000000000000000000000000000000000000000000000';
         const hasEmbeddedWallet = !!(embeddedWallet?.address || embeddedWalletAddressRef.current);
         
         // If we have both a valid character ID and embedded wallet, fetch session key expiration
@@ -578,17 +578,17 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
         
         // Check for session key address mismatch
         const validOwnerAddr = ownerAddress && ownerAddress !== '0x0000000000000000000000000000000000000000';
-        const emptySessionKey = !result.sessionKey || result.sessionKey === '0x0000000000000000000000000000000000000000';
+        const emptySessionKey = !newGameData.sessionKey.key || newGameData.sessionKey.key === '0x0000000000000000000000000000000000000000';
         const embeddedWalletAddress = embeddedWallet?.address || embeddedWalletAddressRef.current;
-        const addressMismatch = embeddedWalletAddress && result.sessionKey && 
-                              result.sessionKey.toLowerCase() !== embeddedWalletAddress.toLowerCase();
+        const addressMismatch = embeddedWalletAddress && newGameData.sessionKey.key && 
+                              newGameData.sessionKey.key.toLowerCase() !== embeddedWalletAddress.toLowerCase();
         
         // If session key is invalid due to address mismatch, dispatch event
         if (validOwnerAddr && validCharacterId && (emptySessionKey || addressMismatch)) {
           console.log('[GameDataProvider] Session key address mismatch detected:', {
             ownerAddress,
-            characterID: result.characterID,
-            currentSessionKey: result.sessionKey,
+            characterID: newGameData.character?.id,
+            currentSessionKey: newGameData.sessionKey.key,
             embeddedWalletAddress: embeddedWalletAddress || 'Not available'
           });
           
@@ -597,9 +597,9 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
           if (validSessionKeyRef.current) {
             const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
               detail: { 
-                characterId: result.characterID,
+                characterId: newGameData.character?.id,
                 owner: ownerAddress,
-                currentSessionKey: result.sessionKey,
+                currentSessionKey: newGameData.sessionKey.key,
                 embeddedWalletAddress: embeddedWalletAddress,
                 reason: 'mismatch'
               }
@@ -616,25 +616,25 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
         // Check if we need to update session key
         // Conditions: valid owner address (not zero address) AND valid characterID AND (zero address session key OR session key doesn't match embedded wallet)
         const validOwnerAddress = ownerAddress && ownerAddress !== '0x0000000000000000000000000000000000000000';
-        const validCharId = result.characterID && result.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
-        const zeroSessionKey = !result.sessionKey || result.sessionKey === '0x0000000000000000000000000000000000000000';
-        const sessionKeyMismatch = embeddedWalletAddress && result.sessionKey && 
-                                result.sessionKey.toLowerCase() !== embeddedWalletAddress.toLowerCase();
+        const validCharId = newGameData.character?.id && newGameData.character?.id !== '0x0000000000000000000000000000000000000000000000000000000000000000';
+        const zeroSessionKey = !newGameData.sessionKey?.key || newGameData.sessionKey?.key === '0x0000000000000000000000000000000000000000';
+        const sessionKeyMismatch = embeddedWalletAddress && newGameData.sessionKey.key && 
+                                newGameData.sessionKey?.key.toLowerCase() !== embeddedWalletAddress.toLowerCase();
         
         if (validOwnerAddress && validCharId && (zeroSessionKey || sessionKeyMismatch)) {
           console.log('[GameDataProvider] Session key update needed:', {
             ownerAddress,
-            characterID: result.characterID,
-            currentSessionKey: result.sessionKey,
+            characterID: newGameData.character?.id,
+            currentSessionKey: newGameData.sessionKey?.key,
             embeddedWalletAddress: embeddedWalletAddress || 'Not available'
           });
           
           // Dispatch event to trigger session key update page
           const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
             detail: { 
-              characterId: result.characterID,
+              characterId: newGameData.character?.id,
               owner: ownerAddress,
-              currentSessionKey: result.sessionKey,
+              currentSessionKey: newGameData.sessionKey?.key,
               embeddedWalletAddress: embeddedWalletAddress
             }
           });
@@ -645,26 +645,26 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
         }
         
         // Debug logging for zero session key with valid character ID
-        const isZeroSessionKey = result.sessionKey === '0x0000000000000000000000000000000000000000';
-        const isValidCharacterId = result.characterID && 
-          result.characterID !== '0x0000000000000000000000000000000000000000000000000000000000000000';
+        const isZeroSessionKey = newGameData.sessionKey?.key === '0x0000000000000000000000000000000000000000';
+        const isValidCharacterId = newGameData.character?.id && 
+        newGameData.character?.id !== '0x0000000000000000000000000000000000000000000000000000000000000000';
         
         if (isZeroSessionKey && isValidCharacterId) {
           console.log(`[GameDataProvider] ZERO SESSION KEY DETECTED with valid characterID`, {
             ownerAddress,
-            startBlock: result.lastFetchedBlock || 'unknown', // or the value passed to getFullFrontendData
-            characterID: result.characterID,
-            sessionKey: result.sessionKey,
-            sessionKeyBalance: result.sessionKeyBalance?.toString(),
+            startBlock: newGameData.lastBlock || 'unknown', // or the value passed to getFullFrontendData
+            characterID: newGameData.character?.id,
+            sessionKey: newGameData.sessionKey?.key,
+            sessionKeyBalance: newGameData.sessionKey?.balance.toString(),
             bondedShMonadBalance: result.bondedShMonadBalance?.toString(),
             balanceShortfall: result.balanceShortfall?.toString(),
-            unallocatedAttributePoints: result.unallocatedAttributePoints?.toString()
+            unallocatedAttributePoints: newGameData.character?.unspentAttributePoints?.toString()
           });
         }
       }
 
       // If we got a result, reset consecutive errors counter
-      if (result) {
+      if (newGameData) {
         setConsecutiveErrors(0);
         
         // Helper function to check if a character ID is valid (non-zero) 
@@ -675,14 +675,14 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
         // Make sure we have either valid IDs or clear zero values for comparison
         // USE THE REF FOR CURRENT GAME DATA INSTEAD OF STATE to avoid stale closures
         const currentId = gameDataRef.current?.characterID || '0x0000000000000000000000000000000000000000000000000000000000000000';
-        const newId = result.characterID || '0x0000000000000000000000000000000000000000000000000000000000000000';
+        const newId = newGameData.character?.id || '0x0000000000000000000000000000000000000000000000000000000000000000';
         
         // Check specifically for zero session key with valid character ID
-        if (isValidCharacterId(newId) && result.sessionKey === '0x0000000000000000000000000000000000000000') {
+        if (isValidCharacterId(newId) && newGameData.sessionKey.key === '0x0000000000000000000000000000000000000000') {
           console.log(`[GameDataProvider] WARNING: Zero session key with valid character ID detected`, {
             characterID: newId,
-            sessionKey: result.sessionKey,
-            sessionKeyBalance: result.sessionKeyBalance?.toString(),
+            sessionKey: newGameData.sessionKey?.key,
+            sessionKeyBalance: newGameData.sessionKey?.balance.toString(),
             bondedShMonadBalance: result.bondedShMonadBalance?.toString(),
             balanceShortfall: result.balanceShortfall?.toString(),
             ownerAddress: getOwnerWalletAddress() || 'unknown'
@@ -829,7 +829,7 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
               
               for (const content of chatContents) {
                 combinedChatMessages.push({
-                  characterName: result.character?.name || 'Character',
+                  characterName: newGameData.character?.name || 'Character',
                   message: typeof content === 'string' ? content : JSON.stringify(content),
                   timestamp: Date.now()
                 });
@@ -881,31 +881,31 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
         
         // Important: Update the gameDataRef BEFORE updating state
         // This ensures the ref always has the latest data for the next polling cycle
-        gameDataRef.current = result;
+        gameDataRef.current = newGameData;
         
         // Update game data state
-        setGameData(result);
+        setGameData(newGameData);
         setLastUpdated(new Date());
         
         // Update the hasChangedMeaningfully check to be more granular and detect specific changes
         // Use gameDataRef.current for comparison to avoid stale closures
         const hasChangedMeaningfully = !gameDataRef.current || 
           // Character ID changed
-          result.characterID !== gameDataRef.current.characterID ||
+          newGameData.character?.id !== gameDataRef.current.characterID ||
           // Session key balance changed
-          (result.sessionKeyBalance?.toString() !== gameDataRef.current.sessionKeyBalance?.toString()) ||
+          (newGameData.sessionKey?.balance?.toString() !== gameDataRef.current.sessionKeyBalance?.toString()) ||
           // Bonded balance changed
           (result.bondedShMonadBalance?.toString() !== gameDataRef.current.bondedShMonadBalance?.toString()) ||
           // Shortfall changed
           (result.balanceShortfall?.toString() !== gameDataRef.current.balanceShortfall?.toString()) ||
           // Position changed (check explicitly)
-          (result.character?.stats && 
-           (!gameDataRef.current?.character?.stats ||
-            Number(result.character.stats.x || 0) !== Number(gameDataRef.current.character.stats.x || 0) ||
-            Number(result.character.stats.y || 0) !== Number(gameDataRef.current.character.stats.y || 0) ||
-            Number(result.character.stats.depth || 0) !== Number(gameDataRef.current.character.stats.depth || 0))) ||
+          (newGameData.character?.position && 
+            (!gameDataRef.current?.character?.stats || // TODO: update this to use the new position object
+            Number(newGameData.character?.position.x || 0) !== Number(gameDataRef.current.character.stats.x || 0) || // TODO: verify gameDataRef struct for x position
+            Number(newGameData.character.position.y || 0) !== Number(gameDataRef.current.character.stats.y || 0) || // TODO: verify gameDataRef struct for y position
+            Number(newGameData.character.position.depth || 0) !== Number(gameDataRef.current.character.stats.depth || 0))) || // TODO: verify gameDataRef struct for depth position
           // Character stats/position changed - use deep comparison
-          !isEqual(result.character, gameDataRef.current.character) ||
+          !isEqual(newGameData.character, gameDataRef.current.character) ||
           // Combat state changed - check for combatants array changes
           !isEqual(result.combatants, gameDataRef.current.combatants) ||
           // Check specifically for data feeds with chat logs
@@ -938,11 +938,11 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
           // Add more specific event dispatches for different types of changes
           
           // 1. Check for character position change
-          if (result.character?.stats) {
+          if (newGameData.character?.position) {
             // Extract position values, ensuring we have numbers not undefined
-            const newX = Number(result.character.stats.x || 0);
-            const newY = Number(result.character.stats.y || 0);
-            const newDepth = Number(result.character.stats.depth || 0);
+            const newX = Number(newGameData.character.position.x || 0);
+            const newY = Number(newGameData.character.position.y || 0);
+            const newDepth = Number(newGameData.character.position.depth || 0);
             
             // Get current values from lastKnownPositionRef or default to -1 to ensure initial position is always considered a change
             const currentX = lastKnownPositionRef.current?.x ?? -1;
