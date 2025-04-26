@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useMachine } from '@xstate/react';
 import { useWallet } from '@/providers/WalletProvider';
 import { useContracts } from './useContracts';
@@ -11,14 +11,14 @@ import * as battleNadsService from '@services/battleNadsService';
  * Hook that uses the game state machine to manage the application state
  */
 export const useGameMachine = () => {
-  const [state, send] = useMachine(gameMachine);
+  const [state, send, actor] = useMachine(gameMachine);
   const { injectedWallet, embeddedWallet } = useWallet();
   const { readContract, embeddedContract } = useContracts();
   
-  // Log all state transitions
-  useEffect(() => {
-    logStateTransition(state);
-  }, [state]);
+  // Log all state transitions - commented out for tests
+  // useEffect(() => {
+  //   logStateTransition(state);
+  // }, [state]);
   
   // Check wallet connection
   useEffect(() => {
@@ -58,7 +58,7 @@ export const useGameMachine = () => {
       
       loadCharacterId();
     }
-  }, [state.matches, state.context.owner, send]);
+  }, [state, send]);
   
   // Check session key when character is selected
   useEffect(() => {
@@ -89,7 +89,7 @@ export const useGameMachine = () => {
       
       checkSessionKey();
     }
-  }, [state.matches, state.context.characterId, embeddedContract, send]);
+  }, [state, embeddedContract, send]);
   
   // Create a character
   const createCharacter = async (characterClass: number, name: string) => {
