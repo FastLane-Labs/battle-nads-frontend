@@ -6,6 +6,11 @@ import { useEmbeddedContract } from './useEmbeddedContract';
 import { getCharacterLocalStorageKey, isValidCharacterId } from '../utils/getCharacterLocalStorageKey';
 import { LogType, Log, DataFeed, ChatMessage, PollResponse, SessionKeyData, EventMessage, CharacterClass, BattleNadUnformatted, BattleNadLiteUnformatted, BattleNad, BattleNadLite, Ability, AbilityTracker, GameState, StatusEffect } from '../types/gameTypes';
 import { useSetRecoilState, useRecoilValue } from 'recoil';
+// Import service layer
+import * as battleNadsService from '@services/battleNadsService';
+
+// Feature flag to control service layer usage
+const REFAC_SERVICE_LIVE = process.env.NEXT_PUBLIC_REFAC_SERVICE_LIVE === 'true';
 
 // Constants
 const RPC_URL = "https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24";

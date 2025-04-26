@@ -7,6 +7,11 @@ import { getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKe
 import { useContracts } from '../hooks/useContracts';
 import { LogType, Log, DataFeed, ChatMessage, PollResponse, SessionKeyData, BattleNadUnformatted, BattleNadLiteUnformatted, BattleNadLite, BattleNad, GameUpdates, GameState } from '../types/gameTypes';
 import { ethers } from 'ethers';
+// Import service layer
+import * as battleNadsService from '@services/battleNadsService';
+
+// Feature flag to control service layer usage
+const REFAC_SERVICE_LIVE = process.env.NEXT_PUBLIC_REFAC_SERVICE_LIVE === 'true';
 
 /**
  * Deep equality check for objects
@@ -537,7 +542,6 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
           }
         }
       }
-
 
       // FINISHED HERE. RESUME HERE. NEED TO FINISH FORMATTING THE PUSHING OF DATA TO THE GAME STATE.
       
