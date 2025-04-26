@@ -64,13 +64,9 @@ const Game: React.FC = () => {
   const { 
     characterId: battleNadsCharacterId,
     moveCharacter,
-    getFullFrontendData,
     getPlayerCharacterID,
     loading: contractLoading,
     error: contractError,
-    eventLogs,
-    chatMessages,
-    lastFetchedBlock,
     highestSeenBlock,
     sendChatMessage,
     changeAttackTarget,
