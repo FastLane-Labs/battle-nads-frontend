@@ -35,7 +35,11 @@ export type GameEvent =
 /**
  * Game state machine definition
  */
-export const gameMachine = createMachine<GameContext, GameEvent>({
+export const gameMachine = createMachine({
+  types: {} as {
+    context: GameContext;
+    events: GameEvent;
+  },
   id: 'game',
   initial: 'checkingWallet',
   
@@ -45,7 +49,7 @@ export const gameMachine = createMachine<GameContext, GameEvent>({
         WALLET_CONNECTED: {
           target: 'checkingCharacter',
           actions: assign({
-            owner: (_, event) => event.owner,
+            owner: ({ event }) => event.owner,
           }),
         },
         WALLET_DISCONNECTED: {
@@ -54,7 +58,7 @@ export const gameMachine = createMachine<GameContext, GameEvent>({
         ERROR: {
           target: 'error',
           actions: assign({
-            errorMessage: (_, event) => event.message,
+            errorMessage: ({ event }) => event.message,
           }),
         },
       },
@@ -65,13 +69,13 @@ export const gameMachine = createMachine<GameContext, GameEvent>({
         WALLET_CONNECTED: {
           target: 'checkingCharacter',
           actions: assign({
-            owner: (_, event) => event.owner,
+            owner: ({ event }) => event.owner,
           }),
         },
         ERROR: {
           target: 'error',
           actions: assign({
-            errorMessage: (_, event) => event.message,
+            errorMessage: ({ event }) => event.message,
           }),
         },
       },
@@ -82,7 +86,7 @@ export const gameMachine = createMachine<GameContext, GameEvent>({
         CHARACTER_SELECTED: {
           target: 'checkingSessionKey',
           actions: assign({
-            characterId: (_, event) => event.characterId,
+            characterId: ({ event }) => event.characterId,
           }),
         },
         NO_CHARACTER_FOUND: {
@@ -91,13 +95,13 @@ export const gameMachine = createMachine<GameContext, GameEvent>({
         WALLET_DISCONNECTED: {
           target: 'noOwnerWallet',
           actions: assign({
-            owner: (_) => undefined,
+            owner: () => undefined,
           }),
         },
         ERROR: {
           target: 'error',
           actions: assign({
-            errorMessage: (_, event) => event.message,
+            errorMessage: ({ event }) => event.message,
           }),
         },
       },
@@ -108,19 +112,19 @@ export const gameMachine = createMachine<GameContext, GameEvent>({
         CHARACTER_CREATED: {
           target: 'checkingSessionKey',
           actions: assign({
-            characterId: (_, event) => event.characterId,
+            characterId: ({ event }) => event.characterId,
           }),
         },
         WALLET_DISCONNECTED: {
           target: 'noOwnerWallet',
           actions: assign({
-            owner: (_) => undefined,
+            owner: () => undefined,
           }),
         },
         ERROR: {
           target: 'error',
           actions: assign({
-            errorMessage: (_, event) => event.message,
+            errorMessage: ({ event }) => event.message,
           }),
         },
       },
@@ -134,20 +138,20 @@ export const gameMachine = createMachine<GameContext, GameEvent>({
         SESSION_KEY_INVALID: {
           target: 'sessionKeyWarning',
           actions: assign({
-            warning: (_, event) => event.warning,
+            warning: ({ event }) => event.warning,
           }),
         },
         WALLET_DISCONNECTED: {
           target: 'noOwnerWallet',
           actions: assign({
-            owner: (_) => undefined,
-            characterId: (_) => undefined,
+            owner: () => undefined,
+            characterId: () => undefined,
           }),
         },
         ERROR: {
           target: 'error',
           actions: assign({
-            errorMessage: (_, event) => event.message,
+            errorMessage: ({ event }) => event.message,
           }),
         },
       },
@@ -164,14 +168,14 @@ export const gameMachine = createMachine<GameContext, GameEvent>({
         WALLET_DISCONNECTED: {
           target: 'noOwnerWallet',
           actions: assign({
-            owner: (_) => undefined,
-            characterId: (_) => undefined,
+            owner: () => undefined,
+            characterId: () => undefined,
           }),
         },
         ERROR: {
           target: 'error',
           actions: assign({
-            errorMessage: (_, event) => event.message,
+            errorMessage: ({ event }) => event.message,
           }),
         },
       },
@@ -182,20 +186,20 @@ export const gameMachine = createMachine<GameContext, GameEvent>({
         SESSION_KEY_INVALID: {
           target: 'sessionKeyWarning',
           actions: assign({
-            warning: (_, event) => event.warning,
+            warning: ({ event }) => event.warning,
           }),
         },
         WALLET_DISCONNECTED: {
           target: 'noOwnerWallet',
           actions: assign({
-            owner: (_) => undefined,
-            characterId: (_) => undefined,
+            owner: () => undefined,
+            characterId: () => undefined,
           }),
         },
         ERROR: {
           target: 'error',
           actions: assign({
-            errorMessage: (_, event) => event.message,
+            errorMessage: ({ event }) => event.message,
           }),
         },
       },
@@ -206,7 +210,7 @@ export const gameMachine = createMachine<GameContext, GameEvent>({
         RETRY: {
           target: 'checkingWallet',
           actions: assign({
-            errorMessage: (_) => undefined,
+            errorMessage: () => undefined,
           }),
         },
       },
