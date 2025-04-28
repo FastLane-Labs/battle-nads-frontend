@@ -13,6 +13,7 @@ module.exports = {
         accent: '#E6855E', // custom orange-ish
         danger: '#DC2626', // red-600
         background: '#1F2937', // gray-800
+        surface: '#374151', // gray-700, added for game-tile background
       },
     },
   },
