@@ -133,7 +133,6 @@ export const useGame = () => {
       }
       
       return client.updateSessionKey(
-        characterId,
         embeddedWallet.address,
         100000 // Default expiration blocks
       );

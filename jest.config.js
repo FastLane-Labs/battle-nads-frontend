@@ -16,16 +16,20 @@ const customJestConfig = {
     '^@hooks/(.*)$': '<rootDir>/src/hooks/$1',
     '^@machines/(.*)$': '<rootDir>/src/machines/$1',
     '^@utils/(.*)$': '<rootDir>/src/utils/$1',
+    
+    // Map jose to its CJS build - solution from jose maintainer
+    "^jose$": "<rootDir>/node_modules/jose/dist/node/cjs/index.js",
+    "^jose/(.*)$": "<rootDir>/node_modules/jose/dist/node/cjs/$1.js"
   },
   testEnvironment: 'jest-environment-jsdom',
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
   transform: {
     // Use babel-jest to transpile tests with the next/babel preset
-    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
+    '^.+\\.(js|jsx|ts|tsx|mjs)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   // By default, node_modules are ignored—whitelist ESM packages that need transpiling
   transformIgnorePatterns: [
-    '/node_modules/(?!(jose|@privy-io/react-auth|@privy-io/js-sdk-core|viem)/)',
+    '/node_modules/(?!(@privy-io/react-auth|@privy-io/js-sdk-core|viem|ofetch)/)'
   ],
 };
 
