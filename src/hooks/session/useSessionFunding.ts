@@ -3,7 +3,6 @@ import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from '../game/useBattleNads';
 import { useSessionKey } from './useSessionKey';
-import { domain } from '../../types';
 
 /**
  * Hook for session key funding and management

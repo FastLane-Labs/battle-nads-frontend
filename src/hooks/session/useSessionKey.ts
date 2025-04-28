@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
-import { SessionKeyState, sessionKeyMachine } from '../../session/sessionKeyMachine';
+import { SessionKeyState, sessionKeyMachine } from '../../machines/sessionKeyMachine';
 import { useWallet } from '../../providers/WalletProvider';
 
 /**

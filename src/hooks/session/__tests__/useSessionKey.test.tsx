@@ -4,7 +4,7 @@ import { useSessionKey } from '../useSessionKey';
 import { useBattleNadsClient } from '../../contracts/useBattleNadsClient';
 import { useWallet } from '../../../providers/WalletProvider';
 import { createTestWrapper } from '../../../test/helpers';
-import { sessionKeyMachine, SessionKeyState } from '../../../session/sessionKeyMachine';
+import { sessionKeyMachine, SessionKeyState } from '../../../machines/sessionKeyMachine';
 
 // Mock dependencies
 jest.mock('../../contracts/useBattleNadsClient');
