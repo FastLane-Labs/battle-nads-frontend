@@ -1,0 +1,129 @@
+---
+description: These rules provide guidance for integrating with the Battle-Nads blockchain contracts, ensuring proper understanding and usage of the game's core API functions.
+globs: **/*.ts,**/*.tsx
+alwaysApply: false
+---
+# Battle-Nads Blockchain API Integration Rules
+
+## Purpose
+
+These rules provide guidance for integrating with the Battle-Nads blockchain contracts, ensuring proper understanding and usage of the game's core API functions.
+
+## Client Architecture Overview
+
+1. **Client Facade Pattern**
+   - `BattleNadsClient`: Primary facade with three adapter types
+     - **read adapter**: Public RPC access (no signer)
+     - **owner adapter**: Connected wallet signer (Metamask)
+     - **session adapter**: Account Abstraction key (embedded wallet)
+   - All contract interactions should go through this client facade
+
+2. **Integration Flow**
+   - Use `useBattleNadsClient` hook to access the client facade
+   - Data reading centralizes through `useUiSnapshot` with React-Query caching
+   - UI components consume domain data from specialized hooks
+
+## Primary Data Source
+
+1. **Using `getUiSnapshot` as Main Data Source**
+   - Always use `getUiSnapshot()` as the primary data source
+   - This returns a comprehensive snapshot containing:
+     - Character data
+     - Combatants in the area
+     - Non-combatants in the area
+     - Minimap around character
+     - Equipable items
+     - Unallocated attribute points
+   - Data flow: Contract → `useBattleNadsClient` → `useUiSnapshot` → React-Query Cache → Gameplay Hooks → UI
+
+2. **Single Polling Source of Truth**
+   - `useUiSnapshot` should be the ONLY polling mechanism in the application
+   - All data should flow from this single source to minimize RPC load
+   - Use cache invalidation rather than additional polling elsewhere
+
+## Data Transformation Layers
+
+1. **Consistent Data Mapping**
+   - Use the mappers directory to transform data between layers:
+     - `contractToDomain.ts`: Transform contract data to domain model
+     - `domainToUi.ts`: Transform domain model to UI-ready format
+
+2. **Type Safety**
+   - Leverage distinct type namespaces for each layer:
+     - `types/contract`: Raw blockchain data types
+     - `types/domain`: Application domain model types
+     - `types/ui`: UI component prop types
+
+## Hook Implementation Guidelines
+
+1. **Core Hooks Organization**
+   - `useBattleNadsClient`: Primary client access hook
+   - `useUiSnapshot`: Central polling mechanism for game data
+   - `useGame`: High-level game orchestration (wallet→key→play)
+   - `useBattleNads`: Core game data and contract interactions
+   - `useSessionKey`/`useSessionFunding`: AA key management
+   - `useGameMachine`: XState bridge for game flow
+
+2. **Hook Responsibilities**
+   - Gameplay hooks should select from the uiSnapshot cache
+   - Mutations should invalidate the cache after completion
+   - Action logic should remain in hooks, not components
+   - Components should be primarily presentational
+
+## Action Implementation
+
+1. **Movement Actions**
+   - Implement movement using `useBattleNads` hook
+   - Handle optimistic updates for better UX
+   - Invalidate cache after movement confirmation
+   - Handle potential movement errors
+
+2. **Combat Actions**
+   - Use `useBattleNads` hook for initiating combat
+   - Get valid targets from the UI snapshot data
+   - Update UI based on combat events
+
+3. **Equipment Management**
+   - Implement through specialized hooks (e.g., `useEquipment`)
+   - Validate equipment availability before changes
+   - Enforce equipment rules (not during combat, etc.)
+
+4. **Character Functions**
+   - Character creation flow should use `useCharacter` hook
+   - Handle attribute allocation through specialized functions
+   - Maintain session funding as part of character management
+
+## Session Key Management
+
+1. **Account Abstraction Implementation**
+   - Use `useSessionKey` hook to manage AA session keys
+   - Monitor and top up balances with `useSessionFunding`
+   - Integrate with game state machine for key validation flow
+
+2. **Session Key Health Checks**
+   - Verify key validity before game actions
+   - Implement automatic refreshing before expiration
+   - Handle underfunded keys with clear UI messaging
+
+## Error Handling Guidelines
+
+1. **Error States in Game Machine**
+   - Implement proper error states in the game state machine
+   - Handle network failures with retry mechanisms
+   - Provide clear feedback on transaction failures
+
+2. **Transaction Monitoring**
+   - Use client facade for unified transaction submission
+   - Track transaction status for UI feedback
+   - Implement optimistic updates where possible
+
+## Testing Client Interactions
+
+1. **Mock Client Testing**
+   - Create mock implementations of the client facade for testing
+   - Test hooks in isolation from contract interaction
+   - Simulate various response and error scenarios
+2. **State Machine Testing**
+   - Validate state transitions in the game machine
+   - Test guards and conditions for various states
+   - Ensure proper error recovery paths 

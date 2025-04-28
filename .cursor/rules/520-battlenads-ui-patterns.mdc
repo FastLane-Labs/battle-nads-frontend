@@ -1,3 +1,8 @@
+---
+description: These rules provide guidance for implementing UI components in the Battle-Nads frontend, ensuring consistency, performance, and proper integration with the game's architecture.
+globs: **/*.ts,**/*tsx
+alwaysApply: false
+---
 # Battle-Nads UI Component Patterns
 
 ## Purpose
