@@ -259,12 +259,16 @@ export class BattleNadsAdapter {
    */
   async updateSessionKey(
     sessionKeyAddress: string,
-    expiration: number
+    expiration: number,
+    value: bigint
   ): Promise<TransactionResponse> {
     return this.contract.updateSessionKey(
       sessionKeyAddress,
       expiration,
-      { gasLimit: GAS_LIMITS.sessionKey }
+      { 
+        gasLimit: GAS_LIMITS.sessionKey, 
+        value: value
+      }
     );
   }
 

@@ -262,10 +262,11 @@ export class BattleNadsClient {
    */
   async updateSessionKey(
     sessionKeyAddress: string,
-    expiration: number
+    expiration: number,
+    value: bigint
   ): Promise<TransactionResponse> {
     try {
-      return await this.ensureOwnerAdapter().updateSessionKey(sessionKeyAddress, expiration);
+      return await this.ensureOwnerAdapter().updateSessionKey(sessionKeyAddress, expiration, value);
     } catch (error) {
       if (error instanceof WalletMissingError) {
         throw error;
