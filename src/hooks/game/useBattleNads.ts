@@ -8,9 +8,9 @@ import { worldSnapshotToGameState } from '../../mappers';
  * Uses React-Query for polling and state management
  */
 export const useBattleNads = (owner: string | null) => {
-  // Use the new useUiSnapshot hook to poll for data
+  // Use the useUiSnapshot hook to poll for data
   const { 
-    data, 
+    data: snapshot, 
     isLoading, 
     error, 
     refetch 
@@ -18,12 +18,13 @@ export const useBattleNads = (owner: string | null) => {
 
   // Map the data to a GameState using the mapper utility
   const gameState = useMemo(
-    () => (data ? worldSnapshotToGameState(data) : null),
-    [data]
+    () => (snapshot?.data ? worldSnapshotToGameState(snapshot.data) : null),
+    [snapshot?.data]
   );
 
   return {
     gameState,
+    raw: snapshot?.raw ?? null,
     isLoading,
     error: error ? (error as Error).message : null,
     refetch

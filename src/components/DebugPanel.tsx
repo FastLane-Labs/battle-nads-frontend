@@ -20,8 +20,8 @@ import { useBattleNads } from '../hooks/game/useBattleNads';
 import { useWallet } from '../providers/WalletProvider';
 import { calculateMaxHealth } from '../utils/gameDataConverters';
 import { useGameData } from '../providers/GameDataProvider';
-import { useFrontendData } from '../hooks/useFrontendData';
-import { useGameActions } from '@/hooks/game/useGameActions';
+import { useUiSnapshot } from '../hooks/game/useUiSnapshot';
+import { useBattleNadsClient } from '../hooks/contracts/useBattleNadsClient';
 
 interface DebugPanelProps {
   isVisible?: boolean;
@@ -29,14 +29,13 @@ interface DebugPanelProps {
 
 const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
   const { 
-    getFullFrontendData, 
-    getPlayerCharacterID,
-    getEstimatedBuyInAmount,
-    characterId,
-    loading, 
+    gameState,
+    isLoading, 
     error,
+    refetch
   } = useBattleNads();
 
+  const { client } = useBattleNadsClient();
   const { injectedWallet, embeddedWallet } = useWallet();
   
   const { gameData } = useGameData();
@@ -65,23 +64,23 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
   
   // Update character ID from hook when it changes
   useEffect(() => {
-    if (characterId) {
-      setFetchedCharacterId(characterId);
-      addLog(`Character ID from hook updated to ${characterId}`);
+    if (gameState?.characterID) {
+      setFetchedCharacterId(gameState.characterID);
+      addLog(`Character ID from hook updated to ${gameState.characterID}`);
     }
-  }, [characterId]);
+  }, [gameState?.characterID]);
   
   // Fetch character ID directly from chain
   const fetchCharacterId = async () => {
     try {
       addLog(`Fetching character ID for address ${ownerAddress}`);
       
-      if (!ownerAddress) {
-        addLog('ERROR: No owner address provided');
+      if (!ownerAddress || !client) {
+        addLog('ERROR: No owner address or client provided');
         return;
       }
       
-      const id = await getPlayerCharacterID(ownerAddress);
+      const id = await client.getPlayerCharacterID(ownerAddress);
       
       if (id) {
         setFetchedCharacterId(id);
@@ -98,14 +97,14 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
   // Fetch full frontend data
   const fetchFullFrontendData = async () => {
     try {
-      addLog(`Fetching full frontend data for address ${ownerAddress} from block ${startBlock}`);
+      addLog(`Fetching UI snapshot for address ${ownerAddress}`);
       
-      if (!ownerAddress) {
-        addLog('ERROR: No owner address provided');
+      if (!ownerAddress || !client) {
+        addLog('ERROR: No owner address or client provided');
         return;
       }
       
-      const result = await getFullFrontendData(ownerAddress, startBlock);
+      const result = await client.getUiSnapshot(ownerAddress, BigInt(startBlock));
       
       if (result) {
         addLog(`Data fetched successfully. Character ID: ${result.characterID || 'null'}`);
@@ -119,11 +118,11 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
         addLog(`Session key balance: ${result.sessionKeyBalance ? result.sessionKeyBalance.toString() : 'null'}`);
         addLog(`Data feeds count: ${result.dataFeeds ? result.dataFeeds.length : 0}`);
       } else {
-        addLog('No data returned from getFullFrontendData');
+        addLog('No data returned from UI snapshot');
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      addLog(`Error fetching frontend data: ${errorMsg}`);
+      addLog(`Error fetching UI snapshot: ${errorMsg}`);
     }
   };
   
@@ -131,7 +130,11 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
   const fetchBuyInAmount = async () => {
     try {
       addLog('Fetching estimated buy-in amount...');
-      const amount = await getEstimatedBuyInAmount();
+      if (!client) {
+        addLog('ERROR: No client provided');
+        return;
+      }
+      const amount = await client.estimateBuyInAmountInMON();
       setBuyInAmount(amount.toString());
       addLog(`Buy-in amount: ${amount.toString()}`);
     } catch (err) {
@@ -222,7 +225,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
               value={ownerAddress} 
               onChange={(e) => setOwnerAddress(e.target.value)} 
             />
-            <Button onClick={fetchCharacterId} isLoading={loading}>
+            <Button onClick={fetchCharacterId} isLoading={isLoading}>
               Fetch ID
             </Button>
           </HStack>
@@ -243,7 +246,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
               onChange={(e) => setStartBlock(parseInt(e.target.value) || 0)}
               w="150px"
             />
-            <Button onClick={fetchFullFrontendData} isLoading={loading}>
+            <Button onClick={fetchFullFrontendData} isLoading={isLoading}>
               Fetch Data
             </Button>
           </HStack>
@@ -253,7 +256,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
           <Heading size="sm" mb={2}>Buy-In Amount</Heading>
           <HStack>
             <Text>Amount: {buyInAmount || 'Not fetched'}</Text>
-            <Button onClick={fetchBuyInAmount} isLoading={loading} size="sm">
+            <Button onClick={fetchBuyInAmount} isLoading={isLoading} size="sm">
               Fetch Amount
             </Button>
           </HStack>

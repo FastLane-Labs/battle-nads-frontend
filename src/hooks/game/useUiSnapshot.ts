@@ -7,11 +7,12 @@ import { contractToWorldSnapshot } from '../../mappers';
 /**
  * Hook for polling UI snapshot data from the blockchain
  * Uses React-Query for caching and deduplication of requests
+ * Returns both mapped domain data and raw contract data
  */
 export const useUiSnapshot = (owner: string | null) => {
   const { client } = useBattleNadsClient();
 
-  return useQuery<domain.WorldSnapshot & { __ts: number }>({
+  return useQuery<{ data: domain.WorldSnapshot & { __ts: number }; raw: contract.PollFrontendDataReturn }>({
     queryKey: ['uiSnapshot', owner],
     enabled: !!owner && !!client,
     queryFn: async () => {
@@ -28,8 +29,11 @@ export const useUiSnapshot = (owner: string | null) => {
       // Convert contract data to domain model
       const snapshot = contractToWorldSnapshot(raw, owner);
       
-      // Add timestamp for staleness checks
-      return { ...snapshot, __ts: Date.now() };
+      // Return both raw contract data and mapped domain data
+      return {
+        raw,
+        data: { ...snapshot, __ts: Date.now() }
+      };
     },
     refetchInterval: POLL_INTERVAL,
     staleTime: 0, // Consider all data immediately stale for real-time updates

@@ -62,18 +62,38 @@ export const useGameMachine = () => {
   
   // Check session key when character is selected
   useEffect(() => {
-    if (state.matches('checkingSessionKey') && state.context.characterId && client) {
+    if (state.matches('checkingSessionKey') && state.context.characterId && client && state.context.owner) {
       const checkSessionKey = async () => {
         try {
-          const isExpired = await client.isSessionKeyExpired(state.context.characterId!);
+          // Use the new validateSessionKey method with just the owner address
+          const validationResult = await client.validateSessionKey(
+            state.context.owner!
+          );
           
-          if (isExpired) {
-            send({ 
-              type: 'SESSION_KEY_INVALID', 
-              warning: 'Session key is expired or not set. Please update it.'
-            });
-          } else {
-            send({ type: 'SESSION_KEY_VALID' });
+          // Handle the validation result based on state
+          switch (validationResult.state) {
+            case domain.SessionKeyState.VALID:
+              send({ type: 'SESSION_KEY_VALID' });
+              break;
+            case domain.SessionKeyState.EXPIRED:
+              send({ 
+                type: 'SESSION_KEY_INVALID', 
+                warning: validationResult.message || 'Session key is expired. Please update it.'
+              });
+              break;
+            case domain.SessionKeyState.MISMATCHED:
+              send({
+                type: 'SESSION_KEY_INVALID',
+                warning: validationResult.message || 'Session key does not match your wallet. Please update it.'
+              });
+              break;
+            case domain.SessionKeyState.INVALID:
+            default:
+              send({
+                type: 'SESSION_KEY_INVALID',
+                warning: validationResult.message || 'Session key is invalid or not set. Please update it.'
+              });
+              break;
           }
         } catch (error) {
           logger.error('[useGameMachine] Error checking session key', error);
@@ -124,16 +144,16 @@ export const useGameMachine = () => {
   };
   
   // Update session key
-  const updateSessionKey = async (sessionKey: string) => {
-    if (!client || !state.context.characterId) {
-      throw new Error('Game client not initialized or character ID not available');
+  const updateSessionKey = async (sessionKeyAddress: string) => {
+    if (!client) {
+      throw new Error('Game client not initialized');
     }
     
     try {
-      const expirationBlocks = 100000; // Set a reasonable default
+      // Set a reasonable expiration (100,000 blocks in future)
+      const expirationBlocks = 100000;
       await client.updateSessionKey(
-        state.context.characterId,
-        sessionKey,
+        sessionKeyAddress,
         expirationBlocks
       );
       
