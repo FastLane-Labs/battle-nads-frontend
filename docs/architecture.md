@@ -4,7 +4,7 @@
 
 ```
 /src
-├── app                          # Next.js app directory
+├── app                         # Next.js app directory
 │   ├── (auth)                   # Auth-related pages grouped
 │   │   └── login/page.tsx       # Login page
 │   ├── (game)                   # Game-related pages
@@ -15,6 +15,9 @@
 │   ├── layout.tsx               # Root layout
 │   ├── page.tsx                 # Home page
 │   └── theme.ts                 # Chakra UI theme
+├── blockchain                  # Chain–specific plumbing
+│   ├── adapters/…              # ↔ on-chain ABI bridges
+│   └── clients/…               # Facade with "read / owner / session" adapters
 ├── components
 │   ├── auth
 │   │   └── Login.tsx            # Auth component
@@ -38,25 +41,33 @@
 │   │   └── controls
 │   │       └── MovementControls.tsx # Movement UI
 ├── hooks
-│   ├── contracts
-│   │   ├── useContracts.ts      # Contract instances
-│   │   └── useEmbeddedContract.ts # Embedded wallet contracts
-│   ├── game
-│   │   ├── useGame.ts           # Game orchestration
-│   │   ├── useBattleNads.ts     # Game data and actions
-│   │   └── useGameActions.ts    # Session key operations
-│   └── wallet
-│       └── useWalletBalances.ts # Wallet balance management
+│   ├── contracts               # Wallet-aware client hook
+│   │   └── useBattleNadsClient.ts
+│   ├── game                    # Gameplay hooks (React-Query + XState helpers)
+│   │   ├── useUiSnapshot.ts    # **single polling source of truth**
+│   │   ├── useBattleNads.ts    # Core game data and actions
+│   │   ├── useCharacter.ts     # Character management
+│   │   ├── useCombat.ts        # Combat interactions
+│   │   ├── useEquipment.ts     # Equipment handling
+│   │   ├── useChat.ts          # Chat functionality
+│   │   ├── useGame.ts          # High-level orchestration (wallet→key→play)
+│   │   └── useGameMachine.ts   # XState bridge
+│   ├── session                 # AA key hooks
+│   │   ├── useSessionKey.ts    # Session key management
+│   │   └── useSessionFunding.ts # Session funding functionality
+│   └── index.ts                # Barrel exports
+├── machines
+│   └── gameStateMachine.ts     # Wallet / character / key FSM
+├── mappers                     # Contract→Domain→UI transforms
+│   ├── contractToDomain.ts     # Transform contract data to domain
+│   ├── domainToUi.ts           # Transform domain to UI
+│   └── index.ts                # Barrel exports
 ├── providers
 │   ├── AuthProvider.tsx         # Authentication
 │   ├── WalletProvider.tsx       # Wallet connections
-│   ├── GameDataProvider.tsx     # Game state and polling
 │   └── PrivyAuthProvider.tsx    # Privy Auth configuration
-├── types
-│   └── gameTypes.ts             # Type definitions
-├── utils
-│   ├── gameDataConverters.ts    # Data transformation utilities
-│   └── getCharacterLocalStorageKey.ts # Storage helpers
+├── types                       # contract / domain / ui namespaces
+└── utils                       # misc helpers
 ```
 
 ## Component Responsibilities
@@ -71,15 +82,7 @@
 - Manages transaction submission
 - Stores persistent wallet references for resilience
 
-#### `GameDataProvider`
-- Central polling mechanism for game data
-- Processes and normalizes blockchain data
-- Manages data caching and updates
-- Publishes events for data changes
-- Handles loading and error states
-- Maintains a coherent game state
-
-#### `PrivyAuthProvider`
+#### `AuthProvider` / `PrivyAuthProvider`
 - Configures Privy integration
 - Manages user authentication
 - Handles wallet connection through Privy
@@ -87,49 +90,61 @@
 
 ### Core Hooks
 
+#### `useBattleNadsClient`
+- **Purpose**: Client facade with adapters for different access levels
+- **Responsibilities**:
+  - Memoises a BattleNadsClient with three internal adapters:
+    - **read** adapter (public RPC)
+    - **owner** adapter (Metamask signer)
+    - **session** adapter (embedded AA signer)
+  - Handles contract instance loading and error states
+  - Provides unified interface for contract interactions
+
+#### `useUiSnapshot`
+- **Purpose**: Central polling mechanism for game data
+- **Responsibilities**:
+  - The only polling point in the application
+  - Fetches client.getUiSnapshot() on a regular interval
+  - Maps contract data to domain model
+  - Caches responses via TanStack Query tagged by ['uiSnapshot', owner]
+  - Maintains a coherent game state
+
 #### `useGame`
 - **Purpose**: Game initialization and orchestration
 - **Responsibilities**:
   - Manages the game's high-level state (ready, checking, etc.)
   - Coordinates initialization steps
   - Performs wallet and character validation
-  - Handles session key verification
+  - Handles session key verification via useSessionKey
   - Provides game state and update methods
-  - Manages transaction flags and references
+  - Surfaces flags (isReady, needsSessionKeyUpdate, etc.)
+  - Wraps movement/chat/attack mutations
 
 #### `useBattleNads`
 - **Purpose**: Core game data and contract interactions
 - **Responsibilities**:
-  - Retrieves character data
+  - Reads from the uiSnapshot cache
   - Performs game actions (movement, combat)
   - Creates characters and manages character data
   - Handles chat message transmission
   - Manages game events and data feeds
-  - Processes blockchain data into usable formats
+  - Invalidates cache to ensure data consistency
 
-#### `useContracts`
-- **Purpose**: Contract instance management
+#### `useSessionKey` / `useSessionFunding`
+- **Purpose**: Account Abstraction key management
 - **Responsibilities**:
-  - Creates contract instances for different wallet types
-  - Provides read and write contract access
-  - Handles contract loading and error states
-  - Manages contract interactions
-
-#### `useEmbeddedContract`
-- **Purpose**: Simplify embedded wallet transactions
-- **Responsibilities**:
-  - Formats and sends embedded wallet transactions
-  - Provides specialized movement functions
-  - Handles chat and combat transactions
-  - Manages equipment changes
-
-#### `useGameActions`
-- **Purpose**: Session key and game action management
-- **Responsibilities**:
-  - Updates session keys
+  - Provides Query + FSM validation for AA keys
+  - Manages MON top-ups & deactivation
   - Validates session key health
-  - Provides movement and chat functions
+  - Updates session keys
   - Abstracts blockchain complexity
+
+#### `useGameMachine`
+- **Purpose**: XState bridge for game state management
+- **Responsibilities**:
+  - Wires XState to React components
+  - Provides state transitions and guards
+  - Manages game flow based on wallet, character, and session key state
 
 ### UI Components
 
@@ -233,17 +248,18 @@
    - `PrivyAuthProvider` → `WalletProvider` → `useGame` → UI Components
 
 2. Game Data Flow:
-   - Smart Contract → `useContracts` → `useBattleNads` → `GameDataProvider` → UI Components
+   - Smart Contract → `useBattleNadsClient` → `useUiSnapshot` → React-Query Cache → Gameplay Hooks → UI Components
 
 3. Action Flow:
-   - UI Components → `useGameActions`/`useBattleNads` → `useContracts`/`useEmbeddedContract` → Smart Contract
+   - UI Components → Gameplay Hooks → `useBattleNadsClient` → Smart Contract → Invalidate Cache ['uiSnapshot', owner]
 
 ## State Management
 
 ### Global State
 - Authentication state (Privy)
 - Wallet connections (WalletProvider)
-- Game data (GameDataProvider)
+- Game data (React-Query cache via useUiSnapshot)
+- Game flow (XState via gameStateMachine)
 
 ### Component State
 - UI interaction state (loading, error, etc.)
@@ -253,9 +269,10 @@
 ## Optimizations
 
 ### Performance Considerations
+- Single snapshot polling to minimize RPC load
 - Memoization of expensive components
-- Throttled/debounced blockchain polling
-- Optimistic UI updates
+- Optimistic cache updates for chat & movement
+- XState guards to prevent redundant polling
 
 ### Error Handling
 - Error boundaries for component failures
@@ -264,22 +281,18 @@
 
 ## Suggested Improvements
 
-1. **State Management**: Consider implementing a more structured state management system like Zustand instead of relying on context and component state.
+1. **Adapter Interface**: Define `interface IBattleNadsAdapter` so future L2s plug in cleanly.
 
-2. **Code Organization**: Group related components and hooks into feature folders for better organization.
+2. **Query Selectors**: Expose tiny hooks (`useCharacterData(owner)`) that select from `uiSnapshot` to avoid JSON deep-diffs in components.
 
-3. **Type Safety**: Strengthen TypeScript types throughout the application to reduce runtime errors.
+3. **Error Boundary Wrapper**: A `<GameErrorBoundary>` around `app/(game)` routes to centralise wallet/RPC/tx errors.
 
-4. **Testing**: Add comprehensive testing for critical game logic and contract interactions.
+4. **Incremental Suspense**: Move polling queries to React 18 `suspense: true` for smoother hydration.
 
-5. **Component Isolation**: Further separate UI components from business logic to improve testability and maintainability.
+5. **Type Safety**: Strengthen TypeScript types throughout the application to reduce runtime errors.
 
-6. **Custom Hooks**: Create more focused, single-responsibility hooks that compose well together.
+6. **Testing**: Add comprehensive testing for critical game logic and contract interactions.
 
-7. **Error Handling**: Implement dedicated error handling modules to standardize error presentation and recovery.
+7. **Component Isolation**: Further separate UI components from business logic to improve testability and maintainability.
 
-8. **Loading States**: Create a unified loading state system to improve user experience.
-
-9. **Event System**: Replace custom DOM events with a proper state management solution for cross-component communication.
-
-10. **Documentation**: Add JSDoc comments to all components and hooks for better developer experience.
+8. **JSDoc Comments**: Add comprehensive documentation to all components and hooks for better developer experience.
