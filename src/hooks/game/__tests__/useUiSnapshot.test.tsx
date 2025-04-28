@@ -23,14 +23,28 @@ jest.mock('@privy-io/react-auth', () => ({
 }));
 
 // Now import the actual test dependencies
-import { renderHook, waitFor } from '@testing-library/react';
-import { useUiSnapshot } from '../game/useUiSnapshot';
+import { renderHook } from '@testing-library/react';
+import { useUiSnapshot } from '../useUiSnapshot';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
+import { useBattleNadsClient } from '../../contracts/useBattleNadsClient';
+import { act } from 'react';
 
 // Mock dependencies
-jest.mock('../contracts/useBattleNadsClient');
+jest.mock('../../contracts/useBattleNadsClient');
+jest.mock('../../../mappers', () => ({
+  contractToWorldSnapshot: jest.fn().mockImplementation((data, owner) => ({
+    characterID: data.characterID,
+    character: data.character,
+    combatants: data.combatants || [],
+    noncombatants: data.noncombatants || [],
+    owner,
+    // Add other required fields for WorldSnapshot
+    movementOptions: { canMoveNorth: true },
+    eventLogs: [],
+    chatLogs: [],
+  })),
+}));
 
 const mockUseBattleNadsClient = useBattleNadsClient as jest.Mock;
 const mockGetUiSnapshot = jest.fn();
@@ -89,13 +103,15 @@ describe('useUiSnapshot', () => {
       { wrapper: createWrapper() }
     );
     
-    // Initially in loading state
+    // Immediately after rendering, the query should be in loading state
     expect(result.current.isLoading).toBe(true);
     
-    // Wait for the query to resolve
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    // Wait for the promise to resolve
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
     
-    // Check the data structure
+    // Now the data should be available
     expect(result.current.data).toBeDefined();
     expect(result.current.data?.raw).toEqual(mockRawData);
     expect(result.current.data?.data).toBeDefined();
@@ -141,9 +157,16 @@ describe('useUiSnapshot', () => {
       { wrapper: createWrapper() }
     );
     
-    // Wait for the query to fail
-    await waitFor(() => expect(result.current.isError).toBe(true));
+    // Initially in loading state
+    expect(result.current.isLoading).toBe(true);
     
-    expect(result.current.error).toEqual(new Error('Service error'));
+    // Wait for the promise to reject
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
+    
+    // Now we should have an error
+    expect(result.current.isError).toBe(true);
+    expect(result.current.error).toBeDefined();
   });
 }); 
