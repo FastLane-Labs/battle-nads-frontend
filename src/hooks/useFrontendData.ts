@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { useContracts } from './useContracts';
+import { useBattleNadsClient } from './contracts/useBattleNadsClient';
 import { PollResponse } from '@/types/gameTypes';
-import * as battleNadsService from '@services/battleNadsService';
+import { PollFrontendDataReturn, Direction } from '@/types/contracts/BattleNadsEntrypoint';
 
 /**
  * React Query hook for fetching frontend data
@@ -12,28 +12,25 @@ export const useFrontendData = (owner: string | null, options = {
   staleTime: 500,        // allows optimistic UI updates
   enabled: true,         // whether polling is enabled
 }) => {
-  const { readContract } = useContracts();
+  const { client } = useBattleNadsClient();
   const { refetchInterval, staleTime, enabled } = options;
   
-  return useQuery<PollResponse>({
+  return useQuery<PollFrontendDataReturn>({
     queryKey: ['frontendData', owner],
     queryFn: async () => {
       if (!owner) {
         throw new Error('Owner address is required');
       }
       
-      if (!readContract) {
-        throw new Error('Contract not initialized');
+      if (!client) {
+        throw new Error('Client not initialized');
       }
       
-      return battleNadsService.pollFrontendData(readContract, {
-        owner,
-        startBlock: 0 // TODO: Optimize by tracking the highest seen block
-      });
+      return client.getUiSnapshot(owner, BigInt(0)); // TODO: Optimize by tracking the highest seen block
     },
     refetchInterval: enabled ? refetchInterval : false,
     staleTime,
-    enabled: Boolean(owner && readContract && enabled),
+    enabled: Boolean(owner && client && enabled),
   });
 };
 
@@ -41,14 +38,14 @@ export const useFrontendData = (owner: string | null, options = {
  * Hook for creating a character
  */
 export const useCreateCharacter = () => {
-  const { embeddedContract } = useContracts();
+  const { client } = useBattleNadsClient();
   
   const createCharacter = async (characterClass: number, name: string) => {
-    if (!embeddedContract) {
-      throw new Error('Embedded contract not initialized');
+    if (!client) {
+      throw new Error('Client not initialized');
     }
     
-    return battleNadsService.createCharacter(embeddedContract, characterClass, name);
+    return client.createCharacter(characterClass, name);
   };
   
   return { createCharacter };
@@ -58,14 +55,14 @@ export const useCreateCharacter = () => {
  * Hook for moving a character
  */
 export const useMoveCharacter = () => {
-  const { embeddedContract } = useContracts();
+  const { client } = useBattleNadsClient();
   
-  const moveCharacter = async (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
-    if (!embeddedContract) {
-      throw new Error('Embedded contract not initialized');
+  const moveCharacter = async (characterId: string, direction: Direction) => {
+    if (!client) {
+      throw new Error('Client not initialized');
     }
     
-    return battleNadsService.moveCharacter(embeddedContract, direction);
+    return client.moveCharacter(characterId, direction);
   };
   
   return { moveCharacter };
@@ -75,14 +72,14 @@ export const useMoveCharacter = () => {
  * Hook for sending chat messages
  */
 export const useChatMessage = () => {
-  const { embeddedContract } = useContracts();
+  const { client } = useBattleNadsClient();
   
-  const sendChatMessage = async (message: string) => {
-    if (!embeddedContract) {
-      throw new Error('Embedded contract not initialized');
+  const sendChatMessage = async (characterId: string, message: string) => {
+    if (!client) {
+      throw new Error('Client not initialized');
     }
     
-    return battleNadsService.sendChatMessage(embeddedContract, message);
+    return client.chat(characterId, message);
   };
   
   return { sendChatMessage };
@@ -92,22 +89,22 @@ export const useChatMessage = () => {
  * Hook for combat actions
  */
 export const useCombatActions = () => {
-  const { embeddedContract } = useContracts();
+  const { client } = useBattleNadsClient();
   
-  const attackTarget = async (targetIndex: number) => {
-    if (!embeddedContract) {
-      throw new Error('Embedded contract not initialized');
+  const attackTarget = async (characterId: string, targetIndex: number) => {
+    if (!client) {
+      throw new Error('Client not initialized');
     }
     
-    return battleNadsService.attackTarget(embeddedContract, targetIndex);
+    return client.attack(characterId, targetIndex);
   };
   
-  const useAbility = async (ability: number, targetIndex?: number) => {
-    if (!embeddedContract) {
-      throw new Error('Embedded contract not initialized');
+  const useAbility = async (characterId: string, ability: number, targetIndex: number) => {
+    if (!client) {
+      throw new Error('Client not initialized');
     }
     
-    return battleNadsService.useAbility(embeddedContract, ability, targetIndex);
+    return client.useAbility(characterId, ability, targetIndex);
   };
   
   return { attackTarget, useAbility };
@@ -117,22 +114,22 @@ export const useCombatActions = () => {
  * Hook for equipment actions
  */
 export const useEquipment = () => {
-  const { embeddedContract } = useContracts();
+  const { client } = useBattleNadsClient();
   
-  const equipWeapon = async (weaponId: number) => {
-    if (!embeddedContract) {
-      throw new Error('Embedded contract not initialized');
+  const equipWeapon = async (characterId: string, weaponId: number) => {
+    if (!client) {
+      throw new Error('Client not initialized');
     }
     
-    return battleNadsService.equipWeapon(embeddedContract, weaponId);
+    return client.equipWeapon(characterId, weaponId);
   };
   
-  const equipArmor = async (armorId: number) => {
-    if (!embeddedContract) {
-      throw new Error('Embedded contract not initialized');
+  const equipArmor = async (characterId: string, armorId: number) => {
+    if (!client) {
+      throw new Error('Client not initialized');
     }
     
-    return battleNadsService.equipArmor(embeddedContract, armorId);
+    return client.equipArmor(characterId, armorId);
   };
   
   return { equipWeapon, equipArmor };
@@ -142,22 +139,23 @@ export const useEquipment = () => {
  * Hook for character stats
  */
 export const useCharacterStats = () => {
-  const { embeddedContract } = useContracts();
+  const { client } = useBattleNadsClient();
   
   const allocatePoints = async (
-    strength: number,
-    vitality: number,
-    dexterity: number,
-    quickness: number,
-    sturdiness: number,
-    luck: number
+    characterId: string,
+    strength: bigint,
+    vitality: bigint,
+    dexterity: bigint,
+    quickness: bigint,
+    sturdiness: bigint,
+    luck: bigint
   ) => {
-    if (!embeddedContract) {
-      throw new Error('Embedded contract not initialized');
+    if (!client) {
+      throw new Error('Client not initialized');
     }
     
-    return battleNadsService.allocatePoints(
-      embeddedContract,
+    return client.allocatePoints(
+      characterId,
       strength,
       vitality,
       dexterity,
@@ -174,19 +172,18 @@ export const useCharacterStats = () => {
  * Hook for session key management
  */
 export const useSessionKey = () => {
-  const { embeddedContract } = useContracts();
+  const { client } = useBattleNadsClient();
   
   const updateSessionKey = async (
     characterId: string,
     sessionKey: string,
     expirationBlocks: number = 100000
   ) => {
-    if (!embeddedContract) {
-      throw new Error('Embedded contract not initialized');
+    if (!client) {
+      throw new Error('Client not initialized');
     }
     
-    return battleNadsService.updateSessionKey(
-      embeddedContract,
+    return client.updateSessionKey(
       characterId,
       sessionKey,
       expirationBlocks
@@ -194,19 +191,19 @@ export const useSessionKey = () => {
   };
   
   const getCurrentSessionKey = async (characterId: string) => {
-    if (!embeddedContract) {
-      throw new Error('Embedded contract not initialized');
+    if (!client) {
+      throw new Error('Client not initialized');
     }
     
-    return battleNadsService.getCurrentSessionKey(embeddedContract, characterId);
+    return client.getSessionKey(characterId);
   };
   
   const isSessionKeyExpired = async (characterId: string) => {
-    if (!embeddedContract) {
-      throw new Error('Embedded contract not initialized');
+    if (!client) {
+      throw new Error('Client not initialized');
     }
     
-    return battleNadsService.isSessionKeyExpired(embeddedContract, characterId);
+    return client.isSessionKeyExpired(characterId);
   };
   
   return { updateSessionKey, getCurrentSessionKey, isSessionKeyExpired };

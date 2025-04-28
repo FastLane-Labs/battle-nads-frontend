@@ -1,14 +1,15 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef, useMemo } from 'react';
-import { useBattleNads } from '../hooks/useBattleNads';
+import { useBattleNads } from '../hooks/game/useBattleNads';
 import { useWallet } from './WalletProvider';
 import { getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKey';
-import { useContracts } from '../hooks/useContracts';
+import { useBattleNadsClient } from '../hooks/contracts/useBattleNadsClient';
 import { LogType, Log, DataFeed, ChatMessage, PollResponse, SessionKeyData, BattleNadUnformatted, BattleNadLiteUnformatted, BattleNadLite, BattleNad, GameUpdates, GameState } from '../types/gameTypes';
 import { ethers } from 'ethers';
-// Import service layer
-import * as battleNadsService from '@services/battleNadsService';
+import { sessionKeyMachine, SessionKeyState, SessionKeyEvent } from '../session/sessionKeyMachine';
+import { mapUiSnapshotToGameState } from '../types/gameMaps';
+import { POLL_INTERVAL } from '../config/env';
 
 // Feature flag to control service layer usage
 const REFAC_SERVICE_LIVE = process.env.NEXT_PUBLIC_REFAC_SERVICE_LIVE === 'true';
@@ -152,10 +153,10 @@ const PROVIDER_INSTANCES: { id: string; timestamp: string; active: boolean }[] =
 
 export const GameDataProvider: React.FC<GameDataProviderProps> = ({ 
   children, 
-  pollInterval: propPollInterval = 1000 // Changed from 5000 to 1000 (1 second polling)
+  pollInterval: propPollInterval = POLL_INTERVAL
 }) => {
-  // Force 1 second polling regardless of prop value
-  const pollInterval = 1000;
+  // Use the centralized poll interval
+  const pollInterval = POLL_INTERVAL;
   
   // Generate unique ID for this provider instance
   const instanceId = useRef<string>(`GameDataProvider-${Math.random().toString(36).substring(2, 9)}`);
@@ -173,16 +174,6 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
   // Add ref to track last known position for more reliable position change detection
   const lastKnownPositionRef = useRef<{x: number, y: number, depth: number} | null>(null);
 
-  // Add new refs for session key tracking
-  const sessionKeyExpirationRef = useRef<number>(0);
-  const sessionKeyAddressRef = useRef<string | null>(null);
-  const validSessionKeyRef = useRef<boolean>(true); // Assume valid until proven otherwise
-  // Add a persistent ref to track if initial session key validation is complete
-  const sessionKeyValidationInitializedRef = useRef<boolean>(false);
-  
-  // Add ref to store embedded wallet address persistently
-  const embeddedWalletAddressRef = useRef<string | null>(null);
-  
   // Add ref to store the highest seen block persistently
   const highestSeenBlockRef = useRef<number>(0);
   
@@ -225,13 +216,9 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
     };
   }, [pollInterval]);
   
-  // Pass provider role to useBattleNads to mark this as the authorized instance
-  // Add suppressEvents:true to prevent duplicate event emissions
-  const battleNadsHook = useBattleNads({ role: 'provider', suppressEvents: true });
-  const { pollForFrontendData, getOwnerWalletAddress } = battleNadsHook;
+  // We'll use the client directly instead of the hook for polling
   const { injectedWallet, embeddedWallet, connectMetamask } = useWallet();
-  const { readContract } = useContracts(); // Directly get readContract from useContracts
-  
+  const { client } = useBattleNadsClient(); // Get the client from useBattleNadsClient
   
   // State for game data and loading status
   const [gameData, setGameData] = useState<GameState>(initialGameData);
@@ -245,855 +232,297 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
   const [processedChatMessages, setProcessedChatMessages] = useState<any[]>([]);
   const [processedEventLogs, setProcessedEventLogs] = useState<any[]>([]);
 
-  // Add effect to sync chat messages from the hook
-  useEffect(() => {
-    console.log(`[GameDataProvider] Received ${gameData.chatLogs.length} chat messages from useBattleNads`);
-    if (gameData.chatLogs.length > 0) {
-      console.log('[GameDataProvider] Messages from hook:', gameData.chatLogs);
-      setProcessedChatMessages(gameData.chatLogs);
-    }
-  }, [gameData.chatLogs]);
-
-  // Add effect to sync chat messages from the hook
-  useEffect(() => {
-    console.log(`[GameDataProvider] Received ${gameData.eventLogs.length} chat messages from useBattleNads`);
-    if (gameData.eventLogs.length > 0) {
-      console.log('[GameDataProvider] Messages from hook:', gameData.eventLogs);
-      setProcessedEventLogs(gameData.eventLogs);
-    }
-  }, [gameData.eventLogs]);
-
   // Effect to update embedded wallet address ref when it changes
   useEffect(() => {
     if (embeddedWallet?.address) {
       console.log(`[GameDataProvider] Updating embedded wallet address ref: ${embeddedWallet.address}`);
-      embeddedWalletAddressRef.current = embeddedWallet.address;
     }
   }, [embeddedWallet?.address]);
-
-  // Helper function to check if session key is valid
-  const validateSessionKey = useCallback(() => {
-    // Use ref as fallback when embeddedWallet.address is undefined
-    const embeddedAddress = (embeddedWallet?.address || embeddedWalletAddressRef.current)?.toLowerCase();
-    const sessionKeyAddress = sessionKeyAddressRef.current?.toLowerCase();
-    const expirationBlock = sessionKeyExpirationRef.current;
-    // Use the ref value instead of the state value to avoid timing issues
-    const currentBlock = highestSeenBlockRef.current;
+  
+  // Helper function to validate session key using the state machine
+  const validateSessionKey = useCallback((sessionKey: string, embeddedAddress: string, expiration: number, currentBlock: number) => {
+    // Use the session key state machine to validate
+    const state = sessionKeyMachine.validate(sessionKey, embeddedAddress, expiration, currentBlock);
     
-    // Only validate if we have all necessary data
-    if (!embeddedAddress || !sessionKeyAddress || currentBlock === 0) {
-      console.log(`[validateSessionKey] Insufficient data to validate session key`, {
-        embeddedAddress,
-        sessionKeyAddress,
-        expirationBlock,
-        highestSeenBlock: currentBlock
-      });
-      return;
-    }
-    
-    const addressesMatch = embeddedAddress === sessionKeyAddress;
-    const notExpired = expirationBlock > currentBlock;
-    const currentValidity = addressesMatch && notExpired;
-    
-    console.log(`[validateSessionKey] Session key validity check:`, {
-      addressesMatch,
-      notExpired,
-      expirationBlock,
-      highestSeenBlock: currentBlock,
-      currentValidity,
-      previousValidity: validSessionKeyRef.current,
-      instanceId: instanceId.current
+    console.log(`[validateSessionKey] Session key validation result: ${state}`, {
+      sessionKey,
+      embeddedAddress,
+      expiration,
+      currentBlock
     });
     
-    // If validity changed, emit appropriate event
-    if (currentValidity !== validSessionKeyRef.current) {
-      if (currentValidity) {
-        // Session key is now valid (was invalid before)
-        console.log(`[validateSessionKey] Session key became valid`);
-        window.dispatchEvent(new CustomEvent('sessionKeyValid', {
-          detail: {
-            sessionKeyAddress,
-            expirationBlock,
-            instanceId: instanceId.current
-          }
-        }));
-      } else {
-        // Session key is now invalid (was valid before)
-        console.log(`[validateSessionKey] Session key became invalid`);
-        
-        // Determine the reason for invalidity
-        const reason = !addressesMatch ? 'mismatch' : 'expired';
-        
-        // Create the event object with detailed debugging info
-        const eventDetail = {
-          characterId: gameDataRef.current?.characterID,
-          owner: getOwnerWalletAddress(),
-          currentSessionKey: sessionKeyAddress,
-          embeddedWalletAddress: embeddedAddress,
-          reason,
-          timestamp: new Date().toISOString(),
-          instanceId: instanceId.current
-        };
-        
-        console.log(`[validateSessionKey] Dispatching sessionKeyUpdateNeeded event with details:`, eventDetail);
-        
-        // Dispatch the event
-        const event = new CustomEvent('sessionKeyUpdateNeeded', { detail: eventDetail });
-        window.dispatchEvent(event);
-        
-        // Double check that the event was properly created
-        console.log(`[validateSessionKey] Event dispatched:`, event);
-      }
-      
-      // Update validity ref
-      validSessionKeyRef.current = currentValidity;
-    }
-  }, [embeddedWallet?.address, embeddedWalletAddressRef, highestSeenBlockRef, getOwnerWalletAddress]);
-  
-  // Function to fetch session key data from smart contract
-  const fetchSessionKeyData = useCallback(async () => {
-    try {
-      // Only fetch if we have the necessary data
-      if (!gameDataRef.current?.characterID || !readContract) {
-        return false;
-      }
-      
-      const characterId = gameDataRef.current.characterID;
-      
-      // Skip check for zero address character ID
-      if (characterId === '0x0000000000000000000000000000000000000000000000000000000000000000') {
-        return false;
-      }
-      
-      console.log(`[fetchSessionKeyData] Fetching session key for character: ${characterId}`);
-      
-      // Call getCurrentSessionKey from contract
-      const sessionKeyData = await readContract.getCurrentSessionKey(characterId);
-      
-      // Parse the session key data
-      let sessionKey: { key: string; expiration: number } | null = null;
-      
-      if (Array.isArray(sessionKeyData)) {
-        // Handle array response [key, expiration]
-        sessionKey = {
-          key: sessionKeyData[0],
-          expiration: Number(sessionKeyData[1])
-        };
-      } else if (sessionKeyData && typeof sessionKeyData === 'object') {
-        // Handle object response {key, expiration}
-        sessionKey = {
-          key: sessionKeyData.key,
-          expiration: Number(sessionKeyData.expiration)
-        };
-      }
-      
-      if (sessionKey && typeof sessionKey.key === 'string') {
-        // Update refs with new data
-        sessionKeyAddressRef.current = sessionKey.key;
-        sessionKeyExpirationRef.current = sessionKey.expiration;
-        
-        console.log(`[fetchSessionKeyData] Updated session key data:`, {
-          key: sessionKey.key,
-          expiration: sessionKey.expiration
-        });
-        
-        // If highestSeenBlockRef is still 0, try to get current block number
-        if (highestSeenBlockRef.current === 0) {
-          try {
-            const provider = new ethers.JsonRpcProvider("https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24");
-            const currentBlock = await provider.getBlockNumber();
-            if (currentBlock > 0) {
-              console.log(`[fetchSessionKeyData] Updating highestSeenBlockRef to current block: ${currentBlock}`);
-              highestSeenBlockRef.current = currentBlock;
-            }
-          } catch (blockError) {
-            console.error(`[fetchSessionKeyData] Failed to get current block:`, blockError);
-          }
-        }
-        
-        // Validate session key with new data
-        validateSessionKey();
-        
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error(`[fetchSessionKeyData] Error:`, error);
-      return false;
-    }
-  }, [readContract, validateSessionKey, highestSeenBlockRef]);
-  
-  // Add effect to run initial session key validation once we have wallet addresses
-  useEffect(() => {
-    const initializeSessionKeyValidation = async () => {
-      // Only proceed if we have both wallets and game data
-      const ownerAddress = getOwnerWalletAddress();
-      const embeddedAddress = embeddedWallet?.address || embeddedWalletAddressRef.current;
-      
-      if (!embeddedAddress || !ownerAddress || !gameDataRef.current?.characterID) {
-        console.log('[GameDataProvider] Not ready for initial session key validation:', {
-          embeddedWalletAddress: embeddedAddress || 'Not available',
-          ownerAddress: ownerAddress || 'Not available',
-          characterId: gameDataRef.current?.characterID || 'Not available'
-        });
-        return;
-      }
+    return state;
+  }, []);
 
-      // Prevent multiple initializations
-      if (gameDataRef.current?.initializedSessionKeyValidation) {
-        return;
-      }
-      
-      console.log('[GameDataProvider] Running initial session key validation');
-      gameDataRef.current = { 
-        ...gameDataRef.current, 
-        initializedSessionKeyValidation: true,
-        isFetchingSessionKey: true
-      };
+  // Helper to check if session key is valid
+  const isValidCharacterId = useCallback((id: string | null | undefined): boolean => {
+    if (!id) return false;
+    // Simple validity check - ensures ID is not zero and has expected format
+    return id !== '0x0000000000000000000000000000000000000000000000000000000000000000';
+  }, []);
 
-      try {
-        // Fetch session key data
-        const success = await fetchSessionKeyData();
-        console.log(`[GameDataProvider] Initial session key fetch ${success ? 'succeeded' : 'failed'}`);
-        
-        // Validate immediately
-        validateSessionKey();
-      } catch (error) {
-        console.error('[GameDataProvider] Error during initial session key validation:', error);
-      } finally {
-        if (gameDataRef.current) {
-          gameDataRef.current = { ...gameDataRef.current, isFetchingSessionKey: false };
-        }
-      }
-    };
-
-    initializeSessionKeyValidation();
-  }, [embeddedWallet?.address, embeddedWalletAddressRef, getOwnerWalletAddress, fetchSessionKeyData, validateSessionKey]);
-
-  // Function to prompt user to connect wallet
-  const connectWallet = useCallback(async () => {
-    const timestamp = new Date().toISOString();
-    console.log(`[POLL-DEBUG ${timestamp}] Prompting user to connect wallet`);
-    
-    try {
-      if (connectMetamask) {
-        // Attempt to connect MetaMask
-        await connectMetamask();
-        
-        // Check if connection was successful
-        if (window.ethereum && (window.ethereum as any).selectedAddress) {
-          console.log(`[POLL-DEBUG ${timestamp}] Successfully connected wallet: ${(window.ethereum as any).selectedAddress}`);
-          setError(null);
-          
-          // Trigger a data fetch after connection
-          fetchGameData();
-        }
-      }
-      
-      console.warn(`[POLL-DEBUG ${timestamp}] Failed to connect wallet`);
-      setError("Failed to connect wallet. Please try again or refresh the page.");
-    } catch (err) {
-      console.error(`[POLL-DEBUG ${timestamp}] Error connecting wallet:`, err);
-      setError(`Error connecting wallet: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }, [connectMetamask]);
-
-  // Function to fetch game data
+  // The fetchGameData function should now use the client directly
   const fetchGameData = useCallback(async () => {
     if (!isPollingEnabled) {
-      console.log('[GameDataProvider] Polling disabled, skipping fetch');
+      console.log('[GameDataProvider] Polling disabled, skipping data fetch');
       return;
     }
-
-    pollCountRef.current++;
-    callCounterRef.current++;
-    const shouldLogDetailed = pollCountRef.current <= 5 || pollCountRef.current % 10 === 0;
     
-    // If session key is invalid, alternate between fetchGameData and fetchSessionKeyData
-    if (!validSessionKeyRef.current && callCounterRef.current % 2 === 1) {
-      console.log('[GameDataProvider] Session key invalid, polling session key data instead of full data');
-      await fetchSessionKeyData();
-      // Always validate after fetching session key data
-      validateSessionKey();
+    // Increment poll counter
+    pollCountRef.current += 1;
+    
+    // Skip polling if there's no client
+    if (!client) {
+      console.log('[GameDataProvider] No client available, skipping data fetch');
+      return;
+    }
+    
+    // Get owner address (prefer injected wallet for stability)
+    const ownerAddress = injectedWallet?.address || null;
+    
+    if (!ownerAddress) {
+      console.log('[GameDataProvider] No owner address available, skipping data fetch');
+      // Don't set an error here as this is a normal state before wallet connection
       return;
     }
     
     try {
-      // Get owner wallet address using the enhanced function
-      const ownerAddress = getOwnerWalletAddress();
+      setIsLoading(true);
       
-      // We'll try to fetch data even without a wallet connected
-      let newGameData : GameState = await pollForFrontendData(gameData);
+      // Get last known block from gameData or default to 0
+      const lastKnownBlock = gameData?.lastBlock || 0;
       
-      // Check if the sessionKey is the zero address or null/undefined, and if so, set sessionKeyBalance to zero
-      // This prevents showing a balance for an address the user doesn't have access to
-      if (newGameData) {
-        if (newGameData.sessionKey) {
-          // Store session key address for validation
-          const previousSessionKey = sessionKeyAddressRef.current;
-          sessionKeyAddressRef.current = newGameData.sessionKey.key;
-          
-          // If session key changed, log it
-          if (previousSessionKey && previousSessionKey !== newGameData.sessionKey.key) {
-            console.log(`[GameDataProvider] Session key changed from ${previousSessionKey} to ${newGameData.sessionKey.key}`);
-            // Reset validation flag when session key changes
-            sessionKeyValidationInitializedRef.current = false;
-          }
-        }
+      // Call the client's getUiSnapshot method directly
+      const result = await client.getUiSnapshot(ownerAddress, BigInt(lastKnownBlock));
+      
+      if (!result) {
+        throw new Error('Failed to fetch game data: Empty response');
       }
-
-      // FINISHED HERE. RESUME HERE. NEED TO FINISH FORMATTING THE PUSHING OF DATA TO THE GAME STATE.
       
-      // Check variables needed for session key validity
-      if (newGameData) {
-        const validCharacterId = newGameData.character?.id && 
-                             newGameData.character.id !== '0x0000000000000000000000000000000000000000000000000000000000000000';
-        const hasEmbeddedWallet = !!(embeddedWallet?.address || embeddedWalletAddressRef.current);
+      // Use the mapper to transform the raw data to GameState
+      const newGameData = mapUiSnapshotToGameState(result, ownerAddress);
+      
+      // Update highest seen block
+      if (newGameData.lastBlock > highestSeenBlockRef.current) {
+        highestSeenBlockRef.current = newGameData.lastBlock;
+      }
+      
+      // Validate session key using the state machine
+      if (embeddedWallet?.address && newGameData.sessionKey) {
+        const sessionKeyState = validateSessionKey(
+          newGameData.sessionKey.key,
+          embeddedWallet.address,
+          newGameData.sessionKey.expiration,
+          newGameData.lastBlock
+        );
         
-        // If we have both a valid character ID and embedded wallet, fetch session key expiration
-        if (validCharacterId && hasEmbeddedWallet && !gameDataRef.current?.isFetchingSessionKey &&
-            (!sessionKeyValidationInitializedRef.current || !validSessionKeyRef.current || callCounterRef.current % 50 === 0)) {
-          // Only fetch session key data once per several cycles to avoid spamming RPC
-          if (!sessionKeyValidationInitializedRef.current || sessionKeyExpirationRef.current === 0) {
-            gameDataRef.current = { ...gameDataRef.current, isFetchingSessionKey: true };
-            console.log('[GameDataProvider] Fetching session key data for validation');
-            const success = await fetchSessionKeyData();
-            gameDataRef.current = { ...gameDataRef.current, isFetchingSessionKey: false };
-            
-            // Always validate after fetching new session key data
-            if (success) {
-              console.log('[GameDataProvider] Session key data fetched successfully, validating...');
-              validateSessionKey();
-              
-              // Mark session key validation as initialized
-              sessionKeyValidationInitializedRef.current = true;
-            }
-          } else if (validSessionKeyRef.current) {
-            // Just do a quick validation using existing data (no RPC calls)
-            console.log('[GameDataProvider] Periodic session key check with existing data');
-            validateSessionKey();
-          } else {
-            // Always validate with existing data
-            console.log('[GameDataProvider] Validating session key with existing data');
-            validateSessionKey();
-          }
-        }
-        
-        // Check for session key address mismatch
-        const validOwnerAddr = ownerAddress && ownerAddress !== '0x0000000000000000000000000000000000000000';
-        const emptySessionKey = !newGameData.sessionKey.key || newGameData.sessionKey.key === '0x0000000000000000000000000000000000000000';
-        const embeddedWalletAddress = embeddedWallet?.address || embeddedWalletAddressRef.current;
-        const addressMismatch = embeddedWalletAddress && newGameData.sessionKey.key && 
-                              newGameData.sessionKey.key.toLowerCase() !== embeddedWalletAddress.toLowerCase();
-        
-        // If session key is invalid due to address mismatch, dispatch event
-        if (validOwnerAddr && validCharacterId && (emptySessionKey || addressMismatch)) {
-          console.log('[GameDataProvider] Session key address mismatch detected:', {
-            ownerAddress,
-            characterID: newGameData.character?.id,
+        // Dispatch events based on state
+        if (sessionKeyState === SessionKeyState.MISMATCH || sessionKeyState === SessionKeyState.EXPIRED) {
+          // Create the event object with detailed debugging info
+          const eventDetail = {
+            characterId: newGameData.character?.id,
+            owner: ownerAddress,
             currentSessionKey: newGameData.sessionKey.key,
-            embeddedWalletAddress: embeddedWalletAddress || 'Not available'
-          });
+            embeddedWalletAddress: embeddedWallet.address,
+            reason: sessionKeyState === SessionKeyState.MISMATCH ? 'mismatch' : 'expired',
+            timestamp: new Date().toISOString(),
+            instanceId: instanceId.current
+          };
           
-          // This will still be triggered for address mismatches
-          // Expiration mismatches will be handled by validateSessionKey
-          if (validSessionKeyRef.current) {
-            const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
-              detail: { 
-                characterId: newGameData.character?.id,
-                owner: ownerAddress,
-                currentSessionKey: newGameData.sessionKey.key,
-                embeddedWalletAddress: embeddedWalletAddress,
-                reason: 'mismatch'
-              }
-            });
-            window.dispatchEvent(sessionKeyUpdateEvent);
-            
-            // Update validity ref
-            validSessionKeyRef.current = false;
-            // Reset validation initialized flag to force a recheck next cycle
-            sessionKeyValidationInitializedRef.current = false;
-          }
-        }
-        
-        // Check if we need to update session key
-        // Conditions: valid owner address (not zero address) AND valid characterID AND (zero address session key OR session key doesn't match embedded wallet)
-        const validOwnerAddress = ownerAddress && ownerAddress !== '0x0000000000000000000000000000000000000000';
-        const validCharId = newGameData.character?.id && newGameData.character?.id !== '0x0000000000000000000000000000000000000000000000000000000000000000';
-        const zeroSessionKey = !newGameData.sessionKey?.key || newGameData.sessionKey?.key === '0x0000000000000000000000000000000000000000';
-        const sessionKeyMismatch = embeddedWalletAddress && newGameData.sessionKey.key && 
-                                newGameData.sessionKey?.key.toLowerCase() !== embeddedWalletAddress.toLowerCase();
-        
-        if (validOwnerAddress && validCharId && (zeroSessionKey || sessionKeyMismatch)) {
-          console.log('[GameDataProvider] Session key update needed:', {
-            ownerAddress,
-            characterID: newGameData.character?.id,
-            currentSessionKey: newGameData.sessionKey?.key,
-            embeddedWalletAddress: embeddedWalletAddress || 'Not available'
-          });
+          console.log(`[GameDataProvider] Dispatching sessionKeyUpdateNeeded event with details:`, eventDetail);
           
-          // Dispatch event to trigger session key update page
-          const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
-            detail: { 
-              characterId: newGameData.character?.id,
-              owner: ownerAddress,
-              currentSessionKey: newGameData.sessionKey?.key,
-              embeddedWalletAddress: embeddedWalletAddress
-            }
-          });
-          window.dispatchEvent(sessionKeyUpdateEvent);
-          
-          // Reset validation initialized flag to force a recheck after update
-          sessionKeyValidationInitializedRef.current = false;
-        }
-        
-        // Debug logging for zero session key with valid character ID
-        const isZeroSessionKey = newGameData.sessionKey?.key === '0x0000000000000000000000000000000000000000';
-        const isValidCharacterId = newGameData.character?.id && 
-        newGameData.character?.id !== '0x0000000000000000000000000000000000000000000000000000000000000000';
-        
-        if (isZeroSessionKey && isValidCharacterId) {
-          console.log(`[GameDataProvider] ZERO SESSION KEY DETECTED with valid characterID`, {
-            ownerAddress,
-            startBlock: newGameData.lastBlock || 'unknown', // or the value passed to getFullFrontendData
-            characterID: newGameData.character?.id,
-            sessionKey: newGameData.sessionKey?.key,
-            sessionKeyBalance: newGameData.sessionKey?.balance.toString(),
-            bondedShMonadBalance: result.bondedShMonadBalance?.toString(),
-            balanceShortfall: result.balanceShortfall?.toString(),
-            unallocatedAttributePoints: newGameData.character?.unspentAttributePoints?.toString()
-          });
+          // Dispatch the event
+          const event = new CustomEvent('sessionKeyUpdateNeeded', { detail: eventDetail });
+          window.dispatchEvent(event);
         }
       }
-
+      
+      // Set the new game data state
+      setGameData(newGameData);
+      
+      // Update timestamp
+      setLastUpdated(new Date());
+      
+      // Process data feeds for chat and event logging
+      const dataFeeds = (result as any).dataFeeds;
+      if (dataFeeds && Array.isArray(dataFeeds)) {
+        // Extract all logs from data feeds
+        const allLogs = dataFeeds.flatMap((feed: any) => 
+          Array.isArray(feed?.logs) ? feed.logs : []
+        );
+        
+        // Extract chat events (logType 4 is Chat)
+        const chatEvents = allLogs.filter((log: any) => log?.logType === LogType.Chat);
+        
+        // Collect all chat contents from data feeds
+        const chatContents = dataFeeds.flatMap((feed: any) => 
+          Array.isArray(feed?.chatLogs) ? feed.chatLogs : []
+        );
+        
+        // Only log when we actually have chat content
+        if (chatEvents.length > 0 || chatContents.length > 0) {
+          console.log(`[GameDataProvider] Found ${chatEvents.length} chat events and ${chatContents.length} chat contents`);
+        }
+        
+        // Extract event logs (all non-chat logs)
+        const events = allLogs.filter((log: any) => log?.logType !== LogType.Chat);
+        
+        // Update processed data state
+        if (chatContents.length > 0) {
+          // Transform chat logs into the expected format
+          const chatMessages = chatContents.map((content: string) => ({
+            characterName: 'Unknown', // This would ideally be populated from the data
+            message: content,
+            timestamp: Date.now()
+          }));
+          
+          setProcessedChatMessages(prev => [...prev, ...chatMessages]);
+        }
+        
+        if (events.length > 0) {
+          // Transform event logs into the expected format
+          const eventMessages = events.map((event: any) => ({
+            message: `Event type ${event.logType}`, // This would ideally be a human-readable message
+            timestamp: Date.now()
+          }));
+          
+          setProcessedEventLogs(prev => [...prev, ...eventMessages]);
+        }
+      }
+      
+      // Check for meaningful changes to trigger UI updates
+      // Update the hasChangedMeaningfully check to be more granular and detect specific changes
+      // Use gameDataRef.current for comparison to avoid stale closures
+      const hasChangedMeaningfully = !gameDataRef.current || 
+        // Character ID changed
+        newGameData.character?.id !== gameDataRef.current.characterID ||
+        // Session key balance changed
+        (newGameData.sessionKey?.balance?.toString() !== gameDataRef.current.sessionKeyBalance?.toString()) ||
+        // Position changed (check explicitly)
+        (newGameData.position && (!lastKnownPositionRef.current || 
+          newGameData.position.x !== lastKnownPositionRef.current.x || 
+          newGameData.position.y !== lastKnownPositionRef.current.y || 
+          newGameData.position.depth !== lastKnownPositionRef.current.depth));
+      
+      if (hasChangedMeaningfully) {
+        // Dispatch a gameDataUpdated event
+        const gameDataUpdatedEvent = new CustomEvent('gameDataUpdated', { 
+          detail: newGameData 
+        });
+        window.dispatchEvent(gameDataUpdatedEvent);
+        console.log('[GameDataProvider] Dispatched gameDataUpdated event with changed data');
+        
+        // Check for position change
+        if (newGameData.position) {
+          // Extract position values
+          const newPosition = newGameData.position;
+          
+          // Get current position from ref or default
+          const currentPosition = lastKnownPositionRef.current;
+          
+          // Check if position has changed
+          const hasPositionChanged = !currentPosition || 
+            newPosition.x !== currentPosition.x || 
+            newPosition.y !== currentPosition.y || 
+            newPosition.depth !== currentPosition.depth;
+          
+          if (hasPositionChanged) {
+            console.log('[GameDataProvider] Position changed detected:', 
+              { from: lastKnownPositionRef.current, to: newPosition });
+            
+            // Update lastKnownPositionRef with the new position
+            lastKnownPositionRef.current = newPosition;
+            
+            // Store in window for cross-component access
+            (window as any).lastKnownCharacterPosition = newPosition;
+            
+            // Create and dispatch position change event
+            const positionChangedEvent = new CustomEvent('characterPositionChanged', {
+              detail: { 
+                position: newPosition,
+                character: newGameData.character
+              }
+            });
+            window.dispatchEvent(positionChangedEvent);
+            console.log('[GameDataProvider] Dispatched characterPositionChanged event with position:', newPosition);
+          }
+        }
+      }
+      
       // If we got a result, reset consecutive errors counter
-      if (newGameData) {
-        setConsecutiveErrors(0);
-        
-        // Helper function to check if a character ID is valid (non-zero) 
-        const isValidCharacterId = (id: string | null | undefined): boolean => {
-          return !!id && id !== '0x0000000000000000000000000000000000000000000000000000000000000000';
-        };
-        
-        // Make sure we have either valid IDs or clear zero values for comparison
-        // USE THE REF FOR CURRENT GAME DATA INSTEAD OF STATE to avoid stale closures
-        const currentId = gameDataRef.current?.characterID || '0x0000000000000000000000000000000000000000000000000000000000000000';
-        const newId = newGameData.character?.id || '0x0000000000000000000000000000000000000000000000000000000000000000';
-        
-        // Check specifically for zero session key with valid character ID
-        if (isValidCharacterId(newId) && newGameData.sessionKey.key === '0x0000000000000000000000000000000000000000') {
-          console.log(`[GameDataProvider] WARNING: Zero session key with valid character ID detected`, {
-            characterID: newId,
-            sessionKey: newGameData.sessionKey?.key,
-            sessionKeyBalance: newGameData.sessionKey?.balance.toString(),
-            bondedShMonadBalance: result.bondedShMonadBalance?.toString(),
-            balanceShortfall: result.balanceShortfall?.toString(),
-            ownerAddress: getOwnerWalletAddress() || 'unknown'
-          });
-        }
-        
-        // Check for initial valid data to trigger session key validation
-        if (isValidCharacterId(newId) && (embeddedWallet?.address || embeddedWalletAddressRef.current) && !sessionKeyValidationInitializedRef.current) {
-          console.log('[GameDataProvider] First valid data received, initializing session key validation');
-          
-          // Only perform the initial validation if we haven't already
-          if (!gameDataRef.current?.isFetchingSessionKey) {
-            gameDataRef.current = { ...gameDataRef.current, isFetchingSessionKey: true };
-            
-            try {
-              const success = await fetchSessionKeyData();
-              console.log(`[GameDataProvider] Initial session key fetch during first data ${success ? 'succeeded' : 'failed'}`);
-              validateSessionKey();
-              
-              // Mark validation as initialized
-              sessionKeyValidationInitializedRef.current = true;
-            } catch (error) {
-              console.error('[GameDataProvider] Error during initial data session key validation:', error);
-            } finally {
-              if (gameDataRef.current) {
-                gameDataRef.current = { ...gameDataRef.current, isFetchingSessionKey: false };
-              }
-            }
-          }
-        }
-        
-        // Only trigger characterID changed events if we have a valid new ID that's different from the current one
-        // AND we have a reference to existing game data
-        if (gameDataRef.current && newId !== currentId && isValidCharacterId(newId)) {
-          console.log(`[GameDataProvider] Valid character ID changed: ${currentId} -> ${newId}`);
-          
-          // Get wallet-specific localStorage key if we have an owner address
-          if (ownerAddress) {
-            const storageKey = getCharacterLocalStorageKey(ownerAddress);
-            
-            if (storageKey) {
-              // Only update localStorage if this is a valid (non-zero) character ID
-              if (isValidCharacterId(newId)) {
-                localStorage.setItem(storageKey, newId);
-                console.log(`[GameDataProvider] Updated localStorage with new character ID: ${newId}`);
-                
-                // Also use fixed key for backwards compatibility
-                localStorage.setItem('battleNadsCharacterId', newId);
-              } else {
-                // Remove any existing character ID if new ID is invalid/zero
-                localStorage.removeItem(storageKey);
-                localStorage.removeItem('battleNadsCharacterId');
-                console.log(`[GameDataProvider] Removed invalid character ID from localStorage`);
-              }
-            }
-          }
-          
-          // Broadcast a global event for the character ID change
-          const characterChangedEvent = new CustomEvent('characterIDChanged', {
-            detail: { characterId: newId, owner: ownerAddress }
-          });
-          window.dispatchEvent(characterChangedEvent);
-          console.log(`[GameDataProvider] Dispatched characterIDChanged event with ID: ${newId}`);
-        } else if (currentId !== newId) {
-          // Log if IDs are different but we're not triggering an event (zero address case)
-          console.log(`[GameDataProvider] Character ID change: ${currentId} -> ${newId}`);
-          if (!gameDataRef.current) {
-            console.log('[GameDataProvider] gameDataRef not current - no character ID change event dispatched');
-          }
-        }
-        
-        // Add debug check specifically for chatLogs
-        if (result.dataFeeds && Array.isArray(result.dataFeeds)) {
-          let totalChatLogs = 0;
-          let chatLogsContent: string[] = [];
-          
-          // Check each data feed for chatLogs
-          for (const feed of result.dataFeeds) {
-            if (feed && Array.isArray(feed.chatLogs) && feed.chatLogs.length > 0) {
-              totalChatLogs += feed.chatLogs.length;
-              chatLogsContent = chatLogsContent.concat(feed.chatLogs);
-            }
-          }
-          
-          // Log only when we actually find chat logs (keeping useful logs)
-          if (totalChatLogs > 0) {
-            console.log(`[GameDataProvider] Found ${totalChatLogs} chat messages in data feeds:`, chatLogsContent);
-          }
-        }
-        
-        // Process data feeds for chat and event logging
-        if (result.dataFeeds && Array.isArray(result.dataFeeds)) {
-          const timestamp = new Date().toISOString();
-          
-          // Remove detailed debug for chat logs in dataFeeds
-          
-          // Process all logs from data feeds
-          const allLogs = result.dataFeeds.flatMap((feed: any) => 
-            Array.isArray(feed?.logs) ? feed.logs : []
-          );
-          
-          if (shouldLogDetailed) {
-            console.log(`[GameDataProvider] Processing ${allLogs.length} logs from data feeds`);
-          }
-          
-          // Extract chat events (logType 4 is Chat)
-          const chatEvents = allLogs.filter((log: any) => log?.logType === LogType.Chat);
-          
-          // Collect all chat contents from data feeds
-          const chatContents = result.dataFeeds.flatMap((feed: any) => 
-            Array.isArray(feed?.chatLogs) ? feed.chatLogs : []
-          );
-          
-          // Only log when we actually have chat content (keeping useful logs)
-          if (chatEvents.length > 0 || chatContents.length > 0) {
-            console.log(`[GameDataProvider] Found ${chatEvents.length} chat events and ${chatContents.length} chat contents`);
-          }
-          
-          // Extract event logs (all non-chat logs)
-          const events = allLogs.filter((log: any) => log?.logType !== LogType.Chat);
-          
-          // Update processed data state if we have new logs
-          if (chatEvents.length > 0 || chatContents.length > 0) {
-            // Combine chat events with their content
-            const combinedChatMessages: { characterName: string; message: string; timestamp: number }[] = [];
-            
-            // Matching length indicates we can pair them directly by index
-            if (chatEvents.length === chatContents.length) {
-              for (let i = 0; i < chatEvents.length; i++) {
-                combinedChatMessages.push({
-                  characterName: chatEvents[i].characterName || 'Unknown',
-                  message: chatContents[i] || '',
-                  timestamp: Date.now()
-                });
-              }
-              
-              if (shouldLogDetailed) {
-                console.log(`[GameDataProvider] Created ${combinedChatMessages.length} combined chat messages`);
-              }
-            } else if (chatContents.length > 0 && chatEvents.length === 0) {
-              // Special case: We have chat content but no chat events
-              // This can happen due to timing differences in blockchain processing
-              console.log(`[GameDataProvider] Found ${chatContents.length} chat contents without matching events`);
-              
-              for (const content of chatContents) {
-                combinedChatMessages.push({
-                  characterName: newGameData.character?.name || 'Character',
-                  message: typeof content === 'string' ? content : JSON.stringify(content),
-                  timestamp: Date.now()
-                });
-              }
-            } else {
-              // If lengths don't match, try to match by index field if available
-              for (const chatEvent of chatEvents) {
-                if (chatEvent.index !== undefined && chatEvent.index < chatContents.length) {
-                  combinedChatMessages.push({
-                    characterName: chatEvent.characterName || 'Unknown',
-                    message: chatContents[chatEvent.index] || '',
-                    timestamp: Date.now()
-                  });
-                }
-              }
-              
-              console.log(`[GameDataProvider] Created ${combinedChatMessages.length} chat messages using index matching`);
-              
-              // If we couldn't match any, fall back to simpler approach
-              if (combinedChatMessages.length === 0) {
-                console.log(`[GameDataProvider] Fallback: Using simpler approach for chat messages`);
-                for (let i = 0; i < Math.min(chatEvents.length, chatContents.length); i++) {
-                  combinedChatMessages.push({
-                    characterName: chatEvents[i]?.characterName || 'Unknown',
-                    message: chatContents[i] || '',
-                    timestamp: Date.now()
-                  });
-                }
-              }
-            }
-            
-            // Update state with combined chat messages
-            if (combinedChatMessages.length > 0) {
-              setProcessedChatMessages(prev => {
-                const newState = [...prev, ...combinedChatMessages];
-                console.log(`[GameDataProvider] Updated processedChatMessages state, now has ${newState.length} messages`);
-                return newState;
-              });
-            }
-          }
-          
-          if (events.length > 0) {
-            if (shouldLogDetailed) {
-              console.log(`[GameDataProvider] Adding ${events.length} new event logs`);
-            }
-            setProcessedEventLogs(prev => [...events, ...prev]);
-          }
-        }
-        
-        // Important: Update the gameDataRef BEFORE updating state
-        // This ensures the ref always has the latest data for the next polling cycle
-        gameDataRef.current = newGameData;
-        
-        // Update game data state
-        setGameData(newGameData);
-        setLastUpdated(new Date());
-        
-        // Update the hasChangedMeaningfully check to be more granular and detect specific changes
-        // Use gameDataRef.current for comparison to avoid stale closures
-        const hasChangedMeaningfully = !gameDataRef.current || 
-          // Character ID changed
-          newGameData.character?.id !== gameDataRef.current.characterID ||
-          // Session key balance changed
-          (newGameData.sessionKey?.balance?.toString() !== gameDataRef.current.sessionKeyBalance?.toString()) ||
-          // Bonded balance changed
-          (result.bondedShMonadBalance?.toString() !== gameDataRef.current.bondedShMonadBalance?.toString()) ||
-          // Shortfall changed
-          (result.balanceShortfall?.toString() !== gameDataRef.current.balanceShortfall?.toString()) ||
-          // Position changed (check explicitly)
-          (newGameData.character?.position && 
-            (!gameDataRef.current?.character?.stats || // TODO: update this to use the new position object
-            Number(newGameData.character?.position.x || 0) !== Number(gameDataRef.current.character.stats.x || 0) || // TODO: verify gameDataRef struct for x position
-            Number(newGameData.character.position.y || 0) !== Number(gameDataRef.current.character.stats.y || 0) || // TODO: verify gameDataRef struct for y position
-            Number(newGameData.character.position.depth || 0) !== Number(gameDataRef.current.character.stats.depth || 0))) || // TODO: verify gameDataRef struct for depth position
-          // Character stats/position changed - use deep comparison
-          !isEqual(newGameData.character, gameDataRef.current.character) ||
-          // Combat state changed - check for combatants array changes
-          !isEqual(result.combatants, gameDataRef.current.combatants) ||
-          // Check specifically for data feeds with chat logs
-          (Array.isArray(result.dataFeeds) && result.dataFeeds.length > 0 && (
-            !gameDataRef.current.dataFeeds || 
-            result.dataFeeds.some((feed: any) => {
-              // Always treat feeds with chat logs as meaningful changes
-              if (Array.isArray(feed?.chatLogs) && feed.chatLogs.length > 0) {
-                console.log('[GameDataProvider] Found data feed with chat logs - treating as meaningful change');
-                return true;
-              }
-              
-              // For other feed types, check if this feed exists in the previous data
-              const feedIndex = gameDataRef.current.dataFeeds?.findIndex((oldFeed: any) => 
-                oldFeed.blockNumber === feed.blockNumber);
-                
-              // If this is a new feed or has different content, it's a meaningful change
-              return feedIndex === -1 || !isEqual(feed, gameDataRef.current.dataFeeds[feedIndex]);
-            })
-          ));
-        
-        if (hasChangedMeaningfully) {
-          // Also broadcast a general gameDataUpdated event
-          const gameDataUpdatedEvent = new CustomEvent('gameDataUpdated', { 
-            detail: result 
-          });
-          window.dispatchEvent(gameDataUpdatedEvent);
-          console.log('[GameDataProvider] Dispatched gameDataUpdated event with changed data');
-          
-          // Add more specific event dispatches for different types of changes
-          
-          // 1. Check for character position change
-          if (newGameData.character?.position) {
-            // Extract position values, ensuring we have numbers not undefined
-            const newX = Number(newGameData.character.position.x || 0);
-            const newY = Number(newGameData.character.position.y || 0);
-            const newDepth = Number(newGameData.character.position.depth || 0);
-            
-            // Get current values from lastKnownPositionRef or default to -1 to ensure initial position is always considered a change
-            const currentX = lastKnownPositionRef.current?.x ?? -1;
-            const currentY = lastKnownPositionRef.current?.y ?? -1;
-            const currentDepth = lastKnownPositionRef.current?.depth ?? -1;
-            
-            // Check if position has changed
-            const hasPositionChanged = 
-              newX !== currentX || 
-              newY !== currentY || 
-              newDepth !== currentDepth;
-            
-            if (hasPositionChanged) {
-              console.log('[GameDataProvider] Position changed detected:', 
-                { from: lastKnownPositionRef.current, to: { x: newX, y: newY, depth: newDepth } });
-              
-              // Create a position object from stats for the event
-              const position = { x: newX, y: newY, depth: newDepth };
-              
-              // Update lastKnownPositionRef with the new position
-              lastKnownPositionRef.current = position;
-              
-              // Also store in window for cross-component access
-              (window as any).lastKnownCharacterPosition = position;
-              
-              // Create and dispatch position change event
-              const positionChangedEvent = new CustomEvent('characterPositionChanged', {
-                detail: { 
-                  position: position,
-                  character: newGameData.character
-                }
-              });
-              window.dispatchEvent(positionChangedEvent);
-              console.log('[GameDataProvider] Dispatched characterPositionChanged event with position:', position);
-            }
-          }
-          
-          // 2. Check for character health/stats change
-          if (newGameData.character?.stats && (!gameDataRef.current?.character?.stats ||
-            newGameData.character.health !== gameDataRef.current.character.stats.health ||
-            newGameData.character.maxHealth !== gameDataRef.current.character.stats.maxHealth)) {
-            const statsChangedEvent = new CustomEvent('characterStatsChanged', {
-              detail: { 
-                stats: newGameData.character.stats,
-                character: newGameData.character,
-                isPlayerCharacter: true // Flag to identify this is the player character
-              }
-            });
-            window.dispatchEvent(statsChangedEvent);
-            console.log('[GameDataProvider] Dispatched characterStatsChanged event');
-          }
-          
-          // 3. Check for combatants changes
-          if (result.combatants) {
-            // Improved check for actual combatant changes
-            let combatantsChanged = false;
-            
-            // Only trigger when actually different
-            if (!gameDataRef.current?.combatants) {
-              // First time getting combatants
-              combatantsChanged = result.combatants.length > 0;
-            } else if (result.combatants.length !== gameDataRef.current.combatants.length) {
-              // Length change is meaningful
-              combatantsChanged = true;
-            } else if (result.combatants.length > 0) {
-              // Compare IDs and health values
-              const oldIds = gameDataRef.current.combatants.map((c: any) => c.id).sort().join(',');
-              const newIds = result.combatants.map((c: any) => c.id).sort().join(',');
-              
-              if (oldIds !== newIds) {
-                combatantsChanged = true;
-              } else {
-                // Deep compare combatants for health changes
-                combatantsChanged = !isEqual(result.combatants, gameDataRef.current.combatants);
-              }
-            }
-            
-            if (combatantsChanged) {
-              const combatantsChangedEvent = new CustomEvent('combatantsChanged', {
-                detail: { 
-                  combatants: result.combatants,
-                  previousCombatants: gameDataRef.current?.combatants || []
-                }
-              });
-              window.dispatchEvent(combatantsChangedEvent);
-              console.log('[GameDataProvider] Dispatched combatantsChanged event');
-            }
-          }
-        } else {
-          console.log('[GameDataProvider] Skipping gameDataUpdated event - no meaningful changes detected');
-        }
-      } else if (shouldLogDetailed) {
-        console.log('[GameDataProvider] No data returned from getFullFrontendData');
+      setConsecutiveErrors(0);
+      
+    } catch (err) {
+      console.error('[GameDataProvider] Error fetching game data:', err);
+      setError(`Failed to fetch game data: ${(err as Error)?.message || 'Unknown error'}`);
+      
+      // Increment consecutive errors counter
+      setConsecutiveErrors(prev => prev + 1);
+      
+      // If we've had too many consecutive errors, disable polling
+      if (consecutiveErrors > 10) {
+        console.error('[GameDataProvider] Too many consecutive errors, disabling polling');
+        setIsPollingEnabled(false);
       }
-    } catch (error) {
-      console.log('[GameDataProvider] Error in fetchGameData:', error);
-      setConsecutiveErrors(prev => {
-        const newCount = prev + 1;
-        // Only log detailed error information after 3 consecutive errors to reduce noise
-        if (newCount >= 3 || shouldLogDetailed) {
-          console.error(`[GameDataProvider] Error fetching game data (error #${newCount}):`, error);
-        }
-        return newCount;
-      });
     } finally {
       setIsLoading(false);
     }
-  }, [pollForFrontendData, getOwnerWalletAddress, isPollingEnabled, embeddedWallet?.address, fetchSessionKeyData, validateSessionKey]);
+  }, [client, injectedWallet?.address, embeddedWallet?.address, isPollingEnabled, gameData?.lastBlock, validateSessionKey, consecutiveErrors]);
 
-  // Set up polling interval - this was missing
+  // Set up polling interval
   useEffect(() => {
-    console.log(`[GameDataProvider] Setting up polling interval: ${pollInterval}ms`);
-    
-    // Do an initial fetch
-    fetchGameData();
-    
-    // Set up the interval for regular polling
-    if (intervalIdRef.current) {
-      clearInterval(intervalIdRef.current);
-      console.log('[GameDataProvider] Cleared existing polling interval');
+    // Only set up polling if it's enabled
+    if (!isPollingEnabled) {
+      console.log('[GameDataProvider] Polling disabled, not setting up interval');
+      return;
     }
     
-    // Create new interval - always polls regardless of isPollingEnabled flag
-    // isPollingEnabled is checked inside fetchGameData instead
-    intervalIdRef.current = setInterval(() => {
-      // Remove noisy polling trigger message
-      fetchGameData();
-    }, pollInterval);
+    console.log(`[GameDataProvider] Setting up polling interval: ${pollInterval}ms`);
     
+    // Initial fetch
+    fetchGameData();
+    
+    // Set up interval
+    const intervalId = setInterval(fetchGameData, pollInterval);
+    intervalIdRef.current = intervalId;
+    
+    // Clean up
     return () => {
-      if (intervalIdRef.current) {
-        clearInterval(intervalIdRef.current);
-        intervalIdRef.current = null;
-        console.log('[GameDataProvider] Cleaned up polling interval on unmount');
-      }
+      clearInterval(intervalId);
+      intervalIdRef.current = null;
     };
-  }, [pollInterval]); // Remove fetchGameData from dependencies
+  }, [fetchGameData, pollInterval, isPollingEnabled]);
 
-  // Enable/disable polling functions
-  const enablePolling = useCallback(() => {
-    console.log('[GameDataProvider] Enabling polling');
-    setIsPollingEnabled(true);
-  }, []);
-
-  const disablePolling = useCallback(() => {
-    console.log('[GameDataProvider] Disabling polling');
-    setIsPollingEnabled(false);
+  // Add listeners for the session key machine events
+  useEffect(() => {
+    // Listen for session key state changes
+    const handleSessionKeyValid = (data: any) => {
+      console.log('[GameDataProvider] Session key is valid:', data);
+      // Dispatch a custom event for the UI
+      window.dispatchEvent(new CustomEvent('sessionKeyValid', { detail: data }));
+    };
+    
+    const handleSessionKeyMismatch = (data: any) => {
+      console.log('[GameDataProvider] Session key mismatch:', data);
+      // Dispatch a custom event for the UI
+      window.dispatchEvent(new CustomEvent('sessionKeyMismatch', { detail: data }));
+    };
+    
+    const handleSessionKeyExpired = (data: any) => {
+      console.log('[GameDataProvider] Session key expired:', data);
+      // Dispatch a custom event for the UI
+      window.dispatchEvent(new CustomEvent('sessionKeyExpired', { detail: data }));
+    };
+    
+    // Register event listeners
+    sessionKeyMachine.on(SessionKeyEvent.VALID, handleSessionKeyValid);
+    sessionKeyMachine.on(SessionKeyEvent.MISMATCH, handleSessionKeyMismatch);
+    sessionKeyMachine.on(SessionKeyEvent.EXPIRED, handleSessionKeyExpired);
+    
+    // Clean up
+    return () => {
+      // We would unregister listeners here if the API supported it
+    };
   }, []);
 
   // Add a listener for character creation events to trigger immediate data fetch
@@ -1123,175 +552,82 @@ export const GameDataProvider: React.FC<GameDataProviderProps> = ({
     }
   }, [gameData]);
 
-  // Add effect to detect user session and restore validation state
-  useEffect(() => {
-    // Check for session key validity in localStorage to persist across page loads
-    const checkPersistedSessionKeyState = () => {
-      try {
-        const storedValidity = localStorage.getItem('sessionKeyValidityState');
-        const timestamp = new Date().toISOString();
-        
-        if (storedValidity) {
-          const validityData = JSON.parse(storedValidity);
-          console.log(`[GameDataProvider ${timestamp}] Found persisted session key validity state:`, validityData);
-          
-          // Only restore if session key in the stored data matches the current embedded wallet
-          const embeddedAddress = embeddedWallet?.address || embeddedWalletAddressRef.current;
-          
-          if (embeddedAddress && validityData.embeddedAddress === embeddedAddress.toLowerCase()) {
-            console.log(`[GameDataProvider ${timestamp}] Restoring session key validity state`);
-            validSessionKeyRef.current = validityData.isValid;
-            sessionKeyAddressRef.current = validityData.sessionKey;
-            sessionKeyExpirationRef.current = validityData.expiration || 0;
-            // Mark validation as initialized to prevent unnecessary rechecks
-            sessionKeyValidationInitializedRef.current = validityData.isValid;
-          } else {
-            console.log(`[GameDataProvider ${timestamp}] Embedded wallet address doesn't match stored data, ignoring`);
-            localStorage.removeItem('sessionKeyValidityState');
-          }
-        }
-      } catch (error) {
-        console.error(`[GameDataProvider] Error checking persisted session key state:`, error);
-        localStorage.removeItem('sessionKeyValidityState');
-      }
-    };
-    
-    // Listen for session key update events and store new state
-    const handleSessionKeyUpdateNeeded = (event: CustomEvent) => {
-      const timestamp = new Date().toISOString();
-      console.log(`[GameDataProvider ${timestamp}] Received sessionKeyUpdateNeeded event (internal listener):`, event.detail);
+  // Function to connect wallet and fetch data
+  const connectWallet = useCallback(async () => {
+    try {
+      // Use the connect function from the wallet provider
+      await connectMetamask();
       
-      // Update the ref to indicate invalid session key
-      validSessionKeyRef.current = false;
-      // Reset validation flag to force a new check after update
-      sessionKeyValidationInitializedRef.current = false;
-      
-      // Store this state in localStorage to persist across page loads
-      try {
-        const dataToStore = {
-          isValid: false,
-          sessionKey: event.detail.currentSessionKey,
-          embeddedAddress: event.detail.embeddedWalletAddress?.toLowerCase(),
-          reason: event.detail.reason,
-          timestamp: timestamp
-        };
-        
-        localStorage.setItem('sessionKeyValidityState', JSON.stringify(dataToStore));
-        console.log(`[GameDataProvider ${timestamp}] Stored session key validity state in localStorage`);
-      } catch (error) {
-        console.error(`[GameDataProvider ${timestamp}] Error storing session key validity:`, error);
-      }
-    };
-    
-    // Check persisted state first
-    checkPersistedSessionKeyState();
-    
-    // Add event listeners
-    window.addEventListener('sessionKeyUpdateNeeded', handleSessionKeyUpdateNeeded as EventListener);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('sessionKeyUpdateNeeded', handleSessionKeyUpdateNeeded as EventListener);
-    };
-  }, [embeddedWallet?.address, embeddedWalletAddressRef]);
-
-  // Add effect to listen for sessionKeyValid events
-  useEffect(() => {
-    // Listen for session key valid events
-    const handleSessionKeyValid = (event: CustomEvent) => {
-      const timestamp = new Date().toISOString();
-      console.log(`[GameDataProvider ${timestamp}] Received sessionKeyValid event:`, event.detail);
-      
-      // Update the ref to indicate valid session key
-      validSessionKeyRef.current = true;
-      // Mark validation as initialized to prevent unnecessary rechecks
-      sessionKeyValidationInitializedRef.current = true;
-      
-      // Store this state in localStorage to persist across page loads
-      try {
-        const dataToStore = {
-          isValid: true,
-          sessionKey: event.detail.sessionKeyAddress,
-          embeddedAddress: embeddedWallet?.address?.toLowerCase() || embeddedWalletAddressRef.current?.toLowerCase(),
-          expiration: event.detail.expirationBlock,
-          timestamp: timestamp
-        };
-        
-        localStorage.setItem('sessionKeyValidityState', JSON.stringify(dataToStore));
-        console.log(`[GameDataProvider ${timestamp}] Stored valid session key state in localStorage`);
-      } catch (error) {
-        console.error(`[GameDataProvider ${timestamp}] Error storing session key validity:`, error);
-      }
-    };
-    
-    // Add event listeners
-    window.addEventListener('sessionKeyValid', handleSessionKeyValid as EventListener);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('sessionKeyValid', handleSessionKeyValid as EventListener);
-    };
-  }, [embeddedWallet?.address, embeddedWalletAddressRef]);
-
-  // Add method to manually add combat events
-  const addManualCombatEvent = useCallback((eventData: any) => {
-    console.log('[GameDataProvider] Adding manual combat event:', eventData);
-    setProcessedEventLogs(prev => [eventData, ...prev]);
-  }, []);
-
-  // Add listener for manual combat events
-  useEffect(() => {
-    const handleManualCombatEvent = (event: CustomEvent) => {
-      console.log('[GameDataProvider] Received manual combat event:', event.detail);
-      if (event.detail && event.detail.event) {
-        addManualCombatEvent(event.detail.event);
-      }
-    };
-
-    window.addEventListener('manualCombatEvent', handleManualCombatEvent as EventListener);
-    
-    return () => {
-      window.removeEventListener('manualCombatEvent', handleManualCombatEvent as EventListener);
-    };
-  }, [addManualCombatEvent]);
-
-  // Add listener for game data refresh requests
-  useEffect(() => {
-    const handleGameDataRefreshRequest = (event: CustomEvent) => {
-      console.log('[GameDataProvider] Received requestGameDataRefresh event:', event.detail);
-      
-      // Trigger immediate data refresh
+      // After connecting, trigger a data fetch
       fetchGameData();
-      
-      console.log('[GameDataProvider] Game data refresh initiated from external request');
-    };
+    } catch (err) {
+      console.error('[GameDataProvider] Error connecting wallet:', err);
+      setError(`Failed to connect wallet: ${(err as Error)?.message || 'Unknown error'}`);
+    }
+  }, [connectMetamask, fetchGameData]);
 
-    window.addEventListener('requestGameDataRefresh', handleGameDataRefreshRequest as EventListener);
-    
-    return () => {
-      window.removeEventListener('requestGameDataRefresh', handleGameDataRefreshRequest as EventListener);
-    };
+  // Function to manually refetch data
+  const refetch = useCallback(async () => {
+    console.log('[GameDataProvider] Manual refetch requested');
+    await fetchGameData();
   }, [fetchGameData]);
 
-  // Provide context to children
-  const contextValue = useMemo(() => ({
+  // Functions to enable/disable polling
+  const enablePolling = useCallback(() => {
+    console.log('[GameDataProvider] Enabling polling');
+    setIsPollingEnabled(true);
+    
+    // Reset consecutive errors
+    setConsecutiveErrors(0);
+    
+    // Trigger an immediate fetch
+    fetchGameData();
+  }, [fetchGameData]);
+
+  const disablePolling = useCallback(() => {
+    console.log('[GameDataProvider] Disabling polling');
+    setIsPollingEnabled(false);
+    
+    // Clear the interval if it exists
+    if (intervalIdRef.current) {
+      clearInterval(intervalIdRef.current);
+      intervalIdRef.current = null;
+    }
+  }, []);
+
+  // Add manual combat event handler
+  const addManualCombatEvent = useCallback((eventData: any) => {
+    console.log('[GameDataProvider] Adding manual combat event:', eventData);
+    
+    // Create an event message
+    const eventMessage = {
+      message: eventData.message || 'Combat event',
+      timestamp: Date.now()
+    };
+    
+    // Add to processed event logs
+    setProcessedEventLogs(prev => [...prev, eventMessage]);
+    
+    // Dispatch a custom event
+    window.dispatchEvent(new CustomEvent('manualCombatEvent', { detail: eventData }));
+  }, []);
+
+  // Create the context value
+  const contextValue = {
     gameData,
+    lastUpdated,
     isLoading,
     error,
-    lastUpdated,
-    refetch: fetchGameData,
+    connectWallet,
+    refetch,
     enablePolling,
     disablePolling,
     isPollingEnabled,
     pollCount: pollCountRef.current,
-    connectWallet,
-    // Add processed data to context
     processedChatMessages,
     processedEventLogs,
-    // Add manual event function
     addManualCombatEvent
-  }), [gameData, isLoading, error, lastUpdated, fetchGameData, enablePolling, disablePolling, 
-       isPollingEnabled, connectWallet, processedChatMessages, processedEventLogs, addManualCombatEvent]);
+  };
 
   return (
     <GameDataContext.Provider value={contextValue}>

@@ -41,7 +41,7 @@ import { useFrontendData } from '../useFrontendData';
 import * as battleNadsService from '@services/battleNadsService';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import { useContracts } from '../useContracts';
+import { useContracts } from '../contracts/useContracts';
 
 // Mock dependencies
 jest.mock('@services/battleNadsService');

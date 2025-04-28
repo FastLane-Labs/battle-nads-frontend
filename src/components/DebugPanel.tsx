@@ -16,10 +16,12 @@ import {
   Input,
   useToast
 } from '@chakra-ui/react';
-import { useBattleNads } from '../hooks/useBattleNads';
+import { useBattleNads } from '../hooks/game/useBattleNads';
 import { useWallet } from '../providers/WalletProvider';
 import { calculateMaxHealth } from '../utils/gameDataConverters';
 import { useGameData } from '../providers/GameDataProvider';
+import { useFrontendData } from '../hooks/useFrontendData';
+import { useGameActions } from '@/hooks/game/useGameActions';
 
 interface DebugPanelProps {
   isVisible?: boolean;
@@ -34,7 +36,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
     loading, 
     error,
   } = useBattleNads();
-  
+
   const { injectedWallet, embeddedWallet } = useWallet();
   
   const { gameData } = useGameData();

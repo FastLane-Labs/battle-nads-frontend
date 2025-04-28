@@ -2,10 +2,9 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Select, Button, Stat, StatLabel, StatNumber } from '@chakra-ui/react';
 import { BattleNad } from '../types/gameTypes';
 import { useGameData } from '../providers/GameDataProvider';
-import { useContracts } from '../hooks/useContracts';
 import { calculateMaxHealth } from '../utils/gameDataConverters';
-import { useBattleNads } from '../hooks/useBattleNads';
-
+import { useBattleNads } from '../hooks/game/useBattleNads';
+import { useGameActions } from '../hooks/game/useGameActions';
 // Character component for displaying BattleNad information
 interface CharacterCardProps {
   character: BattleNad; // Properly typed with BattleNad interface
@@ -42,7 +41,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
   // Use GameDataProvider for access to equipable items and gameData
   const { gameData } = useGameData();
 
-  const { changeEquippedWeapon, changeEquippedArmor } = useBattleNads();
+  const { changeEquippedWeapon, changeEquippedArmor } = useGameActions();
 
   // Add local state for character stats that can be updated by events
   const [currentStats, setCurrentStats] = useState<BattleNad['stats'] | undefined>(character?.stats);
