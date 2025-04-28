@@ -1,13 +1,13 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Select, Button, Stat, StatLabel, StatNumber } from '@chakra-ui/react';
-import { BattleNad } from '../types/gameTypes';
-import { useGameData } from '../providers/GameDataProvider';
+import { Character } from '../types/domain/character'; // Corrected import path and type name
+// Removed useGameData import
 import { calculateMaxHealth } from '../utils/gameDataConverters';
-import { useBattleNads } from '../hooks/game/useBattleNads';
-import { useGameActions } from '../hooks/game/useGameActions';
+// Removed useBattleNads import (will be added where needed)
+// Removed useGameActions import
 // Character component for displaying BattleNad information
 interface CharacterCardProps {
-  character: BattleNad; // Properly typed with BattleNad interface
+  character: Character; // Corrected type name
 }
 
 // Constants from the smart contract
@@ -38,13 +38,11 @@ const formatGold = (value: number | bigint | undefined): string => {
 };
 
 export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
-  // Use GameDataProvider for access to equipable items and gameData
-  const { gameData } = useGameData();
-
-  const { changeEquippedWeapon, changeEquippedArmor } = useGameActions();
+  // Removed useGameData hook call
+  // Removed useGameActions hook call
 
   // Add local state for character stats that can be updated by events
-  const [currentStats, setCurrentStats] = useState<BattleNad['stats'] | undefined>(character?.stats);
+  const [currentStats, setCurrentStats] = useState<Character['stats'] | undefined>(character?.stats); // Corrected type name
   
   // Update current stats when props change
   useEffect(() => {
@@ -67,31 +65,33 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
         });
       }
       
-      // Check if this event is for our character - either IDs match or we're using the player character
-      const isPlayerCharacter = event.detail?.isPlayerCharacter || (character && !character.stats?.isMonster);
+      // Check if this event is for our character
       const isMatchingId = event.detail?.character?.id === character?.id;
       
       // Apply stats update if this is for our character
-      if (event.detail?.stats && (isMatchingId || isPlayerCharacter)) {
+      if (event.detail?.stats && isMatchingId) {
         console.log("[CharacterCard] Updating character stats:", event.detail.stats);
         
-        // Process stats before setting them
-        const processedStats = { ...event.detail.stats };
-        
-        // Calculate maxHealth using the smart contract formula
-        const calculatedMaxHealth = calculateMaxHealth(processedStats);
-        console.log("[CharacterCard] Calculated maxHealth:", calculatedMaxHealth);
-        
-        // Ensure health never exceeds max health
-        if (processedStats.health && typeof processedStats.health !== 'undefined') {
-          processedStats.health = Math.min(
-            Number(processedStats.health),
-            calculatedMaxHealth
-          );
-        }
-        
-        // Update stats
-        setCurrentStats(processedStats);
+        // Update stats state
+        setCurrentStats(event.detail.stats);
+
+        // Update health on the main character object (if the event provides it)
+        // TODO: Need to decide how to handle direct character property updates (like health)
+        // Perhaps the event should provide the full Character object?
+        // For now, we'll just update the stats portion.
+
+        // Recalculate max health based on the new stats
+        const calculatedMaxHealth = calculateMaxHealth(event.detail.stats);
+        console.log("[CharacterCard] Calculated maxHealth after update:", calculatedMaxHealth);
+
+        // TODO: If health comes directly from event, update and clamp it here
+        // if (event.detail?.health !== undefined) {
+        //   const newHealth = Math.min(
+        //     Number(event.detail.health),
+        //     calculatedMaxHealth
+        //   );
+        //   // Update the main character object if possible, otherwise manage health separately?
+        // }
       }
     };
     
@@ -106,15 +106,15 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
 
   if (!character) return null;
 
-  const { weapon, armor, name, inventory } = character;
+  const { weapon, armor, name, inventory, level, health } = character;
   
   // Calculate max health using the utility function that matches the smart contract
   const maxHealth = calculateMaxHealth(currentStats);
-  const healthPercentage = currentStats?.health ? (Number(currentStats.health) / maxHealth) * 100 : 0;
+  const healthPercentage = health ? (Number(health) / maxHealth) * 100 : 0;
   
   // Calculate experience progress using the same formula as the smart contract
   const experienceProgress = useMemo(() => {
-    const currentLevel = Number(currentStats?.level);
+    const currentLevel = Number(level);
     const currentExperience = Number(currentStats?.experience);
     
     // Formula from Character.sol: (currentLevel * EXP_BASE) + (currentLevel * currentLevel * EXP_SCALE)
@@ -122,7 +122,14 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
     
     // Calculate percentage of progress to next level
     return (currentExperience / experienceNeededForNextLevel) * 100;
-  }, [currentStats?.level, currentStats?.experience]);
+  }, [level, currentStats?.experience]);
+
+  // TODO: Replace gameData usage with appropriate state/hook
+  const unallocatedAttributePoints = 0; // Placeholder
+  const equipableWeaponIDs: number[] = []; // Placeholder
+  const equipableWeaponNames: string[] = []; // Placeholder
+  const equipableArmorIDs: number[] = []; // Placeholder
+  const equipableArmorNames: string[] = []; // Placeholder
 
   return (
     <Box borderWidth="1px" borderRadius="lg" p={4} boxShadow="md" bg="gray.800" color="white">
@@ -132,9 +139,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
           <Heading as="h3" size="md">
             {name || 'Unnamed Character'}
           </Heading>
-          {currentStats?.level && (
+          {level && (
             <Badge colorScheme="purple" fontSize="sm" p={1}>
-              Level {currentStats.level}
+              Level {level}
             </Badge>
           )}
         </Flex>
@@ -142,11 +149,11 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
         <Divider />
         
         {/* Health Bar */}
-        {currentStats?.health !== undefined && (
+        {health !== undefined && (
           <Box>
             <Flex justify="space-between" mb={1}>
               <Text fontSize="sm">Health</Text>
-              <Text fontSize="sm">{Math.max(0, Number(currentStats.health))} / {maxHealth}</Text>
+              <Text fontSize="sm">{Math.max(0, Number(health))} / {maxHealth}</Text>
             </Flex>
             <Progress 
               value={healthPercentage} 
@@ -178,7 +185,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
               <StatNumber>{Number(currentStats?.quickness)}</StatNumber>
             </Stat>
             <Stat size="sm">
-              <StatLabel fontSize="xs">STR</StatLabel>
+              <StatLabel fontSize="xs">STR</StatLabel> // TODO: Assuming this should be Sturdiness (STD)
               <StatNumber>{Number(currentStats?.sturdiness)}</StatNumber>
             </Stat>
             <Stat size="sm">
@@ -189,17 +196,18 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
         </Box>
         
         {/* Stat Point Allocation - only shown when unallocated points are available */}
-        {gameData?.unallocatedAttributePoints > 0 && (
+        {unallocatedAttributePoints > 0 && ( // Using placeholder
           <Box mt={2}>
             <Divider mb={2} />
             <Flex justify="space-between" mb={2}>
               <Text fontWeight="bold">Allocate Stat Points</Text>
-              <Badge colorScheme="green">{gameData.unallocatedAttributePoints} points</Badge>
+              <Badge colorScheme="green">{unallocatedAttributePoints} points</Badge>
             </Flex>
-            <StatAllocationPanel 
+            {/* Temporarily commenting out StatAllocationPanel until assignNewPoints is located */}
+            {/* <StatAllocationPanel 
               character={character}
-              unspentAttributePoints={gameData.unallocatedAttributePoints}
-            />
+              unspentAttributePoints={unallocatedAttributePoints}
+            /> */}
           </Box>
         )}
         
@@ -214,20 +222,22 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
               <Text fontSize="sm">Weapon:</Text>
               <Flex align="center">
                 <Text fontSize="sm" fontWeight="medium" mr={2}>{weapon?.name}</Text>
-                {gameData?.equipableWeaponIDs?.length > 0 && (
+                {equipableWeaponIDs?.length > 0 && ( // Using placeholder
                   <Select 
                     size="xs" 
                     width="auto" 
                     onChange={(e) => {
                       if (character.id) {
-                        changeEquippedWeapon(character.id, Number(e.target.value));
+                        // TODO: Implement weapon change using correct hook
+                        // changeEquippedWeapon(character.id, Number(e.target.value));
+                        console.warn("Weapon change not implemented yet.");
                       }
                     }}
                     placeholder="Change"
                   >
-                    {gameData.equipableWeaponIDs.map((id: number, index: number) => (
+                    {equipableWeaponIDs.map((id: number, index: number) => (
                       <option key={id} value={id}>
-                        {gameData.equipableWeaponNames[index]}
+                        {equipableWeaponNames[index]} {/* Using placeholder */}
                       </option>
                     ))}
                   </Select>
@@ -240,20 +250,22 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
               <Text fontSize="sm">Armor:</Text>
               <Flex align="center">
                 <Text fontSize="sm" fontWeight="medium" mr={2}>{armor?.name}</Text>
-                {gameData?.equipableArmorIDs?.length > 0 && (
+                {equipableArmorIDs?.length > 0 && ( // Using placeholder
                   <Select 
                     size="xs" 
                     width="auto"
                     onChange={(e) => {
                       if (character.id) {
-                        changeEquippedArmor(character.id, Number(e.target.value));
+                         // TODO: Implement armor change using correct hook
+                        // changeEquippedArmor(character.id, Number(e.target.value));
+                        console.warn("Armor change not implemented yet.");
                       }
                     }}
                     placeholder="Change"
                   >
-                    {gameData.equipableArmorIDs.map((id: number, index: number) => (
+                    {equipableArmorIDs.map((id: number, index: number) => (
                       <option key={id} value={id}>
-                        {gameData.equipableArmorNames[index]}
+                        {equipableArmorNames[index]} {/* Using placeholder */}
                       </option>
                     ))}
                   </Select>
@@ -274,7 +286,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
               <Flex justify="space-between" mb={1}>
                 <Text fontSize="sm">Experience</Text>
                 <Text fontSize="sm">
-                  {Number(currentStats?.experience)} / {(Number(currentStats?.level) * EXP_BASE) + (Number(currentStats?.level) * Number(currentStats?.level) * EXP_SCALE)}
+                  {Number(currentStats?.experience)} / {(Number(level) * EXP_BASE) + (Number(level) * Number(level) * EXP_SCALE)}
                 </Text>
               </Flex>
               <Progress 
@@ -332,11 +344,15 @@ const StatAllocator: React.FC<{
 );
 
 // Component to manage stat allocation
+// TODO: Re-implement this once the correct hook for 'assignNewPoints' is found
+/* 
 const StatAllocationPanel: React.FC<{
-  character: BattleNad;
+  character: Character;
   unspentAttributePoints: number;
 }> = ({ character, unspentAttributePoints }) => {
-  const { assignNewPoints } = useBattleNads();
+  // TODO: Need to find where assignNewPoints comes from
+  // const { assignNewPoints } = useBattleNads(); // This hook doesn't provide assignNewPoints
+  
   const [allocation, setAllocation] = useState({
     strength: BigInt(0),
     vitality: BigInt(0),
@@ -348,15 +364,17 @@ const StatAllocationPanel: React.FC<{
 
   const allocatePoints = () => {
     if (character.id) {
-      assignNewPoints(
-        character.id,
-        allocation.strength,
-        allocation.vitality,
-        allocation.dexterity,
-        allocation.quickness,
-        allocation.sturdiness,
-        allocation.luck
-      );
+      // TODO: Call the correct assignNewPoints function here
+      console.warn("assignNewPoints not implemented yet.");
+      // assignNewPoints(
+      //   character.id,
+      //   allocation.strength,
+      //   allocation.vitality,
+      //   allocation.dexterity,
+      //   allocation.quickness,
+      //   allocation.sturdiness,
+      //   allocation.luck
+      // );
     }
     // Reset allocation
     setAllocation({
@@ -440,7 +458,7 @@ const StatAllocationPanel: React.FC<{
       />
       <StatAllocator 
         name="Sturdiness" 
-        abbr="STR" 
+        abbr="STD" // Corrected abbreviation
         currentValue={Number(character.stats.sturdiness)}
         allocation={Number(allocation.sturdiness)}
         onIncrement={() => {
@@ -491,3 +509,4 @@ const StatAllocationPanel: React.FC<{
     </VStack>
   );
 }; 
+*/ 

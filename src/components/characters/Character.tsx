@@ -1,157 +1,87 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Box, Heading, Text, Button, VStack, HStack, Input, FormControl, FormLabel, Grid, GridItem, IconButton, NumberInput, NumberInputField, Flex, Stat, StatLabel, StatNumber, StatHelpText, Image, Center } from '@chakra-ui/react';
+import React, { useState, useCallback, useMemo } from 'react';
+import { Box, Heading, Text, Button, VStack, HStack, Grid, GridItem, Flex, Image, Center, useToast } from '@chakra-ui/react';
 import { useWallet } from '../../providers/WalletProvider';
-import { useBattleNads } from '../../hooks/useBattleNads';
-import { useGame } from '../../hooks/useGame';
+import { useGame } from '../../hooks/game/useGame';
 import { CharacterCard } from '../CharacterCard';
 import { CharacterList } from '../CharacterList';
-import { AddIcon, MinusIcon } from '@chakra-ui/icons';
-
-// Constants from the smart contract
-const STARTING_STAT_SUM = 32;
-const MIN_STAT_VALUE = 3;
-const STARTING_UNALLOCATED_POINTS = STARTING_STAT_SUM - (6 * MIN_STAT_VALUE); // 14
+import { domain, BattleNadLite } from '../../types';
 
 const CharacterDashboard = () => {
-  const { address, injectedWallet, embeddedWallet } = useWallet();
-  const { loading: battleNadsLoading, error: battleNadsError } = useBattleNads();
+  const { address } = useWallet();
+  const toast = useToast();
+
   const { 
-    moveCharacter, 
-    initializeGame, 
-    loadGameState,
-    error: gameError,
-    status
+    character,
+    characterId,
+    isLoading,
+    error,
+    gameState,
+    moveCharacter,
+    isMoving,
+    attack,
+    isAttacking,
+    others,
   } = useGame();
   
-  const [characterName, setCharacterName] = useState('');
-  
-  // Initialize all stats to MIN_STAT_VALUE
-  const [strength, setStrength] = useState(MIN_STAT_VALUE);
-  const [vitality, setVitality] = useState(MIN_STAT_VALUE);
-  const [dexterity, setDexterity] = useState(MIN_STAT_VALUE);
-  const [quickness, setQuickness] = useState(MIN_STAT_VALUE);
-  const [sturdiness, setSturdiness] = useState(MIN_STAT_VALUE);
-  const [luck, setLuck] = useState(MIN_STAT_VALUE);
-  
-  // Unallocated points counter
-  const [unspentAttributePoints, setunspentAttributePoints] = useState(STARTING_UNALLOCATED_POINTS);
-  
-  const [selectedCharacter, setSelectedCharacter] = useState<any>(null);
-  const [areaCharacters, setAreaCharacters] = useState<any[]>([]);
-  const [characterId, setCharacterId] = useState<string>('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(battleNadsError || gameError);
+  const combatants = useMemo(() => gameState?.combatants || [], [gameState]);
+  const nearbyCharacters = useMemo(() => [...combatants, ...(others || [])], [combatants, others]);
 
-  // Function to increase a stat
-  const increaseStat = (statSetter: React.Dispatch<React.SetStateAction<number>>, currentValue: number) => {
-    if (unspentAttributePoints > 0) {
-      statSetter(currentValue + 1);
-      setunspentAttributePoints(unspentAttributePoints - 1);
-    }
+  const directionMap: { [key: string]: domain.Direction } = {
+    north: domain.Direction.North,
+    south: domain.Direction.South,
+    east: domain.Direction.East,
+    west: domain.Direction.West,
+    up: domain.Direction.Up,
+    down: domain.Direction.Down,
   };
 
-  // Function to decrease a stat
-  const decreaseStat = (statSetter: React.Dispatch<React.SetStateAction<number>>, currentValue: number) => {
-    if (currentValue > MIN_STAT_VALUE) {
-      statSetter(currentValue - 1);
-      setunspentAttributePoints(unspentAttributePoints + 1);
-    }
-  };
+  const handleMove = useCallback(async (directionString: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
+    if (!characterId || isMoving) return;
 
-  // Handle character creation
-  const handleCreateCharacter = async () => {
-    if (!characterName) return;
-    
-    // Validate total points
-    const totalPoints = strength + vitality + dexterity + quickness + sturdiness + luck;
-    if (totalPoints !== STARTING_STAT_SUM) {
-      alert(`Total stats must equal ${STARTING_STAT_SUM}. Currently: ${totalPoints}`);
-      return;
+    const directionEnum = directionMap[directionString];
+    if (directionEnum === undefined) return;
+
+    addToCombatLog(`Attempting move: ${directionString}`);
+    try {
+      await moveCharacter(directionEnum);
+      toast({ title: `Moved ${directionString}`, status: "success", duration: 1500 });
+    } catch (err: any) {
+      toast({ title: "Movement Failed", description: err.message, status: "error", duration: 3000 });
+      addToCombatLog(`Failed move ${directionString}: ${err.message}`);
+    }
+  }, [characterId, moveCharacter, isMoving, toast, directionMap]);
+
+  const handleAttack = useCallback(async (targetIndex: number) => {
+    if (!characterId || isAttacking) return;
+
+    const target = combatants?.[targetIndex];
+    if (!target) {
+        toast({ title: "Attack Failed", description: "Invalid target selected.", status: "error", duration: 3000 });
+        return;
     }
     
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Navigate to character creation page since we don't have direct access to createCharacter here
-      window.location.href = `/create?name=${encodeURIComponent(characterName)}&strength=${strength}&vitality=${vitality}&dexterity=${dexterity}&quickness=${quickness}&sturdiness=${sturdiness}&luck=${luck}`;
-    } catch (err) {
-      console.error("Error starting character creation:", err);
-      setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setLoading(false);
+    const contractTargetIndex = target.index; 
+    if (contractTargetIndex === undefined || contractTargetIndex === null) {
+       toast({ title: "Attack Failed", description: "Target index is missing.", status: "error", duration: 3000 });
+       return;
     }
-  };
 
-  // Load character data
-  const handleLoadCharacter = async (id: string) => {
+    addToCombatLog(`Attempting attack on target index: ${contractTargetIndex}`);
     try {
-      setLoading(true);
-      setError(null);
-      setCharacterId(id);
-      
-      // Load game state using the selected character ID
-      await loadGameState(id);
-      
-      // After loading game state, initialize the game
-      const result = await initializeGame();
-      
-      if (result.success) {
-        console.log("Game initialized successfully with character:", id);
-      } else {
-        console.warn("Game initialization warning:", result.status);
-      }
-      
-      setSelectedCharacter({ id });
-    } catch (err) {
-      console.error("Error loading character:", err);
-      setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setLoading(false);
+      await attack(contractTargetIndex);
+      toast({ title: `Attacked target ${contractTargetIndex}`, status: "success", duration: 1500 });
+    } catch (err: any) {
+      toast({ title: "Attack Failed", description: err.message, status: "error", duration: 3000 });
+      addToCombatLog(`Failed attack on ${contractTargetIndex}: ${err.message}`);
     }
-  };
+  }, [characterId, attack, isAttacking, combatants, toast]);
 
-  // Handle character movement
-  const handleMove = async (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
-    if (!selectedCharacter?.id) return;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      
-      await moveCharacter(selectedCharacter.id, direction);
-    } catch (err) {
-      console.error(`Error moving ${direction}:`, err);
-      setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle attack
-  const handleAttack = async (targetIndex: number) => {
-    if (!selectedCharacter?.id) return;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Since attackTarget is no longer available directly, 
-      // we'll need to provide a UI message
-      setError("Combat functionality is not available in this view. Please use the main game view for combat.");
-    } catch (err) {
-      console.error("Error attacking:", err);
-      setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const addToCombatLog = (msg: string) => console.log("[Dashboard Log]:", msg);
 
   return (
     <Box padding="2rem" maxW="1200px" mx="auto">
-      {/* Logo at the top */}
       <Center mb={6}>
         <Image 
           src="/BattleNadsLogo.png" 
@@ -163,178 +93,74 @@ const CharacterDashboard = () => {
       
       <Heading as="h1" mb={6} textAlign="center">Character Dashboard</Heading>
       
+      <VStack spacing={8} align="stretch">
+        <Box borderWidth="1px" borderRadius="lg" p={4}>
+          <Heading as="h2" size="md" mb={4}>Welcome, {address?.slice(0, 6)}...{address?.slice(-4)}</Heading>
+          {isLoading && <Text>Loading character data...</Text>}
+          {error && <Text color="red.400">Error loading data: {error}</Text>}
+          {!isLoading && !error && !characterId && <Text>No character found for this wallet. <a href="/create">Create one?</a></Text>}
+          {!isLoading && !error && characterId && <Text>Character ID: {characterId.slice(0,10)}...</Text>}
+        </Box>
 
-        <VStack spacing={8} align="stretch">
-          <Box borderWidth="1px" borderRadius="lg" p={4}>
-            <Heading as="h2" size="md" mb={4}>Welcome, {address?.slice(0, 6)}...{address?.slice(-4)}</Heading>
-            <Text>You are connected with your wallet. Now you can play Battle-Nads!</Text>
-          </Box>
+        <Box borderWidth="1px" borderRadius="lg" p={4}>
+          <Heading as="h2" size="md" mb={4}>Your Characters</Heading>
+          <CharacterList onSelectCharacter={(id) => console.log("Character selected:", id)} />
+        </Box>
 
-          {/* Character Creation Form */}
+        {character && (
           <Box borderWidth="1px" borderRadius="lg" p={4}>
-            <Heading as="h2" size="md" mb={4}>Create Your Character</Heading>
-            <VStack spacing={4}>
-              <FormControl>
-                <FormLabel>Character Name</FormLabel>
-                <Input 
-                  value={characterName}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCharacterName(e.target.value)}
-                  placeholder="Enter character name"
-                />
-              </FormControl>
-              
-              {/* Points Counter */}
-              <Stat textAlign="center" p={2} bg="blue.50" borderRadius="md">
-                <StatLabel>Unallocated Points</StatLabel>
-                <StatNumber>{unspentAttributePoints}</StatNumber>
-                <StatHelpText>All stats must sum to {STARTING_STAT_SUM}</StatHelpText>
-              </Stat>
-              
-              <Grid templateColumns="repeat(2, 1fr)" gap={4}>
-                {/* Strength */}
-                <FormControl>
-                  <FormLabel>Strength</FormLabel>
-                  <Flex>
-                    <IconButton
-                      aria-label="Decrease strength"
-                      icon={<MinusIcon />}
-                      onClick={() => decreaseStat(setStrength, strength)}
-                      isDisabled={strength <= MIN_STAT_VALUE}
-                      size="sm"
-                      mr={2}
-                    />
-                    <NumberInput 
-                      value={strength} 
-                      isReadOnly 
-                      min={MIN_STAT_VALUE} 
-                      max={20}
-                      flex={1}
-                    >
-                      <NumberInputField textAlign="center" />
-                    </NumberInput>
-                    <IconButton
-                      aria-label="Increase strength"
-                      icon={<AddIcon />}
-                      onClick={() => increaseStat(setStrength, strength)}
-                      isDisabled={unspentAttributePoints <= 0}
-                      size="sm"
-                      ml={2}
-                    />
-                  </Flex>
-                </FormControl>
-                
-                {/* Vitality */}
-                <FormControl>
-                  <FormLabel>Vitality</FormLabel>
-                  <Flex>
-                    <IconButton
-                      aria-label="Decrease vitality"
-                      icon={<MinusIcon />}
-                      onClick={() => decreaseStat(setVitality, vitality)}
-                      isDisabled={vitality <= MIN_STAT_VALUE}
-                      size="sm"
-                      mr={2}
-                    />
-                    <NumberInput 
-                      value={vitality} 
-                      isReadOnly 
-                      min={MIN_STAT_VALUE} 
-                      max={20}
-                      flex={1}
-                    >
-                      <NumberInputField textAlign="center" />
-                    </NumberInput>
-                    <IconButton
-                      aria-label="Increase vitality"
-                      icon={<AddIcon />}
-                      onClick={() => increaseStat(setVitality, vitality)}
-                      isDisabled={unspentAttributePoints <= 0}
-                      size="sm"
-                      ml={2}
-                    />
-                  </Flex>
-                </FormControl>
-                
-                {/* More attributes follow... */}
+            <Heading as="h2" size="md" mb={4}>Active Character</Heading>
+            <CharacterCard character={character} />
+            
+            <Box mt={4}>
+              <Heading as="h3" size="sm" mb={2}>Move Character</Heading>
+              <Grid templateColumns="repeat(3, 1fr)" gap={2} maxW="200px" mx="auto">
+                <GridItem colStart={2}><Button onClick={() => handleMove('north')} w="full" isDisabled={isMoving}>N</Button></GridItem>
+                <GridItem colStart={1} rowStart={2}><Button onClick={() => handleMove('west')} w="full" isDisabled={isMoving}>W</Button></GridItem>
+                <GridItem colStart={3} rowStart={2}><Button onClick={() => handleMove('east')} w="full" isDisabled={isMoving}>E</Button></GridItem>
+                <GridItem colStart={2} rowStart={3}><Button onClick={() => handleMove('south')} w="full" isDisabled={isMoving}>S</Button></GridItem>
+                <GridItem colStart={1} rowStart={4}><Button onClick={() => handleMove('down')} w="full" isDisabled={isMoving}>Down</Button></GridItem>
+                <GridItem colStart={3} rowStart={4}><Button onClick={() => handleMove('up')} w="full" isDisabled={isMoving}>Up</Button></GridItem>
               </Grid>
-              
-              <Button 
-                colorScheme="blue" 
-                width="full" 
-                onClick={handleCreateCharacter}
-                isDisabled={!characterName || unspentAttributePoints !== 0}
-              >
-                Create Character
-              </Button>
-            </VStack>
-          </Box>
-
-          {/* Character List */}
-          <Box borderWidth="1px" borderRadius="lg" p={4}>
-            <Heading as="h2" size="md" mb={4}>Your Characters</Heading>
-            <CharacterList onSelectCharacter={handleLoadCharacter} />
-          </Box>
-
-          {/* Selected Character Details */}
-          {selectedCharacter && (
-            <Box borderWidth="1px" borderRadius="lg" p={4}>
-              <Heading as="h2" size="md" mb={4}>Selected Character</Heading>
-              <CharacterCard character={selectedCharacter} />
-              
-              {/* Movement Controls */}
-              <Box mt={4}>
-                <Heading as="h3" size="sm" mb={2}>Move Character</Heading>
-                <Grid templateColumns="repeat(3, 1fr)" gap={2}>
-                  <GridItem colStart={2}>
-                    <Button onClick={() => handleMove('north')} width="full">North</Button>
-                  </GridItem>
-                  <GridItem colStart={1} rowStart={2}>
-                    <Button onClick={() => handleMove('west')} width="full">West</Button>
-                  </GridItem>
-                  <GridItem colStart={3} rowStart={2}>
-                    <Button onClick={() => handleMove('east')} width="full">East</Button>
-                  </GridItem>
-                  <GridItem colStart={2} rowStart={3}>
-                    <Button onClick={() => handleMove('south')} width="full">South</Button>
-                  </GridItem>
-                  <GridItem colStart={1} rowStart={4}>
-                    <Button onClick={() => handleMove('down')} width="full">Down</Button>
-                  </GridItem>
-                  <GridItem colStart={3} rowStart={4}>
-                    <Button onClick={() => handleMove('up')} width="full">Up</Button>
-                  </GridItem>
-                </Grid>
-              </Box>
-              
-              {/* Nearby Characters */}
-              <Box mt={4}>
-                <Heading as="h3" size="sm" mb={2}>Characters in Area</Heading>
-                {areaCharacters.length > 0 ? (
-                  <VStack align="stretch" spacing={2}>
-                    {areaCharacters.map((char, idx) => (
+            </Box>
+            
+            <Box mt={4}>
+              <Heading as="h3" size="sm" mb={2}>Characters in Area</Heading>
+              {nearbyCharacters.length > 0 ? (
+                <VStack align="stretch" spacing={2}>
+                  {nearbyCharacters
+                    .filter((c: BattleNadLite) => c.id !== characterId)
+                    .map((char: BattleNadLite, idx: number) => (
                       <HStack key={char.id} borderWidth="1px" p={2} borderRadius="md" justifyContent="space-between">
-                        <Text>
-                          {char.id.slice(0, 6)}... - Level {char.stats?.level || 1}
-                          {char.stats?.isMonster ? ' (Monster)' : ''}
+                        <Text fontSize="sm">
+                          {char.name || `ID: ${char.id.slice(0, 6)}...`} - Lvl {char.stats?.level || 1}
+                          {combatants?.some((c: BattleNadLite) => c.id === char.id) ? ' (In Combat)' : ''}
                         </Text>
                         <Button 
                           colorScheme="red" 
-                          size="sm" 
-                          onClick={() => handleAttack(char.stats.index)}
-                          isDisabled={char.id === selectedCharacter.id}
+                          size="xs" 
+                          onClick={() => {
+                              const combatantIndex = combatants?.findIndex((c: BattleNadLite) => c.id === char.id);
+                              if (combatantIndex !== undefined && combatantIndex !== -1) {
+                                  handleAttack(combatantIndex);
+                              } else {
+                                  toast({title: "Cannot attack", description: "Target is not in combat.", status: "warning"});
+                              }
+                          }}
+                          isDisabled={!combatants?.some((c: BattleNadLite) => c.id === char.id) || isAttacking || isMoving}
                         >
                           Attack
                         </Button>
                       </HStack>
-                    ))}
-                  </VStack>
-                ) : (
-                  <Text>No other characters in this area.</Text>
-                )}
-              </Box>
+                  ))}
+                </VStack>
+              ) : (
+                <Text>No other characters in this area.</Text>
+              )}
             </Box>
-          )}
-        </VStack>
+          </Box>
+        )}
+      </VStack>
     </Box>
   );
 };

@@ -19,8 +19,6 @@ import {
 import { useBattleNads } from '../hooks/game/useBattleNads';
 import { useWallet } from '../providers/WalletProvider';
 import { calculateMaxHealth } from '../utils/gameDataConverters';
-import { useGameData } from '../providers/GameDataProvider';
-import { useUiSnapshot } from '../hooks/game/useUiSnapshot';
 import { useBattleNadsClient } from '../hooks/contracts/useBattleNadsClient';
 
 interface DebugPanelProps {
@@ -28,24 +26,23 @@ interface DebugPanelProps {
 }
 
 const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
-  const { 
-    gameState,
-    isLoading, 
-    error,
-    refetch
-  } = useBattleNads();
-
-  const { client } = useBattleNadsClient();
-  const { injectedWallet, embeddedWallet } = useWallet();
-  
-  const { gameData } = useGameData();
-  
+  // Declare state before using it in hooks
+  const [ownerAddress, setOwnerAddress] = useState<string>(''); 
   const [logs, setLogs] = useState<Array<{message: string, timestamp: Date}>>([]);
-  const [ownerAddress, setOwnerAddress] = useState<string>('');
   const [startBlock, setStartBlock] = useState<number>(0);
   const [fetchedCharacterId, setFetchedCharacterId] = useState<string | null>(null);
   const [buyInAmount, setBuyInAmount] = useState<string>('');
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const { 
+    gameState, // Use gameState for combatants etc.
+    isLoading, 
+    error,
+    refetch
+  } = useBattleNads(ownerAddress || null); // Pass ownerAddress
+
+  const { client } = useBattleNadsClient();
+  const { injectedWallet, embeddedWallet } = useWallet();
   
   const toast = useToast();
   
@@ -107,6 +104,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       const result = await client.getUiSnapshot(ownerAddress, BigInt(startBlock));
       
       if (result) {
+        // Access properties directly on result
         addLog(`Data fetched successfully. Character ID: ${result.characterID || 'null'}`);
         
         if (result.characterID) {
@@ -114,8 +112,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
         }
         
         // Pretty print some key parts of the result
-        addLog(`Session key: ${result.sessionKey || 'null'}`);
-        addLog(`Session key balance: ${result.sessionKeyBalance ? result.sessionKeyBalance.toString() : 'null'}`);
+        addLog(`Session key: ${result.sessionKeyData?.key || 'null'}`);
         addLog(`Data feeds count: ${result.dataFeeds ? result.dataFeeds.length : 0}`);
       } else {
         addLog('No data returned from UI snapshot');
@@ -157,16 +154,16 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
   
   // Add a section for monster health details
   const renderMonsterHealthDebug = () => {
-    if (!gameData?.combatants || gameData.combatants.length === 0) {
+    if (!gameState?.combatants || gameState.combatants.length === 0) {
       return <Text>No monsters present</Text>;
     }
 
     return (
       <VStack align="start" spacing={2}>
         <Text fontWeight="bold">Monster Health Details:</Text>
-        {gameData.combatants.map((combatant: any, index: number) => {
+        {gameState.combatants.map((combatant: any, index: number) => {
           const calculatedMaxHealth = calculateMaxHealth(combatant.stats);
-          const actualHealth = Number(combatant.stats.health || 0);
+          const actualHealth = Number(combatant.health || 0);
           
           return (
             <Box key={index} p={2} bg="gray.700" borderRadius="md" w="100%">
@@ -175,7 +172,6 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
               <Text fontSize="xs">Calculated Max Health: {calculatedMaxHealth}</Text>
               <Text fontSize="xs">Health Ratio: {(actualHealth / calculatedMaxHealth).toFixed(2)}</Text>
               <Text fontSize="xs">
-                isMonster: {combatant.stats.isMonster ? 'Yes' : 'No'},
                 Vitality: {combatant.stats.vitality},
                 Sturdiness: {combatant.stats.sturdiness}
               </Text>
