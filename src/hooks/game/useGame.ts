@@ -4,8 +4,7 @@ import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useBattleNads } from './useBattleNads';
 import { useSessionKey } from '../session/useSessionKey';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { GameState } from '../../types/gameTypes';
-import { Direction } from '../../types/contracts/BattleNadsEntrypoint';
+import { ui, domain } from '../../types';
 
 /**
  * Hook for game state and actions
@@ -59,7 +58,7 @@ export const useGame = () => {
   
   // Mutation for moving character
   const moveCharacterMutation = useMutation({
-    mutationFn: async ({ direction }: { direction: Direction }) => {
+    mutationFn: async ({ direction }: { direction: domain.Direction }) => {
       if (!client || !characterId) {
         throw new Error('Client or character ID missing');
       }
@@ -105,7 +104,7 @@ export const useGame = () => {
   // Optimistic update helper for chat
   const sendChatMessage = async (message: string) => {
     // Add optimistic update to cache
-    const previousData = queryClient.getQueryData<GameState>(['uiSnapshot', owner]);
+    const previousData = queryClient.getQueryData<ui.GameState>(['uiSnapshot', owner]);
     
     if (previousData && gameState) {
       // Create optimistic update
@@ -172,7 +171,7 @@ export const useGame = () => {
     movementOptions,
     
     // Actions
-    moveCharacter: (direction: Direction) => 
+    moveCharacter: (direction: domain.Direction) => 
       moveCharacterMutation.mutate({ direction }),
     isMoving: moveCharacterMutation.isPending,
     

@@ -5,6 +5,8 @@
 
 import { createMachine, assign } from 'xstate';
 import { logger } from '@/utils/logger';
+import { CharacterClass } from '@/types/domain/enums';
+import { SessionKeyData, SessionKeyState, SessionKeyValidation } from '@/types/domain/session';
 
 /**
  * Context for the game state machine
@@ -24,7 +26,7 @@ export type GameEvent =
   | { type: 'WALLET_DISCONNECTED' }
   | { type: 'CHARACTER_SELECTED'; characterId: string }
   | { type: 'NO_CHARACTER_FOUND' }
-  | { type: 'CHARACTER_CREATED'; characterId: string }
+  | { type: 'CHARACTER_CREATED'; characterId: string; characterClass?: CharacterClass }
   | { type: 'SESSION_KEY_VALID' }
   | { type: 'SESSION_KEY_INVALID'; warning: string }
   | { type: 'SESSION_KEY_FIXED' }
@@ -217,6 +219,49 @@ export const gameMachine = createMachine({
     },
   },
 });
+
+/**
+ * Session key validation logic
+ */
+export const sessionKeyMachine = {
+  validate: (
+    sessionKeyData: SessionKeyData | undefined,
+    ownerAddress: string,
+    currentTimestamp: number
+  ): SessionKeyValidation => {
+    // Check if session key exists
+    if (!sessionKeyData || !sessionKeyData.key) {
+      return {
+        state: SessionKeyState.INVALID,
+        message: 'No session key found'
+      };
+    }
+    
+    // Check if session key matches owner
+    if (sessionKeyData.owner.toLowerCase() !== ownerAddress.toLowerCase()) {
+      return {
+        state: SessionKeyState.MISMATCHED,
+        message: 'Session key wallet mismatch',
+        data: sessionKeyData
+      };
+    }
+    
+    // Check if session key is expired
+    if (sessionKeyData.expiry && currentTimestamp >= sessionKeyData.expiry) {
+      return {
+        state: SessionKeyState.EXPIRED,
+        message: 'Session key expired',
+        data: sessionKeyData
+      };
+    }
+    
+    // Session key is valid
+    return {
+      state: SessionKeyState.VALID,
+      data: sessionKeyData
+    };
+  }
+};
 
 /**
  * Log state transitions for debugging

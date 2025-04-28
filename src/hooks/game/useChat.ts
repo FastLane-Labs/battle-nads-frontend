@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from './useBattleNads';
-import { GameState } from '../../types/gameTypes';
+import { ui } from '../../types';
 
 /**
  * Hook for chat functionality
@@ -44,7 +44,7 @@ export const useChat = () => {
   // Send chat message with optimistic updates
   const sendChatMessage = async (message: string) => {
     // Add optimistic update to cache
-    const previousData = queryClient.getQueryData<GameState>(['uiSnapshot', owner]);
+    const previousData = queryClient.getQueryData<ui.GameState>(['uiSnapshot', owner]);
     
     if (previousData && gameState && gameState.character) {
       // Create optimistic update

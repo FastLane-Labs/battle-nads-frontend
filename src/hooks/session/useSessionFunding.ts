@@ -3,6 +3,7 @@ import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from '../game/useBattleNads';
 import { useSessionKey } from './useSessionKey';
+import { domain } from '../../types';
 
 /**
  * Hook for session key funding and management
@@ -75,6 +76,10 @@ export const useSessionFunding = (characterId: string | null) => {
       refreshSessionKey();
     }
   });
+
+  // Get session key balance from gameState
+  const ownerCommittedAmount = gameState?.balanceShortfall ? BigInt(0) : BigInt(0);
+  const keyBalance = sessionKey?.expiration ? BigInt(0) : BigInt(0);
   
   return {
     // Session key data
@@ -84,8 +89,8 @@ export const useSessionFunding = (characterId: string | null) => {
     // Balance information
     balanceShortfall: balanceShortfall || BigInt(0),
     needsFunding,
-    ownerBalance: sessionKey?.ownerCommittedAmount || BigInt(0),
-    keyBalance: sessionKey?.balance || BigInt(0),
+    ownerCommittedAmount,
+    keyBalance,
     
     // Funding actions
     replenishBalance: (amount: bigint) => replenishBalanceMutation.mutate(amount),

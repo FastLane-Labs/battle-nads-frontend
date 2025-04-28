@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
-import { GameState } from '../../types/gameTypes';
+import { ui, domain } from '../../types';
 import { useUiSnapshot } from './useUiSnapshot';
-import { mapUiSnapshotToGameState } from '../../types/gameMaps';
+import { worldSnapshotToGameState } from '../../mappers';
 
 /**
  * Hook for managing game state and data
@@ -18,8 +18,8 @@ export const useBattleNads = (owner: string | null) => {
 
   // Map the data to a GameState using the mapper utility
   const gameState = useMemo(
-    () => (data ? mapUiSnapshotToGameState(data, owner) : null),
-    [data, owner]
+    () => (data ? worldSnapshotToGameState(data) : null),
+    [data]
   );
 
   return {

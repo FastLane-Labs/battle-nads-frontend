@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from './useBattleNads';
-import { Ability } from '../../types/contracts/BattleNadsEntrypoint';
+import { domain } from '../../types';
 
 /**
  * Hook for combat functionality
@@ -31,8 +31,8 @@ export const useCombat = () => {
   
   // Combatants (hostile characters)
   const combatants = useMemo(() => 
-    gameState?.others?.filter(other => other.isHostile) || [], 
-    [gameState?.others]
+    gameState?.combatants || [], 
+    [gameState?.combatants]
   );
   
   // Attack mutation
@@ -52,7 +52,7 @@ export const useCombat = () => {
   
   // Use ability mutation
   const useAbilityMutation = useMutation({
-    mutationFn: async ({ ability, targetIndex }: { ability: Ability, targetIndex: number }) => {
+    mutationFn: async ({ ability, targetIndex }: { ability: domain.Ability, targetIndex: number }) => {
       if (!client || !characterId) {
         throw new Error('Client or character ID missing');
       }
@@ -76,7 +76,7 @@ export const useCombat = () => {
     attackError: attackMutation.error ? (attackMutation.error as Error).message : null,
     
     // Ability functionality
-    useAbility: (ability: Ability, targetIndex: number) => 
+    useAbility: (ability: domain.Ability, targetIndex: number) => 
       useAbilityMutation.mutate({ ability, targetIndex }),
     isUsingAbility: useAbilityMutation.isPending,
     abilityError: useAbilityMutation.error ? (useAbilityMutation.error as Error).message : null

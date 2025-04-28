@@ -5,6 +5,7 @@ import { useBattleNadsClient } from './contracts/useBattleNadsClient';
 import { gameMachine, logStateTransition } from '@/machines/gameStateMachine';
 import { getCharacterLocalStorageKey, isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
 import { logger } from '@/utils/logger';
+import { domain } from '@/types';
 
 /**
  * Hook that uses the game state machine to manage the application state
@@ -88,7 +89,7 @@ export const useGameMachine = () => {
   }, [state, client, send]);
   
   // Create a character
-  const createCharacter = async (characterClass: number, name: string) => {
+  const createCharacter = async (characterClass: domain.CharacterClass, name: string) => {
     if (!client) {
       throw new Error('Game client not initialized');
     }

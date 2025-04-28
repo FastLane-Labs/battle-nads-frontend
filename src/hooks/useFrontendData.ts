@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useBattleNadsClient } from './contracts/useBattleNadsClient';
-import { PollResponse } from '@/types/gameTypes';
-import { PollFrontendDataReturn, Direction } from '@/types/contracts/BattleNadsEntrypoint';
+import { domain, contract } from '../types';
 
 /**
  * React Query hook for fetching frontend data
@@ -15,7 +14,7 @@ export const useFrontendData = (owner: string | null, options = {
   const { client } = useBattleNadsClient();
   const { refetchInterval, staleTime, enabled } = options;
   
-  return useQuery<PollFrontendDataReturn>({
+  return useQuery<contract.PollFrontendDataReturn>({
     queryKey: ['frontendData', owner],
     queryFn: async () => {
       if (!owner) {
@@ -40,7 +39,7 @@ export const useFrontendData = (owner: string | null, options = {
 export const useCreateCharacter = () => {
   const { client } = useBattleNadsClient();
   
-  const createCharacter = async (characterClass: number, name: string) => {
+  const createCharacter = async (characterClass: domain.CharacterClass, name: string) => {
     if (!client) {
       throw new Error('Client not initialized');
     }
@@ -57,7 +56,7 @@ export const useCreateCharacter = () => {
 export const useMoveCharacter = () => {
   const { client } = useBattleNadsClient();
   
-  const moveCharacter = async (characterId: string, direction: Direction) => {
+  const moveCharacter = async (characterId: string, direction: domain.Direction) => {
     if (!client) {
       throw new Error('Client not initialized');
     }
@@ -99,7 +98,7 @@ export const useCombatActions = () => {
     return client.attack(characterId, targetIndex);
   };
   
-  const useAbility = async (characterId: string, ability: number, targetIndex: number) => {
+  const useAbility = async (characterId: string, ability: domain.Ability, targetIndex: number) => {
     if (!client) {
       throw new Error('Client not initialized');
     }
