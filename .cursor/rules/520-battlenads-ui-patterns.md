@@ -1,0 +1,213 @@
+# Battle-Nads UI Component Patterns
+
+## Purpose
+
+These rules provide guidance for implementing UI components in the Battle-Nads frontend, ensuring consistency, performance, and proper integration with the game's architecture.
+
+## UI Component Structure
+
+1. **Component Hierarchy**
+   - Use a clear hierarchy for game components:
+     ```
+     Game
+     ├── GameBoard
+     │   └── Character/Monster Renderers
+     ├── ControlPanel
+     │   ├── MovementControls
+     │   └── CombatControls
+     ├── DataFeed
+     │   ├── EventFeed
+     │   └── ChatInterface
+     └── CharacterPanel
+         ├── CharacterCard
+         ├── InventoryDisplay
+         └── StatsDisplay
+     ```
+   - Keep this structure consistent for predictable data flow
+
+2. **Component Responsibilities**
+   - Each component should have a single responsibility:
+     - `Game`: Orchestration and high-level state
+     - `GameBoard`: Visual representation of the game world
+     - `DataFeed`: Display of game events and chat
+     - `ControlPanel`: User inputs for game actions
+     - `CharacterPanel`: Character stats and inventory
+
+## State Management Patterns
+
+1. **XState for Game Flow**
+   - Use the `useGameMachine` hook for overall game state
+   - Render different UI based on machine state:
+     ```tsx
+     const [state, send] = useGameMachine();
+     
+     if (state.matches('checkingWallet')) return <WalletCheck />;
+     if (state.matches('checkingCharacter')) return <CharacterCheck />;
+     if (state.matches('noCharacter')) return <CharacterCreation />;
+     if (state.matches('ready')) return <GameInterface />;
+     ```
+
+2. **React-Query for Game Data**
+   - Use React-Query hooks to fetch and cache game data:
+     ```tsx
+     const { data, isLoading, error } = useUiSnapshot(characterId);
+     ```
+   - Implement proper loading and error states in all components
+
+3. **Action Implementation**
+   - Wrap blockchain actions in mutation hooks:
+     ```tsx
+     const { mutate: moveNorth, isLoading } = useMoveNorth(characterId);
+     ```
+   - Provide proper loading indicators during action execution
+
+## UI Component Implementation
+
+1. **Game Board Rendering**
+   - Implement the game board as a grid-based system:
+     ```tsx
+     <div className="grid grid-cols-[repeat(11,_1fr)] grid-rows-[repeat(11,_1fr)]">
+       {renderTiles()}
+       {renderCharacters()}
+       {renderMonsters()}
+     </div>
+     ```
+   - Use coordinate system based on the minimap from `getFrontendData`
+
+2. **Movement Controls**
+   - Implement directional buttons for cardinal movements:
+     ```tsx
+     <div className="grid grid-cols-3 grid-rows-3">
+       <button onClick={() => moveNorthwest()} disabled={!canMoveNorthwest} />
+       <button onClick={() => moveNorth()} disabled={!canMoveNorth} />
+       <button onClick={() => moveNortheast()} disabled={!canMoveNortheast} />
+       {/* ... other directions ... */}
+     </div>
+     ```
+   - Disable buttons for invalid movement directions
+
+3. **Combat Interface**
+   - Display combat target selection:
+     ```tsx
+     <div className="combat-targets">
+       {combatants.map((combatant, index) => (
+         <button 
+           key={combatant.id}
+           onClick={() => attack(characterId, index)}
+           className={targetIndex === index ? 'selected' : ''}
+         >
+           {combatant.name}
+         </button>
+       ))}
+     </div>
+     ```
+   - Show active combat indicators during ongoing combat
+
+4. **Chat Implementation**
+   - Display chat messages with sender info:
+     ```tsx
+     <div className="chat-messages">
+       {messages.map(message => (
+         <div key={message.id} className="chat-message">
+           <span className="sender">{message.sender}:</span>
+           <span className="text">{message.text}</span>
+         </div>
+       ))}
+     </div>
+     ```
+   - Implement chat input with proper submission handling
+
+5. **Character Display**
+   - Show character stats and equipment:
+     ```tsx
+     <div className="character-card">
+       <div className="character-name">{character.name}</div>
+       <div className="character-stats">
+         <div>Health: {character.stats.currentHealth}/{character.stats.maxHealth}</div>
+         <div>Strength: {character.stats.strength}</div>
+         {/* ... other stats ... */}
+       </div>
+       <div className="character-equipment">
+         <div>Weapon: {getWeaponName(character.stats.weaponId)}</div>
+         <div>Armor: {getArmorName(character.stats.armorId)}</div>
+       </div>
+     </div>
+     ```
+   - Provide visual indicators for changes in stats or equipment
+
+## Loading & Error States
+
+1. **Skeleton Loading**
+   - Implement skeleton loaders for initial data loading:
+     ```tsx
+     {isLoading ? (
+       <div className="skeleton-loader">
+         <div className="skeleton-name"></div>
+         <div className="skeleton-stats"></div>
+       </div>
+     ) : (
+       <CharacterCard character={character} />
+     )}
+     ```
+   - Maintain UI structure during loading to prevent layout shifts
+
+2. **Error Handling**
+   - Display user-friendly error messages:
+     ```tsx
+     {error && (
+       <div className="error-container">
+         <p className="error-message">{getErrorMessage(error)}</p>
+         <button onClick={retry}>Retry</button>
+       </div>
+     )}
+     ```
+   - Provide recovery options for common errors
+
+3. **Transaction States**
+   - Show transaction status for blockchain operations:
+     ```tsx
+     <button 
+       onClick={moveNorth} 
+       disabled={isMutating}
+       className={isMutating ? 'processing' : ''}
+     >
+       {isMutating ? 'Moving...' : 'Move North'}
+     </button>
+     ```
+   - Implement optimistic UI updates where appropriate
+
+## Styling Guidelines
+
+1. **Chakra UI + Tailwind**
+   - Use Chakra UI components for complex UI elements:
+     ```tsx
+     <Tabs variant="enclosed">
+       <TabList>
+         <Tab>Inventory</Tab>
+         <Tab>Stats</Tab>
+       </TabList>
+       <TabPanels>
+         <TabPanel><InventoryDisplay /></TabPanel>
+         <TabPanel><StatsDisplay /></TabPanel>
+       </TabPanels>
+     </Tabs>
+     ```
+   - Use Tailwind for custom styling and layout
+
+2. **Responsive Design**
+   - Implement mobile-friendly UI for all game components
+   - Use Chakra UI's responsive props for breakpoint-specific styling
+   - Test on multiple viewport sizes
+
+3. **Animation & Feedback**
+   - Add subtle animations for game actions:
+     ```tsx
+     <motion.div
+       animate={{ opacity: 1 }}
+       initial={{ opacity: 0 }}
+       exit={{ opacity: 0 }}
+     >
+       {/* Component content */}
+     </motion.div>
+     ```
+   - Provide visual feedback for successful/failed actions 
