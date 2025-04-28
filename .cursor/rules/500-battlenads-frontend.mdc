@@ -1,3 +1,8 @@
+---
+description: These rules provide guidance for working with the Battle-Nads frontend codebase, ensuring consistent implementation of architecture patterns and proper integration with the blockchain contracts.
+globs: 
+alwaysApply: false
+---
 # Battle-Nads Frontend Development Rules
 
 ## Purpose
