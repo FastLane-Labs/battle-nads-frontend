@@ -256,6 +256,15 @@ export type GameState = {
   lastBlock: number;
   loading?: boolean;
   error?: string | null;
+  characterID: string;
+  combatants: BattleNadLite[];
+  noncombatants: BattleNadLite[];
+  equipableWeaponIDs: number[];
+  equipableWeaponNames: string[];
+  equipableArmorIDs: number[];
+  equipableArmorNames: string[];
+  unallocatedAttributePoints: number;
+  balanceShortfall: bigint;
 }
 
 export type GameUpdates = {
@@ -337,7 +346,7 @@ export interface DataFeed {
 export interface ChatMessage {
   characterName: string;
   message: string;
-  timestamp?: number;
+  timestamp: number;
 }
 
 export interface EventMessage {

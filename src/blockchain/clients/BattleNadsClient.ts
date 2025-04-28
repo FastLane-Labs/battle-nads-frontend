@@ -1,6 +1,15 @@
 import { TransactionResponse } from 'ethers';
 import { BattleNadsAdapter } from '../adapters/BattleNadsAdapter';
-import * as CT from '../../types/contracts/BattleNadsEntrypoint';
+import { 
+  DataFeed, 
+  BattleNad, 
+  BattleNadLite, 
+  Direction,
+  Ability,
+  SessionKeyData,
+  PollFrontendDataReturn,
+  CharacterClass
+} from '../../types';
 import { 
   SessionWalletMissingError, 
   WalletMissingError, 
@@ -57,7 +66,7 @@ export class BattleNadsClient {
   /**
    * Gets a complete UI snapshot for the game
    */
-  async getUiSnapshot(owner: string, startBlock: bigint): Promise<CT.PollFrontendDataReturn> {
+  async getUiSnapshot(owner: string, startBlock: bigint): Promise<PollFrontendDataReturn> {
     try {
       return await this.readAdapter.pollFrontendData(owner, startBlock);
     } catch (error) {
@@ -68,7 +77,7 @@ export class BattleNadsClient {
   /**
    * Gets the current session key for a character
    */
-  async getSessionKey(characterId: string): Promise<CT.SessionKeyData> {
+  async getSessionKey(characterId: string): Promise<SessionKeyData> {
     try {
       return await this.readAdapter.getSessionKey(characterId);
     } catch (error) {
@@ -87,6 +96,94 @@ export class BattleNadsClient {
     }
   }
 
+  /**
+   * Gets event logs and chat messages for a specific block range
+   */
+  async getDataFeed(owner: string, startBlock: bigint, endBlock: bigint): Promise<DataFeed[]> {
+    try {
+      return await this.readAdapter.getDataFeed(owner, startBlock, endBlock);
+    } catch (error) {
+      throw new ContractCallError(`Failed to get data feed: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Gets the character ID associated with an owner address
+   */
+  async getPlayerCharacterID(owner: string): Promise<string> {
+    try {
+      return await this.readAdapter.getPlayerCharacterID(owner);
+    } catch (error) {
+      throw new ContractCallError(`Failed to get player character ID: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Gets full detailed data for a character
+   */
+  async getBattleNad(characterId: string): Promise<BattleNad> {
+    try {
+      return await this.readAdapter.getBattleNad(characterId);
+    } catch (error) {
+      throw new ContractCallError(`Failed to get character data: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Gets lightweight data for a character
+   */
+  async getBattleNadLite(characterId: string): Promise<BattleNadLite> {
+    try {
+      return await this.readAdapter.getBattleNadLite(characterId);
+    } catch (error) {
+      throw new ContractCallError(`Failed to get character data: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Calculates the additional MON needed to meet recommended balance
+   */
+  async shortfallToRecommendedBalanceInMON(characterId: string): Promise<bigint> {
+    try {
+      return await this.readAdapter.shortfallToRecommendedBalanceInMON(characterId);
+    } catch (error) {
+      throw new ContractCallError(`Failed to calculate balance shortfall: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Estimates the total MON required for creating a character
+   */
+  async estimateBuyInAmountInMON(): Promise<bigint> {
+    try {
+      return await this.readAdapter.estimateBuyInAmountInMON();
+    } catch (error) {
+      throw new ContractCallError(`Failed to estimate buy-in amount: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Gets the display name for a weapon ID
+   */
+  async getWeaponName(weaponId: number): Promise<string> {
+    try {
+      return await this.readAdapter.getWeaponName(weaponId);
+    } catch (error) {
+      throw new ContractCallError(`Failed to get weapon name: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Gets the display name for an armor ID
+   */
+  async getArmorName(armorId: number): Promise<string> {
+    try {
+      return await this.readAdapter.getArmorName(armorId);
+    } catch (error) {
+      throw new ContractCallError(`Failed to get armor name: ${(error as Error).message}`);
+    }
+  }
+
   // CHARACTER MANAGEMENT
 
   /**
@@ -94,7 +191,7 @@ export class BattleNadsClient {
    * Requires owner wallet
    */
   async createCharacter(
-    characterClass: CT.CharacterClass,
+    characterClass: CharacterClass,
     name: string
   ): Promise<TransactionResponse> {
     try {
@@ -123,6 +220,39 @@ export class BattleNadsClient {
         throw error;
       }
       throw new ContractTransactionError(`Failed to update session key: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Adds funds to session key and bonds remaining as shMON
+   * Requires owner wallet
+   */
+  async replenishGasBalance(value: bigint = BigInt(0)): Promise<TransactionResponse> {
+    try {
+      return await this.ensureOwnerAdapter().replenishGasBalance(value);
+    } catch (error) {
+      if (error instanceof WalletMissingError) {
+        throw error;
+      }
+      throw new ContractTransactionError(`Failed to replenish gas balance: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Deactivates a session key
+   * Requires owner wallet
+   */
+  async deactivateSessionKey(
+    sessionKeyAddress: string,
+    value: bigint = BigInt(0)
+  ): Promise<TransactionResponse> {
+    try {
+      return await this.ensureOwnerAdapter().deactivateSessionKey(sessionKeyAddress, value);
+    } catch (error) {
+      if (error instanceof WalletMissingError) {
+        throw error;
+      }
+      throw new ContractTransactionError(`Failed to deactivate session key: ${(error as Error).message}`);
     }
   }
 
@@ -157,28 +287,43 @@ export class BattleNadsClient {
     }
   }
 
+  /**
+   * Permanently deletes a character
+   * Requires session wallet
+   */
+  async sepukku(characterId: string): Promise<TransactionResponse> {
+    try {
+      return await this.ensureSessionAdapter().sepukku(characterId);
+    } catch (error) {
+      if (error instanceof SessionWalletMissingError) {
+        throw error;
+      }
+      throw new ContractTransactionError(`Failed to delete character: ${(error as Error).message}`);
+    }
+  }
+
   // MOVEMENT
 
   /**
    * Moves the character in the specified direction
    * Requires session wallet
    */
-  async moveCharacter(characterId: string, direction: CT.Direction): Promise<TransactionResponse> {
+  async moveCharacter(characterId: string, direction: Direction): Promise<TransactionResponse> {
     try {
       const adapter = this.ensureSessionAdapter();
       
       switch (direction) {
-        case CT.Direction.NORTH:
+        case Direction.NORTH:
           return await adapter.moveNorth(characterId);
-        case CT.Direction.SOUTH:
+        case Direction.SOUTH:
           return await adapter.moveSouth(characterId);
-        case CT.Direction.EAST:
+        case Direction.EAST:
           return await adapter.moveEast(characterId);
-        case CT.Direction.WEST:
+        case Direction.WEST:
           return await adapter.moveWest(characterId);
-        case CT.Direction.UP:
+        case Direction.UP:
           return await adapter.moveUp(characterId);
-        case CT.Direction.DOWN:
+        case Direction.DOWN:
           return await adapter.moveDown(characterId);
         default:
           throw new InvalidMovementError(`Invalid direction: ${direction}`);
@@ -214,7 +359,7 @@ export class BattleNadsClient {
    */
   async useAbility(
     characterId: string,
-    ability: CT.Ability,
+    ability: Ability,
     targetIndex: number
   ): Promise<TransactionResponse> {
     try {

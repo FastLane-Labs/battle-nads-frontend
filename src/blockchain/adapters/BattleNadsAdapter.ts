@@ -1,7 +1,16 @@
 import { Contract, Signer, Provider, TransactionResponse } from 'ethers';
 import ENTRY_ABI from '../../abis/battleNads.json';
 import { GAS_LIMITS } from '../../config/gas';
-import * as CT from '../../types/contracts/BattleNadsEntrypoint';
+import { 
+  DataFeed, 
+  BattleNad, 
+  BattleNadLite, 
+  SessionKeyData,
+  PollFrontendDataReturn,
+  Direction,
+  Ability,
+  CharacterClass
+} from '../../types';
 
 /**
  * Adapter that wraps the BattleNadsEntrypoint contract
@@ -19,14 +28,14 @@ export class BattleNadsAdapter {
   /**
    * Polls for frontend data from the contract
    */
-  async pollFrontendData(owner: string, startBlock: bigint): Promise<CT.PollFrontendDataReturn> {
+  async pollFrontendData(owner: string, startBlock: bigint): Promise<PollFrontendDataReturn> {
     return this.contract.pollForFrontendData(owner, startBlock);
   }
 
   /**
    * Gets the session key for a character
    */
-  async getSessionKey(characterId: string): Promise<CT.SessionKeyData> {
+  async getSessionKey(characterId: string): Promise<SessionKeyData> {
     return this.contract.getSessionKey(characterId);
   }
 
@@ -35,6 +44,62 @@ export class BattleNadsAdapter {
    */
   async isSessionKeyExpired(characterId: string): Promise<boolean> {
     return this.contract.isSessionKeyExpired(characterId);
+  }
+
+  /**
+   * Gets event and chat logs for a specific block range
+   */
+  async getDataFeed(owner: string, startBlock: bigint, endBlock: bigint): Promise<DataFeed[]> {
+    return this.contract.getDataFeed(owner, startBlock, endBlock);
+  }
+
+  /**
+   * Gets the character ID associated with an owner address
+   */
+  async getPlayerCharacterID(owner: string): Promise<string> {
+    return this.contract.getPlayerCharacterID(owner);
+  }
+
+  /**
+   * Gets full detailed data for a character
+   */
+  async getBattleNad(characterId: string): Promise<BattleNad> {
+    return this.contract.getBattleNad(characterId);
+  }
+
+  /**
+   * Gets lightweight data for a character
+   */
+  async getBattleNadLite(characterId: string): Promise<BattleNadLite> {
+    return this.contract.getBattleNadLite(characterId);
+  }
+
+  /**
+   * Calculates the additional MON needed to meet recommended balance
+   */
+  async shortfallToRecommendedBalanceInMON(characterId: string): Promise<bigint> {
+    return this.contract.shortfallToRecommendedBalanceInMON(characterId);
+  }
+
+  /**
+   * Estimates the total MON required for creating a character
+   */
+  async estimateBuyInAmountInMON(): Promise<bigint> {
+    return this.contract.estimateBuyInAmountInMON();
+  }
+
+  /**
+   * Gets the display name for a weapon ID
+   */
+  async getWeaponName(weaponId: number): Promise<string> {
+    return this.contract.getWeaponName(weaponId);
+  }
+
+  /**
+   * Gets the display name for an armor ID
+   */
+  async getArmorName(armorId: number): Promise<string> {
+    return this.contract.getArmorName(armorId);
   }
 
   // MOVEMENT OPERATIONS
@@ -93,7 +158,7 @@ export class BattleNadsAdapter {
   /**
    * Uses an ability
    */
-  async useAbility(characterId: string, ability: CT.Ability, targetIndex: number): Promise<TransactionResponse> {
+  async useAbility(characterId: string, ability: Ability, targetIndex: number): Promise<TransactionResponse> {
     return this.contract.useAbility(characterId, targetIndex, ability, { gasLimit: GAS_LIMITS.action });
   }
 
@@ -119,7 +184,7 @@ export class BattleNadsAdapter {
    * Creates a new character
    */
   async createCharacter(
-    characterClass: CT.CharacterClass,
+    characterClass: CharacterClass,
     name: string
   ): Promise<TransactionResponse> {
     return this.contract.createCharacter(characterClass, name, { gasLimit: GAS_LIMITS.action });
@@ -149,6 +214,13 @@ export class BattleNadsAdapter {
     );
   }
 
+  /**
+   * Permanently deletes a character
+   */
+  async sepukku(characterId: string): Promise<TransactionResponse> {
+    return this.contract.sepukku(characterId, { gasLimit: GAS_LIMITS.action });
+  }
+
   // SESSION KEY OPERATIONS
 
   /**
@@ -167,6 +239,32 @@ export class BattleNadsAdapter {
     );
   }
 
+  /**
+   * Adds funds to session key and bonds remaining as shMON
+   */
+  async replenishGasBalance(value: bigint = BigInt(0)): Promise<TransactionResponse> {
+    return this.contract.replenishGasBalance({ 
+      gasLimit: GAS_LIMITS.sessionKey,
+      value 
+    });
+  }
+
+  /**
+   * Deactivates a session key
+   */
+  async deactivateSessionKey(
+    sessionKeyAddress: string,
+    value: bigint = BigInt(0)
+  ): Promise<TransactionResponse> {
+    return this.contract.deactivateSessionKey(
+      sessionKeyAddress,
+      { 
+        gasLimit: GAS_LIMITS.sessionKey,
+        value
+      }
+    );
+  }
+
   // SOCIAL OPERATIONS
 
   /**
@@ -175,4 +273,5 @@ export class BattleNadsAdapter {
   async zoneChat(characterId: string, message: string): Promise<TransactionResponse> {
     return this.contract.zoneChat(characterId, message, { gasLimit: GAS_LIMITS.action });
   }
+} 
 } 
