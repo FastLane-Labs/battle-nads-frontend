@@ -224,11 +224,28 @@ export class BattleNadsClient {
    * Requires owner wallet
    */
   async createCharacter(
-    characterClass: domain.CharacterClass,
-    name: string
+    name: string,
+    strength: bigint,
+    vitality: bigint,
+    dexterity: bigint,
+    quickness: bigint,
+    sturdiness: bigint,
+    luck: bigint,
+    sessionKey: string,
+    sessionKeyDeadline: bigint
   ): Promise<TransactionResponse> {
     try {
-      return await this.ensureOwnerAdapter().createCharacter(characterClass, name);
+      return await this.ensureOwnerAdapter().createCharacter(
+        name, 
+        strength, 
+        vitality, 
+        dexterity, 
+        quickness, 
+        sturdiness, 
+        luck, 
+        sessionKey, 
+        sessionKeyDeadline
+      );
     } catch (error) {
       if (error instanceof WalletMissingError) {
         throw error;

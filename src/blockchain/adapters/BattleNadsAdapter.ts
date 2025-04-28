@@ -190,13 +190,31 @@ export class BattleNadsAdapter {
   // CHARACTER OPERATIONS
 
   /**
-   * Creates a new character
+   * Creates a new character using name, stats, and optional session key info.
    */
   async createCharacter(
-    characterClass: domain.CharacterClass,
-    name: string
+    name: string,
+    strength: bigint,
+    vitality: bigint,
+    dexterity: bigint,
+    quickness: bigint,
+    sturdiness: bigint,
+    luck: bigint,
+    sessionKey: string,
+    sessionKeyDeadline: bigint
   ): Promise<TransactionResponse> {
-    return this.contract.createCharacter(characterClass, name, { gasLimit: GAS_LIMITS.action });
+    return this.contract.createCharacter(
+      name, 
+      strength, 
+      vitality, 
+      dexterity, 
+      quickness, 
+      sturdiness, 
+      luck, 
+      sessionKey, 
+      sessionKeyDeadline, 
+      { gasLimit: GAS_LIMITS.action }
+    );
   }
 
   /**
