@@ -262,7 +262,7 @@ export class BattleNadsClient {
    */
   async updateSessionKey(
     sessionKeyAddress: string,
-    expiration: number,
+    expiration: bigint,
     value: bigint
   ): Promise<TransactionResponse> {
     try {

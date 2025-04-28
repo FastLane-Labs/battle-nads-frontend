@@ -21,10 +21,10 @@ import {
   Image
 } from '@chakra-ui/react';
 import { useWallet } from '../../providers/WalletProvider';
-import { useBattleNads } from '../../hooks/game/useBattleNads';
-import { useBattleNadsClient } from '../../hooks/contracts/useBattleNadsClient';
+import { useGame } from '../../hooks/game/useGame';
 import { domain } from '../../types';
 import MovementControls from './MovementControls';
+import { SessionKeyState } from '../../machines/sessionKeyMachine';
 
 interface ControlPanelProps {
   characterId: string;
@@ -43,23 +43,22 @@ function mapDirectionStringToEnum(direction: string): domain.Direction | null {
 }
 
 export default function ControlPanel({ characterId }: ControlPanelProps) {
-  const { injectedWallet, embeddedWallet } = useWallet();
-  const { client } = useBattleNadsClient();
-  const ownerAddress = injectedWallet?.address;
-  const { gameState, isLoading: isGameStateLoading, error: gameStateError } = useBattleNads(ownerAddress || null);
-
   const { 
+    owner,
+    characterId: gameCharacterId,
+    gameState,
+    isLoading: isGameLoading,
+    error: gameError,
     moveCharacter, 
-    updateSessionKey, 
-    getCurrentSessionKeyData,
-    getLatestBlockNumber
-  } = client || {};
+    isMoving: isMovingFromHook,
+    updateSessionKey,
+    isUpdatingSessionKey: isUpdatingFromHook,
+    sessionKeyState,
+    needsSessionKeyUpdate
+  } = useGame();
   
   const { isOpen, onOpen, onClose } = useDisclosure();
   const instanceId = useRef<string>(`ControlPanel-${Math.random().toString(36).substring(2, 9)}`);
-  const [isMoving, setIsMoving] = useState(false);
-  const [movementError, setMovementError] = useState<string | null>(null);
-  const [isUpdatingSessionKey, setIsUpdatingSessionKey] = useState(false);
   const toast = useToast();
   
   useEffect(() => {
@@ -109,9 +108,9 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
     const sessionKeyUpdateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
       detail: { 
         characterId,
-        owner: injectedWallet?.address,
-        currentSessionKey: embeddedWallet?.address,
-        embeddedWalletAddress: embeddedWallet?.address,
+        owner: owner,
+        currentSessionKey: owner,
+        embeddedWalletAddress: owner,
         reason: 'test'
       }
     });
@@ -119,80 +118,20 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
   };
   
   const checkSessionKey = async () => {
-    if (!ownerAddress || !getCurrentSessionKeyData) {
-       toast({ title: "Cannot check session key", description: "Owner wallet not connected or client unavailable.", status: "error" });
-       return;
-    }
-    try {
-      onOpen();
-      toast({ title: "Checking session key status...", status: "info" });
-      console.log(`[ControlPanel ${instanceId.current}] Manually checking session key for owner: ${ownerAddress}`);
-      
-      const sessionKeyData = await getCurrentSessionKeyData(ownerAddress);
-      console.log(`[ControlPanel ${instanceId.current}] Current session key data:`, sessionKeyData);
-      
-      if (!sessionKeyData || !sessionKeyData.key || sessionKeyData.key === '0x0000000000000000000000000000000000000000') {
-        const updateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
-          detail: { characterId, owner: ownerAddress, currentSessionKey: null, embeddedWalletAddress: embeddedWallet?.address, reason: 'manual-check-missing', source: 'ControlPanel'}
-        });
-        window.dispatchEvent(updateEvent);
-        return;
-      }
-      
-      const currentBlock = BigInt(gameState?.lastBlock || 0);
-      const isExpired = sessionKeyData.expiration <= currentBlock;
-      
-      if (isExpired) {
-        const updateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
-          detail: { characterId, owner: ownerAddress, currentSessionKey: sessionKeyData.key, embeddedWalletAddress: embeddedWallet?.address, reason: 'manual-check-expired', source: 'ControlPanel'}
-        });
-        window.dispatchEvent(updateEvent);
-        return;
-      }
-      
-      const matchesEmbedded = sessionKeyData.key.toLowerCase() === embeddedWallet?.address?.toLowerCase();
-      
-      if (!matchesEmbedded) {
-        const updateEvent = new CustomEvent('sessionKeyUpdateNeeded', {
-          detail: { characterId, owner: ownerAddress, currentSessionKey: sessionKeyData.key, embeddedWalletAddress: embeddedWallet?.address, reason: 'manual-check-mismatch', source: 'ControlPanel'}
-        });
-        window.dispatchEvent(updateEvent);
-      } else {
+    console.warn("checkSessionKey current logic is basic, review if more detail needed");
+    if (needsSessionKeyUpdate) {
+        toast({ title: "Session Key Issue Detected", description: `State: ${sessionKeyState}. Please update.`, status: "warning" });
+        onOpen();
+    } else if (sessionKeyState === SessionKeyState.VALID) {
         toast({ title: "Session key is valid", status: "success" });
-        onClose();
-      }
-    } catch (error) {
-      console.error(`[ControlPanel ${instanceId.current}] Error checking session key:`, error);
-      toast({ title: "Error checking session key", description: error instanceof Error ? error.message : "Unknown error", status: "error" });
+    } else {
+        toast({ title: "Session Key Status", description: `Current state: ${sessionKeyState}`, status: "info" });
     }
   };
   
-  const handleUpdateSessionKey = async () => {
-    if (!updateSessionKey || !embeddedWallet?.address || !getLatestBlockNumber) {
-      toast({ title: "Cannot update session key", description: "Update function, block fetch, or embedded wallet unavailable.", status: "error" });
-      return;
-    }
-    try {
-      setIsUpdatingSessionKey(true);
-      
-      const currentBlock = await getLatestBlockNumber();
-      const expirationBlock = currentBlock + BigInt(43200);
-      
-      const tx = await updateSessionKey(embeddedWallet.address, Number(expirationBlock));
-      
-      toast({ title: "Update transaction sent", description: "Waiting for confirmation...", status: "info" });
-      
-      await tx.wait();
-
-      toast({ title: "Session key updated", status: "success" });
-      onClose();
-
-    } catch (error) {
-      console.error("[handleUpdateSessionKey] Error:", error);
-      toast({ title: "Session key update failed", description: error instanceof Error ? error.message : "Unknown error", status: "error" });
-    } finally {
-      setIsUpdatingSessionKey(false);
-    }
+  const handleUpdateSessionKey = () => {
+    console.log(`[ControlPanel ${instanceId.current}] Triggering session key update via useGame hook...`);
+    updateSessionKey();
   };
   
   const handleMove = async (directionString: string) => {
@@ -201,43 +140,8 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
       toast({ title: "Cannot move", description: `Invalid direction or move function unavailable.`, status: "error" });
       return;
     }
-    try {
-      setIsMoving(true);
-      setMovementError(null);
-      console.log(`[ControlPanel] Moving ${directionString}...`);
-      
-      const tx = await moveCharacter(characterId, direction);
-      
-      toast({ title: "Move transaction sent", description: `Moving ${directionString}...`, status: "info" });
-      await tx.wait();
-
-      toast({ title: "Move successful", description: `You moved ${directionString}`, status: "success" });
-
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Unknown error";
-      setMovementError(errorMessage);
-      toast({ title: "Movement failed", description: errorMessage, status: "error" });
-      if (errorMessage.includes("session key has expired")) {
-        toast({
-          title: "Session key expired",
-          description: "Your session key has expired. Click 'Fix Session Key' to update it.",
-          status: "warning",
-          duration: 10000,
-          isClosable: true,
-        });
-      }
-      else if (errorMessage.includes("session key") || errorMessage.includes("Transaction failed")) {
-        toast({
-          title: "Session key issue detected",
-          description: "Click 'Fix Session Key' to resolve",
-          status: "warning",
-          duration: 10000,
-          isClosable: true,
-        });
-      }
-    } finally {
-      setIsMoving(false);
-    }
+    console.log(`[ControlPanel] Moving ${directionString} via useGame hook...`);
+    moveCharacter(direction);
   };
 
   return (
@@ -247,23 +151,17 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
         
         <MovementControls 
           onMove={handleMove} 
-          isDisabled={isMoving || isUpdatingSessionKey}
+          isDisabled={isMovingFromHook || isUpdatingFromHook}
         />
-        
-        {movementError && (
-          <Text color="red.400" fontSize="sm">
-            {movementError}
-          </Text>
-        )}
         
         <HStack spacing={4} justify="center" mt={2}>
           <Button 
             colorScheme="yellow" 
             size="sm" 
             onClick={checkSessionKey}
-            isDisabled={isMoving || isUpdatingSessionKey || !ownerAddress}
+            isDisabled={isMovingFromHook || isUpdatingFromHook || !owner}
           >
-            Fix Session Key
+            Check/Fix Session Key
           </Button>
           
           <Tooltip label="Shows wallet and character details for debugging">
@@ -272,14 +170,14 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
               size="sm" 
               onClick={() => {
                 console.log({
-                  characterId,
-                  ownerAddress,
-                  gameState: gameState ? 'Available' : 'Not available',
-                  isLoading: isGameStateLoading,
-                  error: gameStateError,
-                  clientAvailable: !!client,
-                  injectedWallet: injectedWallet ? { address: injectedWallet.address, type: injectedWallet.walletClientType } : null,
-                  embeddedWallet: embeddedWallet ? { address: embeddedWallet.address, type: 'embedded' } : null
+                  passedCharacterId: characterId,
+                  gameHookCharacterId: gameCharacterId,
+                  ownerAddress: owner,
+                  gameStateAvailable: !!gameState,
+                  isGameLoading: isGameLoading,
+                  gameError: gameError,
+                  sessionKeyState: sessionKeyState,
+                  needsSessionKeyUpdate: needsSessionKeyUpdate,
                 });
                 toast({ title: "Debug info logged", status: "info" });
               }}
@@ -331,7 +229,7 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
                 colorScheme="green" 
                 mr={3} 
                 onClick={handleUpdateSessionKey}
-                isLoading={isUpdatingSessionKey}
+                isLoading={isUpdatingFromHook}
                 loadingText="Updating..."
               >
                 Update Session Key

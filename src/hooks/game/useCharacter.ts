@@ -62,12 +62,32 @@ export const useCharacter = () => {
   
   // Mutation for creating a character
   const createCharacterMutation = useMutation({
-    mutationFn: async ({ name, characterClass }: { name: string, characterClass: domain.CharacterClass }) => {
-      if (!client) {
-        throw new Error('Client missing');
-      }
-      
-      return client.createCharacter(characterClass, name);
+    mutationFn: async (params: {
+      name: string;
+      strength: bigint;
+      vitality: bigint;
+      dexterity: bigint;
+      quickness: bigint;
+      sturdiness: bigint;
+      luck: bigint;
+      sessionKey: string;
+      sessionKeyDeadline: bigint;
+      value: bigint;
+    }) => {
+      if (!client) throw new Error("Client missing");
+      // Pass all arguments to client
+      return client.createCharacter(
+        params.name,
+        params.strength,
+        params.vitality,
+        params.dexterity,
+        params.quickness,
+        params.sturdiness,
+        params.luck,
+        params.sessionKey,
+        params.sessionKeyDeadline,
+        params.value
+      );
     },
     onSuccess: () => {
       // Invalidate and refetch character ID and game state
@@ -138,8 +158,19 @@ export const useCharacter = () => {
     buyInAmount,
     
     // Character creation
-    createCharacter: (name: string, characterClass: domain.CharacterClass) => 
-      createCharacterMutation.mutate({ name, characterClass }),
+    createCharacter: (params: {
+      name: string;
+      strength: bigint;
+      vitality: bigint;
+      dexterity: bigint;
+      quickness: bigint;
+      sturdiness: bigint;
+      luck: bigint;
+      sessionKey: string;
+      sessionKeyDeadline: bigint;
+      value: bigint;
+    }) => 
+      createCharacterMutation.mutate(params),
     isCreating: createCharacterMutation.isPending,
     createError: createCharacterMutation.error ? (createCharacterMutation.error as Error).message : null,
     
