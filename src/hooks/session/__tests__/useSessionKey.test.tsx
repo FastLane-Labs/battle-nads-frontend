@@ -9,7 +9,7 @@ import { sessionKeyMachine, SessionKeyState } from '../../../machines/sessionKey
 // Mock dependencies
 jest.mock('../../contracts/useBattleNadsClient');
 jest.mock('../../../providers/WalletProvider');
-jest.mock('../../../session/sessionKeyMachine');
+jest.mock('../../../machines/sessionKeyMachine');
 
 // --- Sophisticated useQuery Mock ---
 // Store mock results per query key (as JSON string)
