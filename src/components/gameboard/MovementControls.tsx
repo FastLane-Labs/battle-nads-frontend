@@ -111,7 +111,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({
       alignItems="center"
     >
       <GridItem area="up" justifySelf="center">
-        <Tooltip label={`Move North (${currentPosition.x}, ${currentPosition.y - 1})`} hasArrow>
+        <Tooltip label={`Move North (${Number(currentPosition.x)}, ${Number(currentPosition.y) - 1})`} hasArrow>
           <Button
             colorScheme="blue"
             onClick={() => handleMovement('north')}
@@ -124,7 +124,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({
       </GridItem>
       
       <GridItem area="west" justifySelf="center">
-        <Tooltip label={`Move West (${currentPosition.x - 1}, ${currentPosition.y})`} hasArrow>
+        <Tooltip label={`Move West (${Number(currentPosition.x) - 1}, ${Number(currentPosition.y)})`} hasArrow>
           <Button
             colorScheme="blue"
             onClick={() => handleMovement('west')}
@@ -137,7 +137,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({
       </GridItem>
       
       <GridItem area="east" justifySelf="center">
-        <Tooltip label={`Move East (${currentPosition.x + 1}, ${currentPosition.y})`} hasArrow>
+        <Tooltip label={`Move East (${Number(currentPosition.x) + 1}, ${Number(currentPosition.y)})`} hasArrow>
           <Button
             colorScheme="blue"
             onClick={() => handleMovement('east')}
@@ -150,7 +150,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({
       </GridItem>
       
       <GridItem area="down" justifySelf="center">
-        <Tooltip label={`Move South (${currentPosition.x}, ${currentPosition.y + 1})`} hasArrow>
+        <Tooltip label={`Move South (${Number(currentPosition.x)}, ${Number(currentPosition.y) + 1})`} hasArrow>
           <Button
             colorScheme="blue"
             onClick={() => handleMovement('south')}
@@ -163,7 +163,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({
       </GridItem>
       
       <GridItem area="ascend" justifySelf="center">
-        <Tooltip label={`Move Up (Depth: ${currentPosition.depth - 1})`} hasArrow>
+        <Tooltip label={`Move Up (Depth: ${Number(currentPosition.depth) - 1})`} hasArrow>
           <Button
             colorScheme="purple"
             onClick={() => handleMovement('up')}
@@ -177,7 +177,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({
       </GridItem>
       
       <GridItem area="descend" justifySelf="center">
-        <Tooltip label={`Move Down (Depth: ${currentPosition.depth + 1})`} hasArrow>
+        <Tooltip label={`Move Down (Depth: ${Number(currentPosition.depth) + 1})`} hasArrow>
           <Button
             colorScheme="purple"
             onClick={() => handleMovement('down')}
