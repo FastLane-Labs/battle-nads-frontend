@@ -24,9 +24,15 @@ export const useSessionKey = (characterId: string | null) => {
         throw new Error('Client or character ID missing');
       }
       
-      return client.getSessionKey(characterId);
+      // Get owner address from characterId
+      const owner = embeddedWallet?.address;
+      if (!owner) {
+        throw new Error('Wallet address not available');
+      }
+      
+      return client.getCurrentSessionKeyData(owner);
     },
-    enabled: !!characterId && !!client,
+    enabled: !!characterId && !!client && !!embeddedWallet?.address,
     staleTime: 30_000, // 30 seconds
     refetchInterval: 30_000, // Refresh every 30 seconds
   });
