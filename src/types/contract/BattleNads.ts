@@ -1,5 +1,5 @@
-// Hand-rolled TypeScript interfaces for BattleNads contract types
-// These represent the Solidity structs and function signatures
+// Raw Solidity contract types for BattleNads
+// These types exactly match the on-chain structures and use appropriate primitive types
 
 // Session key data structure
 export interface SessionKeyData {
@@ -97,51 +97,47 @@ export interface ChatLog {
   content: string;
 }
 
+// Log structure
+export interface Log {
+  logType: number;
+  index: number;
+  mainPlayerIndex: number;
+  otherPlayerIndex: number;
+  hit: boolean;
+  critical: boolean;
+  damageDone: number;
+  healthHealed: number;
+  targetDied: boolean;
+  lootedWeaponID: number;
+  lootedArmorID: number;
+  experience: number;
+  value: bigint;
+}
+
+// Data feed structure
+export interface DataFeed {
+  blockNumber: bigint;
+  logs: Log[];
+  chatLogs: string[];
+}
+
 // Poll frontend data return structure
 export interface PollFrontendDataReturn {
+  characterID: string;
+  sessionKeyData: SessionKeyData;
   character: Character;
   combatants: CharacterLite[];
   noncombatants: CharacterLite[];
+  equipableWeaponIDs: number[];
+  equipableWeaponNames: string[];
+  equipableArmorIDs: number[];
+  equipableArmorNames: string[];
+  dataFeeds: DataFeed[];
+  balanceShortfall: bigint;
+  unallocatedAttributePoints: bigint;
+  endBlock: bigint;
   movementOptions: MovementOptions;
   eventLogs: EventLog[];
   chatLogs: ChatLog[];
-  sessionKeyData: SessionKeyData;
   startBlock: bigint;
-  endBlock: bigint;
-}
-
-// Direction enum for movement
-export enum Direction {
-  NORTH = 'north',
-  SOUTH = 'south',
-  EAST = 'east',
-  WEST = 'west',
-  UP = 'up',
-  DOWN = 'down'
-}
-
-// Character class enum
-export enum CharacterClass {
-  WARRIOR = 0,
-  MAGE = 1,
-  ROGUE = 2,
-  CLERIC = 3
-}
-
-// Ability enum
-export enum Ability {
-  NONE = 0,
-  SLASH = 1,
-  FIREBALL = 2,
-  BACKSTAB = 3,
-  HEAL = 4
-}
-
-// Status effect enum
-export enum StatusEffect {
-  NONE = 0,
-  BURN = 1,
-  STUN = 2,
-  BLEED = 3,
-  REGEN = 4
 } 

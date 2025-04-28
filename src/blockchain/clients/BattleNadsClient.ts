@@ -1,15 +1,6 @@
 import { TransactionResponse } from 'ethers';
 import { BattleNadsAdapter } from '../adapters/BattleNadsAdapter';
-import { 
-  DataFeed, 
-  BattleNad, 
-  BattleNadLite, 
-  Direction,
-  Ability,
-  SessionKeyData,
-  PollFrontendDataReturn,
-  CharacterClass
-} from '../../types';
+import { contract, domain } from '../../types';
 import { 
   SessionWalletMissingError, 
   WalletMissingError, 
@@ -66,7 +57,7 @@ export class BattleNadsClient {
   /**
    * Gets a complete UI snapshot for the game
    */
-  async getUiSnapshot(owner: string, startBlock: bigint): Promise<PollFrontendDataReturn> {
+  async getUiSnapshot(owner: string, startBlock: bigint): Promise<contract.PollFrontendDataReturn> {
     try {
       return await this.readAdapter.pollFrontendData(owner, startBlock);
     } catch (error) {
@@ -77,7 +68,7 @@ export class BattleNadsClient {
   /**
    * Gets the current session key for a character
    */
-  async getSessionKey(characterId: string): Promise<SessionKeyData> {
+  async getSessionKey(characterId: string): Promise<contract.SessionKeyData> {
     try {
       return await this.readAdapter.getSessionKey(characterId);
     } catch (error) {
@@ -99,7 +90,7 @@ export class BattleNadsClient {
   /**
    * Gets event logs and chat messages for a specific block range
    */
-  async getDataFeed(owner: string, startBlock: bigint, endBlock: bigint): Promise<DataFeed[]> {
+  async getDataFeed(owner: string, startBlock: bigint, endBlock: bigint): Promise<contract.DataFeed[]> {
     try {
       return await this.readAdapter.getDataFeed(owner, startBlock, endBlock);
     } catch (error) {
@@ -121,7 +112,7 @@ export class BattleNadsClient {
   /**
    * Gets full detailed data for a character
    */
-  async getBattleNad(characterId: string): Promise<BattleNad> {
+  async getBattleNad(characterId: string): Promise<contract.Character> {
     try {
       return await this.readAdapter.getBattleNad(characterId);
     } catch (error) {
@@ -132,7 +123,7 @@ export class BattleNadsClient {
   /**
    * Gets lightweight data for a character
    */
-  async getBattleNadLite(characterId: string): Promise<BattleNadLite> {
+  async getBattleNadLite(characterId: string): Promise<contract.CharacterLite> {
     try {
       return await this.readAdapter.getBattleNadLite(characterId);
     } catch (error) {
@@ -191,7 +182,7 @@ export class BattleNadsClient {
    * Requires owner wallet
    */
   async createCharacter(
-    characterClass: CharacterClass,
+    characterClass: domain.CharacterClass,
     name: string
   ): Promise<TransactionResponse> {
     try {
@@ -305,25 +296,25 @@ export class BattleNadsClient {
   // MOVEMENT
 
   /**
-   * Moves the character in the specified direction
-   * Requires session wallet
+   * Moves the character in a specific direction
+   * Requires session or owner wallet
    */
-  async moveCharacter(characterId: string, direction: Direction): Promise<TransactionResponse> {
+  async moveCharacter(characterId: string, direction: domain.Direction): Promise<TransactionResponse> {
     try {
-      const adapter = this.ensureSessionAdapter();
+      const adapter = this.sessionAdapter || this.ensureOwnerAdapter();
       
       switch (direction) {
-        case Direction.NORTH:
+        case domain.Direction.North:
           return await adapter.moveNorth(characterId);
-        case Direction.SOUTH:
+        case domain.Direction.South:
           return await adapter.moveSouth(characterId);
-        case Direction.EAST:
+        case domain.Direction.East:
           return await adapter.moveEast(characterId);
-        case Direction.WEST:
+        case domain.Direction.West:
           return await adapter.moveWest(characterId);
-        case Direction.UP:
+        case domain.Direction.Up:
           return await adapter.moveUp(characterId);
-        case Direction.DOWN:
+        case domain.Direction.Down:
           return await adapter.moveDown(characterId);
         default:
           throw new InvalidMovementError(`Invalid direction: ${direction}`);
@@ -355,15 +346,16 @@ export class BattleNadsClient {
 
   /**
    * Uses an ability
-   * Requires session wallet
+   * Requires session or owner wallet
    */
   async useAbility(
     characterId: string,
-    ability: Ability,
+    ability: domain.Ability,
     targetIndex: number
   ): Promise<TransactionResponse> {
     try {
-      return await this.ensureSessionAdapter().useAbility(characterId, ability, targetIndex);
+      const adapter = this.sessionAdapter || this.ensureOwnerAdapter();
+      return await adapter.useAbility(characterId, ability, targetIndex);
     } catch (error) {
       if (error instanceof SessionWalletMissingError) {
         throw error;

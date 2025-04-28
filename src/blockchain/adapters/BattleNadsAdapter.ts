@@ -1,16 +1,7 @@
 import { Contract, Signer, Provider, TransactionResponse } from 'ethers';
 import ENTRY_ABI from '../../abis/battleNads.json';
 import { GAS_LIMITS } from '../../config/gas';
-import { 
-  DataFeed, 
-  BattleNad, 
-  BattleNadLite, 
-  SessionKeyData,
-  PollFrontendDataReturn,
-  Direction,
-  Ability,
-  CharacterClass
-} from '../../types';
+import { contract, domain } from '../../types';
 
 /**
  * Adapter that wraps the BattleNadsEntrypoint contract
@@ -28,14 +19,14 @@ export class BattleNadsAdapter {
   /**
    * Polls for frontend data from the contract
    */
-  async pollFrontendData(owner: string, startBlock: bigint): Promise<PollFrontendDataReturn> {
+  async pollFrontendData(owner: string, startBlock: bigint): Promise<contract.PollFrontendDataReturn> {
     return this.contract.pollForFrontendData(owner, startBlock);
   }
 
   /**
    * Gets the session key for a character
    */
-  async getSessionKey(characterId: string): Promise<SessionKeyData> {
+  async getSessionKey(characterId: string): Promise<contract.SessionKeyData> {
     return this.contract.getSessionKey(characterId);
   }
 
@@ -49,7 +40,7 @@ export class BattleNadsAdapter {
   /**
    * Gets event and chat logs for a specific block range
    */
-  async getDataFeed(owner: string, startBlock: bigint, endBlock: bigint): Promise<DataFeed[]> {
+  async getDataFeed(owner: string, startBlock: bigint, endBlock: bigint): Promise<contract.DataFeed[]> {
     return this.contract.getDataFeed(owner, startBlock, endBlock);
   }
 
@@ -63,14 +54,14 @@ export class BattleNadsAdapter {
   /**
    * Gets full detailed data for a character
    */
-  async getBattleNad(characterId: string): Promise<BattleNad> {
+  async getBattleNad(characterId: string): Promise<contract.Character> {
     return this.contract.getBattleNad(characterId);
   }
 
   /**
    * Gets lightweight data for a character
    */
-  async getBattleNadLite(characterId: string): Promise<BattleNadLite> {
+  async getBattleNadLite(characterId: string): Promise<contract.CharacterLite> {
     return this.contract.getBattleNadLite(characterId);
   }
 
@@ -158,7 +149,7 @@ export class BattleNadsAdapter {
   /**
    * Uses an ability
    */
-  async useAbility(characterId: string, ability: Ability, targetIndex: number): Promise<TransactionResponse> {
+  async useAbility(characterId: string, ability: domain.Ability, targetIndex: number): Promise<TransactionResponse> {
     return this.contract.useAbility(characterId, targetIndex, ability, { gasLimit: GAS_LIMITS.action });
   }
 
@@ -184,7 +175,7 @@ export class BattleNadsAdapter {
    * Creates a new character
    */
   async createCharacter(
-    characterClass: CharacterClass,
+    characterClass: domain.CharacterClass,
     name: string
   ): Promise<TransactionResponse> {
     return this.contract.createCharacter(characterClass, name, { gasLimit: GAS_LIMITS.action });

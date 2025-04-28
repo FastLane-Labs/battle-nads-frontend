@@ -3,7 +3,7 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from './useBattleNads';
-import { CharacterClass } from '../../types/contracts/BattleNadsEntrypoint';
+import { domain } from '../../types';
 
 /**
  * Hook for character management
@@ -62,7 +62,7 @@ export const useCharacter = () => {
   
   // Mutation for creating a character
   const createCharacterMutation = useMutation({
-    mutationFn: async ({ name, characterClass }: { name: string, characterClass: CharacterClass }) => {
+    mutationFn: async ({ name, characterClass }: { name: string, characterClass: domain.CharacterClass }) => {
       if (!client) {
         throw new Error('Client missing');
       }
@@ -138,7 +138,7 @@ export const useCharacter = () => {
     buyInAmount,
     
     // Character creation
-    createCharacter: (name: string, characterClass: CharacterClass) => 
+    createCharacter: (name: string, characterClass: domain.CharacterClass) => 
       createCharacterMutation.mutate({ name, characterClass }),
     isCreating: createCharacterMutation.isPending,
     createError: createCharacterMutation.error ? (createCharacterMutation.error as Error).message : null,
