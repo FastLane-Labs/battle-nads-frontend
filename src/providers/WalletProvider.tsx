@@ -494,6 +494,4 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   );
 };
 
-export const useWallet = () => useContext(WalletContext); 
-
-console.log('Displaying WalletProvider content'); 
+export const useWallet = () => useContext(WalletContext);  
