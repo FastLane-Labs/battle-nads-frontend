@@ -30,20 +30,17 @@ import {
   ModalHeader, 
   ModalFooter, 
   ModalBody, 
-  ModalCloseButton
+  ModalCloseButton,
+  Select
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
-import { useBattleNads } from '../../hooks/useBattleNads';
 import { useWallet } from '../../providers/WalletProvider';
 import { isValidCharacterId } from '../../utils/getCharacterLocalStorageKey';
 import { ethers } from 'ethers';
-
-interface AttributeInputProps {
-  value: number;
-  onChange: (val: number) => void;
-  label: string;
-  isDisabled?: boolean;
-}
+import { useGame } from '../../hooks/game/useGame';
+import { useBattleNadsClient } from '../../hooks/contracts/useBattleNadsClient';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { domain } from '../../types';
 
 interface CharacterCreationProps {
   onCharacterCreated?: () => void;
@@ -51,328 +48,130 @@ interface CharacterCreationProps {
 
 const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreated }) => {
   const [name, setName] = useState('');
-  const [strength, setStrength] = useState(3);
-  const [vitality, setVitality] = useState(3);
-  const [dexterity, setDexterity] = useState(3);
-  const [quickness, setQuickness] = useState(3);
-  const [sturdiness, setSturdiness] = useState(3);
-  const [luck, setLuck] = useState(3);
-  const [isCreating, setIsCreating] = useState(false);
+  const [selectedClass, setSelectedClass] = useState<domain.CharacterClass | '' >('');
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
   
   const router = useRouter();
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const { 
-    createCharacter, 
-    loading, 
-    error, 
-    characterId,
-    getCharacterIdByTransactionHash 
-  } = useBattleNads();
-  
-  // Import the wallet provider to get embedded wallet address
+  const queryClient = useQueryClient();
+
+  const { client } = useBattleNadsClient();
   const { embeddedWallet, injectedWallet } = useWallet();
+  const { characterId: globalCharacterId } = useGame();
+
+  const createCharacterMutation = useMutation({
+    mutationFn: async (params: {
+      name: string;
+      characterClass: domain.CharacterClass;
+    }) => {
+      if (!client) throw new Error("Client not available");
+      return client.createCharacter(
+        params.characterClass, 
+        params.name
+      );
+    },
+    onSuccess: (result) => {
+      console.log("Character creation transaction submitted/succeeded:", result);
+      queryClient.invalidateQueries({ queryKey: ['uiSnapshot', injectedWallet?.address] });
+      queryClient.invalidateQueries({ queryKey: ['playerCharacters', injectedWallet?.address] });
+      toast({
+        title: 'Creation Submitted',
+        description: 'Character creation transaction sent. Waiting for confirmation...',
+        status: 'info',
+        duration: 4000,
+        isClosable: true,
+      });
+      if (onCharacterCreated) onCharacterCreated();
+    },
+    onError: (err: any) => {
+      console.error("Error creating character:", err);
+      toast({
+        title: 'Creation Error',
+        description: err.message || 'An unexpected error occurred during character creation.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    },
+  });
+
+  const getCharacterIdByTransactionHash = async (txHash: string): Promise<string | null> => {
+     if (!client) {
+        console.error("Client not ready for transaction lookup");
+        toast({ title: 'Error', description: 'Client not available for lookup', status: 'error' });
+        return null;
+     }
+     console.warn("getCharacterIdByTransactionHash not implemented on client yet");
+     toast({ title: 'Info', description: 'Transaction lookup not implemented yet.', status: 'info' });
+     return null; 
+  };
   
-  // Check if character already exists and redirect if it does
   useEffect(() => {
     const storedCharacterId = localStorage.getItem('battleNadsCharacterId');
     if (storedCharacterId && isValidCharacterId(storedCharacterId)) {
-      console.log("Found existing valid character, redirecting to game:", storedCharacterId);
+      console.log("Found existing valid character in localStorage, redirecting to game:", storedCharacterId);
       router.push('/game');
     } else if (storedCharacterId) {
-      console.log("Found invalid zero-address character ID in localStorage, not redirecting");
-      // Remove invalid character ID from localStorage
+      console.log("Found invalid zero-address character ID in localStorage, removing.");
       localStorage.removeItem('battleNadsCharacterId');
     }
   }, [router]);
   
-  // Check if character was created and redirect to game
   useEffect(() => {
-    if (characterId && isValidCharacterId(characterId)) {
-      console.log("Valid character ID found, redirecting to game:", characterId);
+    if (globalCharacterId && isValidCharacterId(globalCharacterId)) {
+      console.log("Valid globalCharacterId found, redirecting to game:", globalCharacterId);
+      localStorage.setItem('battleNadsCharacterId', globalCharacterId);
       router.push('/game');
-    } else if (characterId) {
-      console.log("Character ID is the zero address, not redirecting to game");
     }
-  }, [characterId, router]);
-  
-  // Check if we have both required wallets
-  useEffect(() => {
-    if (!injectedWallet?.address) {
-      console.warn("Owner wallet not connected for character creation");
-    }
-    
-    if (!embeddedWallet?.address) {
-      console.warn("Embedded wallet not available for use as session key");
-    } else {
-      console.log("Embedded wallet (will be used as session key):", embeddedWallet.address);
-    }
-  }, [injectedWallet, embeddedWallet]);
-  
-  // Add a new effect to listen for character creation events
-  useEffect(() => {
-    const handleCharacterCreated = (event: CustomEvent) => {
-      console.log("CharacterCreation received characterCreated event:", event.detail);
-      if (event.detail && event.detail.characterId && isValidCharacterId(event.detail.characterId)) {
-        console.log("Valid character created, will redirect to game:", event.detail.characterId);
-        router.push('/game');
-      }
-    };
-
-    // Add event listener
-    window.addEventListener('characterCreated', handleCharacterCreated as EventListener);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('characterCreated', handleCharacterCreated as EventListener);
-    };
-  }, [router]);
-  
-  // Add a new effect to listen for character ID changes from GameDataProvider
-  useEffect(() => {
-    const handleCharacterIDChanged = (event: CustomEvent) => {
-      console.log("CharacterCreation received characterIDChanged event:", event.detail);
-      if (event.detail && event.detail.characterId && isValidCharacterId(event.detail.characterId)) {
-        console.log("Valid characterID from event, will redirect to game:", event.detail.characterId);
-        router.push('/game');
-      }
-    };
-
-    // Add event listener
-    window.addEventListener('characterIDChanged', handleCharacterIDChanged as EventListener);
-    
-    // Also listen for gameDataUpdated events to check character ID
-    const handleGameDataUpdated = (event: CustomEvent) => {
-      console.log("CharacterCreation received gameDataUpdated event");
-      
-      // Check if the event detail has a characterID
-      if (event.detail && event.detail.characterID && isValidCharacterId(event.detail.characterID)) {
-        console.log(`CharacterCreation: Valid character ID from gameDataUpdated event: ${event.detail.characterID}`);
-        router.push('/game');
-      }
-    };
-    
-    window.addEventListener('gameDataUpdated', handleGameDataUpdated as EventListener);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('characterIDChanged', handleCharacterIDChanged as EventListener);
-      window.removeEventListener('gameDataUpdated', handleGameDataUpdated as EventListener);
-    };
-  }, [router]);
-  
-  const MIN_STAT_VALUE = 3;
-  const TOTAL_POINTS = 32;
-  const BASE_POINTS_USED = MIN_STAT_VALUE * 6; // 6 attributes starting at 3 each
-  const usedPoints = strength + vitality + dexterity + quickness + sturdiness + luck;
-  const unspentAttributePoints = TOTAL_POINTS - usedPoints;
+  }, [globalCharacterId, router]);
   
   const handleTransactionLookup = async () => {
     if (!transactionHash) {
-      toast({
-        title: 'Error',
-        description: 'Please enter a transaction hash',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
+      toast({ title: 'Error', description: 'Please enter a transaction hash', status: 'error' });
       return;
     }
-    
     try {
       const foundCharacterId = await getCharacterIdByTransactionHash(transactionHash);
-      if (foundCharacterId) {
-        toast({
-          title: 'Success',
-          description: `Found character ID: ${foundCharacterId}`,
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
-        
-        // Should navigate automatically via useEffect
+      if (foundCharacterId && isValidCharacterId(foundCharacterId)) {
+        toast({ title: 'Success', description: `Found character ID: ${foundCharacterId}`, status: 'success' });
+        localStorage.setItem('battleNadsCharacterId', foundCharacterId);
+         router.push('/game');
+      } else if (foundCharacterId === null) {
+         // Function not implemented yet or lookup failed cleanly
+         // Toast already shown in getCharacterIdByTransactionHash
       } else {
-        toast({
-          title: 'Error',
-          description: 'Could not find character ID for this transaction',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
+        toast({ title: 'Error', description: 'Could not find valid character ID for this transaction', status: 'error' });
       }
     } catch (err: any) {
-      toast({
-        title: 'Error',
-        description: err.message || 'An unexpected error occurred',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    }
-    
-    onClose();
-  };
-  
-  const handleCreateCharacter = async () => {
-    if (!name) {
-      toast({
-        title: 'Error',
-        description: 'Please enter a character name',
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    
-    if (unspentAttributePoints !== 0) {
-      toast({
-        title: 'Error',
-        description: `Please allocate all attribute points. You have ${unspentAttributePoints} points unallocated.`,
-        status: 'error',
-        duration: 3000,
-        isClosable: true,
-      });
-      return;
-    }
-    
-    // Check if embedded wallet is available to use as session key
-    if (!embeddedWallet?.address) {
-      toast({
-        title: 'Error',
-        description: 'Session key wallet not available. Please ensure your embedded wallet is connected.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-      return;
-    }
-    
-    // Make sure owner wallet is connected
-    if (!injectedWallet?.address) {
-      toast({
-        title: 'Error',
-        description: 'Owner wallet not connected. Please connect your MetaMask wallet.',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-      return;
-    }
-    
-    console.log("Starting character creation process...");
-    setIsCreating(true);
-    
-    try {
-      // Log the embedded wallet address that will be used as the session key
-      console.log("Creating character with session key:", embeddedWallet.address);
-      console.log("Session key address type:", typeof embeddedWallet.address);
-      console.log("Session key address validity:", ethers.isAddress(embeddedWallet.address));
-      console.log("Character stats:", { name, strength, vitality, dexterity, quickness, sturdiness, luck });
-      
-      // Call the createCharacter function from the hook
-      const newCharacterId = await createCharacter(
-        name,
-        strength,
-        vitality,
-        dexterity,
-        quickness,
-        sturdiness,
-        luck,
-        embeddedWallet.address  // Pass the embedded wallet address as the session key
-      );
-      
-      console.log("Character creation result:", { 
-        characterId: newCharacterId, 
-        isValid: newCharacterId ? isValidCharacterId(newCharacterId) : false 
-      });
-      
-      if (newCharacterId && isValidCharacterId(newCharacterId)) {
-        // Store character ID in local state for the component to use
-        console.log("Setting transactionHash for reference:", newCharacterId);
-        setTransactionHash(typeof newCharacterId === 'string' && newCharacterId.startsWith('0x') && newCharacterId.length < 66 
-          ? newCharacterId  // It's probably a transaction hash
-          : null           // It's a character ID
-        );
-        
-        toast({
-          title: 'Success',
-          description: 'Character created successfully!',
-          status: 'success',
-          duration: 3000,
-          isClosable: true,
-        });
-        
-        // Call the callback if provided
-        if (onCharacterCreated) {
-          onCharacterCreated();
-        }
-        
-        // Force check localStorage to ensure it was updated
-        const storedCharacterId = localStorage.getItem('battleNadsCharacterId');
-        console.log("Checking localStorage after creation:", { 
-          storedCharacterId,
-          isValid: storedCharacterId ? isValidCharacterId(storedCharacterId) : false
-        });
-        
-        // Navigation will happen via useEffect or the event listener
-        console.log("Waiting for navigation to game page...");
-        
-        // Manually trigger a custom event in case other listeners missed it
-        try {
-          const characterCreatedEvent = new CustomEvent('characterCreated', { 
-            detail: { characterId: newCharacterId, owner: injectedWallet.address }
-          });
-          window.dispatchEvent(characterCreatedEvent);
-          console.log("Manually dispatched characterCreated event");
-        } catch (eventErr) {
-          console.error("Error dispatching manual event:", eventErr);
-        }
-      } else {
-        console.warn("Character creation returned an invalid character ID:", newCharacterId);
-        toast({
-          title: 'Error',
-          description: error || 'Failed to create character - invalid ID returned',
-          status: 'error',
-          duration: 5000,
-          isClosable: true,
-        });
-      }
-    } catch (err: any) {
-      console.error("Error creating character:", err);
-      toast({
-        title: 'Error',
-        description: err.message || 'An unexpected error occurred',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+      toast({ title: 'Lookup Error', description: err.message || 'Lookup failed', status: 'error' });
     } finally {
-      setIsCreating(false);
+       onClose();
     }
   };
   
-  const AttributeInput = ({ value, onChange, label, isDisabled = false }: AttributeInputProps) => (
-    <FormControl>
-      <FormLabel>{label}</FormLabel>
-      <NumberInput 
-        value={value} 
-        onChange={(_, val) => onChange(val)} 
-        min={MIN_STAT_VALUE} 
-        max={10}
-        isDisabled={isDisabled || isCreating}
-      >
-        <NumberInputField />
-        <NumberInputStepper>
-          <NumberIncrementStepper />
-          <NumberDecrementStepper />
-        </NumberInputStepper>
-      </NumberInput>
-    </FormControl>
-  );
+  const handleCreateCharacter = () => {
+    if (!name || selectedClass === '') {
+      toast({ title: 'Error', description: 'Please enter a name and select a class', status: 'error' });
+      return;
+    }
+    if (!embeddedWallet?.address) {
+      toast({ title: 'Error', description: 'Session key wallet not available.', status: 'error' });
+      return;
+    }
+    if (!injectedWallet?.address) {
+      toast({ title: 'Error', description: 'Owner wallet not connected.', status: 'error' });
+      return;
+    }
+
+    console.log("Initiating character creation mutation...", { name, selectedClass });
+    createCharacterMutation.mutate({
+      name,
+      characterClass: selectedClass as domain.CharacterClass,
+    });
+  };
   
-  if (loading || isCreating) {
+  if (createCharacterMutation.isPending) {
     return (
       <Center height="100vh">
         <VStack spacing={4}>
@@ -393,70 +192,40 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             maxWidth="250px" 
             mb={2}
           />
-          
           <Heading as="h1" size="xl" textAlign="center">Create Character</Heading>
-          
           <Divider />
-          
-          <FormControl>
+          <FormControl isRequired>
             <FormLabel>Character Name</FormLabel>
             <Input 
               value={name} 
               onChange={(e) => setName(e.target.value)} 
               placeholder="Enter your character name"
+              isDisabled={createCharacterMutation.isPending}
             />
           </FormControl>
-          
-          <Alert status={unspentAttributePoints > 0 ? "info" : unspentAttributePoints < 0 ? "error" : "success"} variant="subtle">
-            <AlertIcon />
-            <AlertDescription>
-              <Text fontWeight="bold">
-                Unallocated Attribute Points: {unspentAttributePoints}
-              </Text>
-            </AlertDescription>
-          </Alert>
-          
-          <AttributeInput 
-            value={strength} 
-            onChange={setStrength} 
-            label="Strength" 
-          />
-          
-          <AttributeInput 
-            value={vitality} 
-            onChange={setVitality} 
-            label="Vitality" 
-          />
-          
-          <AttributeInput 
-            value={dexterity} 
-            onChange={setDexterity} 
-            label="Dexterity" 
-          />
-          
-          <AttributeInput 
-            value={quickness} 
-            onChange={setQuickness} 
-            label="Quickness" 
-          />
-          
-          <AttributeInput 
-            value={sturdiness} 
-            onChange={setSturdiness} 
-            label="Sturdiness" 
-          />
-          
-          <AttributeInput 
-            value={luck} 
-            onChange={setLuck} 
-            label="Luck" 
-          />
+          <FormControl isRequired>
+            <FormLabel>Class</FormLabel>
+            <Select 
+              placeholder="Select class"
+              value={selectedClass}
+              onChange={(e) => setSelectedClass(e.target.value as domain.CharacterClass | '')}
+              isDisabled={createCharacterMutation.isPending}
+            >
+              {Object.entries(domain.CharacterClass)
+                .filter(([key, value]) => typeof value === 'number')
+                .map(([key, value]) => (
+                  <option key={value} value={value}>{key}</option>
+              ))}
+            </Select>
+          </FormControl>
           
           <Button 
             colorScheme="blue" 
             width="full"
             onClick={handleCreateCharacter}
-            isDisabled={unspentAttributePoints !== 0 || !name || isCreating}
+            isDisabled={!name || selectedClass === '' || createCharacterMutation.isPending}
+            isLoading={createCharacterMutation.isPending}
+            loadingText="Creating..."
           >
             Create Character
           </Button>
@@ -465,13 +234,13 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             variant="outline"
             onClick={onOpen}
             width="full"
+            isDisabled={createCharacterMutation.isPending}
           >
             Already Created? Lookup by Transaction
           </Button>
         </VStack>
       </Box>
       
-      {/* Transaction Lookup Modal */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
         <ModalContent>
@@ -487,7 +256,6 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
               />
             </FormControl>
           </ModalBody>
-
           <ModalFooter>
             <Button colorScheme="blue" mr={3} onClick={handleTransactionLookup}>
               Look Up
