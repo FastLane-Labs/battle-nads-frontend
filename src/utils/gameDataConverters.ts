@@ -1,10 +1,24 @@
-import { BattleNad, BattleNadLite, GameState, CharacterClass, Position, CharacterStats, Weapon, Armor, StatusEffect } from '../types/gameTypes';
+import { 
+  Character as BattleNad, // Alias Character to BattleNad for compatibility
+  CharacterLite as BattleNadLite, // Alias CharacterLite
+  CharacterClass, 
+  Position, 
+  CharacterStats, 
+  Weapon, 
+  Armor, 
+  StatusEffect, 
+  AbilityState // Import AbilityState if needed
+} from '../types/domain'; // Corrected import path
+import { ui } from '../types'; // Import UI types if needed for GameState
+
+// Assuming GameState is a UI type
+type GameState = ui.GameState;
 
 /**
  * Calculates the maximum health of a character based on game mechanics.
  * This should match the formula used in the smart contract.
  */
-export const calculateMaxHealth = (stats: any): number => {
+export const calculateMaxHealth = (stats: CharacterStats | null | undefined): number => {
   if (!stats) return 100; // Default max health
   
   // Base health is 100
@@ -24,20 +38,29 @@ export const calculateMaxHealth = (stats: any): number => {
  * Extracts position data from a character object
  */
 export const extractPositionFromCharacter = (character: BattleNad | null): Position => {
-  if (!character) return { x: 0, y: 0, depth: 1 };
+  if (!character) return { x: 0, y: 0, depth: 1 }; // Return default position
   
-  return {
-    x: Number(character.position?.x || 0),
-    y: Number(character.position?.y || 0),
-    depth: Number(character.position?.depth || 1)
-  };
+  // Use character.position directly if available, otherwise default
+  return character.position || { x: 0, y: 0, depth: 1 }; 
 };
 
 /**
- * Converts raw character data from the contract to the frontend BattleNad format
+ * Converts raw character data from the contract to the frontend BattleNad (domain.Character) format
+ * NOTE: This function seems redundant given the mappers in src/mappers. 
+ * Consider replacing usage of this function with direct use of mapCharacter from mappers.
  */
 export const convertCharacterData = (data: any): BattleNad => {
-  // Default empty character if no data
+  console.warn("convertCharacterData is deprecated. Use mapCharacter from src/mappers instead.");
+  // Provide a basic default structure if data is missing
+  const defaultStats: CharacterStats = {
+    strength: 0, vitality: 0, dexterity: 0, quickness: 0, sturdiness: 0, luck: 0, experience: 0, unspentAttributePoints: 0
+  };
+  const defaultPosition: Position = { x: 0, y: 0, depth: 1 };
+  const defaultWeapon: Weapon = { id: 0, name: 'None', baseDamage: 0, bonusDamage: 0, accuracy: 0, speed: 0 };
+  const defaultArmor: Armor = { id: 0, name: 'None', armorFactor: 0, armorQuality: 0, flexibility: 0, weight: 0 };
+  const defaultAbility: AbilityState = { ability: 0, stage: 0, targetIndex: 0, taskAddress: '', targetBlock: 0 };
+  const defaultInventory = { weaponBitmap: 0, armorBitmap: 0, balance: 0, weaponIDs: [], armorIDs: [], weaponNames: [], armorNames: [] };
+
   if (!data) {
     return {
       id: '',
@@ -49,177 +72,128 @@ export const convertCharacterData = (data: any): BattleNad => {
       maxHealth: 100,
       buffs: [],
       debuffs: [],
-      stats: {
-        unspentAttributePoints: 0,
-        buffs: 0,
-        debuffs: 0,
-        experience: 0,
-        strength: 0,
-        vitality: 0,
-        dexterity: 0,
-        quickness: 0,
-        sturdiness: 0,
-        luck: 0
-      },
-      weapon: {
-        id: '0',
-        name: 'None',
-        baseDamage: 0,
-        bonusDamage: 0,
-        accuracy: 0,
-        speed: 0
-      },
-      armor: {
-        id: '0',
-        name: 'None',
-        armorFactor: 0,
-        armorQuality: 0,
-        flexibility: 0,
-        weight: 0
-      },
-      availableWeapons: [],
-      availableArmors: [],
-      inventory: {
-        weaponBitmap: 0,
-        armorBitmap: 0,
-        balance: 0
-      },
-      position: { x: 0, y: 0, depth: 1 },
+      stats: defaultStats,
+      weapon: defaultWeapon,
+      armor: defaultArmor,
+      inventory: defaultInventory,
+      position: defaultPosition,
       owner: '',
       activeTask: '',
-      ability: {
-        ability: 0,
-        stage: 0,
-        targetIndex: 0,
-        taskAddress: '',
-        targetBlock: 0
-      },
-      unspentAttributePoints: 0,
+      ability: defaultAbility,
       isInCombat: false,
       isDead: false
     };
   }
   
-  // Convert the raw data to our BattleNad format
-  return {
-    id: data.id?.toString() || '',
-    index: Number(data.index || 0),
-    name: data.name || 'Unnamed Character',
-    class: Number(data.class || data.stats?.class || CharacterClass.Bard),
-    level: Number(data.level || data.stats?.level || 1),
-    health: Number(data.health || data.stats?.health || 100),
-    maxHealth: Number(data.maxHealth || calculateMaxHealth(data.stats) || 100),
-    buffs: (data.buffs ? parseStatusEffects(data.buffs) : []),
-    debuffs: (data.debuffs ? parseStatusEffects(data.debuffs) : []),
-    stats: {
-      unspentAttributePoints: Number(data.stats?.unspentAttributePoints || 0),
-      buffs: Number(data.stats?.buffs || 0),
-      debuffs: Number(data.stats?.debuffs || 0),
-      experience: Number(data.stats?.experience || 0),
-      strength: Number(data.stats?.strength || 0),
-      vitality: Number(data.stats?.vitality || 0),
-      dexterity: Number(data.stats?.dexterity || 0),
-      quickness: Number(data.stats?.quickness || 0),
-      sturdiness: Number(data.stats?.sturdiness || 0),
-      luck: Number(data.stats?.luck || 0)
-    },
-    weapon: data.weapon ? {
-      id: String(data.weapon.id || '0'),
+  const stats = data.stats ? {
+    strength: Number(data.stats.strength || 0),
+    vitality: Number(data.stats.vitality || 0),
+    dexterity: Number(data.stats.dexterity || 0),
+    quickness: Number(data.stats.quickness || 0),
+    sturdiness: Number(data.stats.sturdiness || 0),
+    luck: Number(data.stats.luck || 0),
+    experience: Number(data.stats.experience || 0),
+    unspentAttributePoints: Number(data.stats.unspentAttributePoints || 0)
+  } : defaultStats;
+
+  const position = data.position || data.stats ? { // Prefer position, fallback to stats fields
+    x: Number(data.position?.x ?? data.stats?.x ?? 0),
+    y: Number(data.position?.y ?? data.stats?.y ?? 0),
+    depth: Number(data.position?.depth ?? data.stats?.depth ?? 1)
+  } : defaultPosition;
+  
+  const weapon = data.weapon ? {
+      id: Number(data.weapon.id || 0),
       name: data.weapon.name || 'Unknown Weapon',
       baseDamage: Number(data.weapon.baseDamage || data.weapon.damage || 0),
       bonusDamage: Number(data.weapon.bonusDamage || 0),
       accuracy: Number(data.weapon.accuracy || 0),
       speed: Number(data.weapon.speed || 0)
-    } : {
-      id: '0',
-      name: 'None',
-      baseDamage: 0,
-      bonusDamage: 0,
-      accuracy: 0,
-      speed: 0
-    },
-    armor: data.armor ? {
-      id: String(data.armor.id || '0'),
+  } : defaultWeapon;
+
+  const armor = data.armor ? {
+      id: Number(data.armor.id || 0),
       name: data.armor.name || 'Unknown Armor',
       armorFactor: Number(data.armor.armorFactor || data.armor.defense || 0),
       armorQuality: Number(data.armor.armorQuality || 0),
       flexibility: Number(data.armor.flexibility || 0),
       weight: Number(data.armor.weight || 0)
-    } : {
-      id: '0',
-      name: 'None',
-      armorFactor: 0,
-      armorQuality: 0,
-      flexibility: 0,
-      weight: 0
-    },
-    availableWeapons: Array.isArray(data.availableWeapons) ? data.availableWeapons : [],
-    availableArmors: Array.isArray(data.availableArmors) ? data.availableArmors : [],
-    inventory: {
-      weaponBitmap: Number(data.inventory?.weaponBitmap || 0),
-      armorBitmap: Number(data.inventory?.armorBitmap || 0),
-      balance: Number(data.inventory?.balance || 0)
-    },
-    position: {
-      x: Number(data.position?.x || data.stats?.x || 0),
-      y: Number(data.position?.y || data.stats?.y || 0),
-      depth: Number(data.position?.depth || data.stats?.depth || 1)
-    },
+  } : defaultArmor;
+
+  // Convert the raw data to our BattleNad (domain.Character) format
+  return {
+    id: data.id?.toString() || '',
+    index: Number(data.index || data.stats?.index || 0),
+    name: data.name || 'Unnamed Character',
+    class: Number(data.class ?? data.stats?.class ?? CharacterClass.Bard),
+    level: Number(data.level ?? data.stats?.level ?? 1),
+    health: Number(data.health ?? data.stats?.health ?? 100),
+    maxHealth: Number(data.maxHealth ?? calculateMaxHealth(stats) ?? 100),
+    // Buffs/Debuffs need proper parsing if data.buffs/debuffs is a bitmap
+    buffs: Array.isArray(data.buffs) ? data.buffs : [], 
+    debuffs: Array.isArray(data.debuffs) ? data.debuffs : [], 
+    stats,
+    weapon,
+    armor,
+    // Inventory needs proper mapping if source data exists
+    inventory: data.inventory ? { 
+      weaponBitmap: Number(data.inventory.weaponBitmap || 0),
+      armorBitmap: Number(data.inventory.armorBitmap || 0),
+      balance: Number(data.inventory.balance || 0),
+      weaponIDs: data.inventory.weaponIDs || [],
+      armorIDs: data.inventory.armorIDs || [],
+      weaponNames: data.inventory.weaponNames || [],
+      armorNames: data.inventory.armorNames || []
+     } : defaultInventory,
+    position,
     owner: String(data.owner || ''),
     activeTask: String(data.activeTask || ''),
-    ability: data.ability || {
-      ability: 0,
-      stage: 0,
-      targetIndex: 0,
-      taskAddress: '',
-      targetBlock: 0
-    },
-    unspentAttributePoints: Number(data.unspentAttributePoints || data.stats?.unspentAttributePoints || 0),
-    isInCombat: Boolean(data.isInCombat || false),
-    isDead: Boolean(data.isDead || data.tracker?.died || false)
+    ability: data.ability || defaultAbility,
+    // No unspentAttributePoints directly on Character, it's in stats
+    isInCombat: Boolean(data.isInCombat || data.stats?.combatantBitMap || false), // Check stats bitmap too
+    isDead: Boolean(data.isDead || data.tracker?.died || false) // Check tracker
   };
 };
 
 /**
  * Helper to parse status effects bitmap into an array of StatusEffect
+ * NOTE: This seems redundant with mapStatusEffects in mappers.
  */
 const parseStatusEffects = (bitmap: number): StatusEffect[] => {
+  console.warn("parseStatusEffects is deprecated. Use mapStatusEffects from src/mappers instead.");
   const effects: StatusEffect[] = [];
-  
-  // Check each bit position
-  for (let i = 0; i < 8; i++) {
-    const mask = 1 << i;
-    if ((bitmap & mask) !== 0) {
-      effects.push(i + 1 as StatusEffect); // +1 because StatusEffect.None = 0
+  for (let i = 0; i < 8; i++) { // Assuming 8 possible effects
+    if ((bitmap & (1 << i)) !== 0) {
+      // Map bit position to enum value (needs correct mapping)
+      const effect = (i + 1) as StatusEffect; // Example: adjust based on actual enum values
+      if (StatusEffect[effect]) { // Check if the enum value is valid
+         effects.push(effect);
+      }
     }
   }
-  
   return effects;
 };
 
 /**
  * Creates a game state object from frontend data
+ * NOTE: This function seems redundant given the mappers in src/mappers.
+ * Consider replacing usage of this function with direct use of contractToGameState.
  */
 export const createGameState = (data: any): GameState => {
+  console.warn("createGameState is deprecated. Use contractToGameState from src/mappers instead.");
+  
+  // Process combatants using the specific converter
+  const others: BattleNadLite[] = Array.isArray(data.combatants) 
+    ? data.combatants.map((c: any) => convertToBattleNadLite(c))
+    : [];
+
+  // Basic default structure
   return {
     owner: data.owner || null,
     character: data.player ? convertCharacterData(data.player) : null,
-    others: Array.isArray(data.combatants) 
-      ? data.combatants.map((c: any) => convertToBattleNadLite(c))
-      : [],
-    position: data.position || {
-      x: 0,
-      y: 0,
-      depth: 1
-    },
-    movementOptions: data.movementOptions || {
-      canMoveNorth: false,
-      canMoveSouth: false,
-      canMoveEast: false,
-      canMoveWest: false,
-      canMoveUp: false,
-      canMoveDown: false
-    },
+    others: others,
+    position: data.position || { x: 0, y: 0, depth: 1 },
+    movementOptions: data.movementOptions || { canMoveNorth: false, canMoveSouth: false, canMoveEast: false, canMoveWest: false, canMoveUp: false, canMoveDown: false },
     eventLogs: data.eventLogs || [],
     chatLogs: data.chatLogs || [],
     updates: data.updates || {
@@ -238,20 +212,35 @@ export const createGameState = (data: any): GameState => {
     sessionKey: data.sessionKey || {
       owner: '',
       key: '',
-      balance: BigInt(0),
-      targetBalance: BigInt(0),
-      ownerCommittedAmount: BigInt(0),
-      ownerCommittedShares: BigInt(0),
-      expiration: 0
+      signature: '', // Add missing fields based on domain.SessionKeyData
+      expiry: 0
     },
-    lastBlock: data.lastBlock || 0
+    lastBlock: data.lastBlock || 0,
+    // Add missing fields based on ui.GameState definition
+    characterID: data.characterID || '',
+    combatants: [], // Should be populated correctly if needed
+    noncombatants: [], // Should be populated correctly if needed
+    equipableWeaponIDs: [],
+    equipableWeaponNames: [],
+    equipableArmorIDs: [],
+    equipableArmorNames: [],
+    unallocatedAttributePoints: 0,
+    balanceShortfall: 0,
+    loading: false,
+    error: null
   };
 };
 
 /**
  * Convert character data to BattleNadLite format
+ * NOTE: This function seems redundant given the mappers in src/mappers.
+ * Consider replacing usage of this function with mapCharacterLite.
  */
 const convertToBattleNadLite = (data: any): BattleNadLite => {
+  console.warn("convertToBattleNadLite is deprecated. Use mapCharacterLite from src/mappers instead.");
+  
+  const defaultAbility: AbilityState = { ability: 0, stage: 0, targetIndex: 0, taskAddress: '', targetBlock: 0 };
+
   if (!data) {
     return {
       id: '',
@@ -263,61 +252,52 @@ const convertToBattleNadLite = (data: any): BattleNadLite => {
       maxHealth: 100,
       buffs: [],
       debuffs: [],
-      ability: {
-        ability: 0,
-        stage: 0,
-        targetIndex: 0,
-        taskAddress: '',
-        targetBlock: 0
-      },
+      ability: defaultAbility,
       weaponName: 'None',
       armorName: 'None',
-      isMonster: false,
-      isHostile: false,
       isDead: false
     };
   }
   
+  const characterClass = Number(data.class ?? data.stats?.class ?? CharacterClass.Bard);
+  const stats = data.stats || {}; // Needed for calculateMaxHealth fallback
+
   return {
     id: data.id?.toString() || '',
     index: Number(data.index || 0),
     name: data.name || 'Unnamed Character',
-    class: Number(data.class || data.stats?.class || CharacterClass.Bard),
-    level: Number(data.level || data.stats?.level || 1),
-    health: Number(data.health || data.stats?.health || 100),
-    maxHealth: Number(data.maxHealth || calculateMaxHealth(data.stats) || 100),
-    buffs: (data.buffs ? parseStatusEffects(data.buffs) : []),
-    debuffs: (data.debuffs ? parseStatusEffects(data.debuffs) : []),
-    ability: data.ability || {
-      ability: 0,
-      stage: 0,
-      targetIndex: 0,
-      taskAddress: '',
-      targetBlock: 0
-    },
+    class: characterClass,
+    level: Number(data.level ?? data.stats?.level ?? 1),
+    health: Number(data.health ?? data.stats?.health ?? 100),
+    maxHealth: Number(data.maxHealth ?? calculateMaxHealth(stats) ?? 100),
+    // Buffs/debuffs need proper mapping if data contains bitmaps
+    buffs: Array.isArray(data.buffs) ? data.buffs : [],
+    debuffs: Array.isArray(data.debuffs) ? data.debuffs : [],
+    ability: data.ability || defaultAbility,
     weaponName: data.weaponName || 'None',
     armorName: data.armorName || 'None',
-    isMonster: Boolean(data.isMonster || (data.class && data.class < CharacterClass.Warrior)),
-    isHostile: Boolean(data.isHostile || false),
     isDead: Boolean(data.isDead || false)
+    // Removed isMonster and isHostile as they are not part of domain.CharacterLite
   };
 };
 
 /**
  * Parses data received from the frontend into a structured format
+ * NOTE: The purpose of this function is unclear and might be obsolete.
  */
 export const parseFrontendData = (data: any): any => {
+  console.warn("parseFrontendData may be obsolete.");
   if (!data) return null;
   
-  // Extract and structure the data
+  // Extract and structure the data - This seems arbitrary
   return {
     characterID: data.characterID,
-    sessionKey: data.sessionKey,
-    sessionKeyBalance: data.sessionKeyBalance,
-    character: data.character,
-    area: data.area,
-    dataFeeds: data.dataFeeds,
-    combatants: data.combatants || [],
-    items: data.items || []
+    sessionKey: data.sessionKey, // Make sure this matches domain.SessionKeyData structure
+    // sessionKeyBalance: data.sessionKeyBalance, // This field doesn't seem standard
+    character: data.character, // Should use convertCharacterData or mapCharacter?
+    // area: data.area, // What is area?
+    // dataFeeds: data.dataFeeds, // Not standard?
+    combatants: data.combatants || [], // Should use convertToBattleNadLite or mapCharacterLite?
+    // items: data.items || [] // What are items?
   };
 }; 

@@ -1,72 +1,96 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Box, VStack, Text, Flex, Badge, Button, Heading, Spinner } from '@chakra-ui/react';
-import { useBattleNads } from '../hooks/useBattleNads';
 import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from '../providers/WalletProvider';
+import { useBattleNadsClient } from '../hooks/contracts/useBattleNadsClient'; // Import client hook
+import { domain } from '../types'; // Import domain types
+import { mapCharacter } from '../mappers'; // Import mapper
 
 interface CharacterListProps {
-  characters?: any[]; // Now optional
-  onSelectCharacter: (characterId: string) => void;
-  selectedCharacterId?: string;
+  // Removed externalCharacters prop as we fetch the single owner character
+  onSelectCharacter: (character: domain.Character | null) => void; // Pass the fetched character or null
+  selectedCharacterId?: string; // Keep for styling the selected item
 }
 
 export const CharacterList: React.FC<CharacterListProps> = ({ 
-  characters: externalCharacters, 
   onSelectCharacter,
   selectedCharacterId
 }) => {
-  const { user } = usePrivy();
-  const { injectedWallet } = useWallet(); // Access the injected wallet (owner wallet)
-  const { getPlayerCharacters, loading } = useBattleNads();
-  const [characters, setCharacters] = useState<any[]>([]);
-  const [loadingCharacters, setLoadingCharacters] = useState(false);
+  const { injectedWallet } = useWallet();
+  const { client } = useBattleNadsClient(); // Get the client
+  
+  const [character, setCharacter] = useState<domain.Character | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // If characters are provided externally, use those
-  // Otherwise fetch the user's characters
-  useEffect(() => {
-    if (externalCharacters) {
-      setCharacters(externalCharacters);
-    } else {
-      const fetchCharacters = async () => {
-        setLoadingCharacters(true);
-        try {
-          // Use injectedWallet.address instead of user.wallet.address
-          if (injectedWallet?.address) {
-            console.log("Fetching characters for owner address:", injectedWallet.address);
-            const userCharacters = await getPlayerCharacters(injectedWallet.address);
-            setCharacters(userCharacters || []);
-          } else if (user?.wallet?.address) {
-            // Fallback to user wallet if injectedWallet is not available
-            console.log("No injected wallet, using Privy wallet address:", user.wallet.address);
-            const userCharacters = await getPlayerCharacters(user.wallet.address);
-            setCharacters(userCharacters || []);
-          }
-        } catch (error) {
-          console.error("Failed to fetch characters:", error);
-        } finally {
-          setLoadingCharacters(false);
-        }
-      };
-
-      fetchCharacters();
+  const fetchCharacter = useCallback(async () => {
+    // Prioritize injected wallet address
+    const ownerAddress = injectedWallet?.address;
+    
+    if (!ownerAddress || !client) {
+      // setError('Owner wallet not connected or client not available.');
+      console.warn('CharacterList: Owner address or client not available yet.');
+      setIsLoading(false); // Stop loading if we can't fetch
+      return;
     }
-  }, [externalCharacters, user, getPlayerCharacters, injectedWallet]);
 
-  if (loadingCharacters) {
+    setIsLoading(true);
+    setError(null);
+    setCharacter(null); // Clear previous character
+    console.log("CharacterList: Fetching character for owner:", ownerAddress);
+
+    try {
+      const charId = await client.getPlayerCharacterID(ownerAddress);
+      console.log("CharacterList: Fetched Character ID:", charId);
+
+      if (charId && charId !== '0x0000000000000000000000000000000000000000') { // Check for valid ID
+        const contractCharacter = await client.getBattleNad(charId);
+        console.log("CharacterList: Fetched Contract Character:", contractCharacter);
+        if (contractCharacter) {
+          const domainCharacter = mapCharacter(contractCharacter); // Map to domain type
+          console.log("CharacterList: Mapped Domain Character:", domainCharacter);
+          setCharacter(domainCharacter);
+          onSelectCharacter(domainCharacter); // Automatically select the fetched character
+        } else {
+           setError('Character data not found for ID.');
+           onSelectCharacter(null);
+        }
+      } else {
+        setError('No active character found for this wallet.');
+        onSelectCharacter(null); // No character to select
+      }
+    } catch (err) {
+      console.error("CharacterList: Failed to fetch character:", err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch character');
+      onSelectCharacter(null);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [client, injectedWallet?.address, onSelectCharacter]);
+
+  // Fetch character when component mounts or dependencies change
+  useEffect(() => {
+    fetchCharacter();
+  }, [fetchCharacter]);
+
+  if (isLoading) {
     return (
       <Box p={4} borderWidth="1px" borderRadius="lg" bg="gray.800">
         <Flex justify="center" align="center" py={4}>
           <Spinner mr={2} />
-          <Text>Loading characters...</Text>
+          <Text>Loading character...</Text>
         </Flex>
       </Box>
     );
   }
 
-  if (!characters || characters.length === 0) {
+  // Display error or "No character" message
+  if (error || !character) {
     return (
       <Box p={4} borderWidth="1px" borderRadius="lg" bg="gray.800">
-        <Text>No characters found. Create a new character to get started.</Text>
+        <Text color={error ? "red.300" : "gray.400"}>
+           {error || 'No character found. Create one to get started.'}
+        </Text>
         <Button 
           mt={4} 
           colorScheme="blue" 
@@ -80,20 +104,22 @@ export const CharacterList: React.FC<CharacterListProps> = ({
     );
   }
 
+  // Display the single character
   return (
     <Box borderWidth="1px" borderRadius="lg" p={4} bg="gray.800">
-      <Heading as="h3" size="md" mb={3}>Your Characters</Heading>
+      <Heading as="h3" size="md" mb={3}>Your Character</Heading>
       <VStack spacing={2} align="stretch">
-        {characters.map((character) => (
-          <CharacterListItem 
-            key={character.id}
-            character={character}
-            isSelected={selectedCharacterId === character.id}
-            onSelect={() => onSelectCharacter(character.id)}
-          />
-        ))}
+        <CharacterListItem 
+          key={character.id}
+          character={character} // Pass domain.Character
+          isSelected={selectedCharacterId === character.id}
+          // The onSelect prop here might be redundant if clicking does nothing new
+          // Or it could re-trigger the onSelectCharacter callback if needed
+          onSelect={() => onSelectCharacter(character)} 
+        />
       </VStack>
-      <Button 
+      {/* Optional: Keep create button if needed */}
+      {/* <Button 
         mt={4} 
         colorScheme="green" 
         size="sm" 
@@ -102,13 +128,13 @@ export const CharacterList: React.FC<CharacterListProps> = ({
         href="/create"
       >
         Create New Character
-      </Button>
+      </Button> */}
     </Box>
   );
 };
 
 interface CharacterListItemProps {
-  character: any;
+  character: domain.Character; // Expect domain.Character
   isSelected: boolean;
   onSelect: () => void;
 }
@@ -118,9 +144,10 @@ const CharacterListItem: React.FC<CharacterListItemProps> = ({
   isSelected,
   onSelect
 }) => {
-  const { id, stats, weapon, armor } = character;
-  const isMonster = stats?.isMonster;
-  const name = character.name || "Unknown Character";
+  // Destructure from domain.Character
+  const { id, name, level, health, stats, weapon, armor, class: characterClass } = character;
+  // Determine if monster based on class enum value
+  const isMonster = characterClass < domain.CharacterClass.Warrior; 
   
   return (
     <Flex 
@@ -132,28 +159,34 @@ const CharacterListItem: React.FC<CharacterListItemProps> = ({
       bg={isSelected ? "blue.700" : "gray.700"}
       borderColor={isSelected ? "blue.500" : "gray.600"}
       _hover={{ bg: isSelected ? "blue.700" : "gray.600" }}
+      onClick={onSelect} // Make the whole item clickable
+      cursor="pointer"
     >
       <Flex direction="column">
         <Text fontWeight="bold">
-          {name}
+          {name || "Unnamed Character"}
         </Text>
-        <Flex mt={1}>
+        <Flex mt={1} align="center">
           <Badge colorScheme={isMonster ? "red" : "green"} mr={2}>
-            {isMonster ? "Monster" : "Level " + (stats?.level || 1)}
+            {isMonster ? domain.CharacterClass[characterClass] : `Level ${level}`}
           </Badge>
           <Badge colorScheme="purple">
-            HP: {stats?.health || 0}
+            HP: {health} {/* Use direct health property */}
           </Badge>
         </Flex>
       </Flex>
       
-      <Button 
+      {/* Button might be optional now, could just show status */}
+      <Text fontSize="sm" color={isSelected ? "white" : "gray.400"}>
+         {isSelected ? "Selected" : ""}
+      </Text>
+      {/* <Button 
         size="sm" 
         colorScheme={isSelected ? "blue" : "gray"}
         onClick={onSelect}
       >
         {isSelected ? "Selected" : "Select"}
-      </Button>
+      </Button> */}
     </Flex>
   );
 }; 

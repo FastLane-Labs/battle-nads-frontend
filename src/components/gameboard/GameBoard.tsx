@@ -14,7 +14,7 @@ import {
   Badge
 } from '@chakra-ui/react';
 import { ChevronUpIcon, ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon } from '@chakra-ui/icons';
-import { Character, AreaInfo } from '../../types/gameTypes';
+import { Character } from '../../types/domain';
 import { calculateMaxHealth, extractPositionFromCharacter } from '../../utils/gameDataConverters';
 
 interface GameBoardProps {

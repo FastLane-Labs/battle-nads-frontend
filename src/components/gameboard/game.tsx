@@ -39,19 +39,25 @@ import {
   TabList,
   TabPanels,
   Tab,
-  TabPanel
+  TabPanel,
+  Grid,
+  GridItem
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import { useGame } from '../../hooks/game/useGame';
 import EventFeed from './EventFeed';
 import ChatInterface from './ChatInterface';
 import DataFeed from './DataFeed';
-import { BattleNad, BattleNadLite, GameState, GameUIState, domain } from '../../types';
+import { domain, ui, contract } from '../../types';
 import { calculateMaxHealth, extractPositionFromCharacter } from '../../utils/gameDataConverters';
 import WalletBalances from '../WalletBalances';
 import DebugPanel from '../DebugPanel';
 import { CharacterCard } from '../../components/CharacterCard';
 import MovementControls from './MovementControls';
+// Define type aliases in the module scope
+type BattleNad = domain.Character;
+type BattleNadLite = domain.CharacterLite;
+type GameState = ui.GameState;
 
 const Game: React.FC = () => {
   const router = useRouter();
@@ -287,35 +293,24 @@ const Game: React.FC = () => {
                       <VStack align="stretch" spacing={2} maxHeight="300px" overflowY="auto">
                         {combatants.map((enemy: BattleNadLite, index: number) => {
                           const name = enemy.name || 'Unknown';
-                          const level = enemy.stats?.level || 1;
-                          const health = enemy.stats?.health || 0;
-                          const maxHealth = calculateMaxHealth(enemy.stats) || 1;
+                          const level = enemy.level || 1;
+                          const health = enemy.health || 0;
+                          const maxHealth = enemy.maxHealth || 1;
                           return (
                             <Box key={enemy.id || index} p={2} bg="gray.700" borderRadius="md">
-                              <HStack justify="space-between" align="center">
-                                <VStack align="stretch" spacing={1} flex="1">
-                                  <Flex justify="space-between" align="center">
-                                    <Text fontWeight="bold" fontSize="xs">{name}</Text>
-                                    <Badge colorScheme="purple" fontSize="2xs">Lvl {level}</Badge>
-                                  </Flex>
-                                  <Box>
-                                     <Flex justify="space-between" mb={0.5}>
-                                       <Text fontSize="2xs">HP</Text>
-                                       <Text fontSize="2xs">{Number(health)}/{Number(maxHealth)}</Text>
-                                    </Flex>
-                                     <Progress value={(Number(health) / Number(maxHealth)) * 100} colorScheme="red" size="xs" borderRadius="sm" />
-                                  </Box>
-                                </VStack>
-                                <Button
-                                  colorScheme="red"
-                                  onClick={() => handleAttack(index)}
-                                  isLoading={isAttacking}
-                                  size="xs"
-                                  ml={2}
-                                >
-                                  Attack
-                                </Button>
-                              </HStack>
+                              <Text fontSize="sm" fontWeight="bold">{name}</Text>
+                              <Text fontSize="xs">Level: {level}</Text>
+                              <Text fontSize="xs">HP: {health} / {maxHealth}</Text>
+                              <Progress value={(health / maxHealth) * 100} size="xs" colorScheme="red" mt={1} />
+                              <Button 
+                                size="xs" 
+                                colorScheme="red" 
+                                mt={2} 
+                                onClick={() => handleAttack(index)}
+                                isDisabled={isAttacking || isMoving}
+                              >
+                                Attack
+                              </Button>
                             </Box>
                           );
                         })}

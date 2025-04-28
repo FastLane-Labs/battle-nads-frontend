@@ -56,6 +56,17 @@ export class BattleNadsClient {
   // DATA QUERIES
 
   /**
+   * Gets the latest block number from the read adapter
+   */
+  async getLatestBlockNumber(): Promise<bigint> {
+    try {
+      return await this.readAdapter.getLatestBlockNumber();
+    } catch (error) {
+      throw new ContractCallError(`Failed to get latest block number: ${(error as Error).message}`);
+    }
+  }
+
+  /**
    * Gets a complete UI snapshot for the game
    */
   async getUiSnapshot(owner: string, startBlock: bigint): Promise<contract.PollFrontendDataReturn> {
