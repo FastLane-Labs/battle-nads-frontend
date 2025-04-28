@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Box, 
   Heading, 
@@ -9,6 +9,11 @@ import {
   FormControl, 
   FormLabel, 
   Input, 
+  NumberInput,
+  NumberInputField,
+  NumberInputStepper,
+  NumberIncrementStepper,
+  NumberDecrementStepper,
   VStack,
   Text,
   Spinner,
@@ -23,7 +28,10 @@ import {
   ModalFooter, 
   ModalBody, 
   ModalCloseButton,
-  Select
+  Select,
+  Alert,
+  AlertIcon,
+  AlertDescription
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import { useWallet } from '@/providers/WalletProvider';
@@ -32,6 +40,49 @@ import { useGame } from '@/hooks/game/useGame';
 import { useBattleNadsClient } from '@/hooks/contracts/useBattleNadsClient';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { domain } from '@/types';
+import { ethers } from 'ethers';
+
+// --- Constants for Stat Allocation ---
+const MIN_STAT_VALUE = 3;
+const TOTAL_POINTS = 32;
+// -------------------------------------
+
+// --- Attribute Input Component (Helper) ---
+interface AttributeInputProps {
+  value: number;
+  onChange: (val: number) => void;
+  label: string;
+  isDisabled?: boolean;
+  min?: number;
+  max?: number; 
+}
+
+const AttributeInput: React.FC<AttributeInputProps> = ({ 
+  value, 
+  onChange, 
+  label, 
+  isDisabled = false, 
+  min = MIN_STAT_VALUE, // Default min
+  max = 10 // Default reasonable max, adjust if needed
+}) => (
+  <FormControl isRequired>
+    <FormLabel>{label}</FormLabel>
+    <NumberInput 
+      value={value} 
+      onChange={(_, val) => onChange(isNaN(val) ? min : val)}
+      min={min} 
+      max={max}
+      isDisabled={isDisabled}
+    >
+      <NumberInputField />
+      <NumberInputStepper>
+        <NumberIncrementStepper />
+        <NumberDecrementStepper />
+      </NumberInputStepper>
+    </NumberInput>
+  </FormControl>
+);
+// --------------------------------------
 
 interface CharacterCreationProps {
   onCharacterCreated?: () => void;
@@ -39,7 +90,12 @@ interface CharacterCreationProps {
 
 const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreated }) => {
   const [name, setName] = useState('');
-  const [selectedClass, setSelectedClass] = useState<domain.CharacterClass | '' >('');
+  const [strength, setStrength] = useState(MIN_STAT_VALUE);
+  const [vitality, setVitality] = useState(MIN_STAT_VALUE);
+  const [dexterity, setDexterity] = useState(MIN_STAT_VALUE);
+  const [quickness, setQuickness] = useState(MIN_STAT_VALUE);
+  const [sturdiness, setSturdiness] = useState(MIN_STAT_VALUE);
+  const [luck, setLuck] = useState(MIN_STAT_VALUE);
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
   
   const router = useRouter();
@@ -51,21 +107,48 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
   const { embeddedWallet, injectedWallet } = useWallet();
   const { characterId: globalCharacterId } = useGame();
 
+  const usedPoints = useMemo(() => 
+    strength + vitality + dexterity + quickness + sturdiness + luck,
+    [strength, vitality, dexterity, quickness, sturdiness, luck]
+  );
+  const unspentAttributePoints = useMemo(() => TOTAL_POINTS - usedPoints, [usedPoints]);
+
   const createCharacterMutation = useMutation({
     mutationFn: async (params: {
       name: string;
-      characterClass: domain.CharacterClass;
+      strength: bigint;
+      vitality: bigint;
+      dexterity: bigint;
+      quickness: bigint;
+      sturdiness: bigint;
+      luck: bigint;
+      sessionKey: string;
+      sessionKeyDeadline: bigint;
     }) => {
       if (!client) throw new Error("Client not available");
       return client.createCharacter(
-        params.characterClass, 
-        params.name
+        params.name,
+        params.strength,
+        params.vitality,
+        params.dexterity,
+        params.quickness,
+        params.sturdiness,
+        params.luck,
+        params.sessionKey,
+        params.sessionKeyDeadline
       );
     },
     onSuccess: (result) => {
       console.log("Character creation transaction submitted/succeeded:", result);
+      if (result?.hash) {
+        setTransactionHash(result.hash);
+        console.log("Set transaction hash from result:", result.hash);
+      } else {
+        console.warn("Could not extract transaction hash from creation result.");
+      }
       queryClient.invalidateQueries({ queryKey: ['uiSnapshot', injectedWallet?.address] });
       queryClient.invalidateQueries({ queryKey: ['playerCharacters', injectedWallet?.address] });
+      queryClient.invalidateQueries({ queryKey: ['characterId', injectedWallet?.address] });
       toast({
         title: 'Creation Submitted',
         description: 'Character creation transaction sent. Waiting for confirmation...',
@@ -142,12 +225,16 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
   };
   
   const handleCreateCharacter = () => {
-    if (!name || selectedClass === '') {
-      toast({ title: 'Error', description: 'Please enter a name and select a class', status: 'error' });
+    if (!name) {
+      toast({ title: 'Error', description: 'Please enter a name', status: 'error' });
       return;
     }
-    if (!embeddedWallet?.address) {
-      toast({ title: 'Error', description: 'Session key wallet not available.', status: 'error' });
+    if (unspentAttributePoints !== 0) {
+      toast({ title: 'Error', description: `Please allocate all ${TOTAL_POINTS} attribute points. Remaining: ${unspentAttributePoints}`, status: 'error' });
+      return;
+    }
+    if (!embeddedWallet?.address || !ethers.isAddress(embeddedWallet.address)) {
+      toast({ title: 'Error', description: 'Valid Session key wallet not available.', status: 'error' });
       return;
     }
     if (!injectedWallet?.address) {
@@ -155,10 +242,28 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
       return;
     }
 
-    console.log("Initiating character creation mutation...", { name, selectedClass });
+    console.log("Initiating character creation mutation...", {
+      name,
+      strength: BigInt(strength),
+      vitality: BigInt(vitality),
+      dexterity: BigInt(dexterity),
+      quickness: BigInt(quickness),
+      sturdiness: BigInt(sturdiness),
+      luck: BigInt(luck),
+      sessionKey: embeddedWallet.address,
+      sessionKeyDeadline: BigInt(0)
+    });
+    
     createCharacterMutation.mutate({
       name,
-      characterClass: selectedClass as domain.CharacterClass,
+      strength: BigInt(strength),
+      vitality: BigInt(vitality),
+      dexterity: BigInt(dexterity),
+      quickness: BigInt(quickness),
+      sturdiness: BigInt(sturdiness),
+      luck: BigInt(luck),
+      sessionKey: embeddedWallet.address,
+      sessionKeyDeadline: BigInt(0)
     });
   };
   
@@ -176,12 +281,13 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
   return (
     <Center height="100vh">
       <Box p={8} maxWidth="500px" borderWidth={1} borderRadius="lg" boxShadow="lg">
-        <VStack spacing={4}>
+        <VStack spacing={4} align="stretch">
           <Image 
             src="/BattleNadsLogo.png" 
             alt="Battle Nads Logo"
             maxWidth="250px" 
             mb={2}
+            alignSelf="center"
           />
           <Heading as="h1" size="xl" textAlign="center">Create Character</Heading>
           <Divider />
@@ -194,27 +300,60 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
               isDisabled={createCharacterMutation.isPending}
             />
           </FormControl>
-          <FormControl isRequired>
-            <FormLabel>Class</FormLabel>
-            <Select 
-              placeholder="Select class"
-              value={selectedClass}
-              onChange={(e) => setSelectedClass(e.target.value as domain.CharacterClass | '')}
-              isDisabled={createCharacterMutation.isPending}
-            >
-              {Object.entries(domain.CharacterClass)
-                .filter(([key, value]) => typeof value === 'number')
-                .map(([key, value]) => (
-                  <option key={value} value={value}>{key}</option>
-              ))}
-            </Select>
-          </FormControl>
+          
+          <Alert 
+            status={unspentAttributePoints === 0 ? "success" : "info"}
+            variant="subtle"
+            borderRadius="md"
+          >
+            <AlertIcon />
+            <AlertDescription>
+              Points Remaining: {unspentAttributePoints} / {TOTAL_POINTS}
+            </AlertDescription>
+          </Alert>
+          
+          <AttributeInput 
+            value={strength} 
+            onChange={setStrength} 
+            label="Strength" 
+            isDisabled={createCharacterMutation.isPending}
+          />
+          <AttributeInput 
+            value={vitality} 
+            onChange={setVitality} 
+            label="Vitality" 
+            isDisabled={createCharacterMutation.isPending}
+          />
+          <AttributeInput 
+            value={dexterity} 
+            onChange={setDexterity} 
+            label="Dexterity" 
+            isDisabled={createCharacterMutation.isPending}
+          />
+          <AttributeInput 
+            value={quickness} 
+            onChange={setQuickness} 
+            label="Quickness" 
+            isDisabled={createCharacterMutation.isPending}
+          />
+          <AttributeInput 
+            value={sturdiness} 
+            onChange={setSturdiness} 
+            label="Sturdiness" 
+            isDisabled={createCharacterMutation.isPending}
+          />
+          <AttributeInput 
+            value={luck} 
+            onChange={setLuck} 
+            label="Luck" 
+            isDisabled={createCharacterMutation.isPending}
+          />
           
           <Button 
             colorScheme="blue" 
             width="full"
             onClick={handleCreateCharacter}
-            isDisabled={!name || selectedClass === '' || createCharacterMutation.isPending}
+            isDisabled={unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending}
             isLoading={createCharacterMutation.isPending}
             loadingText="Creating..."
           >
