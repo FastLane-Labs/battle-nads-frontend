@@ -29,6 +29,7 @@ export class BattleNadsAdapter {
    */
   async getLatestBlockNumber(): Promise<bigint> {
     const blockNumber = await this.provider.getBlockNumber();
+    console.log(`[Adapter] getLatestBlockNumber fetched: ${blockNumber}`); // Log result
     return BigInt(blockNumber);
   }
 
@@ -45,7 +46,19 @@ export class BattleNadsAdapter {
    * Gets the session key data for an owner
    */
   async getCurrentSessionKeyData(owner: string): Promise<contract.SessionKeyData> {
-    return this.contract.getCurrentSessionKeyData(owner);
+    console.log(`[Adapter] getCurrentSessionKeyData called for owner: ${owner}`);
+    const data = await this.contract.getCurrentSessionKeyData(owner);
+    // Note: Raw contract data might be complex (e.g., arrays instead of objects)
+    // Log cautiously or stringify for better inspection if needed.
+    try {
+        console.log(`[Adapter] getCurrentSessionKeyData received from contract (raw):`, JSON.stringify(data, (key, value) => 
+            typeof value === 'bigint' ? value.toString() : value // Convert BigInts for logging
+        ));
+    } catch (logError) {
+        console.log(`[Adapter] getCurrentSessionKeyData received from contract (logging error):`, logError);
+        console.log(`[Adapter] Raw data object:`, data); // Fallback log
+    }
+    return data;
   }
 
   /**
@@ -259,7 +272,7 @@ export class BattleNadsAdapter {
    */
   async updateSessionKey(
     sessionKeyAddress: string,
-    expiration: number,
+    expiration: bigint,
     value: bigint
   ): Promise<TransactionResponse> {
     return this.contract.updateSessionKey(

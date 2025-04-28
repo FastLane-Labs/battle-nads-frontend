@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect } from 'react';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useBattleNads } from './useBattleNads';
@@ -40,6 +40,12 @@ export const useGame = () => {
     needsUpdate: needsSessionKeyUpdate,
     refreshSessionKey
   } = useSessionKey(characterId);
+  
+  // --- Add useEffect to log sessionKeyState changes --- 
+  useEffect(() => {
+      console.log(`[useGame] Session key state changed: ${sessionKeyState}`, { needsUpdate: needsSessionKeyUpdate, rawData: sessionKey });
+  }, [sessionKeyState, needsSessionKeyUpdate, sessionKey]);
+  // ---------------------------------------------------
   
   // Extract chat logs
   const chatLogs = useMemo(() => gameState?.chatLogs || [], [gameState]);
@@ -139,7 +145,7 @@ export const useGame = () => {
       // --- Calculate expiration block --- 
       const currentBlock = await client.getLatestBlockNumber(); 
       const expirationBlock = currentBlock + BigInt(MAX_SESSION_KEY_VALIDITY_BLOCKS);
-      console.log(`[useGame] Updating session key ${embeddedWallet.address} for owner. Expiration target: ${expirationBlock}`);
+      console.log(`[useGame] Updating session key ${embeddedWallet.address}. Current Block: ${currentBlock}, Validity: ${MAX_SESSION_KEY_VALIDITY_BLOCKS}, Target Expiration: ${expirationBlock}`);
       // ---------------------------------
 
       // --- Fetch estimateBuyInAmountInMON and double it --- 
@@ -157,8 +163,8 @@ export const useGame = () => {
       // --- Call client with value --- 
       const tx = await client.updateSessionKey(
         embeddedWallet.address,
-        Number(expirationBlock), 
-        valueToSend // Pass the fixed value
+        expirationBlock, // Pass BigInt directly
+        valueToSend 
       );
       console.log("[useGame] updateSessionKey transaction sent:", tx.hash);
       return tx;

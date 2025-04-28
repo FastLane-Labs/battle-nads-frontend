@@ -15,11 +15,13 @@ export const RPC_URLS = {
 export const RPC = process.env.NEXT_PUBLIC_DEFAULT_RPC_URL || RPC_URLS.PRIMARY;
 
 // Polling settings
-export const POLL_INTERVAL = 1000; // 1 second
+export const POLL_INTERVAL = 3000; // 3 seconds
 
 // Chain settings
 export const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '125', 10);
 
 // Game constants
 export const MAX_PLAYER_LEVEL = 100;
-export const MAX_SESSION_KEY_VALIDITY_BLOCKS = 20000; // About 3 days at 12s blocks 
+export const MAX_SESSION_KEY_VALIDITY_BLOCKS = 518400; // About 3 days at 0.5s blocks (3*24*60*60 / 0.5)
+
+// Gas limits for different actions (adjust based on network and contract complexity) 

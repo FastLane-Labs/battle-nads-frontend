@@ -6,6 +6,8 @@ import { gameMachine, logStateTransition } from '@/machines/gameStateMachine';
 import { getCharacterLocalStorageKey, isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
 import { logger } from '@/utils/logger';
 import { domain } from '@/types';
+import { ethers } from 'ethers';
+import { MAX_SESSION_KEY_VALIDITY_BLOCKS } from '@/config/env'; // Import constant
 
 /**
  * Hook that uses the game state machine to manage the application state
@@ -109,21 +111,44 @@ export const useGameMachine = () => {
   }, [state, client, send]);
   
   // Create a character
-  const createCharacter = async (characterClass: domain.CharacterClass, name: string) => {
+  const createCharacter = async (params: {
+    name: string;
+    strength: bigint;
+    vitality: bigint;
+    dexterity: bigint;
+    quickness: bigint;
+    sturdiness: bigint;
+    luck: bigint;
+    sessionKey: string;
+    sessionKeyDeadline: bigint;
+    value: bigint;
+  }) => {
     if (!client) {
       throw new Error('Game client not initialized');
     }
     
     try {
-      const tx = await client.createCharacter(characterClass, name);
+      // Call client with all parameters
+      const tx = await client.createCharacter(
+        params.name,
+        params.strength,
+        params.vitality,
+        params.dexterity,
+        params.quickness,
+        params.sturdiness,
+        params.luck,
+        params.sessionKey,
+        params.sessionKeyDeadline,
+        params.value
+      );
       const receipt = await tx.wait();
       
-      // Create a placeholder character ID 
-      // In a real implementation, you would extract this from the event logs
-      // based on your specific contract's event structure
-      const characterId = `char_${Math.random().toString(16).substring(2)}`;
+      // TODO: Properly extract CharacterCreated event from receipt.logs
+      // For now, using placeholder
+      console.warn("[useGameMachine] TODO: Extract real characterId from event logs in receipt:", receipt?.logs);
+      const characterId = `char_${Math.random().toString(16).substring(2)}`; // Placeholder
       
-      // Save to localStorage
+      // Save placeholder to localStorage
       if (state.context.owner) {
         const storageKey = getCharacterLocalStorageKey(state.context.owner);
         if (storageKey) {
@@ -150,11 +175,31 @@ export const useGameMachine = () => {
     }
     
     try {
-      // Set a reasonable expiration (100,000 blocks in future)
-      const expirationBlocks = 100000;
+      // --- Calculate expiration block --- 
+      // TODO: Reuse client.getLatestBlockNumber if possible, maybe pass currentBlock in?
+      const provider = new ethers.JsonRpcProvider(process.env.NEXT_PUBLIC_RPC_URL); // Need JsonRpcProvider + RPC_URL
+      const currentBlock = await provider.getBlockNumber();
+      const expirationBlocks = BigInt(currentBlock + MAX_SESSION_KEY_VALIDITY_BLOCKS); // Use constant
+      console.log(`[useGameMachine] Updating session key ${sessionKeyAddress}. Target Expiration: ${expirationBlocks}`);
+      // ---------------------------------
+      
+      // --- Fetch estimateBuyInAmountInMON and double it --- 
+      let valueToSend = BigInt(0);
+      try {
+        const estimatedBuyIn = await client.estimateBuyInAmountInMON();
+        valueToSend = estimatedBuyIn * BigInt(2); 
+        console.log(`[useGameMachine] Estimated buy-in: ${estimatedBuyIn}, sending 2x as value: ${valueToSend}`);
+      } catch (estimateError) {
+        console.error("[useGameMachine] Error fetching estimateBuyInAmountInMON for session key update:", estimateError);
+        throw new Error("Could not calculate required funds for session key update.");
+      }
+      // -------------------------------------------------
+
+      // Pass value to client
       await client.updateSessionKey(
         sessionKeyAddress,
-        expirationBlocks
+        expirationBlocks, // Pass BigInt directly to client
+        valueToSend
       );
       
       send({ type: 'SESSION_KEY_FIXED' });
