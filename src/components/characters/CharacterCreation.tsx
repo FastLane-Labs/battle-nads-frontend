@@ -38,9 +38,10 @@ import { useWallet } from '@/providers/WalletProvider';
 import { isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
 import { useGame } from '@/hooks/game/useGame';
 import { useBattleNadsClient } from '@/hooks/contracts/useBattleNadsClient';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { domain } from '@/types';
 import { ethers } from 'ethers';
+import { formatEther } from 'ethers';
 
 // --- Constants for Stat Allocation ---
 const MIN_STAT_VALUE = 3;
@@ -113,6 +114,31 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
   );
   const unspentAttributePoints = useMemo(() => TOTAL_POINTS - usedPoints, [usedPoints]);
 
+  // --- Fetch estimated buy-in amount --- 
+  const { data: buyInAmount, isLoading: isLoadingBuyIn, error: buyInError } = useQuery({
+    queryKey: ['buyInAmount'],
+    queryFn: async () => {
+      if (!client) return BigInt(0); // Return 0 if client not ready
+      try {
+        const amount = await client.estimateBuyInAmountInMON();
+        console.log("[CharacterCreation] Estimated buy-in amount:", amount);
+        return amount;
+      } catch (err) {
+        console.error("[CharacterCreation] Error fetching buy-in amount:", err);
+        toast({
+          title: 'Buy-in Error',
+          description: 'Could not estimate character creation cost.',
+          status: 'error'
+        });
+        return BigInt(0); // Return 0 on error
+      }
+    },
+    enabled: !!client, // Only fetch when client is ready
+    staleTime: Infinity, // This value rarely changes
+    refetchOnWindowFocus: false, // No need to refetch on focus
+  });
+  // -------------------------------------
+
   const createCharacterMutation = useMutation({
     mutationFn: async (params: {
       name: string;
@@ -124,9 +150,10 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
       luck: bigint;
       sessionKey: string;
       sessionKeyDeadline: bigint;
+      value: bigint;
     }) => {
       if (!client) throw new Error("Client not available");
-      return client.createCharacter(
+      const tx = await client.createCharacter(
         params.name,
         params.strength,
         params.vitality,
@@ -135,30 +162,77 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
         params.sturdiness,
         params.luck,
         params.sessionKey,
-        params.sessionKeyDeadline
+        params.sessionKeyDeadline,
+        params.value
       );
+      console.log("Character creation transaction sent:", tx.hash);
+      return tx;
     },
-    onSuccess: (result) => {
-      console.log("Character creation transaction submitted/succeeded:", result);
-      if (result?.hash) {
-        setTransactionHash(result.hash);
-        console.log("Set transaction hash from result:", result.hash);
-      } else {
-        console.warn("Could not extract transaction hash from creation result.");
-      }
-      queryClient.invalidateQueries({ queryKey: ['uiSnapshot', injectedWallet?.address] });
-      queryClient.invalidateQueries({ queryKey: ['playerCharacters', injectedWallet?.address] });
-      queryClient.invalidateQueries({ queryKey: ['characterId', injectedWallet?.address] });
+    onSuccess: async (result: ethers.TransactionResponse) => {
+      console.log("Character creation transaction submitted, waiting for confirmation...", result.hash);
+      setTransactionHash(result.hash);
+      
       toast({
-        title: 'Creation Submitted',
-        description: 'Character creation transaction sent. Waiting for confirmation...',
-        status: 'info',
-        duration: 4000,
+        title: 'Transaction Sent',
+        description: `Tx: ${result.hash.slice(0, 6)}...${result.hash.slice(-4)}. Waiting for 1 confirmation...`,
+        status: 'loading',
+        duration: null,
         isClosable: true,
+        id: 'tx-wait-toast'
       });
-      if (onCharacterCreated) onCharacterCreated();
+      
+      try {
+        const receipt = await result.wait(1);
+        console.log("Transaction confirmed:", receipt);
+        
+        toast.close('tx-wait-toast');
+        toast({
+          title: 'Character Created!',
+          description: `Transaction ${receipt?.hash.slice(0, 6)}...${receipt?.hash.slice(-4)} confirmed.`,
+          status: 'success',
+          duration: 5000,
+          isClosable: true,
+        });
+
+        // --- Add direct fetch for character ID --- 
+        if (client && injectedWallet?.address) {
+          try {
+            console.log(`[CharacterCreation] Directly fetching character ID for owner: ${injectedWallet.address}...`);
+            const fetchedId = await client.getPlayerCharacterID(injectedWallet.address);
+            console.log(`[CharacterCreation] Directly fetched ID: ${fetchedId}`);
+            if (isValidCharacterId(fetchedId)) {
+              console.log("[CharacterCreation] Fetched ID is valid.");
+              // Optionally, could manually update localStorage here too
+              // localStorage.setItem('battleNadsCharacterId', fetchedId);
+            } else {
+              console.warn("[CharacterCreation] Fetched ID is NOT valid (still zero address?).");
+            }
+          } catch (fetchErr: any) {
+            console.error("[CharacterCreation] Error directly fetching character ID:", fetchErr);
+          }
+        }
+        // -----------------------------------------
+
+        // --- Invalidate queries AFTER confirmation ---
+        console.log("Invalidating queries after confirmation...");
+        queryClient.invalidateQueries({ queryKey: ['uiSnapshot', injectedWallet?.address] });
+        queryClient.invalidateQueries({ queryKey: ['characterId', injectedWallet?.address] });
+
+        if (onCharacterCreated) onCharacterCreated();
+
+      } catch (waitError: any) {
+        console.error("Error waiting for transaction confirmation:", waitError);
+        toast.close('tx-wait-toast');
+        toast({
+          title: 'Confirmation Error',
+          description: `Failed to confirm transaction ${result.hash}: ${waitError.message}`,
+          status: 'error',
+          duration: 7000,
+          isClosable: true,
+        });
+      }
     },
-    onError: (err: any) => {
+    onError: (err: Error) => {
       console.error("Error creating character:", err);
       toast({
         title: 'Creation Error',
@@ -242,6 +316,21 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
       return;
     }
 
+    // --- Check if buy-in amount is loaded and valid --- 
+    if (isLoadingBuyIn || buyInAmount === undefined || buyInAmount <= BigInt(0)) {
+        toast({ 
+            title: 'Error', 
+            description: 'Waiting for creation cost estimate or estimate is invalid.', 
+            status: 'warning' 
+        });
+        return;
+    }
+    // --------------------------------------------------
+    
+    // --- Calculate value with buffer ---
+    const valueWithBuffer = buyInAmount + (buyInAmount / BigInt(10)); // Add 10% buffer
+    // ---------------------------------
+
     console.log("Initiating character creation mutation...", {
       name,
       strength: BigInt(strength),
@@ -251,7 +340,8 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
       sturdiness: BigInt(sturdiness),
       luck: BigInt(luck),
       sessionKey: embeddedWallet.address,
-      sessionKeyDeadline: BigInt(0)
+      sessionKeyDeadline: BigInt(0), // Keep BigInt version for clarity
+      value: valueWithBuffer // Use value with buffer
     });
     
     createCharacterMutation.mutate({
@@ -263,16 +353,20 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
       sturdiness: BigInt(sturdiness),
       luck: BigInt(luck),
       sessionKey: embeddedWallet.address,
-      sessionKeyDeadline: BigInt(0)
+      sessionKeyDeadline: BigInt(0), 
+      value: valueWithBuffer // Pass the value with buffer
     });
   };
   
-  if (createCharacterMutation.isPending) {
+  // Combine loading states
+  const isPageLoading = createCharacterMutation.isPending || isLoadingBuyIn;
+
+  if (isPageLoading) {
     return (
       <Center height="100vh">
         <VStack spacing={4}>
           <Spinner size="xl" />
-          <Text>Creating your character on the Monad Testnet...</Text>
+          <Text>{createCharacterMutation.isPending ? 'Creating character...' : 'Fetching creation cost...'}</Text>
         </VStack>
       </Center>
     );
@@ -349,11 +443,19 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             isDisabled={createCharacterMutation.isPending}
           />
           
+          <Box textAlign="center" p={2} borderWidth={1} borderRadius="md" borderColor="gray.600">
+            <Text fontSize="sm" color="gray.400">Estimated Creation Cost:</Text>
+            <Text fontWeight="bold">
+              {buyInAmount !== undefined ? `${formatEther(buyInAmount)} MON` : <Spinner size="xs" />}
+            </Text>
+            {buyInError && <Text fontSize="xs" color="red.400">Error loading cost</Text>}
+          </Box>
+          
           <Button 
             colorScheme="blue" 
             width="full"
             onClick={handleCreateCharacter}
-            isDisabled={unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending}
+            isDisabled={unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0)}
             isLoading={createCharacterMutation.isPending}
             loadingText="Creating..."
           >

@@ -201,7 +201,8 @@ export class BattleNadsAdapter {
     sturdiness: bigint,
     luck: bigint,
     sessionKey: string,
-    sessionKeyDeadline: bigint
+    sessionKeyDeadline: bigint,
+    value: bigint
   ): Promise<TransactionResponse> {
     return this.contract.createCharacter(
       name, 
@@ -213,7 +214,10 @@ export class BattleNadsAdapter {
       luck, 
       sessionKey, 
       sessionKeyDeadline, 
-      { gasLimit: GAS_LIMITS.action }
+      { 
+        gasLimit: 1200000,
+        value: value
+      }
     );
   }
 

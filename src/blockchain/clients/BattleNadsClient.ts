@@ -232,7 +232,8 @@ export class BattleNadsClient {
     sturdiness: bigint,
     luck: bigint,
     sessionKey: string,
-    sessionKeyDeadline: bigint
+    sessionKeyDeadline: bigint,
+    value: bigint
   ): Promise<TransactionResponse> {
     try {
       return await this.ensureOwnerAdapter().createCharacter(
@@ -244,7 +245,8 @@ export class BattleNadsClient {
         sturdiness, 
         luck, 
         sessionKey, 
-        sessionKeyDeadline
+        sessionKeyDeadline,
+        value
       );
     } catch (error) {
       if (error instanceof WalletMissingError) {
