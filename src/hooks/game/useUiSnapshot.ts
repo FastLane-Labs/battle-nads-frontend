@@ -16,6 +16,7 @@ export const useUiSnapshot = (owner: string | null) => {
     queryKey: ['uiSnapshot', owner],
     enabled: !!owner && !!client,
     queryFn: async () => {
+      console.log(`[useUiSnapshot] queryFn executing for owner: ${owner}`);
       if (!client || !owner) {
         throw new Error('Client or owner address missing');
       }
@@ -38,5 +39,6 @@ export const useUiSnapshot = (owner: string | null) => {
     refetchInterval: POLL_INTERVAL,
     staleTime: 0, // Consider all data immediately stale for real-time updates
     refetchOnWindowFocus: true, // React-Query automatically pauses when tab hidden
+    structuralSharing: false // Disable structural sharing to handle BigInts
   });
 }; 
