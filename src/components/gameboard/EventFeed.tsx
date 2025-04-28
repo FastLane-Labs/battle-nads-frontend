@@ -7,7 +7,7 @@ import {
   useColorModeValue, 
   Flex
 } from '@chakra-ui/react';
-import { LogType } from '../../hooks/useBattleNads';
+import { LogType } from '../../types/domain';
 
 interface Log {
   logType: LogType;
@@ -19,6 +19,7 @@ interface Log {
   y?: number;
   depth?: number;
   extraData?: any;
+  timestamp?: number;
 }
 
 interface EventFeedProps {
