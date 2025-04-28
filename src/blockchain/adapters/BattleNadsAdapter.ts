@@ -274,4 +274,3 @@ export class BattleNadsAdapter {
     return this.contract.zoneChat(characterId, message, { gasLimit: GAS_LIMITS.action });
   }
 } 
-} 

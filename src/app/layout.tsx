@@ -3,24 +3,13 @@
 import { ReactNode } from 'react';
 import { PrivyAuthProvider } from '../providers/PrivyAuthProvider';
 import { WalletProvider } from '../providers/WalletProvider';
-import { GameDataProvider } from '../providers/GameDataProvider';
+import { ReactQueryProvider } from '../providers/ReactQueryProvider';
 import { ChakraProvider, ColorModeScript } from '@chakra-ui/react';
 import { RecoilRoot } from 'recoil';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ErrorBoundary from './ErrorBoundary';
 import theme from './theme';
 import './globals.css';
 import React, { useEffect } from 'react';
-
-// Create a client
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000,
-      retry: false,
-    },
-  },
-});
 
 export default function RootLayout({
   children,
@@ -51,19 +40,17 @@ export default function RootLayout({
       <body className="chakra-ui-dark">
         <ColorModeScript initialColorMode={theme.config.initialColorMode} />
         <ErrorBoundary>
-          <QueryClientProvider client={queryClient}>
+          <ReactQueryProvider>
             <PrivyAuthProvider>
               <WalletProvider>
                 <RecoilRoot>
                   <ChakraProvider theme={theme}>
-                    <GameDataProvider pollInterval={5000}>
-                      {children}
-                    </GameDataProvider>
+                    {children}
                   </ChakraProvider>
                 </RecoilRoot>
               </WalletProvider>
             </PrivyAuthProvider>
-          </QueryClientProvider>
+          </ReactQueryProvider>
         </ErrorBoundary>
       </body>
     </html>
