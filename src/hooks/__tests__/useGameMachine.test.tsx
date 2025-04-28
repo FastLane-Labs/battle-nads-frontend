@@ -1,7 +1,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { useGameMachine } from '../useGameMachine';
 import { useWallet } from '@/providers/WalletProvider';
-import { useContracts } from '../useContracts';
+import { useContracts } from '../contracts/useContracts';
 import * as battleNadsService from '@services/battleNadsService';
 
 // Mock the hooks and services

@@ -55,7 +55,7 @@ import WalletBalances from '../WalletBalances';
 import DebugPanel from '../DebugPanel';
 import { ChevronUpIcon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon } from '@chakra-ui/icons';
 import { CharacterCard } from '../../components/CharacterCard';
-import { useContracts } from '../../hooks/useContracts';
+import { useContracts } from '../../hooks/contracts/useContracts';
 import MovementControls from './MovementControls';
 
 const Game: React.FC = () => {

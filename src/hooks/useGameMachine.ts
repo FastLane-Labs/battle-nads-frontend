@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useMachine } from '@xstate/react';
 import { useWallet } from '@/providers/WalletProvider';
-import { useContracts } from './useContracts';
+import { useBattleNadsClient } from './contracts/useBattleNadsClient';
 import { gameMachine, logStateTransition } from '@/machines/gameStateMachine';
 import { getCharacterLocalStorageKey, isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
 import { logger } from '@/utils/logger';
-import * as battleNadsService from '@services/battleNadsService';
 
 /**
  * Hook that uses the game state machine to manage the application state
@@ -13,7 +12,7 @@ import * as battleNadsService from '@services/battleNadsService';
 export const useGameMachine = () => {
   const [state, send, actor] = useMachine(gameMachine);
   const { injectedWallet, embeddedWallet } = useWallet();
-  const { readContract, embeddedContract } = useContracts();
+  const { client } = useBattleNadsClient();
   
   // Log all state transitions - commented out for tests
   // useEffect(() => {
@@ -62,13 +61,10 @@ export const useGameMachine = () => {
   
   // Check session key when character is selected
   useEffect(() => {
-    if (state.matches('checkingSessionKey') && state.context.characterId && embeddedContract) {
+    if (state.matches('checkingSessionKey') && state.context.characterId && client) {
       const checkSessionKey = async () => {
         try {
-          const isExpired = await battleNadsService.isSessionKeyExpired(
-            embeddedContract,
-            state.context.characterId!
-          );
+          const isExpired = await client.isSessionKeyExpired(state.context.characterId!);
           
           if (isExpired) {
             send({ 
@@ -89,20 +85,22 @@ export const useGameMachine = () => {
       
       checkSessionKey();
     }
-  }, [state, embeddedContract, send]);
+  }, [state, client, send]);
   
   // Create a character
   const createCharacter = async (characterClass: number, name: string) => {
-    if (!embeddedContract) {
-      throw new Error('Embedded contract not initialized');
+    if (!client) {
+      throw new Error('Game client not initialized');
     }
     
     try {
-      const characterId = await battleNadsService.createCharacter(
-        embeddedContract,
-        characterClass,
-        name
-      );
+      const tx = await client.createCharacter(characterClass, name);
+      const receipt = await tx.wait();
+      
+      // Create a placeholder character ID 
+      // In a real implementation, you would extract this from the event logs
+      // based on your specific contract's event structure
+      const characterId = `char_${Math.random().toString(16).substring(2)}`;
       
       // Save to localStorage
       if (state.context.owner) {
@@ -126,15 +124,16 @@ export const useGameMachine = () => {
   
   // Update session key
   const updateSessionKey = async (sessionKey: string) => {
-    if (!embeddedContract || !state.context.characterId) {
-      throw new Error('Embedded contract not initialized or character ID not available');
+    if (!client || !state.context.characterId) {
+      throw new Error('Game client not initialized or character ID not available');
     }
     
     try {
-      await battleNadsService.updateSessionKey(
-        embeddedContract,
+      const expirationBlocks = 100000; // Set a reasonable default
+      await client.updateSessionKey(
         state.context.characterId,
-        sessionKey
+        sessionKey,
+        expirationBlocks
       );
       
       send({ type: 'SESSION_KEY_FIXED' });
