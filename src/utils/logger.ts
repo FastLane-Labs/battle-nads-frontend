@@ -1,59 +1,62 @@
 /**
  * Centralized logging utility for Battle Nads
- * Uses winston for structured logging
+ * Simple console-based logger implementation 
  */
 
-import winston from 'winston';
+// Define our logger interface
+interface LoggerInterface {
+  debug: (message: string, meta?: any) => void;
+  info: (message: string, meta?: any) => void;
+  warn: (message: string, meta?: any) => void;
+  error: (message: string, meta?: any) => void;
+}
 
-// Define custom log levels in order of increasing importance
-const levels = {
-  debug: 0,
-  info: 1,
-  warn: 2,
-  error: 3,
-};
-
-// Only create the logger once (singleton pattern)
-const createLogger = () => {
-  // Development format: simple colored output
-  const developmentFormat = winston.format.combine(
-    winston.format.colorize(),
-    winston.format.timestamp({ format: 'HH:mm:ss' }),
-    winston.format.printf(info => `${info.timestamp} ${info.level}: ${info.message}`)
-  );
-
-  // Production format: JSON for better parsing
-  const productionFormat = winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  );
-
-  // Use development format in development, JSON in production
-  const format = process.env.NODE_ENV === 'production' 
-    ? productionFormat 
-    : developmentFormat;
-
+// Simple logger implementation
+const createLogger = (): LoggerInterface => {
   // Get configured log level from environment, defaulting to 'info'
-  const level = process.env.NEXT_PUBLIC_LOG_LEVEL || 'info';
+  const configuredLevel = 
+    typeof process !== 'undefined' ? 
+      (process.env.NEXT_PUBLIC_LOG_LEVEL || 'info') : 
+      'info';
+  
+  // Define log levels and their priorities
+  const levels = {
+    debug: 0,
+    info: 1,
+    warn: 2,
+    error: 3
+  };
 
-  return winston.createLogger({
-    level,
-    levels,
-    format,
-    transports: [
-      new winston.transports.Console({
-        // Custom format for the Console
-        format: winston.format.combine(
-          winston.format.colorize(),
-          winston.format.simple()
-        ),
-      }),
-    ],
-  });
+  // Convert string level to numeric priority
+  const logLevelPriority = levels[configuredLevel as keyof typeof levels] || levels.info;
+  
+  // Logger implementation
+  return {
+    debug: (message: string, meta?: any) => {
+      if (logLevelPriority <= levels.debug) {
+        console.debug(`[debug] ${message}`, meta || '');
+      }
+    },
+    info: (message: string, meta?: any) => {
+      if (logLevelPriority <= levels.info) {
+        console.info(`[info] ${message}`, meta || '');
+      }
+    },
+    warn: (message: string, meta?: any) => {
+      if (logLevelPriority <= levels.warn) {
+        console.warn(`[warn] ${message}`, meta || '');
+      }
+    },
+    error: (message: string, meta?: any) => {
+      if (logLevelPriority <= levels.error) {
+        console.error(`[error] ${message}`, meta || '');
+      }
+    }
+  };
 };
 
-// Export a singleton instance
-export const logger = createLogger();
+// Export the logger singleton
+export const logger: LoggerInterface = createLogger();
 
 // Export convenience methods
 export const debug = (message: string, meta?: any) => logger.debug(message, meta);
