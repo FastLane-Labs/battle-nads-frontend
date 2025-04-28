@@ -5,6 +5,9 @@ import { useBattleNads } from './useBattleNads';
 import { useSessionKey } from '../session/useSessionKey';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ui, domain } from '../../types';
+import { useToast } from '@chakra-ui/react';
+import { MAX_SESSION_KEY_VALIDITY_BLOCKS } from '../../config/env';
+import { TransactionResponse, parseEther } from 'ethers';
 
 /**
  * Hook for game state and actions
@@ -14,6 +17,7 @@ export const useGame = () => {
   const { injectedWallet, embeddedWallet, connectMetamask } = useWallet();
   const { client } = useBattleNadsClient();
   const queryClient = useQueryClient();
+  const toast = useToast();
   
   // Owner address from wallet
   const owner = injectedWallet?.address || null;
@@ -132,15 +136,84 @@ export const useGame = () => {
         throw new Error('Client, character ID, or embedded wallet missing');
       }
       
-      return client.updateSessionKey(
+      // --- Calculate expiration block --- 
+      const currentBlock = await client.getLatestBlockNumber(); 
+      const expirationBlock = currentBlock + BigInt(MAX_SESSION_KEY_VALIDITY_BLOCKS);
+      console.log(`[useGame] Updating session key ${embeddedWallet.address} for owner. Expiration target: ${expirationBlock}`);
+      // ---------------------------------
+
+      // --- Fetch estimateBuyInAmountInMON and double it --- 
+      let valueToSend = BigInt(0);
+      try {
+        const estimatedBuyIn = await client.estimateBuyInAmountInMON();
+        valueToSend = estimatedBuyIn * BigInt(2); 
+        console.log(`[useGame] Estimated buy-in: ${estimatedBuyIn}, sending 2x as value: ${valueToSend}`);
+      } catch (estimateError) {
+        console.error("[useGame] Error fetching estimateBuyInAmountInMON for session key update:", estimateError);
+        throw new Error("Could not calculate required funds for session key update.");
+      }
+      // -------------------------------------------------
+
+      // --- Call client with value --- 
+      const tx = await client.updateSessionKey(
         embeddedWallet.address,
-        100000 // Default expiration blocks
+        Number(expirationBlock), 
+        valueToSend // Pass the fixed value
       );
+      console.log("[useGame] updateSessionKey transaction sent:", tx.hash);
+      return tx;
+      // ---------------------------------
     },
-    onSuccess: () => {
-      // Invalidate session key query and refetch
-      queryClient.invalidateQueries({ queryKey: ['sessionKey', characterId] });
-      refreshSessionKey();
+    onSuccess: async (result: TransactionResponse) => {
+      console.log("[useGame] updateSessionKey tx submitted, waiting for confirmation...", result.hash);
+      
+      // Optional: Add a toast notification for waiting
+      toast?.({
+        title: 'Session Key Update Sent',
+        description: `Tx: ${result.hash.slice(0, 6)}...${result.hash.slice(-4)}. Waiting for confirmation...`,
+        status: 'loading',
+        duration: null,
+        isClosable: true,
+        id: 'session-key-wait-toast'
+      });
+
+      try {
+        // --- Wait for 1 confirmation --- 
+        const receipt = await result.wait(1);
+        console.log("[useGame] updateSessionKey transaction confirmed:", receipt?.hash);
+        toast?.close('session-key-wait-toast'); // Close waiting toast
+        toast?.({
+          title: 'Session Key Updated!',
+          status: 'success',
+          duration: 4000,
+        });
+        // --------------------------------
+
+        // --- Invalidate session key query AFTER confirmation ---
+        console.log("[useGame] Invalidating sessionKey query after confirmation...");
+        queryClient.invalidateQueries({ queryKey: ['sessionKey', injectedWallet?.address, characterId] }); // Use the updated query key
+        // refreshSessionKey(); // invalidateQueries should handle refetch
+        // -----------------------------------------------------
+
+      } catch (waitError: any) {
+        console.error("[useGame] Error waiting for session key update confirmation:", waitError);
+        toast?.close('session-key-wait-toast'); // Close waiting toast
+        toast?.({
+          title: 'Session Key Update Failed',
+          description: `Failed to confirm transaction ${result.hash}: ${waitError.message}`,
+          status: 'error',
+          duration: 7000,
+        });
+      }
+    },
+    onError: (err: Error) => {
+       console.error("[useGame] Error sending session key update transaction:", err);
+       toast?.({
+          title: 'Session Key Update Error',
+          description: err.message || 'Failed to send update transaction.',
+          status: 'error',
+          duration: 5000,
+       });
     }
   });
   

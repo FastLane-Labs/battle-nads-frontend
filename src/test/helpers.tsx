@@ -15,7 +15,7 @@ export const createTestQueryClient = () => new QueryClient({
 /**
  * Creates a wrapper component with QueryClientProvider for testing hooks
  */
-export const createTestWrapper = (client = createTestQueryClient()): FC<{children: ReactNode}> => {
+export const createTestWrapper = (client = createTestQueryClient()) => {
   return ({ children }: {children: ReactNode}) => (
     <QueryClientProvider client={client}>
       {children}
