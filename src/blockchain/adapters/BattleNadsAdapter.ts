@@ -1,5 +1,5 @@
 import { Contract, Signer, Provider, TransactionResponse } from 'ethers';
-import ENTRY_ABI from '../../abis/battleNads.json';
+import ENTRY_ABI from '../abis/BattleNadsEntrypoint.json';
 import { GAS_LIMITS } from '../../config/gas';
 import { contract, domain } from '../../types';
 
@@ -9,9 +9,27 @@ import { contract, domain } from '../../types';
  */
 export class BattleNadsAdapter {
   private readonly contract: Contract;
+  private readonly provider: Provider;
 
   constructor(address: string, providerOrSigner: Provider | Signer) {
     this.contract = new Contract(address, ENTRY_ABI, providerOrSigner);
+    
+    // Extract provider from signer if needed
+    if ('provider' in providerOrSigner && providerOrSigner.provider) {
+      this.provider = providerOrSigner.provider;
+    } else {
+      this.provider = providerOrSigner as Provider;
+    }
+  }
+
+  // UTILITY OPERATIONS
+  
+  /**
+   * Gets the latest block number from the provider
+   */
+  async getLatestBlockNumber(): Promise<bigint> {
+    const blockNumber = await this.provider.getBlockNumber();
+    return BigInt(blockNumber);
   }
 
   // READ OPERATIONS
@@ -24,10 +42,10 @@ export class BattleNadsAdapter {
   }
 
   /**
-   * Gets the session key for a character
+   * Gets the session key data for an owner
    */
-  async getSessionKey(characterId: string): Promise<contract.SessionKeyData> {
-    return this.contract.getSessionKey(characterId);
+  async getCurrentSessionKeyData(owner: string): Promise<contract.SessionKeyData> {
+    return this.contract.getCurrentSessionKeyData(owner);
   }
 
   /**
@@ -215,17 +233,15 @@ export class BattleNadsAdapter {
   // SESSION KEY OPERATIONS
 
   /**
-   * Updates the session key for a character
+   * Updates the session key for a user's account
    */
   async updateSessionKey(
-    characterId: string,
-    sessionKey: string,
-    expirationBlocks: number = 100000
+    sessionKeyAddress: string,
+    expiration: number
   ): Promise<TransactionResponse> {
     return this.contract.updateSessionKey(
-      characterId,
-      sessionKey,
-      expirationBlocks,
+      sessionKeyAddress,
+      expiration,
       { gasLimit: GAS_LIMITS.sessionKey }
     );
   }

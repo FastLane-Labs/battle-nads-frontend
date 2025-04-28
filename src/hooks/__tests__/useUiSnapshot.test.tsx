@@ -22,33 +22,18 @@ jest.mock('@privy-io/react-auth', () => ({
   }),
 }));
 
-// Mock viem
-jest.mock('viem', () => ({
-  createPublicClient: jest.fn(() => ({
-    readContract: jest.fn(),
-  })),
-  http: jest.fn(),
-  parseAbi: jest.fn(),
-  toHex: jest.fn(),
-  fromHex: jest.fn(),
-  encodeFunctionData: jest.fn(),
-  decodeFunctionResult: jest.fn(),
-}));
-
 // Now import the actual test dependencies
 import { renderHook, waitFor } from '@testing-library/react';
-import { useFrontendData } from '../useFrontendData';
-import * as battleNadsService from '@services/battleNadsService';
+import { useUiSnapshot } from '../game/useUiSnapshot';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import { useContracts } from '../contracts/useContracts';
+import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 
 // Mock dependencies
-jest.mock('@services/battleNadsService');
-jest.mock('../useContracts');
+jest.mock('../contracts/useBattleNadsClient');
 
-const mockPollFrontendData = battleNadsService.pollFrontendData as jest.Mock;
-const mockUseContracts = useContracts as jest.Mock;
+const mockUseBattleNadsClient = useBattleNadsClient as jest.Mock;
+const mockGetUiSnapshot = jest.fn();
 
 // Create a wrapper for the React Query provider
 const createWrapper = () => {
@@ -67,42 +52,40 @@ const createWrapper = () => {
   );
 };
 
-describe('useFrontendData', () => {
+describe('useUiSnapshot', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
     // Mock the contract hook
-    mockUseContracts.mockReturnValue({
-      readContract: { address: '0xcontract' },
-      injectedContract: null,
-      embeddedContract: null,
+    mockUseBattleNadsClient.mockReturnValue({
+      client: {
+        getUiSnapshot: mockGetUiSnapshot
+      },
       error: null,
     });
     
-    // Mock the service function
-    mockPollFrontendData.mockResolvedValue({
+    // Mock the getUiSnapshot function
+    mockGetUiSnapshot.mockResolvedValue({
       characterID: '0x123',
       character: { name: 'Test Character' },
       combatants: [],
       noncombatants: [],
+      endBlock: "100"
     });
   });
   
-  it('should return data from battleNadsService', async () => {
-    const mockData = {
+  it('should return data with raw and mapped structure', async () => {
+    const mockRawData = {
       characterID: '0x123',
       character: { name: 'Test Character' },
       combatants: [{ id: '1' }],
       noncombatants: [],
+      endBlock: "100"
     };
-    mockPollFrontendData.mockResolvedValue(mockData);
+    mockGetUiSnapshot.mockResolvedValue(mockRawData);
     
     const { result } = renderHook(
-      () => useFrontendData('0xowner', { 
-        refetchInterval: 0, 
-        staleTime: 0,
-        enabled: true 
-      }), 
+      () => useUiSnapshot('0xowner'), 
       { wrapper: createWrapper() }
     );
     
@@ -112,78 +95,49 @@ describe('useFrontendData', () => {
     // Wait for the query to resolve
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     
-    // Check the data
-    expect(result.current.data).toEqual(mockData);
-    expect(mockPollFrontendData).toHaveBeenCalledWith(
-      expect.anything(),
-      { owner: '0xowner', startBlock: 0 }
-    );
+    // Check the data structure
+    expect(result.current.data).toBeDefined();
+    expect(result.current.data?.raw).toEqual(mockRawData);
+    expect(result.current.data?.data).toBeDefined();
+    expect(result.current.data?.data.__ts).toBeDefined(); // Should have timestamp
+    
+    expect(mockGetUiSnapshot).toHaveBeenCalledWith('0xowner', BigInt(0));
   });
   
-  it('should handle error when contract is not initialized', async () => {
-    mockUseContracts.mockReturnValue({
-      readContract: null,
-      injectedContract: null,
-      embeddedContract: null,
+  it('should handle error when client is not initialized', async () => {
+    mockUseBattleNadsClient.mockReturnValue({
+      client: null,
       error: null,
     });
     
     const { result } = renderHook(
-      () => useFrontendData('0xowner', { 
-        refetchInterval: 0, 
-        staleTime: 0,
-        enabled: true 
-      }), 
+      () => useUiSnapshot('0xowner'), 
       { wrapper: createWrapper() }
     );
     
-    // Query should not be enabled when contract is null
+    // Query should not be enabled when client is null
     expect(result.current.isLoading).toBe(false);
     expect(result.current.isFetching).toBe(false);
-    expect(mockPollFrontendData).not.toHaveBeenCalled();
+    expect(mockGetUiSnapshot).not.toHaveBeenCalled();
   });
   
   it('should handle error when owner is not provided', async () => {
     const { result } = renderHook(
-      () => useFrontendData(null, { 
-        refetchInterval: 0, 
-        staleTime: 0, 
-        enabled: true 
-      }), 
+      () => useUiSnapshot(null), 
       { wrapper: createWrapper() }
     );
     
     // Query should not be enabled when owner is null
     expect(result.current.isLoading).toBe(false);
     expect(result.current.isFetching).toBe(false);
-    expect(mockPollFrontendData).not.toHaveBeenCalled();
-  });
-  
-  it('should have polling disabled when enabled is false', async () => {
-    const { result } = renderHook(
-      () => useFrontendData('0xowner', { 
-        refetchInterval: 1000, 
-        staleTime: 500, 
-        enabled: false 
-      }), 
-      { wrapper: createWrapper() }
-    );
-    
-    // Query should not be enabled when enabled is false
-    expect(result.current.isLoading).toBe(false);
-    expect(result.current.isFetching).toBe(false);
-    expect(mockPollFrontendData).not.toHaveBeenCalled();
+    expect(mockGetUiSnapshot).not.toHaveBeenCalled();
   });
   
   it('should handle service errors', async () => {
-    mockPollFrontendData.mockRejectedValue(new Error('Service error'));
+    mockGetUiSnapshot.mockRejectedValue(new Error('Service error'));
     
     const { result } = renderHook(
-      () => useFrontendData('0xowner', { 
-        refetchInterval: 0, 
-        staleTime: 0, 
-        enabled: true 
-      }), 
+      () => useUiSnapshot('0xowner'), 
       { wrapper: createWrapper() }
     );
     

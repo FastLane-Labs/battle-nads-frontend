@@ -227,7 +227,7 @@ export const sessionKeyMachine = {
   validate: (
     sessionKeyData: SessionKeyData | undefined,
     ownerAddress: string,
-    currentTimestamp: number
+    currentBlock: number
   ): SessionKeyValidation => {
     // Check if session key exists
     if (!sessionKeyData || !sessionKeyData.key) {
@@ -247,7 +247,7 @@ export const sessionKeyMachine = {
     }
     
     // Check if session key is expired
-    if (sessionKeyData.expiry && currentTimestamp >= sessionKeyData.expiry) {
+    if (sessionKeyData.expiry && currentBlock >= sessionKeyData.expiry) {
       return {
         state: SessionKeyState.EXPIRED,
         message: 'Session key expired',

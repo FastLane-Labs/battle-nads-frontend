@@ -8,6 +8,7 @@ import {
   ContractCallError,
   ContractTransactionError 
 } from '../../errors';
+import { sessionKeyMachine } from '../../machines/gameStateMachine';
 
 interface BattleNadsClientOptions {
   read: BattleNadsAdapter;
@@ -66,24 +67,54 @@ export class BattleNadsClient {
   }
 
   /**
-   * Gets the current session key for a character
+   * Gets the current session key for an owner address
    */
-  async getSessionKey(characterId: string): Promise<contract.SessionKeyData> {
+  async getCurrentSessionKeyData(owner: string): Promise<contract.SessionKeyData> {
     try {
-      return await this.readAdapter.getSessionKey(characterId);
+      return await this.readAdapter.getCurrentSessionKeyData(owner);
     } catch (error) {
-      throw new ContractCallError(`Failed to get session key: ${(error as Error).message}`);
+      throw new ContractCallError(`Failed to get session key data: ${(error as Error).message}`);
     }
   }
 
   /**
-   * Checks if the session key is expired
+   * Checks if the session key is expired based on getCurrentSessionKeyData
+   * This is a helper method since the contract doesn't provide this directly
    */
-  async isSessionKeyExpired(characterId: string): Promise<boolean> {
+  async isSessionKeyExpired(owner: string): Promise<boolean> {
     try {
-      return await this.readAdapter.isSessionKeyExpired(characterId);
+      const sessionKeyData = await this.getCurrentSessionKeyData(owner);
+      const currentBlock = await this.readAdapter.getLatestBlockNumber();
+      return !sessionKeyData.key || sessionKeyData.expiration <= currentBlock;
     } catch (error) {
       throw new ContractCallError(`Failed to check session key expiration: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Validates the session key using domain validation logic
+   * Returns a complete validation result instead of just expired status
+   */
+  async validateSessionKey(owner: string): Promise<domain.SessionKeyValidation> {
+    try {
+      // Get the session key data from the contract
+      const contractSessionKey = await this.readAdapter.getCurrentSessionKeyData(owner);
+      
+      // Convert contract session key data to domain session key data
+      const domainSessionKey: domain.SessionKeyData = {
+        key: contractSessionKey.key,
+        signature: "", // Not available in contract type, add if needed
+        expiry: Number(contractSessionKey.expiration),
+        owner: owner,
+      };
+      
+      // Get current block number instead of timestamp for correct validation
+      const currentBlock = await this.readAdapter.getLatestBlockNumber();
+      
+      // Use the session key validation logic from the state machine
+      return sessionKeyMachine.validate(domainSessionKey, owner, Number(currentBlock));
+    } catch (error) {
+      throw new ContractCallError(`Failed to validate session key: ${(error as Error).message}`);
     }
   }
 
@@ -196,16 +227,15 @@ export class BattleNadsClient {
   }
 
   /**
-   * Updates the session key for a character
+   * Updates the session key
    * Requires owner wallet
    */
   async updateSessionKey(
-    characterId: string,
-    sessionKey: string,
-    expirationBlocks: number = 100000
+    sessionKeyAddress: string,
+    expiration: number
   ): Promise<TransactionResponse> {
     try {
-      return await this.ensureOwnerAdapter().updateSessionKey(characterId, sessionKey, expirationBlocks);
+      return await this.ensureOwnerAdapter().updateSessionKey(sessionKeyAddress, expiration);
     } catch (error) {
       if (error instanceof WalletMissingError) {
         throw error;

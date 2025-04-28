@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from './useBattleNads';
+import { invalidateSnapshot } from '../utils';
 import { ui } from '../../types';
 
 /**
@@ -37,7 +38,7 @@ export const useChat = () => {
     },
     onSuccess: () => {
       // Invalidate and refetch game state
-      queryClient.invalidateQueries({ queryKey: ['uiSnapshot', owner] });
+      invalidateSnapshot(queryClient, owner);
     }
   });
   
