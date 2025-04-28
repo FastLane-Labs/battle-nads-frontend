@@ -9,18 +9,10 @@ import {
   FormControl, 
   FormLabel, 
   Input, 
-  NumberInput, 
-  NumberInputField, 
-  NumberInputStepper, 
-  NumberIncrementStepper, 
-  NumberDecrementStepper,
   VStack,
   Text,
   Spinner,
   useToast,
-  Alert,
-  AlertIcon,
-  AlertDescription,
   Divider,
   Image,
   useDisclosure,
@@ -34,13 +26,12 @@ import {
   Select
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
-import { useWallet } from '../../providers/WalletProvider';
-import { isValidCharacterId } from '../../utils/getCharacterLocalStorageKey';
-import { ethers } from 'ethers';
-import { useGame } from '../../hooks/game/useGame';
-import { useBattleNadsClient } from '../../hooks/contracts/useBattleNadsClient';
+import { useWallet } from '@/providers/WalletProvider';
+import { isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
+import { useGame } from '@/hooks/game/useGame';
+import { useBattleNadsClient } from '@/hooks/contracts/useBattleNadsClient';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { domain } from '../../types';
+import { domain } from '@/types';
 
 interface CharacterCreationProps {
   onCharacterCreated?: () => void;
