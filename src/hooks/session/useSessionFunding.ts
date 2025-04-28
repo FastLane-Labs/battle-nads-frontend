@@ -45,6 +45,7 @@ export const useSessionFunding = (characterId: string | null) => {
   
   // Mutation for replenishing gas balance
   const replenishBalanceMutation = useMutation({
+    mutationKey: ['replenishBalance', characterId],
     mutationFn: async (amount: bigint) => {
       if (!client) {
         throw new Error('Client missing');
@@ -63,6 +64,7 @@ export const useSessionFunding = (characterId: string | null) => {
   
   // Mutation for deactivating session key
   const deactivateKeyMutation = useMutation({
+    mutationKey: ['deactivateKey', characterId, sessionKey?.key],
     mutationFn: async () => {
       if (!client || !sessionKey?.key) {
         throw new Error('Client or session key missing');
