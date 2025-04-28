@@ -3,7 +3,7 @@ import { act } from 'react';
 import { useSessionFunding } from '../useSessionFunding';
 import { useBattleNadsClient } from '../../contracts/useBattleNadsClient';
 import { useSessionKey } from '../useSessionKey';
-import { SessionKeyState } from '../../../session/sessionKeyMachine';
+import { SessionKeyState } from '../../../machines/sessionKeyMachine';
 
 // Mock dependencies
 jest.mock('../../contracts/useBattleNadsClient');
