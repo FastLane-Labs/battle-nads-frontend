@@ -70,6 +70,22 @@
 └── utils                       # misc helpers
 ```
 
+## Core Technologies
+
+* **Framework:** Next.js (14.1.0)
+* **Base Libraries:** React (^18.2.0), React DOM (^18.2.0)
+* **Language:** TypeScript (^5)
+* **Authentication:** Privy Auth (@privy-io/react-auth ^2.8.0)
+* **Styling:** 
+    * Tailwind CSS (^3.4.1) (with PostCSS/Autoprefixer)
+    * Chakra UI (@chakra-ui/react ^2.10.7)
+* **Routing:** Next.js App Router (built-in)
+* **State Management:** 
+    * TanStack Query v5 (for data fetching and caching)
+    * XState 5 (for finite state machines)
+* **Blockchain Interaction:** ethers (^6.13.5)
+* **Package Manager:** npm (Node version 18.17.1 specified in .nvmrc)
+
 ## Component Responsibilities
 
 ### Core Providers
