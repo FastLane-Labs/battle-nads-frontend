@@ -54,6 +54,7 @@ import WalletBalances from '../WalletBalances';
 import DebugPanel from '../DebugPanel';
 import { CharacterCard } from '../../components/CharacterCard';
 import MovementControls from './MovementControls';
+import GameLayout from './GameLayout';
 // Define type aliases in the module scope
 type BattleNad = domain.Character;
 type BattleNadLite = domain.CharacterLite;
@@ -266,73 +267,17 @@ const Game: React.FC = () => {
           </Modal>
 
           <Flex height="100%" flexDirection="column">
-            <Flex flexGrow={1} overflow="hidden">
-              <Box flexBasis={{ base: '100%', lg: '70%' }} height="100%" width="100%" position="relative" p={4} overflowY="auto">
-                 <SimpleGrid columns={{ base: 1, md: 2, lg: 3 }} spacing={4}>
-                  <Box bg="gray.800" p={3} borderRadius="md">
-                    <Heading size="sm" mb={3} color="whiteAlpha.900">Character</Heading>
-                    <CharacterCard character={character} />
-                  </Box>
-                  
-                  <Box bg="gray.800" p={3} borderRadius="md">
-                    <Heading size="sm" mb={3} color="whiteAlpha.900">Movement</Heading>
-                    <Box mb={3} bg="gray.700" p={2} borderRadius="sm">
-                      <Text fontWeight="bold" fontSize="xs" mb={1}>Location</Text>
-                      <Text fontSize="sm">({position?.x ?? '-'}, {position?.y ?? '-'}) Depth: {position?.depth ?? '-'}</Text>
-                    </Box>
-                    <MovementControls
-                      onMove={handleMovement}
-                      isDisabled={isMoving || isAttacking}
-                      initialPosition={position}
-                    />
-                  </Box>
-                  
-                  <Box bg="gray.800" p={3} borderRadius="md">
-                     <Heading size="sm" mb={3} color="whiteAlpha.900">Combat Targets</Heading>
-                    {combatants.length > 0 ? (
-                      <VStack align="stretch" spacing={2} maxHeight="300px" overflowY="auto">
-                        {combatants.map((enemy: BattleNadLite, index: number) => {
-                          const name = enemy.name || 'Unknown';
-                          const level = enemy.level || 1;
-                          const health = enemy.health || 0;
-                          const maxHealth = enemy.maxHealth || 1;
-                          return (
-                            <Box key={enemy.id || index} p={2} bg="gray.700" borderRadius="md">
-                              <Text fontSize="sm" fontWeight="bold">{name}</Text>
-                              <Text fontSize="xs">Level: {level}</Text>
-                              <Text fontSize="xs">HP: {health} / {maxHealth}</Text>
-                              <Progress value={(health / maxHealth) * 100} size="xs" colorScheme="red" mt={1} />
-                              <Button 
-                                size="xs" 
-                                colorScheme="red" 
-                                mt={2} 
-                                onClick={() => handleAttack(index)}
-                                isDisabled={isAttacking || isMoving}
-                              >
-                                Attack
-                              </Button>
-                            </Box>
-                          );
-                        })}
-                      </VStack>
-                    ) : (
-                      <Alert status="info" variant="subtle" size="sm">
-                        <AlertIcon boxSize="14px" />
-                        No combatants nearby.
-                      </Alert>
-                    )}
-                  </Box>
-                </SimpleGrid>
-              </Box>
-
-              <Box flexBasis={{ base: '100%', lg: '30%' }} bg="gray.900" height="100%" overflowY="hidden" borderLeft="1px" borderColor="gray.700">
-                 <DataFeed
-                  key={characterId || 'no-char'}
-                  characterId={characterId || ''}
-                  sendChatMessage={handleSendChatMessage}
-                />
-              </Box>
-            </Flex>
+             <GameLayout
+               character={character}
+               position={position}
+               combatants={combatants}
+               onMove={handleMovement}
+               onAttack={handleAttack}
+               isMoving={isMoving}
+               isAttacking={isAttacking}
+               characterId={characterId}
+               onSendChatMessage={handleSendChatMessage}
+             />
 
             <Box borderTop="1px" borderColor="gray.700">
               {StableWalletBalances}
