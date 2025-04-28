@@ -67,4 +67,24 @@ global.crypto = {
     digest: jest.fn(),
   },
   getRandomValues: jest.fn(),
-}; 
+};
+
+// Mock @privy-io/react-auth
+jest.mock('@privy-io/react-auth', () => ({
+  usePrivy: jest.fn().mockReturnValue({
+    authenticated: true,
+    ready: true,
+    user: { id: 'test-user-id' },
+    login: jest.fn(),
+    logout: jest.fn(),
+  }),
+  useWallets: jest.fn().mockReturnValue({
+    wallets: [],
+    ready: true,
+  }),
+  useSendTransaction: jest.fn().mockReturnValue({
+    sendTransaction: jest.fn(),
+    error: null,
+    isPending: false,
+  }),
+})); 
