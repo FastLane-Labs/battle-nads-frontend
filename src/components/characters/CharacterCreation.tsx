@@ -74,7 +74,7 @@ const AttributeInput: React.FC<AttributeInputProps> = ({
         disabled={isDisabled || value <= min}
       >
         <img 
-          src="/assets/buttons/-.png" 
+          src="/assets/buttons/-.webp" 
           alt="-" 
           className="w-full h-full object-contain"
         />
@@ -91,7 +91,7 @@ const AttributeInput: React.FC<AttributeInputProps> = ({
         disabled={isDisabled || value >= max}
       >
         <img 
-          src="/assets/buttons/+.png" 
+          src="/assets/buttons/+.webp" 
           alt="+" 
           className="w-full h-full object-contain"
         />
@@ -394,12 +394,12 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
   return (
     <div 
       className="min-h-screen w-full bg-cover bg-center bg-no-repeat flex items-center justify-center pt-6 pb-16"
-      style={{ backgroundImage: "url('/assets/bg/dark-smoky-bg.png')" }}
+      style={{ backgroundImage: "url('/assets/bg/dark-smoky-bg.webp')" }}
     >
       <div className="max-w-[600px] w-full mx-auto px-4">
         <div className="flex flex-col space-y-6">
           <img 
-            src="/BattleNadsLogo.png" 
+            src="/BattleNadsLogo.webp" 
             alt="Battle Nads Logo"
             className="max-w-[400px] mx-auto"
           />
@@ -443,7 +443,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
           <div className="relative py-4 px-8 my-6">
             {/* Background image - Points Allocation */}
             <img 
-              src="/assets/components/points-allocated-bg.png" 
+              src="/assets/components/points-allocated-bg.webp" 
               alt="" 
               className="absolute inset-0 w-full h-full object-fill z-0" 
             />
@@ -502,7 +502,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
           <div className="relative mt-6 group">
             {/* Background image - Create Character Button */}
             <img 
-              src="/assets/buttons/create-character.png" 
+              src="/assets/buttons/create-character.webp" 
               alt="" 
               className="absolute inset-0 w-full h-[85px] object-fill z-0 transition-all duration-200 
                 group-hover:brightness-125 group-hover:scale-[1.02] group-active:brightness-90 group-active:scale-[0.98]" 
