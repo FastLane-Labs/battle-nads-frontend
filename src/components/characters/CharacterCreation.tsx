@@ -65,7 +65,7 @@ const AttributeInput: React.FC<AttributeInputProps> = ({
   min = MIN_STAT_VALUE, // Default min
   max = 10 // Default reasonable max, adjust if needed
 }) => (
-  <div className="flex w-full items-center justify-between mb-2 text-3xl">
+  <div className="flex w-full items-center justify-between mb-2">
     <span className="gold-text font-bold flex-1">{label}</span>
     <div className="flex space-x-1 flex-1 justify-end">
       <button 
@@ -80,8 +80,8 @@ const AttributeInput: React.FC<AttributeInputProps> = ({
         />
         <div className="absolute inset-0 rounded-md bg-red-400/20 filter blur-sm opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
       </button>
-      <div className='bg-black/85 px-4 pt-1 pb-2 min-w-[80px] rounded-md border-2 border-zinc-400/25 shadow-[0_0_8px_rgba(100,100,100,0.3)] flex items-center justify-center'>
-        <div className="gold-text text-4xl font-bold leading-none">
+      <div className='bg-black/85 px-4 pt-1 pb-2 min-w-[68px] md:min-w-[80px] rounded-md border-2 border-zinc-400/25 shadow-[0_0_8px_rgba(100,100,100,0.3)] flex items-center justify-center'>
+        <div className="gold-text text-3xl md:text-4xl font-bold leading-none">
           {value}
         </div>
       </div>
@@ -401,7 +401,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
           <img 
             src="/BattleNadsLogo.webp" 
             alt="Battle Nads Logo"
-            className="max-w-[400px] mx-auto"
+            className="max-w-[300px] md:max-w-[400px] mx-auto"
           />
           
           <h2 className="text-center text-4xl font-semibold uppercase mb-6 gold-text tracking-wider">
@@ -423,7 +423,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
                   border-2 border-[#8B6914] rounded-md
                   focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:ring-opacity-50
                   shadow-[0_0_10px_rgba(212,175,55,0.2)]
-                  placeholder-transparent absolute inset-0 z-10"
+                  placeholder-transparent absolute inset-0 z-[2]"
               />
               
               {/* Background element */}
@@ -449,12 +449,12 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             />
             
             {/* Content */}
-            <p className="relative z-10 text-center text-3xl font-bold gold-text">
+            <p className="relative text-center text-3xl font-bold gold-text">
               Points Remaining: {unspentAttributePoints}
             </p>
           </div>
           
-          <div className="flex flex-col space-y-4 text-3xl">
+          <div className="flex flex-col space-y-4 text-2xl md:text-3xl">
             <AttributeInput 
               value={strength} 
               onChange={setStrength} 
@@ -504,12 +504,12 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             <img 
               src="/assets/buttons/create-character.webp" 
               alt="" 
-              className="absolute inset-0 w-full h-[85px] object-fill z-0 transition-all duration-200 
+              className="absolute inset-0 w-full h-[75px] md:h-[85px] object-fill z-0 transition-all duration-200 
                 group-hover:brightness-125 group-hover:scale-[1.02] group-active:brightness-90 group-active:scale-[0.98]" 
             />
             
             <button 
-              className={`relative h-[85px] w-full text-4xl font-bold uppercase z-10 bg-transparent border-0
+              className={`relative h-[75px] md:h-[85px] w-full text-2xl md:text-4xl font-bold uppercase z-[2] bg-transparent border-0
                 ${(unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0)) 
                   ? 'opacity-50 cursor-not-allowed' 
                   : ''}`}
