@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Box, 
-  Heading, 
   Button, 
   Center, 
   FormControl, 
@@ -66,22 +65,40 @@ const AttributeInput: React.FC<AttributeInputProps> = ({
   min = MIN_STAT_VALUE, // Default min
   max = 10 // Default reasonable max, adjust if needed
 }) => (
-  <FormControl isRequired>
-    <FormLabel>{label}</FormLabel>
-    <NumberInput 
-      value={value} 
-      onChange={(_, val) => onChange(isNaN(val) ? min : val)}
-      min={min} 
-      max={max}
-      isDisabled={isDisabled}
-    >
-      <NumberInputField />
-      <NumberInputStepper>
-        <NumberIncrementStepper />
-        <NumberDecrementStepper />
-      </NumberInputStepper>
-    </NumberInput>
-  </FormControl>
+  <div className="flex w-full items-center justify-between mb-2 text-3xl">
+    <span className="gold-text font-bold flex-1">{label}</span>
+    <div className="flex space-x-1 flex-1 justify-end">
+      <button 
+        className={`relative flex items-center justify-center w-[50px] h-[50px] ${isDisabled || value <= min ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 transition-transform duration-200'}`}
+        onClick={() => value > min && onChange(value - 1)}
+        disabled={isDisabled || value <= min}
+      >
+        <img 
+          src="/assets/buttons/-.png" 
+          alt="-" 
+          className="w-full h-full object-contain"
+        />
+        <div className="absolute inset-0 rounded-md bg-red-400/20 filter blur-sm opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
+      </button>
+      <div className='bg-black/85 px-4 pt-1 pb-2 min-w-[80px] rounded-md border-2 border-zinc-400/25 shadow-[0_0_8px_rgba(100,100,100,0.3)] flex items-center justify-center'>
+        <div className="gold-text text-4xl font-bold leading-none">
+          {value}
+        </div>
+      </div>
+      <button 
+        className={`relative flex items-center justify-center w-[50px] h-[50px] ${isDisabled || value >= max ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 transition-transform duration-200'}`}
+        onClick={() => value < max && onChange(value + 1)}
+        disabled={isDisabled || value >= max}
+      >
+        <img 
+          src="/assets/buttons/+.png" 
+          alt="+" 
+          className="w-full h-full object-contain"
+        />
+        <div className="absolute inset-0 rounded-md bg-teal-400/20 filter blur-sm opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
+      </button>
+    </div>
+  </div>
 );
 // --------------------------------------
 
@@ -363,140 +380,200 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
 
   if (isPageLoading) {
     return (
-      <Center height="100vh">
-        <VStack spacing={4}>
-          <Spinner size="xl" />
-          <Text>{createCharacterMutation.isPending ? 'Creating character...' : 'Fetching creation cost...'}</Text>
-        </VStack>
-      </Center>
+      <div className="h-screen w-full flex items-center justify-center bg-black">
+        <div className="flex flex-col items-center space-y-4">
+          <Spinner size="xl" color="gold" />
+          <p className="text-yellow-500">
+            {createCharacterMutation.isPending ? 'Creating character...' : 'Fetching creation cost...'}
+          </p>
+        </div>
+      </div>
     );
   }
   
   return (
-    <Center height="100vh">
-      <Box p={8} maxWidth="500px" borderWidth={1} borderRadius="lg" boxShadow="lg">
-        <VStack spacing={4} align="stretch">
-          <Image 
+    <div 
+      className="min-h-screen w-full bg-cover bg-center bg-no-repeat flex items-center justify-center pt-6 pb-16"
+      style={{ backgroundImage: "url('/assets/bg/dark-smoky-bg.png')" }}
+    >
+      <div className="max-w-[600px] w-full mx-auto px-4">
+        <div className="flex flex-col space-y-6">
+          <img 
             src="/BattleNadsLogo.png" 
             alt="Battle Nads Logo"
-            maxWidth="250px" 
-            mb={2}
-            alignSelf="center"
+            className="max-w-[400px] mx-auto"
           />
-          <Heading as="h1" size="xl" textAlign="center">Create Character</Heading>
-          <Divider />
-          <FormControl isRequired>
-            <FormLabel>Character Name</FormLabel>
-            <Input 
-              value={name} 
-              onChange={(e) => setName(e.target.value)} 
-              placeholder="Enter your character name"
-              isDisabled={createCharacterMutation.isPending}
+          
+          <h2 className="text-center text-4xl font-semibold uppercase mb-6 gold-text tracking-wider">
+            CREATE YOUR CHAMPION
+          </h2>
+          
+          <div>
+          <h3 className="text-center text-3xl font-semibold uppercase mb-6 gold-text">
+              Character Name
+            </h3>
+            <div className="relative">
+              {/* The actual input - invisible but functional */}
+              <input 
+                value={name} 
+                onChange={(e) => setName(e.target.value)} 
+                placeholder="Enter your character name"
+                disabled={createCharacterMutation.isPending}
+                className="w-full h-[60px] bg-transparent text-transparent text-[31px] px-6 py-3 
+                  border-2 border-[#8B6914] rounded-md
+                  focus:outline-none focus:ring-2 focus:ring-[#D4AF37] focus:ring-opacity-50
+                  shadow-[0_0_10px_rgba(212,175,55,0.2)]
+                  placeholder-transparent absolute inset-0 z-10"
+              />
+              
+              {/* Background element */}
+              <div className="w-full h-[60px] bg-black/90 rounded-md border-2 border-[#8B6914] shadow-[0_0_10px_rgba(212,175,55,0.2)]"></div>
+              
+              {/* Gold text overlay that shows the input value */}
+              <div className="absolute inset-0 flex items-center px-6 pointer-events-none">
+                {name ? (
+                  <span className="gold-text text-3xl">{name}</span>
+                ) : (
+                  <span className="text-gray-500 text-2xl">Enter your character name</span>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <div className="relative py-4 px-8 my-6">
+            {/* Background image - Points Allocation */}
+            <img 
+              src="/assets/components/points-allocated-bg.png" 
+              alt="" 
+              className="absolute inset-0 w-full h-full object-fill z-0" 
             />
-          </FormControl>
+            
+            {/* Content */}
+            <p className="relative z-10 text-center text-3xl font-bold gold-text">
+              Points Remaining: {unspentAttributePoints}
+            </p>
+          </div>
           
-          <Alert 
-            status={unspentAttributePoints === 0 ? "success" : "info"}
-            variant="subtle"
-            borderRadius="md"
-          >
-            <AlertIcon />
-            <AlertDescription>
-              Points Remaining: {unspentAttributePoints} / {TOTAL_POINTS}
-            </AlertDescription>
-          </Alert>
+          <div className="flex flex-col space-y-4 text-3xl">
+            <AttributeInput 
+              value={strength} 
+              onChange={setStrength} 
+              label="Strength" 
+              isDisabled={createCharacterMutation.isPending}
+              max={unspentAttributePoints + strength > 0 ? unspentAttributePoints + strength : strength}
+            />
+            <AttributeInput 
+              value={dexterity} 
+              onChange={setDexterity} 
+              label="Dexterity" 
+              isDisabled={createCharacterMutation.isPending}
+              max={unspentAttributePoints + dexterity > 0 ? unspentAttributePoints + dexterity : dexterity}
+            />
+            <AttributeInput 
+              value={vitality} 
+              onChange={setVitality} 
+              label="Constitution" 
+              isDisabled={createCharacterMutation.isPending}
+              max={unspentAttributePoints + vitality > 0 ? unspentAttributePoints + vitality : vitality}
+            />
+            <AttributeInput 
+              value={quickness} 
+              onChange={setQuickness} 
+              label="Intelligence" 
+              isDisabled={createCharacterMutation.isPending}
+              max={unspentAttributePoints + quickness > 0 ? unspentAttributePoints + quickness : quickness}
+            />
+            <AttributeInput 
+              value={sturdiness} 
+              onChange={setSturdiness} 
+              label="Wisdom" 
+              isDisabled={createCharacterMutation.isPending}
+              max={unspentAttributePoints + sturdiness > 0 ? unspentAttributePoints + sturdiness : sturdiness}
+            />
+            <AttributeInput 
+              value={luck} 
+              onChange={setLuck} 
+              label="Charisma" 
+              isDisabled={createCharacterMutation.isPending}
+              max={unspentAttributePoints + luck > 0 ? unspentAttributePoints + luck : luck}
+            />
+          </div>
           
-          <AttributeInput 
-            value={strength} 
-            onChange={setStrength} 
-            label="Strength" 
-            isDisabled={createCharacterMutation.isPending}
-          />
-          <AttributeInput 
-            value={vitality} 
-            onChange={setVitality} 
-            label="Vitality" 
-            isDisabled={createCharacterMutation.isPending}
-          />
-          <AttributeInput 
-            value={dexterity} 
-            onChange={setDexterity} 
-            label="Dexterity" 
-            isDisabled={createCharacterMutation.isPending}
-          />
-          <AttributeInput 
-            value={quickness} 
-            onChange={setQuickness} 
-            label="Quickness" 
-            isDisabled={createCharacterMutation.isPending}
-          />
-          <AttributeInput 
-            value={sturdiness} 
-            onChange={setSturdiness} 
-            label="Sturdiness" 
-            isDisabled={createCharacterMutation.isPending}
-          />
-          <AttributeInput 
-            value={luck} 
-            onChange={setLuck} 
-            label="Luck" 
-            isDisabled={createCharacterMutation.isPending}
-          />
+          <div className="relative mt-6 group">
+            {/* Background image - Create Character Button */}
+            <img 
+              src="/assets/buttons/create-character.png" 
+              alt="" 
+              className="absolute inset-0 w-full h-[85px] object-fill z-0 transition-all duration-200 
+                group-hover:brightness-125 group-hover:scale-[1.02] group-active:brightness-90 group-active:scale-[0.98]" 
+            />
+            
+            <button 
+              className={`relative h-[85px] w-full text-4xl font-bold uppercase z-10 bg-transparent border-0
+                ${(unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0)) 
+                  ? 'opacity-50 cursor-not-allowed' 
+                  : ''}`}
+              onClick={handleCreateCharacter}
+              disabled={unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0)}
+            >
+              <p className='gold-text transition-transform duration-200 group-hover:scale-105 group-active:scale-95'>
+                {createCharacterMutation.isPending ? 'Creating...' : 'Create Character'}
+              </p>
+            </button>
+          </div>
           
-          <Box textAlign="center" p={2} borderWidth={1} borderRadius="md" borderColor="gray.600">
-            <Text fontSize="sm" color="gray.400">Estimated Creation Cost:</Text>
-            <Text fontWeight="bold">
-              {buyInAmount !== undefined ? `${formatEther(buyInAmount)} MON` : <Spinner size="xs" />}
-            </Text>
-            {buyInError && <Text fontSize="xs" color="red.400">Error loading cost</Text>}
-          </Box>
-          
-          <Button 
-            colorScheme="blue" 
-            width="full"
-            onClick={handleCreateCharacter}
-            isDisabled={unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0)}
-            isLoading={createCharacterMutation.isPending}
-            loadingText="Creating..."
-          >
-            Create Character
-          </Button>
-          
-          <Button
-            variant="outline"
+          <button
+            className={`border border-gray-600 text-gray-300 py-2 rounded 
+              ${createCharacterMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white hover:bg-opacity-5'}`}
             onClick={onOpen}
-            width="full"
-            isDisabled={createCharacterMutation.isPending}
+            disabled={createCharacterMutation.isPending}
           >
             Already Created? Lookup by Transaction
-          </Button>
-        </VStack>
-      </Box>
+          </button>
+        </div>
+      </div>
       
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Look Up Character by Transaction</ModalHeader>
-          <ModalCloseButton />
+        <ModalContent bg="gray.900" borderColor="gray.700" borderWidth={1}>
+          <ModalHeader color="gold">Look Up Character by Transaction</ModalHeader>
+          <ModalCloseButton color="white" />
           <ModalBody pb={6}>
             <FormControl>
-              <FormLabel>Transaction Hash</FormLabel>
+              <FormLabel color="gold">Transaction Hash</FormLabel>
               <Input
                 placeholder="0x..."
                 value={transactionHash || ''}
                 onChange={(e) => setTransactionHash(e.target.value)}
+                bg="gray.800"
+                color="white"
+                borderColor="gray.600"
               />
             </FormControl>
           </ModalBody>
           <ModalFooter>
-            <Button colorScheme="blue" mr={3} onClick={handleTransactionLookup}>
+            <Button 
+              bg="rgba(139, 69, 19, 0.8)"
+              color="gold"
+              mr={3} 
+              onClick={handleTransactionLookup}
+              _hover={{ bg: "rgba(139, 69, 19, 0.9)" }}
+            >
               Look Up
             </Button>
-            <Button onClick={onClose}>Cancel</Button>
+            <Button 
+              variant="outline" 
+              onClick={onClose}
+              color="gray.300"
+              borderColor="gray.600"
+              _hover={{ bg: "rgba(255,255,255,0.05)" }}
+            >
+              Cancel
+            </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
-    </Center>
+    </div>
   );
 };
 
