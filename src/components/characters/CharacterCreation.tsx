@@ -67,7 +67,7 @@ const AttributeInput: React.FC<AttributeInputProps> = ({
 }) => (
   <div className="flex w-full items-center justify-between mb-2">
     <span className="gold-text font-bold flex-1">{label}</span>
-    <div className="flex space-x-1 flex-1 justify-end">
+    <div className="flex space-x-1 flex-1 justify-end items-center">
       <button 
         className={`relative flex items-center justify-center w-[50px] h-[50px] ${isDisabled || value <= min ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 transition-transform duration-200'}`}
         onClick={() => value > min && onChange(value - 1)}
@@ -80,8 +80,8 @@ const AttributeInput: React.FC<AttributeInputProps> = ({
         />
         <div className="absolute inset-0 rounded-md bg-red-400/20 filter blur-sm opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
       </button>
-      <div className='bg-black/85 px-4 pt-1 pb-2 min-w-[68px] md:min-w-[80px] rounded-md border-2 border-zinc-400/25 shadow-[0_0_8px_rgba(100,100,100,0.3)] flex items-center justify-center'>
-        <div className="gold-text text-3xl md:text-4xl font-bold leading-none">
+      <div className='bg-black/85 px-4 pt-1 pb-2 min-w-[68px] sm:min-w-[80px] rounded-md border-2 border-zinc-400/25 shadow-[0_0_8px_rgba(100,100,100,0.3)] flex items-center justify-center'>
+        <div className="gold-text text-3xl sm:text-4xl font-bold leading-none">
           {value}
         </div>
       </div>
@@ -454,7 +454,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             </p>
           </div>
           
-          <div className="flex flex-col space-y-4 text-2xl md:text-3xl">
+          <div className="flex flex-col space-y-4 text-2xl sm:text-3xl">
             <AttributeInput 
               value={strength} 
               onChange={setStrength} 
@@ -504,12 +504,12 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             <img 
               src="/assets/buttons/create-character.webp" 
               alt="" 
-              className="absolute inset-0 w-full h-[75px] md:h-[85px] object-fill z-0 transition-all duration-200 
+              className="absolute inset-0 w-full h-[75px] sm:h-[85px] object-fill z-0 transition-all duration-200 
                 group-hover:brightness-125 group-hover:scale-[1.02] group-active:brightness-90 group-active:scale-[0.98]" 
             />
             
             <button 
-              className={`relative h-[75px] md:h-[85px] w-full text-2xl md:text-4xl font-bold uppercase z-[2] bg-transparent border-0
+              className={`relative h-[75px] sm:h-[85px] w-full text-2xl sm:text-4xl font-bold uppercase z-[2] bg-transparent border-0
                 ${(unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0)) 
                   ? 'opacity-50 cursor-not-allowed' 
                   : ''}`}
