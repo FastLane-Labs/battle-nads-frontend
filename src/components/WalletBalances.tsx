@@ -23,38 +23,32 @@ const DIRECT_FUNDING_AMOUNT = "0.3"; // Amount to transfer directly to session k
 
 // Implement React.memo to prevent unnecessary re-renders
 const WalletBalances: React.FC = memo(() => {
-  const { injectedWallet, embeddedWallet, sessionKey } = useWallet();
+  const { injectedWallet, embeddedWallet } = useWallet();
   const { client } = useBattleNadsClient();
   
   // State needed for useBattleNads hook
-  const [ownerAddress, setOwnerAddress] = useState<string>('');
+  const [ownerAddress, setOwnerAddress] = useState<string | null>(null);
   
   // Initialize owner address from wallet - BEFORE calling useBattleNads
   useEffect(() => {
-    if (injectedWallet?.address && !ownerAddress) {
+    if (injectedWallet?.address && ownerAddress !== injectedWallet.address) {
       setOwnerAddress(injectedWallet.address);
     }
   }, [injectedWallet?.address, ownerAddress]);
   
   // Call useBattleNads with ownerAddress
-  const { gameState, isLoading: isGameStateLoading, error: gameStateError } = useBattleNads(ownerAddress || null);
+  const { gameState, isLoading: isGameStateLoading, error: gameStateError } = useBattleNads(ownerAddress);
   
   // Destructure needed contract interaction methods from the client
-  const { 
-    replenishGasBalance, 
-    updateSessionKey // Use correct method name
-  } = client || {}; 
+  const { replenishGasBalance } = client || {};
   
   // Generate unique instance ID for this component for debugging
   const instanceId = useRef<string>(`WalletBalances-${Math.random().toString(36).substring(2, 9)}`);
-  const renderCount = useRef<number>(0);
-  
+
   // State for balances and loading/error states
   const [ownerBalance, setOwnerBalance] = useState<string>('0');
-  // Session key balance is NOT directly available in gameState, manage separately if needed
-  const [sessionKeyBalance, setSessionKeyBalance] = useState<string | null>(null); 
-  // Bonded balance is NOT directly available in gameState, manage separately if needed
-  const [bondedBalance, setBondedBalance] = useState<string>('N/A'); 
+  const [sessionKeyBalance, setSessionKeyBalance] = useState<string | null>(null);
+  const [bondedBalance, setBondedBalance] = useState<string | null>(null); // Initialize as null
   const [isLoading, setIsLoading] = useState(true); // Combined loading state
   const [isRefreshingOwner, setIsRefreshingOwner] = useState(false);
   const [isReplenishing, setIsReplenishing] = useState(false);
@@ -90,26 +84,32 @@ const WalletBalances: React.FC = memo(() => {
     } finally {
       setIsRefreshingOwner(false);
     }
-  }, [injectedWallet?.address, instanceId]);
+  }, [injectedWallet?.address]);
 
-  // Function to fetch session key balance (example - might need adjustment)
-  const fetchSessionKeyBalance = useCallback(async () => {
-    if (!sessionKey) return;
-    try {
-      const provider = new ethers.JsonRpcProvider(MONAD_RPC_URL);
-      const balance = await provider.getBalance(sessionKey);
-      setSessionKeyBalance(ethers.formatEther(balance));
-    } catch (error) {
-       console.error(`[WalletBalances ${instanceId.current}] Error fetching session key balance:`, error);
-       setSessionKeyBalance('Error');
+  // Function to set session key balance FROM gameState
+  const updateSessionKeyBalance = useCallback(() => {
+    if (gameState?.sessionKey?.balance !== undefined) { 
+      setSessionKeyBalance(ethers.formatEther(gameState.sessionKey.balance));
+    } else {
+      setSessionKeyBalance(null); 
     }
-  }, [sessionKey, instanceId]);
+  }, [gameState?.sessionKey?.balance]);
+  
+  // Function to set bonded balance FROM gameState
+  const updateBondedBalance = useCallback(() => {
+    if (gameState?.sessionKey?.ownerCommittedAmount !== undefined) { 
+        setBondedBalance(ethers.formatEther(gameState.sessionKey.ownerCommittedAmount));
+    } else {
+        setBondedBalance(null); // Set to null if not available
+    }
+  }, [gameState?.sessionKey?.ownerCommittedAmount]);
 
-  // Fetch balances on component mount and when wallets/session key change
+  // Fetch owner balance and update session/bonded from gameState when available/changes
   useEffect(() => {
     fetchOwnerBalance();
-    fetchSessionKeyBalance(); // Fetch session key balance too
-  }, [fetchOwnerBalance, fetchSessionKeyBalance]);
+    updateSessionKeyBalance(); 
+    updateBondedBalance();
+  }, [fetchOwnerBalance, updateSessionKeyBalance, updateBondedBalance]);
 
   // Function to replenish session key balance using contract client
   const handleReplenishBalance = async () => {
@@ -155,8 +155,8 @@ const WalletBalances: React.FC = memo(() => {
       setBalanceShortfall(null); 
       setTimeout(() => {
         fetchOwnerBalance();
-        fetchSessionKeyBalance();
-      }, 5000); // Refetch after 5s
+        // No need to fetch session/bonded, they update via gameState polling
+      }, 5000); // Refetch owner after 5s
       
     } catch (error: any) {
       console.error(`[WalletBalances ${instanceId.current}] Error replenishing balance:`, error);
@@ -175,8 +175,10 @@ const WalletBalances: React.FC = memo(() => {
     try {
       setIsDirectFunding(true);
       
-      if (!sessionKey) {
-         throw new Error('Session key not available.');
+      // Get session key address from gameState if available
+      const sessionKeyAddress = gameState?.sessionKey?.key;
+      if (!sessionKeyAddress) {
+         throw new Error('Session key not available in game state.');
       }
       
       if (!injectedWallet?.address) {
@@ -192,7 +194,7 @@ const WalletBalances: React.FC = memo(() => {
       }
       
       const tx = await injectedWallet.signer.sendTransaction({
-        to: sessionKey,
+        to: sessionKeyAddress, // Use address from gameState
         value: transferAmount,
       });
       
@@ -202,8 +204,8 @@ const WalletBalances: React.FC = memo(() => {
       
       setTimeout(() => {
         fetchOwnerBalance();
-        fetchSessionKeyBalance();
-      }, 5000); // Refetch after 5s
+         // No need to fetch session/bonded, they update via gameState polling
+      }, 5000); // Refetch owner after 5s
       
     } catch (error: any) {
       console.error(`[WalletBalances ${instanceId.current}] Error in direct funding:`, error);
@@ -216,28 +218,30 @@ const WalletBalances: React.FC = memo(() => {
   // Update local balance shortfall state from gameState
   useEffect(() => {
     let newShortfall: bigint | null = null;
-    if (gameState?.balanceShortfall !== undefined) {
-       // Ensure we treat it as bigint
-       const shortfallBigInt = BigInt(gameState.balanceShortfall);
-       newShortfall = shortfallBigInt > BigInt(0) ? shortfallBigInt : null;
+    if (gameState?.balanceShortfall !== undefined) { 
+       const shortfallValue = typeof gameState.balanceShortfall === 'number' 
+            ? BigInt(Math.round(gameState.balanceShortfall * 1e18)) // Attempt conversion if number
+            : BigInt(gameState.balanceShortfall); // Assume bigint otherwise
+            
+       newShortfall = shortfallValue > BigInt(0) ? shortfallValue : null;
     } else if (gameState) {
-       // If gameState exists but has no shortfall, newShortfall remains null
        newShortfall = null;
     }
 
-    // Only update state if the value has actually changed
     if (newShortfall !== balanceShortfall) {
-       setBalanceShortfall(newShortfall); // Now type-safe
+       setBalanceShortfall(newShortfall);
        console.log(`[WalletBalances ${instanceId.current}] Balance shortfall updated:`, newShortfall);
     }
     
-    // Update loading state based on game state loading
     if (!isGameStateLoading) {
        setIsLoading(false);
     }
 
-  }, [gameState, isGameStateLoading, balanceShortfall]); // Depend on gameState and its loading status
+  }, [gameState?.balanceShortfall, isGameStateLoading, balanceShortfall]);
   
+  // Determine session key address for display/logic
+  const sessionKeyAddress = gameState?.sessionKey?.key;
+
   // Handle combined loading state (initial load or game state polling load)
   const showLoading = isLoading || (isGameStateLoading && !gameState); // Show loading initially or if polling fails first time
 
@@ -281,16 +285,18 @@ const WalletBalances: React.FC = memo(() => {
           </StatNumber>
         </Stat>
         
-        {/* Bonded shMONAD Balance (Placeholder) */}
+        {/* Bonded MONAD Balance (Using ownerCommittedAmount) */}
         <Stat size="sm">
           <StatLabel>
             <Flex align="center" gap={1}>
-              <Text fontSize="sm">Bonded Balance</Text>
-              <Badge colorScheme="orange" size="sm">shMONAD</Badge>
+              <Text fontSize="sm">Committed Balance</Text> 
+              <Badge colorScheme="orange" size="sm">MON</Badge> {/* Changed badge to MON */}
             </Flex>
           </StatLabel>
           <StatNumber fontSize="lg">
-             <Text color="gray.500">{bondedBalance}</Text> {/* Display N/A or Error */}
+            {bondedBalance === null ? <Spinner size="xs"/> : 
+             bondedBalance === 'Error' ? <Text color="red.300">Error</Text> : 
+             `${parseFloat(bondedBalance).toFixed(4)} MON`}
           </StatNumber>
         </Stat>
 
@@ -310,7 +316,7 @@ const WalletBalances: React.FC = memo(() => {
         </Stat>
 
         {/* Direct Session Key Funding Button */}
-        {sessionKey && sessionKeyBalance !== null && sessionKeyBalance !== 'Error' && parseFloat(sessionKeyBalance) < LOW_SESSION_KEY_THRESHOLD && (
+        {sessionKeyAddress && sessionKeyBalance !== null && sessionKeyBalance !== 'Error' && parseFloat(sessionKeyBalance) < LOW_SESSION_KEY_THRESHOLD && (
           <Box 
             mt={1} 
             p={2} 
@@ -353,7 +359,7 @@ const WalletBalances: React.FC = memo(() => {
               Low Gas Balances
             </Text>
             <Text fontSize="sm" color="yellow.800" mb={2}>
-              Your app-committed shMONAD balance is running low - gasless transactions may stop working.
+              Your app-committed balance is running low - gasless transactions may stop working.
             </Text>
             <Button
               colorScheme="yellow"
@@ -364,7 +370,7 @@ const WalletBalances: React.FC = memo(() => {
               width="full"
               isDisabled={!replenishGasBalance} // Disable if function unavailable
             >
-              Commit More ShMONAD
+              Replenish Committed Balance
             </Button>
           </Box>
         )}

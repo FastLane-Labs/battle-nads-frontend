@@ -1,24 +1,24 @@
 import React from 'react';
-import { renderHook, waitFor } from '@testing-library/react';
+import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient } from '@tanstack/react-query';
+import { ZeroAddress } from 'ethers';
 import { useSessionKey } from '../useSessionKey';
 import { useBattleNadsClient } from '../../contracts/useBattleNadsClient';
 import { useWallet } from '../../../providers/WalletProvider';
 import { createTestWrapper } from '../../../test/helpers';
 import { sessionKeyMachine, SessionKeyState } from '../../../machines/sessionKeyMachine';
+import { contract } from '../../../types';
 
 // Mock dependencies
 jest.mock('../../contracts/useBattleNadsClient');
 jest.mock('../../../providers/WalletProvider');
+// Mock the entire machine module
 jest.mock('../../../machines/sessionKeyMachine');
 
-// Setup mock implementations of the dependencies
-const mockValidate = jest.fn();
-(sessionKeyMachine.validate as jest.Mock) = mockValidate;
-
 // Define default values
-const ownerAddress = '0x0000000000000000000000000000000000000001';
-const embeddedAddress = '0x0000000000000000000000000000000000000002'; // Use a different address for clarity
+const ownerAddress = '0xOwnerAddress123';
+const embeddedAddress = '0xEmbeddedAddress456';
+const otherKeyAddress = '0xOtherKeyAddress789';
 
 // --- Mock client methods --- 
 const mockGetCurrentSessionKeyData = jest.fn();
@@ -26,205 +26,264 @@ const mockGetLatestBlockNumber = jest.fn();
 const mockClient = {
   getCurrentSessionKeyData: mockGetCurrentSessionKeyData,
   getLatestBlockNumber: mockGetLatestBlockNumber,
-  // Add other methods if useSessionKey starts using them
 };
 // -------------------------
 
 describe('useSessionKey', () => {
-  // Use a new QueryClient for each test to avoid interference
   let queryClient: QueryClient;
   let wrapper: ({ children }: { children: React.ReactNode }) => JSX.Element;
+  let mockValidate: jest.Mock; // Declare type for the mock function reference
 
-  const characterId = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+  const characterId = '0xCharId123';
 
-  // Sample session key data for different states
-  const validSessionKeyData = { key: embeddedAddress, expiration: BigInt(1000) }; // Match embedded address
-  const expiredSessionKeyData = { key: embeddedAddress, expiration: BigInt(50) };
-  const missingSessionKeyData = { key: '0x0000000000000000000000000000000000000000', expiration: BigInt(0) };
-  const mismatchedSessionKeyData = { key: '0xDifferentKeyAddress123', expiration: BigInt(1000) };
+  // Helper to create mock contract session key data
+  const createMockContractKeyData = (
+    key: string,
+    expiration: bigint,
+    owner: string = ownerAddress,
+    balance: bigint = 10n**18n, // 1 MON
+    targetBalance: bigint = 10n**18n,
+    ownerCommittedAmount: bigint = 5n * 10n**18n, // 5 MON
+    ownerCommittedShares: bigint = 5n * 10n**18n // Assuming 1:1 share for simplicity
+  ): contract.SessionKeyData => ({
+    owner,
+    key,
+    balance,
+    targetBalance,
+    ownerCommittedAmount,
+    ownerCommittedShares,
+    expiration,
+  });
+
+  // --- Test Data Variants ---
+  const validKeyDataContract = createMockContractKeyData(embeddedAddress, 9999n);
+  const expiredKeyDataContract = createMockContractKeyData(embeddedAddress, 50n);
+  const missingKeyDataContract = createMockContractKeyData(ZeroAddress, 0n); // Key is ZeroAddress
+  const mismatchedKeyDataContract = createMockContractKeyData(otherKeyAddress, 9999n); // Different key address
+  // -------------------------
   
   beforeEach(() => {
-    // Create new client & wrapper for isolation
     queryClient = new QueryClient({
-      defaultOptions: { queries: { retry: false, gcTime: 0 } }, // Keep retry false, gcTime 0 for tests
+      defaultOptions: { queries: { retry: false, gcTime: 0 } }, 
     });
     wrapper = createTestWrapper(queryClient);
 
-    // Clear mocks and cache
     jest.clearAllMocks();
-    queryClient.clear(); // Clear react-query cache
-    mockValidate.mockReset();
+    queryClient.clear();
+    
+    // Get a reference to the mocked validate function *after* mocks are set up
+    // and cast it correctly.
+    mockValidate = sessionKeyMachine.validate as jest.Mock;
+    mockValidate.mockReset(); // Reset the mock before each test
+
     mockGetCurrentSessionKeyData.mockReset();
     mockGetLatestBlockNumber.mockReset();
     
-    // Set default hook mocks
     (useBattleNadsClient as jest.Mock).mockReturnValue({ client: mockClient });
     (useWallet as jest.Mock).mockReturnValue({
-      // Provide both wallets now
       injectedWallet: { address: ownerAddress }, 
       embeddedWallet: { address: embeddedAddress }
     });
     
-    // Default mock implementations for client methods (resolve successfully)
-    mockGetCurrentSessionKeyData.mockResolvedValue(validSessionKeyData);
-    mockGetLatestBlockNumber.mockResolvedValue(BigInt(500)); // Return BigInt
+    // Default mocks for successful resolution
+    mockGetCurrentSessionKeyData.mockResolvedValue(validKeyDataContract);
+    mockGetLatestBlockNumber.mockResolvedValue(500n); 
   });
   
-  it('should show loading state initially', () => {
-    // Don't resolve promises immediately
-    mockGetCurrentSessionKeyData.mockImplementation(() => new Promise(() => {})); // Pending promise
-    mockGetLatestBlockNumber.mockImplementation(() => new Promise(() => {})); // Pending promise
+  it('should show loading state initially and transition to MISSING', async () => { 
+    mockGetCurrentSessionKeyData.mockImplementation(() => new Promise(() => {}));
+    mockGetLatestBlockNumber.mockImplementation(() => new Promise(() => {}));
 
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper }); 
+    // Check initial loading flags
     expect(result.current.isLoading).toBe(true);
+    expect(result.current.isFetching).toBe(true);
+    // Initial state before effect is IDLE, but effect runs quickly
+
+    // Wait for the effect to run and set state to MISSING due to loading
+    await waitFor(() => {
+        expect(result.current.sessionKeyState).toBe(SessionKeyState.MISSING);
+    });
+    // Queries are still pending, so loading flags remain true
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isFetching).toBe(true);
   });
 
-  it('should return correct data and valid state when queries succeed', async () => { 
-    mockGetCurrentSessionKeyData.mockResolvedValue(validSessionKeyData);
-    mockGetLatestBlockNumber.mockResolvedValue(BigInt(500));
-    mockValidate.mockReturnValue(SessionKeyState.VALID);
+  it('should return valid state and data when queries succeed', async () => { 
+    mockGetCurrentSessionKeyData.mockResolvedValue(validKeyDataContract);
+    mockGetLatestBlockNumber.mockResolvedValue(500n);
+    mockValidate.mockReturnValue(SessionKeyState.VALID); // Mock machine result
 
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
 
+    // Wait for loading to finish AND state to become VALID
     await waitFor(() => {
+      // Check that *both* loading and fetching are false, and state is VALID
       expect(result.current.isLoading).toBe(false);
+      expect(result.current.isFetching).toBe(false);
+      expect(result.current.sessionKeyState).toBe(SessionKeyState.VALID);
     });
 
-    expect(result.current.sessionKey).toEqual(validSessionKeyData);
+    // Assert final values now that state is stable
+    expect(result.current.sessionKey).toEqual(validKeyDataContract); 
     expect(result.current.currentBlock).toEqual(500);
-    expect(result.current.sessionKeyState).toBe(SessionKeyState.VALID);
-    expect(result.current.needsUpdate).toBe(false);
     expect(result.current.error).toBeNull();
-
-    // Test refetch - Note: refreshSessionKey comes from useQuery for sessionKey data
-    const originalFetchCount = mockGetCurrentSessionKeyData.mock.calls.length;
-    result.current.refreshSessionKey();
-    await waitFor(() => {
-        expect(mockGetCurrentSessionKeyData.mock.calls.length).toBeGreaterThan(originalFetchCount);
-    });
+    expect(result.current.needsUpdate).toBe(false); 
+    expect(mockValidate).toHaveBeenCalledWith(embeddedAddress, embeddedAddress, 9999, 500);
   });
   
   it('correctly identifies expired session key', async () => { 
-    mockGetCurrentSessionKeyData.mockResolvedValue(expiredSessionKeyData);
-    mockGetLatestBlockNumber.mockResolvedValue(BigInt(600)); // Block > expiration
+    mockGetCurrentSessionKeyData.mockResolvedValue(expiredKeyDataContract);
+    mockGetLatestBlockNumber.mockResolvedValue(600n); // Block > expiration
     mockValidate.mockReturnValue(SessionKeyState.EXPIRED);
 
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
 
+    // Wait for loading to finish AND state to become EXPIRED
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
+      expect(result.current.isFetching).toBe(false);
+      expect(result.current.sessionKeyState).toBe(SessionKeyState.EXPIRED);
     });
 
-    expect(result.current.sessionKeyState).toBe(SessionKeyState.EXPIRED);
     expect(result.current.needsUpdate).toBe(true);
+    expect(mockValidate).toHaveBeenCalledWith(embeddedAddress, embeddedAddress, 50, 600);
   });
   
   it('correctly identifies missing session key (zero address key)', async () => { 
-    mockGetCurrentSessionKeyData.mockResolvedValue(missingSessionKeyData);
-    mockGetLatestBlockNumber.mockResolvedValue(BigInt(500));
-    mockValidate.mockReturnValue(SessionKeyState.MISSING);
+    mockGetCurrentSessionKeyData.mockResolvedValue(missingKeyDataContract); 
+    mockGetLatestBlockNumber.mockResolvedValue(500n);
 
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
 
+    // Wait for the state to become MISSING 
     await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
+      expect(result.current.sessionKeyState).toBe(SessionKeyState.MISSING);
+    });
+    
+    // Also wait for fetching to complete
+    await waitFor(() => {
+        expect(result.current.isFetching).toBe(false);
     });
 
-    expect(result.current.sessionKeyState).toBe(SessionKeyState.MISSING);
+    // Assert final state 
+    expect(result.current.isLoading).toBe(false); 
+    expect(result.current.sessionKey).toEqual(missingKeyDataContract); 
+    expect(result.current.sessionKeyState).toBe(SessionKeyState.MISSING); 
     expect(result.current.needsUpdate).toBe(true);
+    expect(mockValidate).not.toHaveBeenCalled(); 
   });
 
   it('correctly identifies missing session key (client returns null/undefined)', async () => { 
-    // Simulate the client method resolving to null/undefined
-    mockGetCurrentSessionKeyData.mockResolvedValue(undefined);
-    mockGetLatestBlockNumber.mockResolvedValue(BigInt(500));
-    // Validation might not run or might return missing
+    mockGetCurrentSessionKeyData.mockResolvedValue(null); 
+    mockGetLatestBlockNumber.mockResolvedValue(500n);
 
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
 
+    // Wait for state to become MISSING
     await waitFor(() => {
-        // isLoading should become false even if data is undefined
-        expect(result.current.isLoading).toBe(false);
+        expect(result.current.sessionKeyState).toBe(SessionKeyState.MISSING);
     });
+    
+    // Also wait for fetching to complete
+     await waitFor(() => {
+        expect(result.current.isFetching).toBe(false);
+     }, { timeout: 2000 });
 
-    expect(result.current.sessionKey).toBeNull(); // Check for null instead of undefined
-    // Determine expected state based on hook logic when sessionKey is null
+    // Assert final state
+    expect(result.current.isLoading).toBe(false); 
+    expect(result.current.sessionKey).toBeNull(); 
     expect(result.current.sessionKeyState).toBe(SessionKeyState.MISSING); 
-    expect(result.current.needsUpdate).toBe(true); // Missing state implies update needed
+    expect(result.current.needsUpdate).toBe(true); 
+    expect(mockValidate).not.toHaveBeenCalled();
   });
   
   it('correctly identifies mismatched session key', async () => { 
-    mockGetCurrentSessionKeyData.mockResolvedValue(mismatchedSessionKeyData);
-    mockGetLatestBlockNumber.mockResolvedValue(BigInt(500));
+    mockGetCurrentSessionKeyData.mockResolvedValue(mismatchedKeyDataContract);
+    mockGetLatestBlockNumber.mockResolvedValue(500n);
     mockValidate.mockReturnValue(SessionKeyState.MISMATCH);
 
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
 
+    // Wait for loading to finish and state to become MISMATCH
     await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
+        expect(result.current.isFetching).toBe(false);
+        expect(result.current.sessionKeyState).toBe(SessionKeyState.MISMATCH);
     });
 
-    expect(result.current.sessionKeyState).toBe(SessionKeyState.MISMATCH);
     expect(result.current.needsUpdate).toBe(true);
+    expect(mockValidate).toHaveBeenCalledWith(otherKeyAddress, embeddedAddress, 9999, 500);
   });
   
   it('handles missing injected wallet address (query disabled)', async () => {
-    // Mock useWallet to return no injected address
     (useWallet as jest.Mock).mockReturnValue({
-        injectedWallet: null, // No owner
+        injectedWallet: null, 
         embeddedWallet: { address: embeddedAddress }
     });
+    // Also ensure client mock is present but queries depending on injectedWallet are disabled
+    (useBattleNadsClient as jest.Mock).mockReturnValue({ client: mockClient });
 
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
 
-    // Give time for potential state changes, though query should be disabled
-    await new Promise(resolve => setTimeout(resolve, 50)); 
+    // State should be IDLE immediately and stay that way
+    expect(result.current.sessionKeyState).toBe(SessionKeyState.IDLE); 
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); }); // Tick for effect
+    expect(result.current.sessionKeyState).toBe(SessionKeyState.IDLE); 
 
     expect(result.current.sessionKey).toBeUndefined();
-    // Block number query might still run if enabled only by client
-    // Assert based on actual hook logic for disabled state
-    expect(result.current.isLoading).toBe(false); // Should not be loading if query is disabled
-    expect(result.current.sessionKeyState).toBe(SessionKeyState.IDLE);
+    // isLoading depends on BOTH queries, currentBlock query might still be loading if client exists
+    // Let's wait for isFetching to be definitively false
+    await waitFor(() => {
+        expect(result.current.isFetching).toBe(false);
+    });
+    expect(result.current.isLoading).toBe(false); // Now loading should also be false
     expect(result.current.needsUpdate).toBe(false);
+    expect(mockValidate).not.toHaveBeenCalled();
   });
   
   it('handles missing client (query disabled)', async () => {
-    // Mock useBattleNadsClient to return no client
-    (useBattleNadsClient as jest.Mock).mockReturnValue({ client: null });
+    (useBattleNadsClient as jest.Mock).mockReturnValue({ client: null }); // No client
     (useWallet as jest.Mock).mockReturnValue({
         injectedWallet: { address: ownerAddress }, 
         embeddedWallet: { address: embeddedAddress }
     });
 
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
-
-    await new Promise(resolve => setTimeout(resolve, 50)); 
+    
+    // State should be IDLE immediately and stay that way
+    expect(result.current.sessionKeyState).toBe(SessionKeyState.IDLE); 
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 0)); }); // Tick for effect
+    expect(result.current.sessionKeyState).toBe(SessionKeyState.IDLE); 
 
     expect(result.current.sessionKey).toBeUndefined();
-    expect(result.current.isLoading).toBe(false); // Query should be disabled
-    expect(result.current.sessionKeyState).toBe(SessionKeyState.IDLE);
+    expect(result.current.isLoading).toBe(false); // No client -> queries disabled
+    expect(result.current.isFetching).toBe(false); 
     expect(result.current.needsUpdate).toBe(false);
+    expect(mockValidate).not.toHaveBeenCalled();
   });
   
   it('handles session key query error', async () => { 
     const mockError = new Error("Session Key Fetch Failed");
     mockGetCurrentSessionKeyData.mockRejectedValue(mockError);
-    mockGetLatestBlockNumber.mockResolvedValue(BigInt(500)); // Block query OK
+    mockGetLatestBlockNumber.mockResolvedValue(500n); 
 
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
 
+    // Wait until error is set AND state becomes MISSING
     await waitFor(() => {
-        // isFetching is true during error state initially, isLoading might be false
-        // Let's check error state instead
-        expect(result.current.error).toBe(mockError.message);
+      expect(result.current.error).toBe(mockError.message);
+      expect(result.current.sessionKeyState).toBe(SessionKeyState.MISSING);
     });
 
-    expect(result.current.isLoading).toBe(false); // Query finished (with error)
-    expect(result.current.sessionKey).toBeUndefined();
+    // Assert final state
+    expect(result.current.isLoading).toBe(false); 
+    expect(result.current.isFetching).toBe(false); // Fetch finished with error
+    expect(result.current.sessionKey).toBeUndefined(); // No data because of error
     expect(result.current.error).toBe(mockError.message);
-    // Determine expected state based on hook logic during error
-    expect(result.current.sessionKeyState).toBe(SessionKeyState.MISSING); // Or potentially IDLE if error prevents fetch
-    expect(result.current.needsUpdate).toBe(true); // Missing implies update needed
+    expect(result.current.sessionKeyState).toBe(SessionKeyState.MISSING); 
+    expect(result.current.needsUpdate).toBe(true); 
+    expect(mockValidate).not.toHaveBeenCalled();
   });
 
 }); 

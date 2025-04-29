@@ -1,11 +1,15 @@
 // Raw Solidity contract types for BattleNads
 // These types exactly match the on-chain structures and use appropriate primitive types
 
-// Session key data structure
+// Session key data structure (Matches CashierTypes.SessionKeyData)
 export interface SessionKeyData {
-  key: string;
-  expiration: bigint;
-  isValid: boolean;
+  owner: string; // address
+  key: string; // address
+  balance: bigint; // uint256 - Current MON balance of the key
+  targetBalance: bigint; // uint256 - Ideal MON balance for the key
+  ownerCommittedAmount: bigint; // uint256 - Owner's bonded shMON (estimated MON value)
+  ownerCommittedShares: bigint; // uint256 - Owner's bonded shMON (shares)
+  expiration: bigint; // uint64 - Block number when the key expires
 }
 
 // Character stats structure
