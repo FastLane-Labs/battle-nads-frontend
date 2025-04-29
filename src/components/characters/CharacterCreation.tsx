@@ -401,7 +401,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
           <img 
             src="/BattleNadsLogo.webp" 
             alt="Battle Nads Logo"
-            className="max-w-[300px] md:max-w-[400px] mx-auto"
+            className="max-w-[300px] md:max-w-[335px] mx-auto"
           />
           
           <h2 className="text-center text-4xl font-semibold uppercase mb-6 gold-text tracking-wider">
