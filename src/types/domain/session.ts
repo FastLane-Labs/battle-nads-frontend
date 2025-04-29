@@ -17,10 +17,13 @@ export enum SessionKeyState {
  * Structure of the session key data
  */
 export interface SessionKeyData {
-  key: string;
-  signature: string;
-  expiry: number;
   owner: string;
+  key: string;
+  balance: bigint;
+  targetBalance: bigint;
+  ownerCommittedAmount: bigint;
+  ownerCommittedShares: bigint;
+  expiry: bigint;
 }
 
 /**
@@ -34,7 +37,7 @@ export interface SessionKeyValidation {
 
 export interface WorldSnapshot {
   characterID: string;
-  sessionKeyData: SessionKeyData;
+  sessionKeyData: SessionKeyData | null;
   character: any; // Will reference Character from ./character
   combatants: any[]; // Will reference CharacterLite[] from ./character
   noncombatants: any[]; // Will reference CharacterLite[] from ./character

@@ -141,17 +141,22 @@ export function mapCharacterLite(
  * Maps contract session key data to domain session key data
  */
 export function mapSessionKeyData(
-  rawData: contract.SessionKeyData,
+  rawData: contract.SessionKeyData | null,
   owner: string | null
-): domain.SessionKeyData {
-  // As a temporary workaround, create a minimal object that satisfies type requirements
-  // Even though we're not setting all fields from the contract correctly
+): domain.SessionKeyData | null {
+  if (!rawData) {
+    return null;
+  }
+
   return {
+    owner: rawData.owner,
     key: rawData.key,
-    signature: '', // Add required field with placeholder
-    expiry: Number(rawData.expiration),
-    owner: owner || '' // Add required field with placeholder
-  } as domain.SessionKeyData; // Use type assertion to bypass strict checks
+    balance: rawData.balance,
+    targetBalance: rawData.targetBalance,
+    ownerCommittedAmount: rawData.ownerCommittedAmount,
+    ownerCommittedShares: rawData.ownerCommittedShares,
+    expiry: rawData.expiration
+  };
 }
 
 /**
@@ -184,22 +189,35 @@ export function mapChatLog(
  * Maps complete contract data to domain world snapshot
  */
 export function contractToWorldSnapshot(
-  data: contract.PollFrontendDataReturn,
+  data: contract.PollFrontendDataReturn | null,
   owner: string | null = null
-): domain.WorldSnapshot {
+): domain.WorldSnapshot | null {
+  
+  // If the entire data packet is null, return null
+  if (!data) {
+    return null;
+  }
+
+  // Map session key data (which might be null)
+  const mappedSessionKeyData = mapSessionKeyData(data.sessionKeyData, owner);
+
+  // If session key data couldn't be mapped (e.g., input was null), 
+  // potentially return null or a snapshot with null session data based on requirements.
+  // For now, let's return the snapshot but with null sessionKeyData.
+  
   // Create the world snapshot based on the domain types
   return {
     characterID: data.characterID || '',
-    sessionKeyData: mapSessionKeyData(data.sessionKeyData, owner),
+    sessionKeyData: mappedSessionKeyData, // Use the potentially null mapped data
     character: mapCharacter(data.character),
     combatants: data.combatants?.map(mapCharacterLite) || [],
     noncombatants: data.noncombatants?.map(mapCharacterLite) || [],
     movementOptions: data.movementOptions || { canMoveNorth: false, canMoveSouth: false, canMoveEast: false, canMoveWest: false },
     eventLogs: data.eventLogs?.map(mapEventLog) || [],
     chatLogs: data.chatLogs?.map(mapChatLog) || [],
-    balanceShortfall: Number(data.balanceShortfall),
-    unallocatedAttributePoints: Number(data.unallocatedAttributePoints),
-    lastBlock: Number(data.endBlock)
+    balanceShortfall: Number(data.balanceShortfall || 0), // Handle potential null/undefined
+    unallocatedAttributePoints: Number(data.unallocatedAttributePoints || 0), // Handle potential null/undefined
+    lastBlock: Number(data.endBlock || 0) // Handle potential null/undefined
     // Note: dataFeeds is not part of WorldSnapshot interface, removed it
   };
 } 

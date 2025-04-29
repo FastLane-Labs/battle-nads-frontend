@@ -19,7 +19,7 @@ export const useSessionKey = (characterId: string | null) => {
   const { 
     data: sessionKey, 
     isLoading: isLoadingSessionKey,
-    isFetching: isFetchingSessionKey, // Use isFetching to track background updates
+    isFetching: isFetchingSessionKey,
     error: sessionKeyError,
     refetch: refreshSessionKey 
   } = useQuery({
@@ -30,7 +30,6 @@ export const useSessionKey = (characterId: string | null) => {
         throw new Error('Client, owner address, or character ID missing for session key fetch');
       }
       
-      const queryKey = ['sessionKey', owner, characterId];
       console.log(`[useSessionKey] Fetching session key data for owner: ${owner}`);
       
       try {
@@ -39,27 +38,16 @@ export const useSessionKey = (characterId: string | null) => {
           typeof value === 'bigint' ? value.toString() : value
         ));
         
-        if (!data || !data.key || data.key.toLowerCase() === ZeroAddress.toLowerCase()) { 
-          console.log('[useSessionKey] No valid session key found, invalidating cache immediately.');
-          await queryClient.invalidateQueries({ queryKey });
-        }
-        
         return data === undefined ? null : data; 
       } catch (error) {
         console.error("[useSessionKey] Error fetching session key data:", error);
-        await queryClient.invalidateQueries({ queryKey });
         throw error;
       }
     },
     enabled: !!characterId && !!client && !!injectedWallet?.address,
-    // --- Optimizations --- 
-    // Keep session key data fresh for a longer period (e.g., 5 minutes)
-    // It primarily changes on expiration (checked against currentBlock) or manual updates.
-    staleTime: 5 * 60 * 1000, // 5 minutes 
-    // Refetch less frequently in the background as a safety check 
-    refetchInterval: 5 * 60 * 1000, // 5 minutes 
-    // Keep default refetchOnWindowFocus (true) - if window is refocused after staleTime, it will refetch.
-    // Keep default refetchOnMount (true) - if mounted after staleTime, it will refetch.
+    // Keep optimistic caching settings
+    staleTime: 5 * 60 * 1000, 
+    refetchInterval: 5 * 60 * 1000, 
   });
 
   // Query for current block number (for expiration checks)
@@ -104,6 +92,7 @@ export const useSessionKey = (characterId: string | null) => {
   useEffect(() => {
     const isQueryEnabled = !!characterId && !!client && !!injectedWallet?.address;
     const areQueriesLoading = isLoadingSessionKey || isLoadingBlock;
+    
     const hasQueryError = !!sessionKeyError || !!blockError;
 
     const validationInput = {
@@ -118,7 +107,8 @@ export const useSessionKey = (characterId: string | null) => {
     const isReadyForValidation = 
       isQueryEnabled &&
       sessionKey !== undefined && // Data is fetched
-      sessionKey?.key && // Key is present and not zero address (implicitly checked by machine)
+      sessionKey?.key && // Key is present
+      sessionKey.key.toLowerCase() !== ZeroAddress.toLowerCase() && // Key is NOT the zero address
       currentBlock !== undefined && // Data is fetched
       currentBlock > 0 && // Block number is valid
       embeddedWallet?.address && // Wallet is present
@@ -158,7 +148,10 @@ export const useSessionKey = (characterId: string | null) => {
       } else if (sessionKey !== undefined && currentBlock !== undefined) {
           // Queries finished loading without error, but data is still invalid
           console.log("[useSessionKey Effect] Validation skipped: Invalid data post-load:", validationInput);
-          if (!sessionKey?.key) console.warn("[useSessionKey Effect] - Session key missing or invalid post-load");
+          // Check for specific invalid data conditions
+          if (!sessionKey?.key || sessionKey.key.toLowerCase() === ZeroAddress.toLowerCase()) {
+             console.warn("[useSessionKey Effect] - Session key missing or zero address post-load");
+          }
           if (!embeddedWallet?.address) console.warn("[useSessionKey Effect] - Embedded wallet address missing post-load");
           // Only log block error if it finished loading and is <= 0
           if (!isLoadingBlock && !blockError && currentBlock <= 0) {
@@ -202,10 +195,13 @@ export const useSessionKey = (characterId: string | null) => {
     sessionKeyState === SessionKeyState.MISSING;
 
   // Return values needed by consuming components
+  const finalIsLoading = isLoadingSessionKey || isLoadingBlock;
+  console.log(`[useSessionKey Return Debug] isLoadingSessionKey=${isLoadingSessionKey}, isLoadingBlock=${isLoadingBlock}, finalIsLoading=${finalIsLoading}`);
+
   return {
     sessionKey,
     // Use isLoading for initial load indication, isFetching for background updates
-    isLoading: isLoadingSessionKey || isLoadingBlock, 
+    isLoading: finalIsLoading, 
     isFetching: isFetchingSessionKey || isFetchingBlock, 
     error: sessionKeyError 
       ? (sessionKeyError as Error).message 
