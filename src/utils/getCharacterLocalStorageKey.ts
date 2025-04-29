@@ -1,5 +1,3 @@
-import { ethers } from 'ethers';
-
 /**
  * Generates a unique localStorage key for a character ID based on the owner address and contract address.
  * This ensures that character IDs are stored per wallet address, preventing cross-wallet contamination.
@@ -7,14 +5,17 @@ import { ethers } from 'ethers';
  * @param ownerAddress - The owner's wallet address.
  * @returns The localStorage key string or null if the address is invalid.
  */
+import { ENTRYPOINT_ADDRESS } from '../config/env';
+
 export const getCharacterLocalStorageKey = (ownerAddress: string | null | undefined): string | null => {
   if (!ownerAddress) {
     console.warn("[getCharacterLocalStorageKey] Invalid or missing owner address provided.");
     return null;
   }
   
-  // For this specific wallet address, generate a unique storage key
-  return `battleNads:character:${ownerAddress.toLowerCase()}`;
+  // Create a combined key using both contract address and owner address
+  // This ensures localStorage is invalidated if the contract address changes
+  return `battleNads:character:${ENTRYPOINT_ADDRESS.toLowerCase()}:${ownerAddress.toLowerCase()}`;
 };
 
 // Add a new helper function to validate character IDs
