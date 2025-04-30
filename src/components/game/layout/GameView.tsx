@@ -49,7 +49,6 @@ const GameView: React.FC<GameViewProps> = ({
       h="100%"
       gap="4"
       p="4"
-      bg="gray.900"
       color="white"
     >
       {/* Game Map */}

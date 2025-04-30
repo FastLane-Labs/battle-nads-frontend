@@ -6,7 +6,7 @@ import AppInitializer from '../components/AppInitializer';
 
 export default function HomePage() {
   return (
-    <Box className="min-h-screen bg-gray-900">
+    <Box className="min-h-screen">
       <AppInitializer />
     </Box>
   );
