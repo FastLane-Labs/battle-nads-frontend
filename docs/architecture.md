@@ -44,6 +44,7 @@
 │   ├── contracts               # Wallet-aware client hook
 │   │   └── useBattleNadsClient.ts
 │   ├── game                    # Gameplay hooks (React-Query + XState helpers)
+│   │   ├── useCachedDataFeed.ts
 │   │   ├── useUiSnapshot.ts    # **single polling source of truth**
 │   │   ├── useBattleNads.ts    # Core game data and actions
 │   │   ├── useCharacter.ts     # Character management
@@ -116,14 +117,23 @@
   - Handles contract instance loading and error states
   - Provides unified interface for contract interactions
 
-#### `useUiSnapshot`
-- **Purpose**: Central polling mechanism for game data
+#### `useCachedDataFeed`
+- **Purpose**: Manage local cache (IndexedDB via localforage) of historical event and chat logs.
 - **Responsibilities**:
-  - The only polling point in the application
-  - Fetches client.getUiSnapshot() on a regular interval
-  - Maps contract data to domain model
-  - Caches responses via TanStack Query tagged by ['uiSnapshot', owner]
-  - Maintains a coherent game state
+  - Loads cached data blocks on initialization.
+  - Determines the appropriate `startBlock` for incremental fetching based on the last cached block and a TTL.
+  - Stores newly fetched `DataFeed` blocks (events/chats) from the client.
+  - Purges expired blocks from the cache.
+  - Provides the cached blocks and the latest block number covered by the cache to `useUiSnapshot`.
+
+#### `useUiSnapshot`
+- **Purpose**: Central polling mechanism for live game state data, integrating cached historical data.
+- **Responsibilities**:
+  - Primary interaction point with `client.getUiSnapshot()` for live data.
+  - Uses `useCachedDataFeed` to determine the `startBlock` for polling, enabling incremental fetches.
+  - Receives raw data from the client (currently array-based, mapped internally to an object structure - *potential fragility*).
+  - Merges live `DataFeed` results with historical data from `useCachedDataFeed`.
+  - Caches the combined, mapped response via TanStack Query tagged by [`'uiSnapshot'`, owner].
 
 #### `useGame`
 - **Purpose**: Game initialization and orchestration
@@ -137,19 +147,25 @@
   - Wraps movement/chat/attack mutations
 
 #### `useBattleNads`
-- **Purpose**: Core game data and contract interactions
+- **Purpose**: Maps raw snapshot data to UI-friendly game state.
 - **Responsibilities**:
-  - Reads from the uiSnapshot cache
-  - Performs game actions (movement, combat)
-  - Creates characters and manages character data
-  - Handles chat message transmission
-  - Manages game events and data feeds
-  - Invalidates cache to ensure data consistency
+  - Consumes the cached data from `useUiSnapshot`.
+  - Maps the `contract.PollFrontendDataReturn` structure through `contractToDomain` and `domainToUi` mappers.
+  - Provides the final `ui.GameState` object.
+  - Handles loading/error states from the underlying query.
+  - Preserves the last valid state during refetches to prevent UI flickering.
 
-#### `useSessionKey` / `useSessionFunding`
-- **Purpose**: Account Abstraction key management
+#### `useSessionKey`
+- **Purpose**: Account Abstraction key management and validation.
 - **Responsibilities**:
-  - Provides Query + FSM validation for AA keys
+  - **Currently fetches `sessionKeyData` and `currentBlock` independently via separate client calls.** (*Note: This is redundant; data is available in `useUiSnapshot` cache*).
+  - Uses `sessionKeyMachine` and fetched data to determine the validation state (`VALID`, `EXPIRED`, `MISMATCH`, `MISSING`).
+  - Provides the session key state and a `needsUpdate` flag.
+  - Manages React Query caching for its independent fetches.
+
+#### `useSessionFunding`
+- **Purpose**: Handles funding actions for the session key.
+- **Responsibilities**:
   - Manages MON top-ups & deactivation
   - Validates session key health
   - Updates session keys
@@ -162,57 +178,84 @@
   - Provides state transitions and guards
   - Manages game flow based on wallet, character, and session key state
 
+#### `useWalletBalances`
+- **Purpose**: Fetch and manage wallet balance information
+- **Responsibilities**:
+  - Fetches owner, session key, and bonded balances
+  - Calculates balance shortfall for replenishment warnings
+  - Provides data for the `WalletBalances` component
+
 ### UI Components
 
-#### `Game` Component
-- **Purpose**: Main game UI orchestration
+#### `AppInitializer` Component
+- **Purpose**: Top-level application state management and rendering logic.
 - **Responsibilities**:
-  - Renders the appropriate UI based on game state
-  - Handles initialization flow
-  - Manages game state transitions
-  - Coordinates sub-components
-  - Handles error states and loading
-  - Processes user input for game actions
+  - Uses `useGame` hook to determine application state (loading, error, login, character creation, session key prompt, ready).
+  - Renders appropriate UI screens or components based on the current state.
+  - Handles redirects between application states (e.g., redirecting to `/create` if no character exists).
+  - Acts as the entry point before the main game interface is displayed.
 
-#### `GameBoard` Component
-- **Purpose**: Render the 2D game world
+#### `GameContainer` Component
+- **Purpose**: Container for the active game interface.
 - **Responsibilities**:
-  - Displays the game grid
-  - Shows player position
-  - Renders other characters and monsters
-  - Visualizes movement possibilities
-  - Handles attack targeting
+  - Receives game state (`character`, `gameState`, etc.) and action handlers (`moveCharacter`, `attack`, etc.) as props, typically from `AppInitializer` / `useGame`.
+  - Renders the core `GameView` component which includes the game board, controls, and data feeds.
+  - Includes the toggle mechanism for the `DebugPanel`.
+  - Orchestrates the UI elements directly involved in gameplay once the application is in a 'ready' state.
+
+#### `GameView` Component
+- **Purpose**: Arrange the main UI panels for the active game screen.
+- **Responsibilities**:
+  - Uses Chakra UI Grid to define the layout areas (map, character, controls, feed, chat).
+  - Renders child components (`Minimap`, `CharacterInfo`, `MovementControls`, `CombatTargets`, `EventFeed`, `ChatPanel`) in their designated grid areas.
+  - Passes necessary props (game state, event handlers) down to child components.
+  - Handles responsive layout adjustments between base and medium screen sizes.
+
+#### `Minimap` Component
+- **Purpose**: Visualize the character's immediate surroundings.
+- **Responsibilities**:
+  - Renders a grid representing the local game area.
+  - Displays the player character's position.
+  - Potentially shows nearby combatants or non-combatants (implementation detail).
+
+#### `CharacterInfo` Component
+- **Purpose**: Display detailed information about the player's character within the main game view.
+- **Responsibilities**:
+  - Shows character name, stats (health, attributes).
+  - Displays current equipment.
+  - Potentially includes status effects or other in-game relevant character details.
+  - Distinct from `CharacterCard` which might be used for summaries outside the main game screen.
 
 #### `MovementControls` Component
-- **Purpose**: Provide UI for movement actions
+- **Purpose**: Provide UI for movement actions.
 - **Responsibilities**:
-  - Renders direction buttons
-  - Handles user movement input
-  - Shows movement feedback and tooltips
-  - Displays position coordinates
+  - Renders direction buttons (N, S, E, W, Up, Down).
+  - Disables buttons based on movement possibility or loading state (`isMoving`).
+  - Calls the `onMove` handler passed from parent (`GameView`).
+  - Displays current position coordinates.
 
-#### `ChatInterface` Component
-- **Purpose**: In-game communication
+#### `CombatTargets` Component
+- **Purpose**: Display available targets and handle attack actions.
 - **Responsibilities**:
-  - Displays chat history
-  - Manages message input
-  - Shows sender information
-  - Handles message submission
-
-#### `DataFeed` Component
-- **Purpose**: Combine game events and chat
-- **Responsibilities**:
-  - Renders `EventFeed` and `ChatInterface`
-  - Manages layout and scrolling
-  - Routes messages to appropriate handlers
+  - Lists nearby combatants retrieved from game state.
+  - Allows the user to select a target.
+  - Calls the `onAttack` handler with the selected target index.
+  - Indicates loading state (`isAttacking`).
 
 #### `EventFeed` Component
-- **Purpose**: Display game events
+- **Purpose**: Display game event messages.
 - **Responsibilities**:
-  - Shows combat results
-  - Displays movement confirmations
-  - Formats events with timestamps
-  - Categorizes events by type
+  - Renders a list of event logs (combat results, movement, etc.).
+  - Filters or formats messages relevant to the player (`characterId`).
+  - Manages scrolling for the feed area.
+
+#### `ChatPanel` Component
+- **Purpose**: Handle in-game chat display and input.
+- **Responsibilities**:
+  - Displays historical chat messages (`chatLogs`).
+  - Provides an input field for sending new messages.
+  - Calls the `onSendChatMessage` handler.
+  - Manages scrolling for the chat area.
 
 #### `CharacterCard` Component
 - **Purpose**: Display character information
@@ -258,13 +301,25 @@
   - Adjusts based on authentication state
   - Shows character status
 
+#### `DebugPanel` Component
+- **Purpose**: Display debug information and provide testing tools.
+- **Responsibilities**:
+  - Shows detailed wallet addresses and character ID.
+  - Allows fetching of character ID and full UI snapshot data via `useBattleNadsClient`.
+  - Displays MON balance information for owner and session key.
+  - Provides tools to estimate buy-in amounts.
+  - Shows monster health details derived from game state (`useBattleNads`).
+  - Logs actions performed within the panel.
+
 ## Data Flow
 
 1. Authentication Flow:
    - `PrivyAuthProvider` → `WalletProvider` → `useGame` → UI Components
 
 2. Game Data Flow:
-   - Smart Contract → `useBattleNadsClient` → `useUiSnapshot` → React-Query Cache → Gameplay Hooks → UI Components
+   - Historical Logs: `localforage` → `useCachedDataFeed`
+   - Live Data: Smart Contract → `useBattleNadsClient` → `useUiSnapshot` (informed by `useCachedDataFeed`) → React-Query Cache (`['uiSnapshot', owner]`) → `useBattleNads` (mapping) → `useGame` (orchestration) → UI Components
+   - Session Key Validation: Smart Contract → `useBattleNadsClient` → `useSessionKey` → `useGame` → UI Components (*Note: Independent fetch path*)
 
 3. Action Flow:
    - UI Components → Gameplay Hooks → `useBattleNadsClient` → Smart Contract → Invalidate Cache ['uiSnapshot', owner]
