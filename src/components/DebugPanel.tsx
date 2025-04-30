@@ -20,6 +20,7 @@ import { useBattleNads } from '../hooks/game/useBattleNads';
 import { useWallet } from '../providers/WalletProvider';
 import { calculateMaxHealth } from '../utils/gameDataConverters';
 import { useBattleNadsClient } from '../hooks/contracts/useBattleNadsClient';
+import { CharacterLite } from '@/types/domain';
 
 interface DebugPanelProps {
   isVisible?: boolean;
@@ -161,8 +162,8 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
     return (
       <VStack align="start" spacing={2}>
         <Text fontWeight="bold">Monster Health Details:</Text>
-        {gameState.combatants.map((combatant: any, index: number) => {
-          const calculatedMaxHealth = calculateMaxHealth(combatant.stats);
+        {gameState.combatants.map((combatant: CharacterLite, index: number) => {
+          const calculatedMaxHealth = combatant.maxHealth;
           const actualHealth = Number(combatant.health || 0);
           
           return (
@@ -171,10 +172,6 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
               <Text fontSize="xs">Current Health: {actualHealth}</Text>
               <Text fontSize="xs">Calculated Max Health: {calculatedMaxHealth}</Text>
               <Text fontSize="xs">Health Ratio: {(actualHealth / calculatedMaxHealth).toFixed(2)}</Text>
-              <Text fontSize="xs">
-                Vitality: {combatant.stats.vitality},
-                Sturdiness: {combatant.stats.sturdiness}
-              </Text>
             </Box>
           );
         })}
