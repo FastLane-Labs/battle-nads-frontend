@@ -291,9 +291,10 @@
 - XState guards to prevent redundant polling
 
 ### Error Handling
-- Error boundaries for component failures
-- Transaction retry mechanisms
-- Clear error messaging and recovery paths
+- Error boundaries (e.g., `<GameErrorBoundary>`) can be used to wrap major sections like `app/(game)` routes to centralize handling of wallet, RPC, or transaction errors.
+- Custom typed error classes (e.g., `WalletMissingError`, `ContractCallError`, `SessionKeyExpiredError`, `CharacterMissingError`) defined in `src/errors.ts` are used throughout the application to allow for specific error identification and handling logic.
+- Transaction retry mechanisms can be implemented within relevant hooks or the client facade.
+- UI components should display clear error messaging and provide recovery paths or actions where appropriate (e.g., retry buttons, funding prompts).
 
 ## Suggested Improvements
 
