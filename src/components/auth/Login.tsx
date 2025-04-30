@@ -25,13 +25,13 @@ const Login: React.FC = () => {
             className="max-w-[300px] md:max-w-[335px] mx-auto"
           />
           
-          <h2 className="text-center text-4xl font-semibold uppercase mb-4 gold-text tracking-wider leading-10 text-nowrap">
+          <h2 className="text-center text-2xl md:text-3xl font-semibold uppercase mb-4 gold-text tracking-wider leading-10 text-nowrap">
             Adventure Awaits
           </h2>
           
           <div className="relative mt-4 group">
             {/* Animated glow effect */}
-            <div className="absolute inset-0 -m-1 bg-yellow-500/20 rounded-md blur-md z-0 animate-pulse-slow"></div>
+            <div className="absolute inset-0 -m-1 bg-yellow-500/10 rounded-md blur-md z-0 animate-pulse-slow"></div>
             
             {/* Button */}
             <div className="relative animate-float">
@@ -56,7 +56,7 @@ const Login: React.FC = () => {
             </div>
           </div>
           
-          <p className="text-gray-400 text-center mt-4 max-w-md">
+          <p className="text-gray-300/95 text-center mt-3 max-w-md">
             Connect your wallet to enter the world of Battle Nads and begin your adventure
           </p>
         </div>
