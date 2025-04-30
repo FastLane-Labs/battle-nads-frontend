@@ -46,6 +46,44 @@ jest.mock('../../../mappers', () => ({
   })),
 }));
 
+// Mock localStorage
+const localStorageMock = (function() {
+  let store = {};
+  return {
+    getItem: jest.fn((key) => {
+      return store[key] || null;
+    }),
+    setItem: jest.fn((key, value) => {
+      store[key] = value.toString();
+    }),
+    clear: jest.fn(() => {
+      store = {};
+    })
+  };
+})();
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock
+});
+
+// Mock localforage
+jest.mock('localforage', () => ({
+  config: jest.fn(),
+  getItem: jest.fn().mockResolvedValue(null),
+  setItem: jest.fn().mockResolvedValue(null),
+  removeItem: jest.fn().mockResolvedValue(null),
+  keys: jest.fn().mockResolvedValue([])
+}));
+
+// Mock useCachedChatLogs
+jest.mock('../useCachedChatLogs', () => ({
+  __esModule: true,
+  default: jest.fn().mockReturnValue({
+    blocks: [],
+    latest: BigInt(100),
+    isLoading: false
+  })
+}));
+
 // Mock React Query for immediate query execution
 jest.mock('@tanstack/react-query', () => {
   const originalModule = jest.requireActual('@tanstack/react-query');
@@ -74,7 +112,9 @@ describe('useUiSnapshot', () => {
       getUiSnapshot: jest.fn().mockImplementation(() => Promise.resolve({
         ...mockPollData,
         endBlock: BigInt(150)
-      }))
+      })),
+      getLatestBlockNumber: jest.fn().mockResolvedValue(BigInt(100)),
+      getDataFeed: jest.fn().mockResolvedValue([])
     };
     
     (useBattleNadsClient as jest.Mock).mockReturnValue({

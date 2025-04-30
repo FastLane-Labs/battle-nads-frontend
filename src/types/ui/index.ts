@@ -1,2 +1,2 @@
 // Barrel file for UI types
-export * from './gameState'; 
+export * from './gameState';

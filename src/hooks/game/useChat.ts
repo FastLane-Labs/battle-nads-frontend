@@ -3,8 +3,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from './useBattleNads';
+import { useUiSnapshot } from './useUiSnapshot';
 import { invalidateSnapshot } from '../utils';
-import { ui } from '../../types';
+import { contract, domain } from '../../types';
+import { getChatMessagesFromFeeds } from '../../utils/dataFeedSelectors';
 
 /**
  * Hook for chat functionality
@@ -18,14 +20,22 @@ export const useChat = () => {
   // Owner address
   const owner = injectedWallet?.address || null;
   
-  // Get game state for character ID and chat logs
+  // Get raw data for chat logs directly from dataFeeds
+  const { data: rawData } = useUiSnapshot(owner);
+  
+  // Get game state for character information
   const { gameState } = useBattleNads(owner);
   
   // Character ID
   const characterId = gameState?.character?.id || null;
   
-  // Chat logs
-  const chatLogs = useMemo(() => gameState?.chatLogs || [], [gameState]);
+  // Get chat logs directly from dataFeeds - this is the key change
+  const chatLogs = useMemo(() => {
+    if (!rawData?.dataFeeds) return [];
+    
+    // Convert raw dataFeeds to domain ChatMessage objects
+    return getChatMessagesFromFeeds(rawData.dataFeeds);
+  }, [rawData?.dataFeeds]);
   
   // Mutation for sending chat message
   const chatMutation = useMutation({
@@ -46,23 +56,29 @@ export const useChat = () => {
   const sendChatMessage = async (message: string) => {
     console.log(`[useChat] Preparing to send message: "${message}" for character ${characterId}`);
     
-    // Add optimistic update to cache
-    const previousData = queryClient.getQueryData<ui.GameState>(['uiSnapshot', owner]);
+    // Add optimistic update to cache - with new data structure
+    const previousData = queryClient.getQueryData<contract.PollFrontendDataReturn>(['uiSnapshot', owner]);
     
-    if (previousData && gameState && gameState.character) {
-      // Create optimistic update
-      const optimisticChat = {
-        characterName: gameState.character.name || 'You',
-        message,
-        timestamp: Date.now()
+    if (previousData && gameState?.character) {
+      // Format the optimistic chat message
+      const chatMessage = `${gameState.character.name || 'You'}: ${message}`;
+      
+      console.log(`[useChat] Adding optimistic chat update: ${chatMessage}`);
+      
+      // Create a new optimistic dataFeed to add to the list
+      const optimisticFeed: contract.DataFeed = {
+        blockNumber: previousData.endBlock, // Use the latest known block
+        logs: [],
+        chatLogs: [chatMessage]
       };
       
-      console.log(`[useChat] Adding optimistic chat update: ${JSON.stringify(optimisticChat)}`);
+      // Create a new array of dataFeeds with our optimistic update
+      const updatedDataFeeds = [...(previousData.dataFeeds || []), optimisticFeed];
       
-      // Update cache with optimistic chat message
+      // Update the cache with our optimistic dataFeed
       queryClient.setQueryData(['uiSnapshot', owner], {
         ...previousData,
-        chatLogs: [...(previousData.chatLogs || []), optimisticChat]
+        dataFeeds: updatedDataFeeds
       });
     } else {
       console.warn(`[useChat] Missing data for optimistic update. Owner: ${owner}, Character: ${characterId}`);

@@ -1,8 +1,8 @@
-import React, { useMemo, useRef, useEffect, memo } from 'react';
-import { Box, VStack, Flex, Text, Spinner } from '@chakra-ui/react';
+import React, { useMemo, useRef, memo } from 'react';
+import { Box, Flex, Text, Spinner } from '@chakra-ui/react';
 
-import { useBattleNads } from '@/hooks/game/useBattleNads';
-import { useChat } from '@/hooks/game/useChat';          // NEW
+import { useChat } from '@/hooks/game/useChat';
+import { useEvents } from '@/hooks/game/useEvents';
 import { domain } from '@/types';
 
 import ChatInterface from './ChatInterface';
@@ -40,15 +40,16 @@ interface DataFeedProps {
 }
 
 const DataFeed = memo(function DataFeed({ characterId, owner }: DataFeedProps) {
-  /* --------------- game/event data --------------- */
-  const { gameState, isLoading, error } = useBattleNads(owner ?? null);
+  /* --------------- event data - now directly from dataFeeds --------------- */
+  const { eventLogs: domainEventLogs, isLoading: isLoadingEvents, error: eventError } = useEvents();
+  
   const mappedEventLogs: UiLog[] = useMemo(
-    () => (gameState?.eventLogs || []).map(mapDomainEventMessageToUiLog),
-    [gameState?.eventLogs],
+    () => domainEventLogs.map(mapDomainEventMessageToUiLog),
+    [domainEventLogs],
   );
 
-  /* --------------- chat data --------------- */
-  const { chatLogs, sendChatMessage, isSending, error: chatError } = useChat();  // NEW
+  /* --------------- chat data - now directly from dataFeeds --------------- */
+  const { chatLogs, sendChatMessage, isSending, error: chatError } = useChat();
 
   /* --------------- refs / diagnostic --------------- */
   const instanceId = useRef(`DataFeed-${Math.random().toString(36).slice(2, 9)}`);
@@ -58,7 +59,7 @@ const DataFeed = memo(function DataFeed({ characterId, owner }: DataFeedProps) {
   /* --------------- early exits --------------- */
   if (!characterId) return <Box p={4}>No character selected</Box>;
 
-  if (isLoading && !gameState)
+  if (isLoadingEvents && mappedEventLogs.length === 0)
     return (
       <Box h="100%" w="100%" display="flex" justifyContent="center" alignItems="center">
         <Spinner />
@@ -66,11 +67,11 @@ const DataFeed = memo(function DataFeed({ characterId, owner }: DataFeedProps) {
       </Box>
     );
 
-  if (error || chatError)
+  if (eventError || chatError)
     return (
       <Box h="100%" w="100%" p={4} bg="red.900" color="white">
         <Text>
-          Error loading game feed: {error ?? chatError}
+          Error loading game feed: {eventError ?? chatError}
         </Text>
       </Box>
     );
@@ -79,12 +80,12 @@ const DataFeed = memo(function DataFeed({ characterId, owner }: DataFeedProps) {
   return (
     <Box h="100%" w="100%" overflow="hidden">
       <Flex direction="column" h="100%">
-        {/* Events */}
+        {/* Events - directly from dataFeeds */}
         <Box flex="1" minH="40%" maxH="50%" mb={2} overflow="hidden">
           <EventFeed events={mappedEventLogs} />
         </Box>
 
-        {/* Chat */}
+        {/* Chat - directly from dataFeeds */}
         <Box flex="1" minH="50%" overflow="hidden">
           <ChatInterface
             characterId={characterId}

@@ -57,6 +57,10 @@ export default function EventFeed({ events }: EventFeedProps) {
         return 'purple.400';
       case LogType.Sepukku:
         return 'red.600';
+      case LogType.Ability:
+        return 'yellow.400';
+      case LogType.Unknown:
+        return 'gray.300';
       default:
         return 'gray.400';
     }
@@ -77,6 +81,10 @@ export default function EventFeed({ events }: EventFeedProps) {
         return 'Chat';
       case LogType.Sepukku:
         return 'Death';
+      case LogType.Ability:
+        return 'Ability';
+      case LogType.Unknown:
+        return 'System';
       default:
         return 'Info';
     }

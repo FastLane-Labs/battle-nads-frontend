@@ -10,12 +10,7 @@ import {
   Spacer,
   useColorModeValue
 } from '@chakra-ui/react';
-
-interface ChatMessage {
-  characterName: string;
-  message: string;
-  timestamp?: number;
-}
+import { ChatMessage } from '@/types/domain';
 
 interface ChatInterfaceProps {
   characterId: string;
@@ -68,11 +63,19 @@ export default function ChatInterface({
     }
   };
   
-  const formatTime = (timestamp?: number) => {
-    if (!timestamp) return '';
+  const formatTime = (realTimestamp?: number, blockTimestamp?: number) => {
+    // Use real timestamp if available
+    if (realTimestamp) {
+      const date = new Date(realTimestamp);
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
     
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    // Fall back to block timestamp if no real timestamp
+    if (blockTimestamp) {
+      return `Block: ${blockTimestamp}`;
+    }
+    
+    return '';
   };
   
   return (
@@ -127,11 +130,9 @@ export default function ChatInterface({
                       {msg.characterName}
                     </Text>
                     <Spacer />
-                    {msg.timestamp && (
-                      <Text fontSize="xs" color="gray.400">
-                        {formatTime(msg.timestamp)}
-                      </Text>
-                    )}
+                    <Text fontSize="xs" color="gray.400">
+                      {formatTime(msg.timestamp)}
+                    </Text>
                   </HStack>
                   <Text fontSize="md">{msg.message}</Text>
                 </Flex>

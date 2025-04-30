@@ -1,2 +1,2 @@
 // Barrel file for contract types
-export * from './BattleNads'; 
+export * from './BattleNads';

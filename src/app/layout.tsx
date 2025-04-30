@@ -39,18 +39,18 @@ export default function RootLayout({
     <html lang="en" style={{ colorScheme: 'dark' }} data-theme="dark">
       <body className="chakra-ui-dark">
         <ColorModeScript initialColorMode={theme.config.initialColorMode} />
-        <ErrorBoundary>
-          <ReactQueryProvider>
-            <PrivyAuthProvider>
-              <WalletProvider>
-                <RecoilRoot>
-                  <ChakraProvider theme={theme}>
-                    {children}
-                  </ChakraProvider>
-                </RecoilRoot>
-              </WalletProvider>
-            </PrivyAuthProvider>
-          </ReactQueryProvider>
+          <ErrorBoundary>
+            <ReactQueryProvider>
+              <PrivyAuthProvider>
+                <WalletProvider>
+                  <RecoilRoot>
+                    <ChakraProvider theme={theme}>
+                      {children}
+                    </ChakraProvider>
+                  </RecoilRoot>
+                </WalletProvider>
+              </PrivyAuthProvider>
+            </ReactQueryProvider>
         </ErrorBoundary>
       </body>
     </html>
