@@ -1,32 +1,21 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
-import { 
-  Box, 
-  Heading, 
-  Center, 
-  VStack, 
-  HStack,
-  Text, 
-  Badge,
-  Divider,
+import React, { useMemo, useCallback } from 'react';
+import {
+  Box,
+  Heading,
+  Center,
+  VStack,
+  Text,
   Alert,
   AlertIcon,
-  AlertTitle,
   AlertDescription,
   Button,
-  SimpleGrid,
-  Progress,
-  IconButton,
-  useToast,
+  Spinner,
   Image,
   Flex,
-  Container,
-  Code,
-  Link,
-  Spinner,
-  Switch,
-  useColorMode,
+  IconButton,
+  useToast,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -35,24 +24,13 @@ import {
   ModalBody,
   ModalCloseButton,
   useDisclosure,
-  Tabs,
-  TabList,
-  TabPanels,
-  Tab,
-  TabPanel,
-  Grid,
-  GridItem
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import { useGame } from '../../hooks/game/useGame';
-import EventFeed from './EventFeed';
-import ChatInterface from './ChatInterface';
-import DataFeed from './DataFeed';
-import { domain, ui, contract } from '../../types';
+import { domain, ui } from '../../types';
 import { calculateMaxHealth, extractPositionFromCharacter } from '../../utils/gameDataConverters';
 import WalletBalances from '../WalletBalances';
 import DebugPanel from '../DebugPanel';
-import { CharacterCard } from '../../components/CharacterCard';
 import MovementControls from './MovementControls';
 import GameLayout from './GameLayout';
 // Define type aliases in the module scope
@@ -78,10 +56,6 @@ const Game: React.FC = () => {
     updateSessionKey,
     isUpdatingSessionKey,
     position,
-    movementOptions,
-    others,
-    chatLogs,
-    eventLogs,
     moveCharacter,
     isMoving,
     attack,
@@ -93,8 +67,6 @@ const Game: React.FC = () => {
 
   const combatants: BattleNadLite[] = useMemo(() => gameState?.combatants || [], [gameState]);
 
-  const [combatLog, setCombatLog] = useState<string[]>([]);
-  const [showDebugPanel, setShowDebugPanel] = useState<boolean>(false);
   const StableWalletBalances = useMemo(() => <WalletBalances />, []);
 
   const addToCombatLog = useCallback((message: string) => {
