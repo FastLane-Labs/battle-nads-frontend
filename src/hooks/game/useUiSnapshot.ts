@@ -2,17 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { contract } from '../../types';
 import { POLL_INTERVAL } from '../../config/env';
-import useCachedChatLogs, { CachedChatBlock } from './useCachedChatLogs';
+import { useCachedDataFeed, CachedDataBlock } from './useCachedDataFeed';
 
 /**
  * Hook for polling UI snapshot data from the blockchain
  * Uses React-Query for caching and deduplication of requests
  * Returns raw contract data with dataFeeds as the source of truth
- * Integrates cached chat logs from useCachedChatLogs
+ * Integrates cached data from useCachedDataFeed
  */
 export const useUiSnapshot = (owner: string | null) => {
   const { client } = useBattleNadsClient();
-  const { latest: latestCachedBlock, blocks: cachedChatBlocks } = useCachedChatLogs(owner);
+  const { blocks: cachedDataBlocks, latest: latestCachedBlock } = useCachedDataFeed(owner);
 
   return useQuery<contract.PollFrontendDataReturn, Error>({
     queryKey: ['uiSnapshot', owner],
@@ -33,20 +33,8 @@ export const useUiSnapshot = (owner: string | null) => {
       // --- VALIDATE AND MAP ARRAY TO OBJECT ---
       // Check if the received data is NOT an array
       if (!Array.isArray(rawArrayData)) {
-        console.error("[useUiSnapshot] Expected array from getUiSnapshot, received:", rawArrayData);
-        // Attempt to use it directly if it might already be the correct object structure
-        if (typeof rawArrayData === 'object' && rawArrayData !== null && 'characterID' in rawArrayData) {
-           console.warn("[useUiSnapshot] Received object instead of array, attempting to use directly.");
-           // If it looks like the correct object, we might try returning it directly
-           // NOTE: This path assumes the chat merging logic below is not needed or handled differently
-           // For now, let's just proceed cautiously, but ideally the source returns consistently.
-           // Consider if returning rawArrayData directly here is the right recovery.
-           // For safety, we will still throw an error for now to enforce consistency.
-           throw new Error("Inconsistent data structure: Received object instead of array.");
-        } else {
           // If it's neither an array nor the expected object, it's an unknown structure
           throw new Error("Invalid data structure received from getUiSnapshot");
-        }
       }
       
       // --- At this point, rawArrayData is confirmed to be an array ---
@@ -82,46 +70,56 @@ export const useUiSnapshot = (owner: string | null) => {
       }
       // ---------------------------------------------
       
-      // If we have cached chat blocks, merge them with the dataFeeds
-      if (cachedChatBlocks.length > 0) {
-        // First convert cached chat blocks to a compatible DataFeed format
-        const cachedDataFeeds: contract.DataFeed[] = cachedChatBlocks.map((block) => {
-          // Convert each chat block to a DataFeed
+      // --- Combine Cached and Live Chat/Event Logs --- 
+      const liveFeeds = mappedData.dataFeeds || [];
+      const liveFeedBlockNumbers = new Set(liveFeeds.map(f => f.blockNumber.toString()));
+
+      // Convert cached blocks, filtering out any block also present in the live feed
+      const historicalCachedFeeds: contract.DataFeed[] = cachedDataBlocks
+        .filter((cachedBlock: CachedDataBlock) => !liveFeedBlockNumbers.has(cachedBlock.block.toString()))
+        .map((block: CachedDataBlock) => {
+          // Map cached events (SerializedEventLog[]) back to contract.Log[]
+          const contractLogs: contract.Log[] = (block.events || []).map((e: any) => ({
+            logType: e.logType,
+            index: e.index,
+            mainPlayerIndex: e.mainPlayerIndex,
+            otherPlayerIndex: e.otherPlayerIndex,
+            hit: e.hit,
+            critical: e.critical,
+            damageDone: e.damageDone,
+            healthHealed: e.healthHealed,
+            targetDied: e.targetDied,
+            lootedWeaponID: e.lootedWeaponID,
+            lootedArmorID: e.lootedArmorID,
+            experience: e.experience,
+            value: BigInt(e.value || '0') // Convert string back to BigInt
+          }));
+          
+          // Ensure blockNumber is BigInt for the DataFeed type
+          const blockNumBigInt = typeof block.block === 'bigint' 
+              ? block.block 
+              : BigInt(block.block || '0'); // Convert string/fallback to BigInt
+
           return {
-            blockNumber: typeof block.block === 'string' ? BigInt(block.block) : block.block,
-            logs: [], // No logs in the cached data
-            chatLogs: block.chats.map(chat => `${chat.sender}: ${chat.content}`)
+            blockNumber: blockNumBigInt, 
+            logs: contractLogs, 
+            chatLogs: (block.chats || []).map((chat: any) => chat.content)
           };
         });
-        
-        // Merge the cached feeds with the fetched feeds, ensuring no duplicates
-        const combinedFeeds = [...cachedDataFeeds];
-        
-        // Track block numbers we've already seen to avoid duplicates
-        const seenBlocks = new Set(cachedDataFeeds.map(feed => feed.blockNumber.toString()));
-        
-        // Add remote feeds that don't overlap with the cache
-        for (const feed of mappedData.dataFeeds) {
-          if (!seenBlocks.has(feed.blockNumber.toString())) {
-            combinedFeeds.push(feed);
-            seenBlocks.add(feed.blockNumber.toString());
-          }
-        }
-        
-        // Sort the feeds by block number
-        combinedFeeds.sort((a, b) => {
-          return Number(a.blockNumber - b.blockNumber);
-        });
-        
-        // Return the enriched data with cached + remote data, using the mapped object
-        return {
-          ...mappedData, // Use the mapped object here
-          dataFeeds: combinedFeeds
-        };
-      }
+
+      // Combine: Live feeds first, then filtered historical feeds
+      const combinedFeeds = [...liveFeeds, ...historicalCachedFeeds];
+
+      // Sort just to be safe
+      combinedFeeds.sort((a, b) => Number(a.blockNumber - b.blockNumber));
       
-      // If no cached blocks, just return the mapped data object
-      return mappedData; // Return the mapped object here too
+      // --- Merged Feeds Ready --- 
+
+      // Return the snapshot using the correctly prioritized combined feeds
+      return {
+        ...mappedData,
+        dataFeeds: combinedFeeds
+      };
     },
     refetchOnWindowFocus: true,
     structuralSharing: false // Disable structural sharing to handle BigInts
