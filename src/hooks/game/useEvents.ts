@@ -1,44 +1,36 @@
 import { useMemo } from 'react';
-import { useUiSnapshot } from './useUiSnapshot';
+// Remove useUiSnapshot import
+// import { useUiSnapshot } from './useUiSnapshot';
 import { useWallet } from '../../providers/WalletProvider';
+// Import useBattleNads
+import { useBattleNads } from './useBattleNads'; 
 import { domain } from '../../types';
-import { getFlattenedEventLogs } from '../../utils/dataFeedSelectors';
+// Remove dataFeedSelectors import
+// import { getFlattenedEventLogs } from '../../utils/dataFeedSelectors';
 
 /**
- * Hook for getting event logs directly from dataFeeds
- * Returns properly typed domain event messages
+ * Hook for getting event logs
+ * Returns event logs from the processed game state
  */
 export const useEvents = () => {
   const { injectedWallet } = useWallet();
   const owner = injectedWallet?.address || null;
   
-  // Get raw data directly from useUiSnapshot
-  const { data: rawData, isLoading, error } = useUiSnapshot(owner);
+  // Get processed game state, which includes mapped event logs
+  const { gameState, isLoading, error } = useBattleNads(owner);
   
-  // Transform raw logs to domain event messages
+  // Directly return the event logs from the game state
+  const eventLogs = gameState?.eventLogs || [];
+
+  /* Remove the old useMemo mapping logic
   const eventLogs = useMemo(() => {
-    if (!rawData?.dataFeeds) return [];
-    
-    // First, get flattened logs from dataFeeds
-    const flattenedLogs = getFlattenedEventLogs(rawData.dataFeeds);
-    
-    // Then map them to domain event messages
-    return flattenedLogs
-      .filter(log => log && typeof log.logType !== 'undefined')
-      .map(log => {
-        return {
-          message: String(log.logType || 'Unknown'), // Safely convert to string
-          timestamp: Number(rawData.endBlock || Date.now()),
-          type: (log.logType !== undefined) ? 
-            (log.logType as domain.LogType) : 
-            domain.LogType.Unknown // Use Unknown for undefined types
-        } as domain.EventMessage;
-      });
+    // ... old logic ...
   }, [rawData?.dataFeeds, rawData?.endBlock]);
+  */
   
   return {
     eventLogs,
     isLoading,
-    error: error ? (error as Error).message : null
+    error // Pass the error from useBattleNads
   };
 };

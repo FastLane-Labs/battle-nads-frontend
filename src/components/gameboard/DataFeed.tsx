@@ -12,6 +12,7 @@ import EventFeed from './EventFeed';
 
 interface UiLog {
   logType: domain.LogType;
+  logTypeName: string;
   source: string;
   message: string;
   characterID?: string;
@@ -23,9 +24,28 @@ interface UiLog {
   timestamp?: number;
 }
 
+function getLogTypeName(logType: domain.LogType): string {
+  switch (logType) {
+    case domain.LogType.Combat: return 'Combat';
+    case domain.LogType.InstigatedCombat: return 'Combat Start';
+    case domain.LogType.EnteredArea: return 'Movement to';
+    case domain.LogType.LeftArea: return 'Movement from';
+    case domain.LogType.Chat: return 'Chat';
+    case domain.LogType.Ability: return 'Ability';
+    case domain.LogType.Sepukku: return 'Death';
+    case domain.LogType.Unknown:
+    default: return 'System';
+  }
+}
+
 function mapDomainEventMessageToUiLog(msg: domain.EventMessage): UiLog {
+  // --- DEBUG LOGGING ---
+  console.log("[DataFeed] Mapping Domain Event Message:", msg);
+  // --- END DEBUG ---
+  const logTypeName = getLogTypeName(msg.type);
   return {
     logType: msg.type,
+    logTypeName,
     message: msg.message,
     timestamp: msg.timestamp,
     source: 'GameEvent',

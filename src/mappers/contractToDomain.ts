@@ -160,6 +160,41 @@ export function mapSessionKeyData(
   };
 }
 
+// Helper to format event messages based on Log type and data
+function formatEventMessage(log: contract.Log): string {
+  const logTypeNum = Number(log.logType); // Convert BigInt/number to number
+  switch (logTypeNum) {
+    case domain.LogType.Combat:
+      // Basic combat log example - Needs refinement based on actual meaning
+      let combatMsg = `Combat: P${log.mainPlayerIndex} vs P${log.otherPlayerIndex}.`;
+      if (log.hit) combatMsg += ` Hit${log.critical ? ' (Crit!)' : ''}.`;
+      if (log.damageDone > 0) combatMsg += ` Dealt ${log.damageDone} dmg.`;
+      if (log.healthHealed > 0) combatMsg += ` Healed ${log.healthHealed} HP.`;
+      if (log.targetDied) combatMsg += ` Target died.`;
+      if (log.lootedWeaponID > 0) combatMsg += ` Looted Wpn ${log.lootedWeaponID}.`;
+      if (log.lootedArmorID > 0) combatMsg += ` Looted Arm ${log.lootedArmorID}.`;
+      if (log.experience > 0) combatMsg += ` Gained ${log.experience} XP.`;
+      return combatMsg;
+    case domain.LogType.InstigatedCombat:
+      return `Combat Started: P${log.mainPlayerIndex} attacked P${log.otherPlayerIndex}.`;
+    case domain.LogType.EnteredArea:
+      // Assuming index might relate to player index or area?
+      return `Movement: P${log.index} entered area.`; 
+    case domain.LogType.LeftArea:
+      return `Movement: P${log.index} left area.`;
+    case domain.LogType.Ability:
+      return `Ability used by P${log.index}.`; 
+    case domain.LogType.Sepukku:
+      return `Death: P${log.index} died.`; 
+    case domain.LogType.Chat:
+      return `Chat Event`;
+    case domain.LogType.Unknown:
+    default:
+      // Use number version in fallback message
+      return `System Event (Type ${logTypeNum}): Data ${JSON.stringify(log)}`; 
+  }
+}
+
 /**
  * Maps contract event log to domain event message
  */
@@ -240,13 +275,22 @@ export function contractToWorldSnapshot(
 
     // Map Event Logs for this feed
     (feed.logs || []).forEach(log => {
-      // Assuming a simple mapping for now, adjust based on actual Log structure and needs
+      const logTypeNum = Number(log.logType); 
+      // --- DEBUG LOGGING ---
+      console.log("[Mapper] Raw Event Log:", log);
+      // --- END DEBUG --- 
+      const messageContent = formatEventMessage(log); 
+      // --- DEBUG LOGGING ---
+      console.log(`[Mapper] Formatted Event Message (Type: ${logTypeNum}):`, messageContent);
+      // --- END DEBUG --- 
+
       allEventLogs.push({
-        message: `Event type ${log.logType}`, // Example mapping
-        timestamp: blockTimestamp,          // Use feed's block number
-        type: (log.logType !== undefined) ? 
-              (log.logType as domain.LogType) : 
-              domain.LogType.Unknown
+        message: messageContent, 
+        timestamp: blockTimestamp,          
+        // Use the number version for the check and the cast
+        type: (logTypeNum !== undefined && !isNaN(logTypeNum) && domain.LogType[logTypeNum] !== undefined) ? 
+              (logTypeNum as domain.LogType) : 
+              domain.LogType.Unknown 
       });
     });
   });
