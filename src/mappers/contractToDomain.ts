@@ -148,14 +148,15 @@ export function mapSessionKeyData(
     return null;
   }
 
+  // Convert all BigInt values to strings to avoid serialization issues
   return {
     owner: rawData.owner,
     key: rawData.key,
-    balance: rawData.balance,
-    targetBalance: rawData.targetBalance,
-    ownerCommittedAmount: rawData.ownerCommittedAmount,
-    ownerCommittedShares: rawData.ownerCommittedShares,
-    expiry: rawData.expiration
+    balance: String(rawData.balance),
+    targetBalance: String(rawData.targetBalance),
+    ownerCommittedAmount: String(rawData.ownerCommittedAmount),
+    ownerCommittedShares: String(rawData.ownerCommittedShares),
+    expiry: String(rawData.expiration)
   };
 }
 
@@ -222,17 +223,13 @@ export function contractToWorldSnapshot(
   // Map session key data (which might be null)
   const mappedSessionKeyData = mapSessionKeyData(raw.sessionKeyData, owner);
 
-  // Create the world snapshot based on the domain types
-  return {
+  // Create the domain world snapshot with appropriate types
+  const worldSnapshot: domain.WorldSnapshot = {
     characterID: raw.characterID || '',
     sessionKeyData: mappedSessionKeyData, // Use the potentially null mapped data
     character: mapCharacter(raw.character),
     combatants: raw.combatants?.map(mapCharacterLite) || [],
     noncombatants: raw.noncombatants?.map(mapCharacterLite) || [],
-    equipableWeaponIDs: raw.equipableWeaponIDs,
-    equipableWeaponNames: raw.equipableWeaponNames,
-    equipableArmorIDs: raw.equipableArmorIDs,
-    equipableArmorNames: raw.equipableArmorNames,
     
     /* use merged logs unless tuple contained explicit values */
     eventLogs: raw.eventLogs?.length ? raw.eventLogs.map(mapEventLog) : mergedEvents.map(log => {
@@ -254,8 +251,32 @@ export function contractToWorldSnapshot(
     
     balanceShortfall: Number(raw.balanceShortfall || 0),
     unallocatedAttributePoints: Number(raw.unallocatedAttributePoints || 0),
-    movementOptions: raw.movementOptions || { canMoveNorth: false, canMoveSouth: false, canMoveEast: false, canMoveWest: false },
-    lastBlock: Number(raw.endBlock || 0),
-    owner: owner || undefined
+    movementOptions: raw.movementOptions || { 
+      canMoveNorth: false, 
+      canMoveSouth: false, 
+      canMoveEast: false, 
+      canMoveWest: false, 
+      canMoveUp: false,
+      canMoveDown: false
+    },
+    lastBlock: Number(raw.endBlock || 0)
   };
+  
+  // Store equipment data in a separate object - they're not part of the WorldSnapshot type
+  const equipmentData = {
+    equipableWeaponIDs: raw.equipableWeaponIDs,
+    equipableWeaponNames: raw.equipableWeaponNames,
+    equipableArmorIDs: raw.equipableArmorIDs,
+    equipableArmorNames: raw.equipableArmorNames,
+  };
+
+  // For debugging
+  console.log(`[contractToDomain] Available equipment not in snapshot: ${JSON.stringify(equipmentData)}`);
+  
+  // Add owner information from the parameter for reference in UI layers
+  if (owner) {
+    console.log(`[contractToDomain] Owner passed but not stored in snapshot: ${owner}`);
+  }
+  
+  return worldSnapshot;
 } 

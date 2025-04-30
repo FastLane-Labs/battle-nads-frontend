@@ -1,7 +1,8 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useEffect } from 'react';
 import { ui, domain } from '../../types';
 import { useUiSnapshot, SnapshotResult } from './useUiSnapshot';
 import { worldSnapshotToGameState } from '../../mappers';
+import { safeStringify } from '../../utils/bigintSerializer';
 
 /**
  * Hook for managing game state and data
@@ -40,12 +41,21 @@ export const useBattleNads = (owner: string | null) => {
         chatLogs: data.chatLogs ?? []
       };
       
-      // Type assertion to satisfy the compiler - we've added the necessary fallbacks
-      const mapped = worldSnapshotToGameState(safeData as domain.WorldSnapshot);
-      
-      // store for next render cycle
-      previousGameStateRef.current = mapped;
-      return mapped;
+      try {
+        // Safe log to help with debugging BigInt issues
+        console.log(`[useBattleNads] Processing snapshot with sessionKey: ${safeStringify(safeData.sessionKeyData)}`);
+        
+        // Type assertion to satisfy the compiler - we've added the necessary fallbacks
+        const mapped = worldSnapshotToGameState(safeData as domain.WorldSnapshot);
+        
+        // store for next render cycle
+        previousGameStateRef.current = mapped;
+        return mapped;
+      } catch (error) {
+        console.error("[useBattleNads] Error processing game state:", error);
+        console.log("[useBattleNads] Problematic data:", safeStringify(safeData));
+        return previousGameStateRef.current;
+      }
     },
     [snapshot]
   );

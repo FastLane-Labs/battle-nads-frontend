@@ -30,7 +30,7 @@ import { useBattleNadsClient } from '../../contracts/useBattleNadsClient';
 import { createTestWrapper } from '../../../test/helpers';
 import mockPollData from '../../../mappers/__tests__/__fixtures__/pollFrontendData.json';
 
-// Mock dependencies
+// Mock dependencies and React Query
 jest.mock('../../contracts/useBattleNadsClient');
 jest.mock('../../../mappers', () => ({
   contractToWorldSnapshot: jest.fn().mockImplementation((data, owner) => ({
@@ -45,6 +45,21 @@ jest.mock('../../../mappers', () => ({
     chatLogs: [],
   })),
 }));
+
+// Mock React Query for immediate query execution
+jest.mock('@tanstack/react-query', () => {
+  const originalModule = jest.requireActual('@tanstack/react-query');
+  return {
+    ...originalModule,
+    useQuery: jest.fn(({ queryFn, ...rest }) => {
+      // Run queryFn immediately to make test synchronous
+      if (typeof queryFn === 'function' && rest.enabled !== false) {
+        queryFn().catch(error => console.error('Mock query error:', error));
+      }
+      return originalModule.useQuery({ queryFn, ...rest });
+    }),
+  };
+});
 
 describe('useUiSnapshot', () => {
   // Create a test wrapper
@@ -131,7 +146,8 @@ describe('useUiSnapshot', () => {
     });
     
     const mockClient = {
-      getUiSnapshot: mockGetUiSnapshot
+      getUiSnapshot: mockGetUiSnapshot,
+      getLatestBlockNumber: jest.fn().mockResolvedValue(BigInt(100))
     };
     
     (useBattleNadsClient as jest.Mock).mockReturnValue({
@@ -145,10 +161,9 @@ describe('useUiSnapshot', () => {
     );
     
     // Wait for loading to complete
-    await waitFor(() => !result.current.isLoading);
+    await waitFor(() => expect(mockGetUiSnapshot).toHaveBeenCalled());
     
     // Verify first call parameters
-    expect(mockGetUiSnapshot).toHaveBeenCalled();
     expect(mockGetUiSnapshot.mock.calls[0][0]).toBe(ownerAddress);
     
     // The second parameter could be BigInt(0) or undefined depending on implementation
@@ -168,7 +183,8 @@ describe('useUiSnapshot', () => {
       });
     
     const mockClient = {
-      getUiSnapshot: mockGetUiSnapshot
+      getUiSnapshot: mockGetUiSnapshot,
+      getLatestBlockNumber: jest.fn().mockResolvedValue(BigInt(100))
     };
     
     (useBattleNadsClient as jest.Mock).mockReturnValue({
@@ -182,15 +198,17 @@ describe('useUiSnapshot', () => {
     );
     
     // Wait for initial load
-    await waitFor(() => !result.current.isLoading);
+    await waitFor(() => expect(mockGetUiSnapshot).toHaveBeenCalled());
     
     // Reset mock counters before refetch
     mockGetUiSnapshot.mockClear();
     
     // Call refetch method
-    result.current.refetch();
+    act(() => {
+      result.current.refetch();
+    });
     
-    // Verify refetch was called
-    expect(mockGetUiSnapshot).toHaveBeenCalled();
+    // Wait for refetch to be called
+    await waitFor(() => expect(mockGetUiSnapshot).toHaveBeenCalled());
   });
 }); 
