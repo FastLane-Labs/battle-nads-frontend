@@ -11,6 +11,7 @@ import { LogType } from '../../types/domain';
 
 interface Log {
   logType: LogType;
+  logTypeName: string;
   source: string;
   message: string;
   characterID?: string;
@@ -63,30 +64,6 @@ export default function EventFeed({ events }: EventFeedProps) {
         return 'gray.300';
       default:
         return 'gray.400';
-    }
-  };
-  
-  // Get badge text based on log type
-  const getLogTypeBadge = (logType: LogType) => {
-    switch (logType) {
-      case LogType.Combat:
-        return 'Combat';
-      case LogType.InstigatedCombat:
-        return 'Attack';
-      case LogType.EnteredArea:
-        return 'Entered';
-      case LogType.LeftArea:
-        return 'Left';
-      case LogType.Chat:
-        return 'Chat';
-      case LogType.Sepukku:
-        return 'Death';
-      case LogType.Ability:
-        return 'Ability';
-      case LogType.Unknown:
-        return 'System';
-      default:
-        return 'Info';
     }
   };
   
@@ -144,7 +121,7 @@ export default function EventFeed({ events }: EventFeedProps) {
                       fontSize="xs"
                       mr={2}
                     >
-                      {getLogTypeBadge(event.logType)}
+                      {event.logTypeName}
                     </Badge>
                     
                     {event.characterName && (
