@@ -46,7 +46,7 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
   const { 
     owner,
     characterId: gameCharacterId,
-    gameState,
+    worldSnapshot,
     isLoading: isGameLoading,
     error: gameError,
     moveCharacter, 
@@ -173,7 +173,7 @@ export default function ControlPanel({ characterId }: ControlPanelProps) {
                   passedCharacterId: characterId,
                   gameHookCharacterId: gameCharacterId,
                   ownerAddress: owner,
-                  gameStateAvailable: !!gameState,
+                  worldSnapshotAvailable: !!worldSnapshot,
                   isGameLoading: isGameLoading,
                   gameError: gameError,
                   sessionKeyState: sessionKeyState,

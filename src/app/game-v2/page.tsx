@@ -82,7 +82,14 @@ export default function GameV2Page() {
   }
 
   // Extract only the props we need and transform position to match expected type
-  const { character, characterId, gameState, isAttacking, isSendingChat, isMoving } = game;
+  const { 
+    character, 
+    characterId, 
+    worldSnapshot,
+    isAttacking, 
+    isSendingChat, 
+    isMoving 
+  } = game;
   
   // Transform position from {x, y, depth} to {x, y, z}
   const position = game.position ? {
@@ -115,7 +122,7 @@ export default function GameV2Page() {
           character={character!}
           characterId={characterId!}
           position={position}
-          gameState={gameState}
+          gameState={worldSnapshot}
           moveCharacter={moveCharacter}
           attack={attack}
           sendChatMessage={sendChatMessage}

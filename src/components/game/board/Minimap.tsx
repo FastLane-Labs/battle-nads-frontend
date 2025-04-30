@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box, Heading, Grid, Center, Text } from '@chakra-ui/react';
-import { domain } from '../../../types';
+import { domain } from '@/types';
 
 interface MinimapProps {
   character: domain.Character;
@@ -16,12 +16,12 @@ const Minimap: React.FC<MinimapProps> = ({ character, position }) => {
       <Heading size="md" mb={4}>Game Map</Heading>
       
       <Center mb={4}>
-        <Text>Level: {position.z}</Text>
+        <Text>Level: {Number(position.z)}</Text>
       </Center>
       
       <Grid 
-        templateColumns="repeat(11, 1fr)" 
-        templateRows="repeat(11, 1fr)"
+        templateColumns="repeat(7, 1fr)" // Use 7x7 grid
+        templateRows="repeat(7, 1fr)"
         gap={1}
         bg="gray.700"
         p={2}
@@ -29,11 +29,12 @@ const Minimap: React.FC<MinimapProps> = ({ character, position }) => {
         h="calc(100% - 80px)"
       >
         {/* This would be populated with actual map tiles based on data */}
-        {Array(121).fill(0).map((_, index) => {
-          const x = index % 11;
-          const y = Math.floor(index / 11);
-          const isPlayerPosition = x === 5 && y === 5; // Center position
+        {Array(49).fill(0).map((_, index) => { // Update loop for 7x7
+          const x = index % 7;
+          const y = Math.floor(index / 7);
+          const isPlayerPosition = x === 3 && y === 3; // Center position (7x7)
           
+          // Explicitly return the Box component
           return (
             <Box 
               key={index} 
@@ -45,7 +46,7 @@ const Minimap: React.FC<MinimapProps> = ({ character, position }) => {
       </Grid>
       
       <Center mt={4}>
-        <Text fontSize="sm">Position: ({position.x}, {position.y}, {position.z})</Text>
+        <Text fontSize="md" fontWeight="semibold">Position: ({Number(position.x)}, {Number(position.y)}, {Number(position.z)})</Text>
       </Center>
     </Box>
   );

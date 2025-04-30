@@ -1,49 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Heading, VStack, Input, Button, HStack, Text, Flex } from '@chakra-ui/react';
-
-interface ChatMessage {
-  id: string;
-  sender: string;
-  text: string;
-  timestamp: Date;
-}
+import { domain } from '@/types'; // Import domain types
 
 interface ChatPanelProps {
   characterId: string;
   onSendChatMessage: (message: string) => Promise<void>;
+  chatLogs: domain.ChatMessage[]; // Accept chatLogs prop
 }
 
-const ChatPanel: React.FC<ChatPanelProps> = ({ characterId, onSendChatMessage }) => {
+const ChatPanel: React.FC<ChatPanelProps> = ({ 
+  characterId, 
+  onSendChatMessage, 
+  chatLogs // Destructure chatLogs
+}) => {
   const [inputValue, setInputValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // This would be fetched from an actual API in a real implementation
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: '1',
-      sender: 'System',
-      text: 'Welcome to the chat room!',
-      timestamp: new Date()
-    },
-    {
-      id: '2',
-      sender: 'Player1',
-      text: 'Hello everyone!',
-      timestamp: new Date(Date.now() - 60000)
-    },
-    {
-      id: '3',
-      sender: 'Player2',
-      text: 'Hi there!',
-      timestamp: new Date(Date.now() - 30000)
-    }
-  ]);
+  // Remove placeholder messages state
+  // const [messages, setMessages] = useState<ChatMessage[]>([...]);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Scroll to bottom when messages change
+  // Scroll to bottom when chatLogs change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [chatLogs]);
   
   const handleSendMessage = async () => {
     if (inputValue.trim() && !isSubmitting) {
@@ -51,18 +31,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ characterId, onSendChatMessage })
       
       try {
         await onSendChatMessage(inputValue);
-        
-        // In a real implementation, we wouldn't add the message here
-        // It would come back through a subscription or polling mechanism
-        // But for this demo, we'll simulate it
-        const newMessage: ChatMessage = {
-          id: Date.now().toString(),
-          sender: 'You',
-          text: inputValue,
-          timestamp: new Date()
-        };
-        
-        setMessages(prev => [...prev, newMessage]);
+        // Remove local message simulation
+        // const newMessage: ChatMessage = { ... };
+        // setMessages(prev => [...prev, newMessage]);
         setInputValue('');
       } catch (error) {
         console.error('Failed to send message:', error);
@@ -94,26 +65,38 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ characterId, onSendChatMessage })
         p={2} 
         borderRadius="md"
       >
-        {messages.map((message) => (
-          <Box 
-            key={message.id} 
-            p={2} 
-            borderRadius="md" 
-            bg={message.sender === 'You' ? 'blue.800' : 'gray.800'}
-            alignSelf={message.sender === 'You' ? 'flex-end' : 'flex-start'}
-            maxW="80%"
-          >
-            <Flex justify="space-between" mb={1}>
-              <Text fontWeight="bold" fontSize="sm" color="blue.300">
-                {message.sender}
-              </Text>
-              <Text fontSize="xs" color="gray.400">
-                {message.timestamp.toLocaleTimeString()}
-              </Text>
-            </Flex>
-            <Text>{message.text}</Text>
-          </Box>
-        ))}
+        {/* Use chatLogs prop */} 
+        {chatLogs.map((message, index) => { // Add index for potential key fallback
+          // Determine if the sender is the current player
+          // NOTE: This assumes the chat log sender name matches the current character's name
+          // A more robust solution might involve passing the current character's name or ID
+          const isOwnMessage = message.characterName === "You"; // Placeholder - needs current character name/ID
+
+          // Create a unique key - use timestamp + index as fallback
+          const messageKey = `${message.timestamp}-${index}`;
+          
+          return (
+            <Box 
+              key={messageKey} // Use generated key
+              p={2} 
+              borderRadius="md" 
+              bg={isOwnMessage ? 'blue.800' : 'gray.800'}
+              alignSelf={isOwnMessage ? 'flex-end' : 'flex-start'}
+              maxW="80%"
+            >
+              <Flex justify="space-between" mb={1}>
+                <Text fontWeight="bold" fontSize="sm" color="blue.300">
+                  {message.characterName} {/* Use characterName from domain type */}
+                </Text>
+                <Text fontSize="xs" color="gray.400">
+                  {/* Format timestamp if needed, assumes it's a number (block number) */}
+                  {new Date(message.timestamp * 1000).toLocaleTimeString()} {/* Convert block timestamp */}
+                </Text>
+              </Flex>
+              <Text>{message.message}</Text> {/* Use message from domain type */}
+            </Box>
+          );
+        })}
         <div ref={messagesEndRef} />
       </VStack>
       

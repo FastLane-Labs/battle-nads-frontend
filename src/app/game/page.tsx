@@ -1,11 +1,11 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Box, Center, Spinner } from '@chakra-ui/react';
+import { Box, Center, Spinner, Text } from '@chakra-ui/react';
 import NavBar from '../../components/NavBar';
-import Game from '../../components/gameboard/game';
 import { useWallet } from '../../providers/WalletProvider';
 import { useRouter } from 'next/navigation';
+import Game from '@/components/gameboard/game';
 
 export default function GamePage() {
   const { address, isInitialized } = useWallet();
