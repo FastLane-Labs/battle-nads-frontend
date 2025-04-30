@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { usePrivy, useWallets, useSendTransaction, UnsignedTransactionRequest  } from '@privy-io/react-auth';
 import { ethers, TransactionRequest, TransactionResponse } from 'ethers';
 import { getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKey';
+import { safeStringify } from '../utils/bigintSerializer';
 
 // Define wallet client types based on Privy's supported wallets
 type InjectedWalletClientType = 
@@ -396,15 +397,30 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   // Check if wallets have actually changed
   useEffect(() => {
     const initWallets = async () => {
-      if (authenticated && walletsReady) {
-        await syncWithPrivyWallets();
-      } else {
-        setIsInitialized(true);
+      try {
+        if (authenticated && walletsReady) {
+          await syncWithPrivyWallets();
+        } else {
+          setIsInitialized(true);
+        }
+
+        // Log wallet state for debugging
+        console.log('[WalletProvider] Current wallet state:', safeStringify({
+          currentWallet,
+          address, 
+          injected: injectedWallet?.address,
+          embedded: embeddedWallet?.address,
+          sessionKey,
+          isInitialized
+        }));
+      } catch (error) {
+        console.error('[WalletProvider] Error initializing wallets:', error);
+        setIsInitialized(true); // Still set to true so the app can proceed
       }
     };
     
     initWallets();
-  }, [authenticated, walletsReady, syncWithPrivyWallets]);
+  }, [authenticated, walletsReady, syncWithPrivyWallets, currentWallet, address, injectedWallet?.address, embeddedWallet?.address, sessionKey, isInitialized]);
 
   const connectMetamask = async () => {
     if (privyReady && !authenticated) {

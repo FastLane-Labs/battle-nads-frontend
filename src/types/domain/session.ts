@@ -19,11 +19,11 @@ export enum SessionKeyState {
 export interface SessionKeyData {
   owner: string;
   key: string;
-  balance: bigint;
-  targetBalance: bigint;
-  ownerCommittedAmount: bigint;
-  ownerCommittedShares: bigint;
-  expiry: bigint;
+  balance: string | bigint;  // Using string to avoid serialization issues
+  targetBalance: string | bigint;
+  ownerCommittedAmount: string | bigint;
+  ownerCommittedShares: string | bigint;
+  expiry: string | bigint;
 }
 
 /**

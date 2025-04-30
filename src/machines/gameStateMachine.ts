@@ -246,8 +246,8 @@ export const sessionKeyMachine = {
       };
     }
     
-    // Check if session key is expired
-    if (sessionKeyData.expiry && currentBlock >= sessionKeyData.expiry) {
+    // Check if session key is expired - convert to number for comparison
+    if (sessionKeyData.expiry && currentBlock >= Number(sessionKeyData.expiry)) {
       return {
         state: SessionKeyState.EXPIRED,
         message: 'Session key expired',

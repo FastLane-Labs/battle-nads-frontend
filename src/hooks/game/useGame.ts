@@ -8,6 +8,7 @@ import { ui, domain } from '../../types';
 import { useToast } from '@chakra-ui/react';
 import { MAX_SESSION_KEY_VALIDITY_BLOCKS } from '../../config/env';
 import { TransactionResponse, parseEther } from 'ethers';
+import { safeStringify } from '../../utils/bigintSerializer';
 
 /**
  * Hook for game state and actions
@@ -41,9 +42,12 @@ export const useGame = () => {
     refreshSessionKey
   } = useSessionKey(characterId);
   
-  // --- Add useEffect to log sessionKeyState changes --- 
+  // Safely log state with BigInt values
   useEffect(() => {
-      console.log(`[useGame] Session key state changed: ${sessionKeyState}`, { needsUpdate: needsSessionKeyUpdate, rawData: sessionKey });
+      console.log(`[useGame] Session key state changed: ${sessionKeyState}`, { 
+        needsUpdate: needsSessionKeyUpdate, 
+        rawData: safeStringify(sessionKey)
+      });
   }, [sessionKeyState, needsSessionKeyUpdate, sessionKey]);
   // ---------------------------------------------------
   

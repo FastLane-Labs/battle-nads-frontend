@@ -23,11 +23,12 @@ export const useUiSnapshot = (owner: string | null) => {
     enabled: !!owner && !!client,
     
     /** 
-     * keepPreviousData ensures we always render the last-known snapshot
-     * while a new poll is in-flight, eliminating the brief "empty array"
-     * glitch where messages/events disappear and then pop back in.
+     * placeholderData from the selector function ensures we always
+     * render the last-known snapshot while a new poll is in-flight,
+     * eliminating the brief "empty array" glitch where
+     * messages/events disappear and then pop back in.
      */
-    keepPreviousData: true,
+    placeholderData: (previousData) => previousData,
 
     /** 
      * staleTime equal to POLL_INTERVAL means a cached snapshot is treated

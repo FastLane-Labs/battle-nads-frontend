@@ -9,6 +9,7 @@ import { FaEthereum } from 'react-icons/fa';
 import { useWallet } from '../../providers/WalletProvider';
 import { useGame } from '../../hooks/game/useGame'; // Corrected path
 import { isValidCharacterId } from '../../utils/getCharacterLocalStorageKey'; // Added import
+import { safeStringify } from '../../utils/bigintSerializer';
 
 const Login: React.FC = () => {
   const { login, authenticated, ready } = usePrivy(); // Still need login, maybe ready for button state
@@ -24,16 +25,17 @@ const Login: React.FC = () => {
     needsSessionKeyUpdate // Boolean indicating if session key needs update
   } = useGame();
 
-  // Debug game status and relevant state
+  // Debug game status and relevant state - using safe stringify for BigInt values
   useEffect(() => {
-    console.log("Login Component - Game Hook State:", {
+    // Use safe stringify to handle BigInt values safely
+    console.log("Login Component - Game Hook State:", safeStringify({
       isLoading,
       gameError,
       hasWallet,
       characterId,
       sessionKeyState,
       needsSessionKeyUpdate,
-    });
+    }));
     console.log("Login Component - Privy State:", { ready, authenticated });
   }, [isLoading, gameError, hasWallet, characterId, sessionKeyState, needsSessionKeyUpdate, ready, authenticated]);
 
