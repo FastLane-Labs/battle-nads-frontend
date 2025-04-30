@@ -141,7 +141,7 @@ export interface PollFrontendDataReturn {
   unallocatedAttributePoints: bigint;
   endBlock: bigint;
   movementOptions: MovementOptions;
-  eventLogs: EventLog[];
-  chatLogs: ChatLog[];
+  eventLogs?: EventLog[];
+  chatLogs?: ChatLog[];
   startBlock: bigint;
 } 

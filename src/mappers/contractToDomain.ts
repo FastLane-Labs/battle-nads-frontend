@@ -185,39 +185,65 @@ export function mapChatLog(
   };
 }
 
+// NEW helper – flattens any number of DataFeed entries
+function mergeDataFeeds(feeds: contract.DataFeed[] = []) {
+  return feeds.reduce(
+    (acc, feed) => {
+      acc.eventLogs.push(...(feed.logs ?? []));
+      acc.chatLogs.push(...(feed.chatLogs ?? []));
+      return acc;
+    },
+    { eventLogs: [] as contract.Log[], chatLogs: [] as string[] },
+  );
+}
+
 /**
  * Maps complete contract data to domain world snapshot
  */
 export function contractToWorldSnapshot(
-  data: contract.PollFrontendDataReturn | null,
+  raw: contract.PollFrontendDataReturn | null,
   owner: string | null = null
 ): domain.WorldSnapshot | null {
   
   // If the entire data packet is null, return null
-  if (!data) {
+  if (!raw) {
     return null;
   }
 
-  // Map session key data (which might be null)
-  const mappedSessionKeyData = mapSessionKeyData(data.sessionKeyData, owner);
+  /* --------- NEW: aggregate logs from dataFeeds --------- */
+  const { eventLogs: mergedEvents, chatLogs: mergedChats } = mergeDataFeeds(raw.dataFeeds);
 
-  // If session key data couldn't be mapped (e.g., input was null), 
-  // potentially return null or a snapshot with null session data based on requirements.
-  // For now, let's return the snapshot but with null sessionKeyData.
-  
+  // Map session key data (which might be null)
+  const mappedSessionKeyData = mapSessionKeyData(raw.sessionKeyData, owner);
+
   // Create the world snapshot based on the domain types
   return {
-    characterID: data.characterID || '',
+    characterID: raw.characterID || '',
     sessionKeyData: mappedSessionKeyData, // Use the potentially null mapped data
-    character: mapCharacter(data.character),
-    combatants: data.combatants?.map(mapCharacterLite) || [],
-    noncombatants: data.noncombatants?.map(mapCharacterLite) || [],
-    movementOptions: data.movementOptions || { canMoveNorth: false, canMoveSouth: false, canMoveEast: false, canMoveWest: false },
-    eventLogs: data.eventLogs?.map(mapEventLog) || [],
-    chatLogs: data.chatLogs?.map(mapChatLog) || [],
-    balanceShortfall: Number(data.balanceShortfall || 0), // Handle potential null/undefined
-    unallocatedAttributePoints: Number(data.unallocatedAttributePoints || 0), // Handle potential null/undefined
-    lastBlock: Number(data.endBlock || 0) // Handle potential null/undefined
-    // Note: dataFeeds is not part of WorldSnapshot interface, removed it
+    character: mapCharacter(raw.character),
+    combatants: raw.combatants?.map(mapCharacterLite) || [],
+    noncombatants: raw.noncombatants?.map(mapCharacterLite) || [],
+    equipableWeaponIDs: raw.equipableWeaponIDs,
+    equipableWeaponNames: raw.equipableWeaponNames,
+    equipableArmorIDs: raw.equipableArmorIDs,
+    equipableArmorNames: raw.equipableArmorNames,
+    
+    /* use merged logs unless tuple contained explicit values */
+    eventLogs: raw.eventLogs?.length ? raw.eventLogs.map(mapEventLog) : mergedEvents.map(log => ({
+      message: log.logType.toString(), // Basic conversion - adapt as needed
+      timestamp: Number(raw.endBlock),
+      type: log.logType as domain.LogType
+    })),
+    chatLogs: raw.chatLogs?.length ? raw.chatLogs.map(mapChatLog) : mergedChats.map(content => ({
+      characterName: 'Unknown', // Basic placeholder
+      message: content,
+      timestamp: Number(raw.endBlock)
+    })),
+    
+    balanceShortfall: Number(raw.balanceShortfall || 0),
+    unallocatedAttributePoints: Number(raw.unallocatedAttributePoints || 0),
+    movementOptions: raw.movementOptions || { canMoveNorth: false, canMoveSouth: false, canMoveEast: false, canMoveWest: false },
+    lastBlock: Number(raw.endBlock || 0),
+    owner: owner || undefined
   };
 } 
