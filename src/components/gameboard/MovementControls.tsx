@@ -66,26 +66,30 @@ const MovementControls: React.FC<MovementControlsProps> = ({
     
     // Optimistically update position for immediate feedback
     // This will be overridden by the event when it comes in
-    let newPosition = { ...currentPosition };
+    let newPosition = {
+      x: Number(currentPosition.x),
+      y: Number(currentPosition.y),
+      depth: Number(currentPosition.depth),
+    };
     
     switch (direction) {
       case 'north':
-        newPosition.y = currentPosition.y - 1;
+        newPosition.y = newPosition.y - 1;
         break;
       case 'south':
-        newPosition.y = currentPosition.y + 1;
+        newPosition.y = newPosition.y + 1;
         break;
       case 'east':
-        newPosition.x = currentPosition.x + 1;
+        newPosition.x = newPosition.x + 1;
         break;
       case 'west':
-        newPosition.x = currentPosition.x - 1;
+        newPosition.x = newPosition.x - 1;
         break;
       case 'up':
-        newPosition.depth = currentPosition.depth - 1;
+        newPosition.depth = newPosition.depth - 1;
         break;
       case 'down':
-        newPosition.depth = currentPosition.depth + 1;
+        newPosition.depth = newPosition.depth + 1;
         break;
     }
     
