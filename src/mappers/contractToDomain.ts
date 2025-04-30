@@ -212,6 +212,12 @@ export function contractToWorldSnapshot(
 
   /* --------- NEW: aggregate logs from dataFeeds --------- */
   const { eventLogs: mergedEvents, chatLogs: mergedChats } = mergeDataFeeds(raw.dataFeeds);
+  
+  // Debug logs to monitor event and chat log sources and lengths
+  console.log(`[contractToDomain] Raw eventLogs length: ${raw.eventLogs?.length || 0}`);
+  console.log(`[contractToDomain] Merged events from dataFeeds length: ${mergedEvents.length}`);
+  console.log(`[contractToDomain] Raw chatLogs length: ${raw.chatLogs?.length || 0}`);
+  console.log(`[contractToDomain] Merged chats from dataFeeds length: ${mergedChats.length}`);
 
   // Map session key data (which might be null)
   const mappedSessionKeyData = mapSessionKeyData(raw.sessionKeyData, owner);
@@ -229,16 +235,22 @@ export function contractToWorldSnapshot(
     equipableArmorNames: raw.equipableArmorNames,
     
     /* use merged logs unless tuple contained explicit values */
-    eventLogs: raw.eventLogs?.length ? raw.eventLogs.map(mapEventLog) : mergedEvents.map(log => ({
-      message: log.logType.toString(), // Basic conversion - adapt as needed
-      timestamp: Number(raw.endBlock),
-      type: log.logType as domain.LogType
-    })),
-    chatLogs: raw.chatLogs?.length ? raw.chatLogs.map(mapChatLog) : mergedChats.map(content => ({
-      characterName: 'Unknown', // Basic placeholder
-      message: content,
-      timestamp: Number(raw.endBlock)
-    })),
+    eventLogs: raw.eventLogs?.length ? raw.eventLogs.map(mapEventLog) : mergedEvents.map(log => {
+      console.log(`[contractToDomain] Using merged event log: ${JSON.stringify(log)}`);
+      return {
+        message: log.logType.toString(), // Basic conversion - adapt as needed
+        timestamp: Number(raw.endBlock),
+        type: log.logType as domain.LogType
+      };
+    }),
+    chatLogs: raw.chatLogs?.length ? raw.chatLogs.map(mapChatLog) : mergedChats.map(content => {
+      console.log(`[contractToDomain] Using merged chat message: ${content}`);
+      return {
+        characterName: 'Unknown', // Basic placeholder
+        message: content,
+        timestamp: Number(raw.endBlock)
+      };
+    }),
     
     balanceShortfall: Number(raw.balanceShortfall || 0),
     unallocatedAttributePoints: Number(raw.unallocatedAttributePoints || 0),
