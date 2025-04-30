@@ -37,7 +37,10 @@ export default function RootLayout({
 
   return (
     <html lang="en" style={{ colorScheme: 'dark' }} data-theme="dark">
-      <body className="chakra-ui-dark">
+      <body  
+      className="bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: "url('/assets/bg/dark-smoky-bg.webp')" }}
+    >
         <ColorModeScript initialColorMode={theme.config.initialColorMode} />
           <ErrorBoundary>
             <ReactQueryProvider>

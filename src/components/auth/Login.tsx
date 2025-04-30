@@ -25,7 +25,7 @@ const Login: React.FC = () => {
 
   // Show login button centered on the page
   return (
-    <Center height="100vh" bg="gray.900">
+    <Center height="100vh">
       <Box
         p={8}
         maxWidth="500px"
