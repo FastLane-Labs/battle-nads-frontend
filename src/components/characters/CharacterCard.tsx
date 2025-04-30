@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Select, Button, Stat, StatLabel, StatNumber } from '@chakra-ui/react';
 import { Character } from '@/types/domain/character';
-import { calculateMaxHealth } from '../utils/gameDataConverters';
+import { calculateMaxHealth } from '../../utils/gameDataConverters';
 
 interface CharacterCardProps {
   character: Character; // Corrected type name

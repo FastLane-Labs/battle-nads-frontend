@@ -237,6 +237,11 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
 
         if (onCharacterCreated) onCharacterCreated();
 
+        // --- ADD NAVIGATION: Redirect to home page after success ---
+        console.log("[CharacterCreation] Character created successfully, redirecting to /...");
+        router.push('/'); 
+        // ---------------------------------------------------------
+
       } catch (waitError: any) {
         console.error("Error waiting for transaction confirmation:", waitError);
         toast.close('tx-wait-toast');
@@ -271,25 +276,6 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
      toast({ title: 'Info', description: 'Transaction lookup not implemented yet.', status: 'info' });
      return null; 
   };
-  
-  useEffect(() => {
-    const storedCharacterId = localStorage.getItem('battleNadsCharacterId');
-    if (storedCharacterId && isValidCharacterId(storedCharacterId)) {
-      console.log("Found existing valid character in localStorage, redirecting to game:", storedCharacterId);
-      router.push('/game');
-    } else if (storedCharacterId) {
-      console.log("Found invalid zero-address character ID in localStorage, removing.");
-      localStorage.removeItem('battleNadsCharacterId');
-    }
-  }, [router]);
-  
-  useEffect(() => {
-    if (globalCharacterId && isValidCharacterId(globalCharacterId)) {
-      console.log("Valid globalCharacterId found, redirecting to game:", globalCharacterId);
-      localStorage.setItem('battleNadsCharacterId', globalCharacterId);
-      router.push('/game');
-    }
-  }, [globalCharacterId, router]);
   
   const handleTransactionLookup = async () => {
     if (!transactionHash) {

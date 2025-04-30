@@ -6,9 +6,9 @@ import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
-import { useWallet } from '../providers/WalletProvider';
-import { useGame } from '../hooks/game/useGame';
-import { isValidCharacterId } from '../utils/getCharacterLocalStorageKey';
+import { useWallet } from '@/providers/WalletProvider';
+import { useGame } from '@/hooks/game/useGame';
+import { isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
 
 const NavBar: React.FC = () => {
   const { colorMode, toggleColorMode } = useColorMode();
@@ -114,23 +114,6 @@ const NavBar: React.FC = () => {
                   data-active={isActive('/game')}
                 >
                   Game
-                </Text>
-              </Link>
-              
-              <Link href="/game-v2">
-                <Text
-                  px={3}
-                  py={2}
-                  rounded="md"
-                  fontWeight={isActive('/game-v2') ? 'bold' : 'normal'}
-                  bg={isActive('/game-v2') ? 'green.500' : 'transparent'}
-                  color={isActive('/game-v2') ? 'white' : undefined}
-                  _hover={{ bg: colorMode === 'dark' ? 'green.700' : 'green.100' }}
-                  cursor="pointer"
-                  fontSize="md"
-                  data-active={isActive('/game-v2')}
-                >
-                  Game V2
                 </Text>
               </Link>
               

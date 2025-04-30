@@ -44,30 +44,35 @@ export function useWalletBalances(owner: string | null) {
   // Get owner wallet balance via direct provider call
   const ownerBalance = useOwnerBalance(owner);
   
+  // --- Add Guards: Only format if gameState and sessionKey are valid --- 
+  const hasValidSessionKeyData = gameState && gameState.sessionKey && gameState.sessionKey.key !== '0x0000000000000000000000000000000000000000';
+  
   // Extract session key and funding data from the game state
-  const sessionKeyBalance = gameState?.sessionKey?.balance 
-    ? ethers.formatEther(gameState.sessionKey.balance) 
+  const sessionKeyBalance = hasValidSessionKeyData
+    ? ethers.formatUnits(gameState.sessionKey.balance, 18) // Use formatUnits here too
     : '0';
     
-  const bondedBalance = gameState?.sessionKey?.ownerCommittedAmount
-    ? ethers.formatEther(gameState.sessionKey.ownerCommittedAmount)
+  const bondedBalance = hasValidSessionKeyData
+    ? ethers.formatUnits(gameState.sessionKey.ownerCommittedAmount, 18) // Use formatUnits here too
     : '0';
     
-  const shortfall = gameState?.balanceShortfall || BigInt(0);
-  const formattedShortfall = shortfall > 0 ? ethers.formatEther(shortfall) : '0';
+  const shortfall = hasValidSessionKeyData ? (gameState.balanceShortfall || BigInt(0)) : BigInt(0);
+  // Only format if shortfall is positive AND session key data was valid
+  const formattedShortfall = hasValidSessionKeyData && shortfall > 0 ? ethers.formatUnits(shortfall, 18) : '0'; 
   
   // Determine if the session key balance is below threshold
-  const targetBalance = gameState?.sessionKey?.targetBalance || BigInt(0);
-  const formattedTargetBalance = ethers.formatEther(targetBalance);
-  
+  const targetBalance = hasValidSessionKeyData ? (gameState.sessionKey.targetBalance || BigInt(0)) : BigInt(0);
+  const formattedTargetBalance = hasValidSessionKeyData ? ethers.formatUnits(targetBalance, 18) : '0';
+  // ---------------------------------------------------------------------
+
   return {
     isLoading: isGameLoading,
     ownerBalance,
     sessionKeyBalance,
     bondedBalance,
-    shortfall,
+    shortfall: hasValidSessionKeyData ? shortfall : BigInt(0), // Return 0 if no valid session key
     formattedShortfall,
     targetBalance: formattedTargetBalance,
-    hasShortfall: shortfall > 0,
+    hasShortfall: hasValidSessionKeyData && shortfall > 0, // Only true if session key is valid
   };
 } 

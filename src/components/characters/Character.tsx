@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Heading, Flex, Spinner, Text } from '@chakra-ui/react';
 import { useWallet } from '../../providers/WalletProvider';
-import { CharacterCard } from '../CharacterCard';
-import { CharacterList } from '../CharacterList';
+import { CharacterCard } from './CharacterCard';
+import { CharacterList } from './CharacterList';
 import { domain } from '../../types'; // Import domain namespace
 
 const CharacterDashboard = () => {
