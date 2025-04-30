@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { ui, domain } from '../../types';
 import { useUiSnapshot, SnapshotResult } from './useUiSnapshot';
 import { worldSnapshotToGameState } from '../../mappers';
@@ -8,7 +8,7 @@ import { worldSnapshotToGameState } from '../../mappers';
  * Uses React-Query for polling and state management
  */
 export const useBattleNads = (owner: string | null) => {
-  // Use the useUiSnapshot hook to poll for data
+  /* ---------- snapshot polling ---------- */
   const { 
     data: snapshot, 
     isLoading, 
@@ -16,10 +16,17 @@ export const useBattleNads = (owner: string | null) => {
     refetch 
   } = useUiSnapshot(owner);
 
+  /* ---------- preserve previous data ---------- */
+  const previousGameStateRef = useRef<ui.GameState | null>(null);
+
   // Map the data to a GameState using the mapper utility
   const gameState = useMemo(
     () => {
-      if (!snapshot) return null;
+      if (!snapshot) {
+        // return last good state during refetch to avoid "flash of empty"
+        return previousGameStateRef.current;
+      }
+      
       // Use the appropriate snapshot fields with null check for missing fields
       const data = (snapshot as unknown as SnapshotResult).data;
       
@@ -34,7 +41,11 @@ export const useBattleNads = (owner: string | null) => {
       };
       
       // Type assertion to satisfy the compiler - we've added the necessary fallbacks
-      return worldSnapshotToGameState(safeData as domain.WorldSnapshot);
+      const mapped = worldSnapshotToGameState(safeData as domain.WorldSnapshot);
+      
+      // store for next render cycle
+      previousGameStateRef.current = mapped;
+      return mapped;
     },
     [snapshot]
   );

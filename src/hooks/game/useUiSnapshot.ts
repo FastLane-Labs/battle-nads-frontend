@@ -21,6 +21,24 @@ export const useUiSnapshot = (owner: string | null) => {
   return useQuery<SnapshotResult, Error>({
     queryKey: ['uiSnapshot', owner],
     enabled: !!owner && !!client,
+    
+    /** 
+     * keepPreviousData ensures we always render the last-known snapshot
+     * while a new poll is in-flight, eliminating the brief "empty array"
+     * glitch where messages/events disappear and then pop back in.
+     */
+    keepPreviousData: true,
+
+    /** 
+     * staleTime equal to POLL_INTERVAL means a cached snapshot is treated
+     * as "fresh" until the next scheduled poll – so React-Query will not
+     * replace it with `undefined` between refetches.
+     */
+    staleTime: POLL_INTERVAL,
+
+    /** the original refetch cadence */
+    refetchInterval: POLL_INTERVAL,
+    
     queryFn: async (): Promise<SnapshotResult> => {
       console.log(`[useUiSnapshot] queryFn executing for owner: ${owner}`);
       if (!client || !owner) {
@@ -44,8 +62,6 @@ export const useUiSnapshot = (owner: string | null) => {
       
       return result;
     },
-    refetchInterval: POLL_INTERVAL,
-    staleTime: 0, // Consider all data immediately stale for real-time updates
     refetchOnWindowFocus: true, // React-Query automatically pauses when tab hidden
     structuralSharing: false // Disable structural sharing to handle BigInts
   });
