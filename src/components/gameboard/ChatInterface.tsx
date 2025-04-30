@@ -52,11 +52,19 @@ export default function ChatInterface({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
   
+  // Using zoneChat via the onSendMessage callback, which ultimately calls
+  // client.chat() in useChat hook that invokes adapter.zoneChat()
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
     if (newMessage.trim()) {
-      onSendMessage(newMessage);
-      setNewMessage('');
+      try {
+        console.log(`[ChatInterface] Sending message for character ${characterId}: "${newMessage}"`);
+        // This will use zoneChat through the client interface
+        onSendMessage(newMessage);
+        setNewMessage('');
+      } catch (error) {
+        console.error('[ChatInterface] Error sending message:', error);
+      }
     }
   };
   

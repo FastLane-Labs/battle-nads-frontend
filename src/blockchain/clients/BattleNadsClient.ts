@@ -114,9 +114,12 @@ export class BattleNadsClient {
       // Convert contract session key data to domain session key data
       const domainSessionKey: domain.SessionKeyData = {
         key: contractSessionKey.key,
-        signature: "", // Not available in contract type, add if needed
-        expiry: Number(contractSessionKey.expiration),
+        expiry: contractSessionKey.expiration, // Keep as bigint to match type
         owner: owner,
+        balance: BigInt(0), // Add required fields with defaults
+        targetBalance: BigInt(0),
+        ownerCommittedAmount: BigInt(0),
+        ownerCommittedShares: BigInt(0)
       };
       
       // Get current block number instead of timestamp for correct validation
@@ -460,13 +463,25 @@ export class BattleNadsClient {
   // SOCIAL
 
   /**
-   * Sends a chat message
-   * Requires session wallet
+   * Sends a chat message using the embedded wallet through the zoneChat method
+   * Requires embedded wallet (session adapter)
    */
   async chat(characterId: string, message: string): Promise<TransactionResponse> {
     try {
-      return await this.ensureSessionAdapter().zoneChat(characterId, message);
+      console.log(`[BattleNadsClient] Sending chat message for character ${characterId}: "${message}"`);
+      console.log(`[BattleNadsClient] Using embedded wallet (session adapter) to call zoneChat`);
+      
+      // Ensure we have a session adapter (embedded wallet)
+      if (!this.sessionAdapter) {
+        throw new SessionWalletMissingError('Embedded wallet not connected. Connect your embedded wallet to send chat messages.');
+      }
+      
+      // Call zoneChat without explicit gas limits to allow the embedded wallet to handle it
+      const result = await this.sessionAdapter.zoneChat(characterId, message);
+      console.log(`[BattleNadsClient] Successfully sent chat message, tx hash: ${result.hash}`);
+      return result;
     } catch (error) {
+      console.error(`[BattleNadsClient] Error sending chat message:`, error);
       if (error instanceof SessionWalletMissingError) {
         throw error;
       }
