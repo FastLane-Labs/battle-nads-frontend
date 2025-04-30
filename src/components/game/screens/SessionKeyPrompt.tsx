@@ -32,7 +32,7 @@ const SessionKeyPrompt: React.FC<SessionKeyPromptProps> = ({
             <div className="flex items-center">
               <div className="flex-shrink-0 pt-0.5">
                 <img 
-                  src="/assets/icons/warning.png" 
+                  src="/assets/icons/warning.webp" 
                   alt="Warning" 
                   className="h-6 w-6"
                 />
@@ -47,7 +47,7 @@ const SessionKeyPrompt: React.FC<SessionKeyPromptProps> = ({
           
           <div className="relative mt-4 group">
             <img 
-              src="/assets/buttons/primary-button.png" 
+              src="/assets/buttons/primary-button.webp" 
               alt="" 
               className="absolute inset-0 w-full h-[60px] object-fill z-0 transition-all duration-200 
                 group-hover:brightness-125 group-hover:scale-[1.02] group-active:brightness-90 group-active:scale-[0.98]" 
