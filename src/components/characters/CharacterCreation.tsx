@@ -462,6 +462,13 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
               isDisabled={createCharacterMutation.isPending}
               max={unspentAttributePoints + strength > 0 ? unspentAttributePoints + strength : strength}
             />
+              <AttributeInput 
+                value={vitality} 
+                onChange={setVitality} 
+                label="Vitality" 
+                isDisabled={createCharacterMutation.isPending}
+                max={unspentAttributePoints + vitality > 0 ? unspentAttributePoints + vitality : vitality}
+              />
             <AttributeInput 
               value={dexterity} 
               onChange={setDexterity} 
@@ -470,30 +477,23 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
               max={unspentAttributePoints + dexterity > 0 ? unspentAttributePoints + dexterity : dexterity}
             />
             <AttributeInput 
-              value={vitality} 
-              onChange={setVitality} 
-              label="Constitution" 
-              isDisabled={createCharacterMutation.isPending}
-              max={unspentAttributePoints + vitality > 0 ? unspentAttributePoints + vitality : vitality}
-            />
-            <AttributeInput 
               value={quickness} 
               onChange={setQuickness} 
-              label="Intelligence" 
+              label="Quickness" 
               isDisabled={createCharacterMutation.isPending}
               max={unspentAttributePoints + quickness > 0 ? unspentAttributePoints + quickness : quickness}
             />
             <AttributeInput 
               value={sturdiness} 
               onChange={setSturdiness} 
-              label="Wisdom" 
+              label="Sturdiness" 
               isDisabled={createCharacterMutation.isPending}
               max={unspentAttributePoints + sturdiness > 0 ? unspentAttributePoints + sturdiness : sturdiness}
             />
             <AttributeInput 
               value={luck} 
               onChange={setLuck} 
-              label="Charisma" 
+              label="Luck" 
               isDisabled={createCharacterMutation.isPending}
               max={unspentAttributePoints + luck > 0 ? unspentAttributePoints + luck : luck}
             />
