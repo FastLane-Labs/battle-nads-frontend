@@ -2,12 +2,12 @@
 
 import React from 'react';
 import { Box } from '@chakra-ui/react';
-import Login from '../components/auth/Login';
+import AppInitializer from '../components/AppInitializer';
 
 export default function HomePage() {
   return (
     <Box className="min-h-screen bg-gray-900">
-      <Login />
+      <AppInitializer />
     </Box>
   );
 } 
