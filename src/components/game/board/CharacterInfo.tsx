@@ -13,8 +13,7 @@ import {
   Badge,
   VStack
 } from '@chakra-ui/react';
-import { domain } from '../../../types';
-import { calculateMaxHealth } from '../../../utils/gameDataConverters';
+import { domain } from '@/types';
 
 // Constants from the smart contract
 const EXP_BASE = 100; // Base experience points required per level
@@ -48,56 +47,32 @@ interface CharacterInfoProps {
 }
 
 const CharacterInfo: React.FC<CharacterInfoProps> = ({ character }) => {
-  const [currentStats, setCurrentStats] = useState<typeof character.stats>(character.stats);
+  // No need for separate currentStats state if just reading from props now
+  // const [currentStats, setCurrentStats] = useState<typeof character.stats>(character.stats);
   
-  // Update current stats when props change
-  useEffect(() => {
-    if (character?.stats) {
-      setCurrentStats(character.stats);
-    }
-  }, [character?.stats]);
-  
-  // Listen for character stats updates
-  useEffect(() => {
-    const handleStatsChanged = (event: CustomEvent) => {
-      // Check if this event is for our character
-      const isMatchingId = event.detail?.character?.id === character?.id;
-      
-      // Apply stats update if this is for our character
-      if (event.detail?.stats && isMatchingId) {
-        // Update stats state
-        setCurrentStats(event.detail.stats);
-      }
-    };
-    
-    // Listen to the characterStatsChanged event
-    window.addEventListener('characterStatsChanged', handleStatsChanged as EventListener);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('characterStatsChanged', handleStatsChanged as EventListener);
-    };
-  }, [character]);
+  // Removed useEffect hooks related to currentStats and event listeners
 
   if (!character) return null;
 
-  const { weapon, armor, name, inventory, level, health } = character;
+  // Destructure health AND maxHealth directly from the character prop
+  const { weapon, armor, name, inventory, level, health, maxHealth, stats } = character;
   
-  // Calculate max health using the utility function
-  const maxHealth = calculateMaxHealth(currentStats);
-  const healthPercentage = health ? (Number(health) / maxHealth) * 100 : 0;
+  // Use maxHealth directly from props. Ensure it's treated as a number.
+  const currentMaxHealth = Number(maxHealth || 100); // Default to 100 if maxHealth is missing/0
+  const currentHealth = Math.max(0, Number(health)); // Ensure health is not negative
   
-  // Calculate experience progress
+  // Calculate percentage using health and maxHealth from props
+  const healthPercentage = currentMaxHealth > 0 ? (currentHealth / currentMaxHealth) * 100 : 0;
+  
+  // Calculate experience progress (using stats from props)
   const experienceProgress = useMemo(() => {
     const currentLevel = Number(level);
-    const currentExperience = Number(currentStats?.experience);
-    
-    // Formula from Character.sol: (currentLevel * EXP_BASE) + (currentLevel * currentLevel * EXP_SCALE)
+    const currentExperience = Number(stats?.experience || 0);
+    if (currentLevel <= 0) return 0; // Avoid division by zero or weird results for level 0
     const experienceNeededForNextLevel = (currentLevel * EXP_BASE) + (currentLevel * currentLevel * EXP_SCALE);
-    
-    // Calculate percentage of progress to next level
-    return (currentExperience / experienceNeededForNextLevel) * 100;
-  }, [level, currentStats?.experience]);
+    if (experienceNeededForNextLevel <= 0) return 0; // Avoid division by zero
+    return Math.min(100, (currentExperience / experienceNeededForNextLevel) * 100); // Cap at 100%
+  }, [level, stats?.experience]);
 
   return (
     <Box bg="gray.800" p={4} borderRadius="md" h="100%" overflowY="auto">
@@ -118,7 +93,8 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character }) => {
         <Box mb={2}>
           <Flex justify="space-between" mb={1}>
             <Text fontSize="sm">Health</Text>
-            <Text fontSize="sm">{Math.max(0, Number(health))} / {maxHealth}</Text>
+            {/* Display health / maxHealth directly from props */}
+            <Text fontSize="sm">{currentHealth} / {currentMaxHealth}</Text> 
           </Flex>
           <Progress 
             value={healthPercentage} 
@@ -128,33 +104,33 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character }) => {
           />
         </Box>
         
-        {/* Character Stats */}
+        {/* Character Stats - Use stats directly from props */}
         <Box>
           <Text fontWeight="bold" mb={2}>Stats</Text>
           <SimpleGrid columns={3} spacing={2}>
             <Stat size="sm">
               <StatLabel fontSize="xs">STR</StatLabel>
-              <StatNumber fontSize="md">{Number(currentStats?.strength)}</StatNumber>
+              <StatNumber fontSize="md">{Number(stats?.strength)}</StatNumber>
             </Stat>
             <Stat size="sm">
               <StatLabel fontSize="xs">VIT</StatLabel>
-              <StatNumber fontSize="md">{Number(currentStats?.vitality)}</StatNumber>
+              <StatNumber fontSize="md">{Number(stats?.vitality)}</StatNumber>
             </Stat>
             <Stat size="sm">
               <StatLabel fontSize="xs">DEX</StatLabel>
-              <StatNumber fontSize="md">{Number(currentStats?.dexterity)}</StatNumber>
+              <StatNumber fontSize="md">{Number(stats?.dexterity)}</StatNumber>
             </Stat>
             <Stat size="sm">
               <StatLabel fontSize="xs">QCK</StatLabel>
-              <StatNumber fontSize="md">{Number(currentStats?.quickness)}</StatNumber>
+              <StatNumber fontSize="md">{Number(stats?.quickness)}</StatNumber>
             </Stat>
             <Stat size="sm">
               <StatLabel fontSize="xs">STD</StatLabel>
-              <StatNumber fontSize="md">{Number(currentStats?.sturdiness)}</StatNumber>
+              <StatNumber fontSize="md">{Number(stats?.sturdiness)}</StatNumber>
             </Stat>
             <Stat size="sm">
               <StatLabel fontSize="xs">LCK</StatLabel>
-              <StatNumber fontSize="md">{Number(currentStats?.luck)}</StatNumber>
+              <StatNumber fontSize="md">{Number(stats?.luck)}</StatNumber>
             </Stat>
           </SimpleGrid>
         </Box>
@@ -187,7 +163,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character }) => {
               <Flex justify="space-between" mb={1}>
                 <Text fontSize="sm">Experience</Text>
                 <Text fontSize="sm">
-                  {Number(currentStats?.experience)} / {(Number(level) * EXP_BASE) + (Number(level) * Number(level) * EXP_SCALE)}
+                  {Number(stats?.experience)} / {(Number(level) * EXP_BASE) + (Number(level) * Number(level) * EXP_SCALE)}
                 </Text>
               </Flex>
               <Progress 
