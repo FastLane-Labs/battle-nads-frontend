@@ -1,5 +1,8 @@
 /**
  * Utility for handling BigInt serialization in JSON
+ * 
+ * This module provides utilities to deal with BigInt serialization issues in JavaScript.
+ * It works around the limitation that BigInt values cannot be directly serialized to JSON.
  */
 
 // Add BigInt serialization support to JSON.stringify

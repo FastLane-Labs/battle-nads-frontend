@@ -97,7 +97,7 @@ const Login: React.FC = () => {
 
   // Show error state if gameError exists from useGame
   if (gameError) {
-     return (
+    return (
       <Center height="100vh" bg="gray.900">
         <VStack>
            <Text color="red.400" mb={4}>Error initializing game: {gameError}</Text>
