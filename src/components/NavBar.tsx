@@ -79,12 +79,12 @@ const NavBar: React.FC = () => {
       >
         <Flex alignItems="center" flex="1">
           <Box mr={6}>
-            {hasCharacter && hasWallet && pathname !== '/game' ? (
+            {hasCharacter && hasWallet && pathname !== '/game' && pathname !== '/game-v2' ? (
               <Link href="/game">
                 <Image src="/BattleNadsLogo.png" alt="Battle-Nads Logo" height="40px" />
               </Link>
-            ) : (!hasCharacter && hasWallet) || pathname === '/game' ? (
-              pathname === '/game' ? (
+            ) : (!hasCharacter && hasWallet) || pathname === '/game' || pathname === '/game-v2' ? (
+              pathname === '/game' || pathname === '/game-v2' ? (
                 <Image src="/BattleNadsLogo.png" alt="Battle-Nads Logo" height="40px" />
               ) : (
                 <Link href="/">
@@ -116,6 +116,24 @@ const NavBar: React.FC = () => {
                   Game
                 </Text>
               </Link>
+              
+              <Link href="/game-v2">
+                <Text
+                  px={3}
+                  py={2}
+                  rounded="md"
+                  fontWeight={isActive('/game-v2') ? 'bold' : 'normal'}
+                  bg={isActive('/game-v2') ? 'green.500' : 'transparent'}
+                  color={isActive('/game-v2') ? 'white' : undefined}
+                  _hover={{ bg: colorMode === 'dark' ? 'green.700' : 'green.100' }}
+                  cursor="pointer"
+                  fontSize="md"
+                  data-active={isActive('/game-v2')}
+                >
+                  Game V2
+                </Text>
+              </Link>
+              
               {isLoading ? (
                 <Box px={3} py={2}>
                   <Spinner size="sm" color="blue.500" />

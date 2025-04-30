@@ -19,4 +19,23 @@
         *   Re-added state and UI (`AttributeInput`) for allocating the 6 base stats (STR, VIT, DEX, QCK, STD, LCK).
         *   Implemented logic to enforce allocation of exactly 32 total points.
         *   Updated the `createCharacterMutation` to pass the `name`, 6 stats (as `bigint`), `embeddedWallet.address` (as `sessionKey`), and `BigInt(0)` (as `sessionKeyDeadline`) to `client.createCharacter`.
-*   **Rationale:** Aligns the frontend function calls with the smart contract's interface, resolving the signature mismatch error. 
+*   **Rationale:** Aligns the frontend function calls with the smart contract's interface, resolving the signature mismatch error.
+
+## Refactor WalletBalances Component
+
+*   **Goal:** Simplify `WalletBalances.tsx` by leveraging existing hooks and reducing duplicated data fetching.
+*   **Actions:**
+    *   Refactored `WalletBalances.tsx` to use the existing `useWalletBalances` hook instead of managing its own internal state.
+    *   Removed unnecessary and duplicated data fetching and state management code.
+    *   Maintained the original UI layout and styling while simplifying the code behind it.
+    *   Added proper type handling for the `shortfall` value (supporting both `number` and `bigint` types).
+    *   Removed debug logging and instance tracking that complicated the component.
+    *   Created a new config file `src/config/wallet.ts` to centralize wallet-related constants.
+    *   Moved hardcoded values like `LOW_SESSION_KEY_THRESHOLD`, `DIRECT_FUNDING_AMOUNT`, and `MIN_SAFE_OWNER_BALANCE` to the config file.
+    *   Updated `useWalletBalances` to use `BALANCE_REFRESH_INTERVAL` from the config for periodic balance updates.
+*   **Rationale:** 
+    *   The existing `useWalletBalances` hook already provides all necessary balance data by combining `useBattleNads` and direct wallet balance fetching.
+    *   Removing duplicated state management and RPC calls reduces code complexity and potential for inconsistencies.
+    *   By centralizing data fetching in the hook, we ensure a single source of truth for wallet balances across the application.
+    *   Moving constants to a config file improves maintainability and makes it easier to adjust thresholds and values in the future.
+    *   Improved component readability and maintainability by focusing on presentation rather than data management.
