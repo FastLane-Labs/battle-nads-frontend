@@ -11,9 +11,6 @@ import theme from './theme';
 import './globals.css';
 import React, { useEffect } from 'react';
 
-// This export is used by Next.js at build time
-// Because this file has 'use client', the metadata is extracted during the build
-// but this doesn't impact the client component functionality
 export const metadata = {
   title: 'BattleNads | Web3 RPG Game on Monad',
   description: 'A web3 RPG where you create characters, explore an rpg world, battle other players and monsters, and manage equipment - all on the Monad blockchain.',
