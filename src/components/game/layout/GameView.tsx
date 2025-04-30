@@ -12,6 +12,8 @@ interface GameViewProps {
   character: domain.Character;
   position: { x: number; y: number; z: number };
   combatants: domain.CharacterLite[];
+  chatLogs: domain.ChatMessage[];
+  eventLogs: domain.EventMessage[];
   onMove: (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => Promise<void>;
   onAttack: (targetIndex: number) => Promise<void>;
   onSendChatMessage: (message: string) => Promise<void>;
@@ -24,6 +26,8 @@ const GameView: React.FC<GameViewProps> = ({
   character,
   position,
   combatants,
+  chatLogs,
+  eventLogs,
   onMove,
   onAttack,
   onSendChatMessage,
@@ -41,7 +45,7 @@ const GameView: React.FC<GameViewProps> = ({
              "controls controls chat"`
       }}
       gridTemplateRows={{ base: 'auto auto 1fr', md: '1fr auto' }}
-      gridTemplateColumns={{ base: '1fr 1fr', md: '1fr 1fr 1fr' }}
+      gridTemplateColumns={{ base: '1fr 1fr', md: '1.5fr 1.5fr 1fr' }}
       h="100%"
       gap="4"
       p="4"
@@ -63,7 +67,11 @@ const GameView: React.FC<GameViewProps> = ({
         <Grid templateColumns="1fr 1fr" gap={4}>
           {/* Movement Panel */}
           <Box p={4} bg="gray.800" borderRadius="md">
-            <MovementControls onMove={onMove} isMoving={isMoving} />
+            <MovementControls 
+              onMove={onMove} 
+              isMoving={isMoving} 
+              position={position}
+            />
           </Box>
 
           {/* Combat Panel */}
@@ -80,7 +88,10 @@ const GameView: React.FC<GameViewProps> = ({
       {/* Event Feed */}
       <GridItem area="feed" overflow="auto" maxH={{ base: '200px', md: '100%' }}>
         <Box p={4} bg="gray.800" borderRadius="md" h="100%">
-          <EventFeed characterId={characterId} />
+          <EventFeed 
+            characterId={characterId} 
+            eventLogs={eventLogs}
+          />
         </Box>
       </GridItem>
 
@@ -90,6 +101,7 @@ const GameView: React.FC<GameViewProps> = ({
           <ChatPanel 
             characterId={characterId} 
             onSendChatMessage={onSendChatMessage} 
+            chatLogs={chatLogs}
           />
         </Box>
       </GridItem>

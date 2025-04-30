@@ -9,6 +9,7 @@ import { useToast } from '@chakra-ui/react';
 import { MAX_SESSION_KEY_VALIDITY_BLOCKS } from '../../config/env';
 import { TransactionResponse } from 'ethers';
 import { safeStringify } from '../../utils/bigintSerializer';
+import { mapSessionKeyData } from '../../mappers/contractToDomain';
 
 /**
  * Hook for game state and actions
@@ -231,9 +232,43 @@ export const useGame = () => {
     }
   });
   
+  // --- Construct the unified WorldSnapshot --- 
+  const worldSnapshot = useMemo<domain.WorldSnapshot | null>(() => {
+    if (!gameState || !gameState.character) return null; // Need character for a valid snapshot
+    
+    return {
+      // Combine data from gameState (from useBattleNads) and sessionKey
+      characterID: gameState.character.id, 
+      sessionKeyData: mapSessionKeyData(sessionKey ?? null, owner) ?? {
+        owner: owner ?? '', // Use hook's owner, fallback to empty
+        key: '',
+        balance: '0',
+        targetBalance: '0',
+        ownerCommittedAmount: '0',
+        ownerCommittedShares: '0',
+        expiry: '0'
+      },
+      character: gameState.character,
+      combatants: gameState.combatants || [],
+      noncombatants: gameState.noncombatants || [],
+      eventLogs: gameState.eventLogs || [],
+      chatLogs: gameState.chatLogs || [],
+      balanceShortfall: gameState.balanceShortfall || 0,
+      unallocatedAttributePoints: gameState.unallocatedAttributePoints || 0,
+      movementOptions: gameState.movementOptions || {
+        canMoveNorth: false, canMoveSouth: false, canMoveEast: false, 
+        canMoveWest: false, canMoveUp: false, canMoveDown: false
+      },
+      lastBlock: gameState.lastBlock || 0
+      // Note: Original gameState structure from useBattleNads might slightly differ
+      // We might need to adjust which properties are pulled from where if needed
+    };
+  }, [gameState, sessionKey]);
+  // -----------------------------------------
+
   return {
     // State
-    gameState,
+    worldSnapshot, // Return the unified snapshot
     isLoading: isLoadingGameState,
     error: gameStateError,
     refetch: refetchGameState,
@@ -250,11 +285,19 @@ export const useGame = () => {
     updateSessionKey: updateSessionKeyMutation.mutate,
     isUpdatingSessionKey: updateSessionKeyMutation.isPending,
     
-    // Character
-    character: gameState?.character,
-    characterId,
-    position,
-    movementOptions,
+    // Character (Extract from snapshot for convenience, ensure null check)
+    character: worldSnapshot?.character, 
+    characterId: worldSnapshot?.character?.id || null,
+    position: worldSnapshot?.character?.position ? 
+              { 
+                 x: worldSnapshot.character.position.x, 
+                 y: worldSnapshot.character.position.y, 
+                 depth: worldSnapshot.character.position.depth
+              } : { x: 0, y: 0, depth: 0 }, 
+    movementOptions: worldSnapshot?.movementOptions || { 
+      canMoveNorth: false, canMoveSouth: false, canMoveEast: false, 
+      canMoveWest: false, canMoveUp: false, canMoveDown: false 
+    },
     
     // Actions
     moveCharacter: (direction: domain.Direction) => 
@@ -268,11 +311,11 @@ export const useGame = () => {
     sendChatMessage,
     isSendingChat: chatMutation.isPending,
     
-    // Logs
-    chatLogs,
-    eventLogs,
+    // Logs (Extract from snapshot for convenience)
+    chatLogs: worldSnapshot?.chatLogs || [],
+    eventLogs: worldSnapshot?.eventLogs || [],
     
-    // Other characters
-    others: gameState?.others || []
+    // Other characters (Extract from snapshot - adjust property name if needed)
+    others: worldSnapshot?.noncombatants || [] // Assuming noncombatants are the 'others'
   };
 }; 

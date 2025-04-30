@@ -46,7 +46,7 @@ const Game: React.FC = () => {
   const {
     isLoading,
     error,
-    gameState,
+    worldSnapshot,
     character,
     characterId,
     hasWallet,
@@ -65,7 +65,7 @@ const Game: React.FC = () => {
     refetch,
   } = useGame();
 
-  const combatants: BattleNadLite[] = useMemo(() => gameState?.combatants || [], [gameState]);
+  const combatants: BattleNadLite[] = useMemo(() => worldSnapshot?.combatants || [], [worldSnapshot]);
 
   const StableWalletBalances = useMemo(() => <WalletBalances />, []);
 

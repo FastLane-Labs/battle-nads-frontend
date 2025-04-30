@@ -26,14 +26,13 @@ interface GameContainerProps {
   character: domain.Character;
   characterId: string;
   position: { x: number; y: number; z: number };
-  gameState: any; // Replace with proper type
+  gameState: domain.WorldSnapshot | null;
   moveCharacter: (direction: domain.Direction) => Promise<void>;
   attack: (targetIndex: number) => Promise<void>;
   sendChatMessage: (message: string) => Promise<void>;
   isMoving: boolean;
   isAttacking: boolean;
   isSendingChat: boolean;
-  [key: string]: any; // Allow other properties from useGame
 }
 
 const GameContainer: React.FC<GameContainerProps> = (props) => {
@@ -137,6 +136,8 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
           character={character}
           position={position}
           combatants={gameState?.combatants || []}
+          chatLogs={gameState?.chatLogs || []}
+          eventLogs={gameState?.eventLogs || []}
           onMove={handleMovement}
           onAttack={handleAttack}
           isMoving={isMoving}
