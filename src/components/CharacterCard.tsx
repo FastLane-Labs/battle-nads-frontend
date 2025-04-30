@@ -1,11 +1,8 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Select, Button, Stat, StatLabel, StatNumber } from '@chakra-ui/react';
-import { Character } from '../types/domain/character'; // Corrected import path and type name
-// Removed useGameData import
+import { Character } from '@/types/domain/character';
 import { calculateMaxHealth } from '../utils/gameDataConverters';
-// Removed useBattleNads import (will be added where needed)
-// Removed useGameActions import
-// Character component for displaying BattleNad information
+
 interface CharacterCardProps {
   character: Character; // Corrected type name
 }
@@ -38,10 +35,6 @@ const formatGold = (value: number | bigint | undefined): string => {
 };
 
 export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
-  // Removed useGameData hook call
-  // Removed useGameActions hook call
-
-  // Add local state for character stats that can be updated by events
   const [currentStats, setCurrentStats] = useState<Character['stats'] | undefined>(character?.stats); // Corrected type name
   
   // Update current stats when props change
@@ -185,7 +178,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
               <StatNumber>{Number(currentStats?.quickness)}</StatNumber>
             </Stat>
             <Stat size="sm">
-              <StatLabel fontSize="xs">STR</StatLabel> // TODO: Assuming this should be Sturdiness (STD)
+              <StatLabel fontSize="xs">STD</StatLabel>
               <StatNumber>{Number(currentStats?.sturdiness)}</StatNumber>
             </Stat>
             <Stat size="sm">
