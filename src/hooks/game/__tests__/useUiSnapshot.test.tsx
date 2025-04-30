@@ -48,7 +48,7 @@ jest.mock('../../../mappers', () => ({
 
 // Mock localStorage
 const localStorageMock = (function() {
-  let store = {};
+  let store: Record<string, string> = {};
   return {
     getItem: jest.fn((key) => {
       return store[key] || null;
@@ -74,10 +74,11 @@ jest.mock('localforage', () => ({
   keys: jest.fn().mockResolvedValue([])
 }));
 
-// Mock useCachedChatLogs
-jest.mock('../useCachedChatLogs', () => ({
-  __esModule: true,
-  default: jest.fn().mockReturnValue({
+// Mock useCachedDataFeed (NAMED export)
+jest.mock('../useCachedDataFeed', () => ({
+  __esModule: true, // Keep this for consistency with ES modules
+  // Mock the named export directly
+  useCachedDataFeed: jest.fn().mockReturnValue({ 
     blocks: [],
     latest: BigInt(100),
     isLoading: false
@@ -92,7 +93,7 @@ jest.mock('@tanstack/react-query', () => {
     useQuery: jest.fn(({ queryFn, ...rest }) => {
       // Run queryFn immediately to make test synchronous
       if (typeof queryFn === 'function' && rest.enabled !== false) {
-        queryFn().catch(error => console.error('Mock query error:', error));
+        queryFn().catch((error: Error) => console.error('Mock query error:', error));
       }
       return originalModule.useQuery({ queryFn, ...rest });
     }),
@@ -107,12 +108,32 @@ describe('useUiSnapshot', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    // Default mock with snapshot data
+    // Default mock with snapshot data - CONVERT TO ARRAY
     const mockClient = {
-      getUiSnapshot: jest.fn().mockImplementation(() => Promise.resolve({
-        ...mockPollData,
-        endBlock: BigInt(150)
-      })),
+      getUiSnapshot: jest.fn().mockImplementation(() => {
+        // Convert the mock object data to the expected array format
+        const data = mockPollData as any; // Type assertion for easier access
+        const mockArrayData = [
+          data.characterID,                             // 0
+          data.sessionKeyData,                          // 1
+          data.character,                               // 2
+          data.combatants || [],                        // 3
+          data.noncombatants || [],                     // 4
+          data.equipableWeaponIDs || [],                // 5
+          data.equipableWeaponNames || [],              // 6
+          data.equipableArmorIDs || [],                 // 7
+          data.equipableArmorNames || [],               // 8
+          data.dataFeeds || [],                         // 9
+          BigInt(data.balanceShortfall || '0'),         // 10
+          BigInt(data.unallocatedAttributePoints || '0'),// 11
+          BigInt(mockPollData.endBlock || '0'),       // 12 (Use original mockPollData for endBlock)
+          data.movementOptions || {                     // 13 (Include even if hook mapping changed)
+            canMoveNorth: false, canMoveSouth: false, canMoveEast: false, 
+            canMoveWest: false, canMoveUp: false, canMoveDown: false 
+          }
+        ];
+        return Promise.resolve(mockArrayData);
+      }),
       getLatestBlockNumber: jest.fn().mockResolvedValue(BigInt(100)),
       getDataFeed: jest.fn().mockResolvedValue([])
     };

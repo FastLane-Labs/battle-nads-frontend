@@ -186,18 +186,6 @@ export function mapChatLog(
   };
 }
 
-// NEW helper – flattens any number of DataFeed entries
-function mergeDataFeeds(feeds: contract.DataFeed[] = []) {
-  return feeds.reduce(
-    (acc, feed) => {
-      acc.eventLogs.push(...(feed.logs ?? []));
-      acc.chatLogs.push(...(feed.chatLogs ?? []));
-      return acc;
-    },
-    { eventLogs: [] as contract.Log[], chatLogs: [] as string[] },
-  );
-}
-
 /**
  * Maps contract data to domain world snapshot
  * Works with both raw PollFrontendDataRaw and extended PollFrontendDataReturn
@@ -207,62 +195,90 @@ export function contractToWorldSnapshot(
   owner: string | null = null
 ): domain.WorldSnapshot | null {
   
-  // If the entire data packet is null, return null
   if (!raw) {
     return null;
   }
 
-  /* --------- Aggregate logs from dataFeeds --------- */
-  const { eventLogs: mergedEvents, chatLogs: mergedChats } = mergeDataFeeds(raw.dataFeeds);
-  
-  // Get movement options
-  const movementOptions = raw.movementOptions;
-  
-  // Debug logs to monitor event and chat log sources and lengths
-  console.log(`[contractToDomain] Merged events from dataFeeds length: ${mergedEvents.length}`);
-  console.log(`[contractToDomain] Merged chats from dataFeeds length: ${mergedChats.length}`);
+  // --- Process DataFeeds directly for Logs and Chat Messages ---
+  const allChatMessages: domain.ChatMessage[] = [];
+  const allEventLogs: domain.EventMessage[] = [];
 
-  // Map session key data
+  (raw.dataFeeds || []).forEach(feed => {
+    const blockTimestamp = Number(feed.blockNumber || 0); // Use feed's block number
+
+    // Map Chat Logs for this feed
+    (feed.chatLogs || []).forEach(chatString => {
+      let senderName = "System"; // Default sender
+      let messageContent = chatString;
+
+      // Basic sender parsing (adjust if format differs)
+      if (typeof chatString === 'string' && chatString.includes(":")) { // Check it's a string first
+          const colonIndex = chatString.indexOf(":");
+          // Ensure colon is present and not the first character
+          if (colonIndex > 0) { 
+              const potentialSender = chatString.substring(0, colonIndex).trim();
+              // Basic check if sender looks reasonable (e.g., not empty)
+              if (potentialSender) { 
+                  senderName = potentialSender;
+                  messageContent = chatString.substring(colonIndex + 1).trim();
+              } else {
+                // Malformed (e.g., ": message"), keep default sender, use whole string as message
+                messageContent = chatString; 
+              }
+          } else {
+             // Malformed (e.g., ": message"), keep default sender, use whole string as message
+             messageContent = chatString;
+          }
+      } // else: No colon found or not a string, keep default sender "System"
+
+      allChatMessages.push({
+          characterName: senderName,
+          message: messageContent,
+          timestamp: blockTimestamp 
+      });
+    });
+
+    // Map Event Logs for this feed
+    (feed.logs || []).forEach(log => {
+      // Assuming a simple mapping for now, adjust based on actual Log structure and needs
+      allEventLogs.push({
+        message: `Event type ${log.logType}`, // Example mapping
+        timestamp: blockTimestamp,          // Use feed's block number
+        type: (log.logType !== undefined) ? 
+              (log.logType as domain.LogType) : 
+              domain.LogType.Unknown
+      });
+    });
+  });
+
+  // Sort combined logs by timestamp (block number)
+  allChatMessages.sort((a, b) => a.timestamp - b.timestamp);
+  allEventLogs.sort((a, b) => a.timestamp - b.timestamp);
+  // -----------------------------------------------------------
+
+  // Map session key data (assuming this doesn't depend on dataFeeds structure)
   const mappedSessionKeyData = mapSessionKeyData(raw.sessionKeyData, owner);
 
-  // Create the domain world snapshot with appropriate types
+  // Create the domain world snapshot using the processed logs
   const worldSnapshot: domain.WorldSnapshot = {
     characterID: raw.characterID || '',
     sessionKeyData: mappedSessionKeyData,
     character: mapCharacter(raw.character),
     combatants: raw.combatants?.map(mapCharacterLite) || [],
     noncombatants: raw.noncombatants?.map(mapCharacterLite) || [],
-    
-    /* Always use merged logs from dataFeeds */
-    eventLogs: mergedEvents
-      .filter(log => log && typeof log.logType !== 'undefined')
-      .map(log => {
-        console.log(`[contractToDomain] Using merged event log: ${JSON.stringify(log)}`);
-        return {
-          message: String(log.logType || 'Unknown'),
-          timestamp: Number(raw.endBlock),
-          type: (log.logType !== undefined) ? 
-            (log.logType as domain.LogType) : 
-            domain.LogType.Unknown // Use Unknown for undefined types
-        };
-      }),
-    
-    chatLogs: mergedChats.map(content => {
-      console.log(`[contractToDomain] Using merged chat message: ${content}`);
-      return {
-        characterName: "Other",
-        message: content,
-        timestamp: Date.now()
-      };
-    }),
-    
+    eventLogs: allEventLogs,       // Use processed event logs
+    chatLogs: allChatMessages,      // Use processed chat logs
     balanceShortfall: Number(raw.balanceShortfall || 0),
     unallocatedAttributePoints: Number(raw.unallocatedAttributePoints || 0),
-    movementOptions,
+    // Ensure movementOptions has a default if raw.movementOptions is null/undefined
+    movementOptions: raw.movementOptions || { 
+      canMoveNorth: false, canMoveSouth: false, canMoveEast: false, 
+      canMoveWest: false, canMoveUp: false, canMoveDown: false 
+    },
     lastBlock: Number(raw.endBlock || 0)
   };
   
-  // Store equipment data in a separate object - they're not part of the WorldSnapshot type
+  // Store equipment data separately (as before)
   const equipmentData = {
     equipableWeaponIDs: raw.equipableWeaponIDs,
     equipableWeaponNames: raw.equipableWeaponNames,
@@ -270,12 +286,11 @@ export function contractToWorldSnapshot(
     equipableArmorNames: raw.equipableArmorNames,
   };
 
-  // For debugging
-  console.log(`[contractToDomain] Available equipment not in snapshot: ${JSON.stringify(equipmentData)}`);
-  
-  // Add owner information from the parameter for reference in UI layers
+  // Debugging logs (can be removed later)
+  console.log(`[contractToDomain] Processed ${allChatMessages.length} chat messages.`);
+  console.log(`[contractToDomain] Processed ${allEventLogs.length} event logs.`);
   if (owner) {
-    console.log(`[contractToDomain] Owner passed but not stored in snapshot: ${owner}`);
+    console.log(`[contractToDomain] Owner passed: ${owner}`); // Modified log message slightly
   }
   
   return worldSnapshot;
