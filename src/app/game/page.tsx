@@ -1,88 +1,105 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { Box, Center, Spinner, Text } from '@chakra-ui/react';
-import NavBar from '../../components/NavBar';
-import { useWallet } from '../../providers/WalletProvider';
-import { useRouter } from 'next/navigation';
-import Game from '@/components/gameboard/game';
+import { useRouter, redirect } from 'next/navigation';
+import { useGame } from '@/hooks/game/useGame';
+import LoadingScreen from '@/components/game/screens/LoadingScreen';
+import ErrorScreen from '@/components/game/screens/ErrorScreen';
+import SessionKeyPrompt from '@/components/game/screens/SessionKeyPrompt';
+import GameContainer from '@/components/game/GameContainer';
+import NavBar from '@/components/NavBar';
+import { Box } from '@chakra-ui/react';
+import { isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
 
-export default function GamePage() {
-  const { address, isInitialized } = useWallet();
+export default function GameV2Page() {
   const router = useRouter();
-  const [showLoading, setShowLoading] = useState(true);
-  
-  // Redirect to home if not connected, but only after wallet state is initialized
-  useEffect(() => {
-    if (isInitialized && !address) {
-      console.log("No wallet address detected, redirecting to login");
-      router.push('/');
-    }
-  }, [address, router, isInitialized]);
-  
-  // Redirect to home if not connected, but only after wallet state is initialized
-  useEffect(() => {
-    // If no address, redirect to login regardless of isInitialized state
-    // This ensures we don't get stuck in a loading screen
-    if (!address) {
-      console.log("No wallet address detected, redirecting to login");
-      router.push('/');
-    }
-  }, [address, router]);
-  
-  // Check if we're coming from character creation
-  React.useEffect(() => {
-    // Clear any cached redirect flags from character creation
-    localStorage.removeItem('justCreatedCharacter');
-    
-    // Check if we have a query parameter indicating we just created a character
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('newCharacter')) {
-      console.log("New character detected from URL parameters");
-      
-      // Clear URL parameters without triggering a page reload
-      const newUrl = window.location.pathname;
-      window.history.replaceState({}, '', newUrl);
-    }
-  }, []);
-  
-  useEffect(() => {
-    // Set a timeout to stop showing the loading spinner after 3 seconds
-    const timer = setTimeout(() => {
-      setShowLoading(false);
-      // If still not initialized, redirect to login
-      if (!isInitialized && !address) {
-        console.log("Wallet initialization timed out, redirecting to login");
-        router.push('/');
-      }
-    }, 3000);
-    
-    return () => clearTimeout(timer);
-  }, [isInitialized, address, router]);
-  
-  // Show loading spinner while wallet state is initializing
-  if (!isInitialized) {
+  const game = useGame();
+  const zeroCharacterId = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+  if (game.isLoading || (game.hasWallet && game.characterId === null && !game.error)) {
     return (
-      <Center height="100vh" className="bg-gray-900">
-        <Spinner size="xl" color="purple.500" thickness="4px" />
-      </Center>
+      <>
+        <NavBar />
+        <LoadingScreen message="Initializing Game Data..." />
+      </>
     );
   }
-  
-  if (!isInitialized && showLoading) {
+
+  if (game.error) {
     return (
-      <Center height="100vh" className="bg-gray-900">
-        <Spinner size="xl" color="purple.500" thickness="4px" />
-      </Center>
+      <>
+        <NavBar />
+        <ErrorScreen error={game.error} retry={game.refetch} onGoToLogin={() => router.push('/')} />
+      </>
     );
   }
-  
+
+  if (!game.hasWallet) {
+    redirect('/');
+  }
+
+  if (game.hasWallet && !game.isLoading && game.characterId === zeroCharacterId) {
+    redirect('/create');
+  }
+
+  const isValidChar = isValidCharacterId(game.characterId);
+  if (game.hasWallet && isValidChar && game.needsSessionKeyUpdate && !game.isLoading && game.character) {
+    return (
+      <>
+        <NavBar />
+        <SessionKeyPrompt 
+          sessionKeyState={game.sessionKeyState}
+          onUpdate={async () => {
+            try {
+              await game.updateSessionKey();
+              return Promise.resolve();
+            } catch (error) {
+              console.error("Failed to update session key:", error);
+              return Promise.reject(error);
+            }
+          }}
+          isUpdating={game.isUpdatingSessionKey}
+        />
+      </>
+    );
+  }
+
+  if (game.hasWallet && isValidChar && !game.needsSessionKeyUpdate && game.character && game.worldSnapshot && !game.isLoading) {
+    const position = game.position ? {
+      x: game.position.x,
+      y: game.position.y,
+      z: game.position.depth
+    } : { x: 0, y: 0, z: 0 };
+    
+    const moveCharacter = async (direction: any) => { await game.moveCharacter(direction); };
+    const attack = async (targetIndex: number) => { await game.attack(targetIndex); };
+    const sendChatMessage = async (message: string) => { await game.sendChatMessage(message); };
+
+    return (
+      <>
+        <NavBar />
+        <Box pt="64px">
+          <GameContainer 
+            character={game.character}
+            characterId={game.characterId as string}
+            position={position}
+            gameState={game.worldSnapshot}
+            moveCharacter={moveCharacter}
+            attack={attack}
+            sendChatMessage={sendChatMessage}
+            isMoving={game.isMoving}
+            isAttacking={game.isAttacking}
+            isSendingChat={game.isSendingChat}
+          />
+        </Box>
+      </>
+    );
+  }
+
+  console.warn("[GameV2Page] Reached Fallback state. Rendering Loading.");
   return (
-    <Box className="min-h-screen bg-gray-900">
+    <>
       <NavBar />
-      <Box pt="60px">
-        <Game key="stable-game-instance" />
-      </Box>
-    </Box>
+      <LoadingScreen message="Verifying state..." />
+    </>
   );
 } 

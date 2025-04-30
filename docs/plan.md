@@ -39,3 +39,10 @@
     *   By centralizing data fetching in the hook, we ensure a single source of truth for wallet balances across the application.
     *   Moving constants to a config file improves maintainability and makes it easier to adjust thresholds and values in the future.
     *   Improved component readability and maintainability by focusing on presentation rather than data management.
+
+### Refactor Page-Level State Checks (Create & Character Pages)
+
+- **Task**: Update `/create/page.tsx` and `/character/page.tsx` to align with centralized state management.
+- **Action**: Replaced page-level `useWallet` checks with `useGame` hook.
+- **Rationale**: Ensures these pages correctly reflect the comprehensive game state (loading, errors, character status, session key validity) managed by `AppInitializer` and `useGame`. Prevents users from accessing these pages directly via URL when the application state dictates otherwise (e.g., accessing `/create` when a character already exists). Pages now redirect to `/` if the state isn't appropriate, allowing `AppInitializer` to handle the correct rendering or further redirection.
+- **Impact**: Improved robustness and consistency of navigation flow, preventing state mismatches between `AppInitializer` and direct page access.
