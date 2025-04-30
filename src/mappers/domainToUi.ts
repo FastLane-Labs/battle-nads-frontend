@@ -52,6 +52,17 @@ export function worldSnapshotToGameState(
   snapshot: domain.WorldSnapshot,
   prevState?: ui.GameState
 ): ui.GameState {
+  // Create empty session key if none exists
+  const defaultSessionKey: domain.SessionKeyData = {
+    owner: '0x0000000000000000000000000000000000000000',
+    key: '0x0000000000000000000000000000000000000000',
+    balance: BigInt(0),
+    targetBalance: BigInt(0),
+    ownerCommittedAmount: BigInt(0),
+    ownerCommittedShares: BigInt(0),
+    expiry: BigInt(0)
+  };
+
   // Start with a base object
   const gameState: ui.GameState = {
     owner: null,
@@ -61,7 +72,7 @@ export function worldSnapshotToGameState(
     movementOptions: snapshot.movementOptions,
     eventLogs: snapshot.eventLogs,
     chatLogs: snapshot.chatLogs,
-    sessionKey: snapshot.sessionKeyData,
+    sessionKey: snapshot.sessionKeyData || defaultSessionKey, // Provide fallback
     lastBlock: snapshot.lastBlock,
     characterID: snapshot.characterID,
     combatants: snapshot.combatants,
@@ -101,7 +112,7 @@ export function worldSnapshotToGameState(
     updates.movementOptions = JSON.stringify(prevState.movementOptions) !== JSON.stringify(snapshot.movementOptions);
     
     // Check for session key updates
-    updates.sessionKey = JSON.stringify(prevState.sessionKey) !== JSON.stringify(snapshot.sessionKeyData);
+    updates.sessionKey = JSON.stringify(prevState.sessionKey) !== JSON.stringify(snapshot.sessionKeyData || defaultSessionKey);
     
     // Check for last block updates
     updates.lastBlock = prevState.lastBlock !== snapshot.lastBlock;

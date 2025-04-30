@@ -314,9 +314,20 @@ export class BattleNadsAdapter {
   // SOCIAL OPERATIONS
 
   /**
-   * Sends a chat message
+   * Sends a chat message using the zoneChat contract method
+   * Does not set explicit gas limit to allow embedded wallet to handle it
    */
   async zoneChat(characterId: string, message: string): Promise<TransactionResponse> {
-    return this.contract.zoneChat(characterId, message, { gasLimit: GAS_LIMITS.action });
+    console.log(`[BattleNadsAdapter] Calling zoneChat contract method for character ${characterId} with message: "${message}"`);
+    
+    try {
+      // Don't include explicit gas limit - let embedded wallet optimize this
+      const tx = await this.contract.zoneChat(characterId, message);
+      console.log(`[BattleNadsAdapter] zoneChat transaction sent. Hash: ${tx.hash}`);
+      return tx;
+    } catch (error) {
+      console.error(`[BattleNadsAdapter] Error executing zoneChat:`, error);
+      throw error;
+    }
   }
 } 

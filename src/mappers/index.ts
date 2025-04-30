@@ -12,7 +12,7 @@ export * from './domainToUi';
 // Convenient composition functions for direct contract-to-ui mapping
 import { contractToWorldSnapshot } from './contractToDomain';
 import { worldSnapshotToGameState } from './domainToUi';
-import { contract, ui } from '@/types';
+import { contract, domain, ui } from '../types';
 
 /**
  * Maps contract data directly to UI game state
@@ -23,5 +23,32 @@ export function contractToGameState(
   prevState?: ui.GameState
 ): ui.GameState {
   const snapshot = contractToWorldSnapshot(data, owner);
+  
+  // Create default world snapshot if null
+  if (!snapshot) {
+    // Create a minimal valid WorldSnapshot
+    const defaultSnapshot: domain.WorldSnapshot = {
+      characterID: '',
+      sessionKeyData: null,
+      character: null,
+      combatants: [],
+      noncombatants: [],
+      movementOptions: {
+        canMoveNorth: false,
+        canMoveSouth: false,
+        canMoveEast: false,
+        canMoveWest: false,
+        canMoveUp: false,
+        canMoveDown: false
+      },
+      eventLogs: [],
+      chatLogs: [],
+      balanceShortfall: 0,
+      unallocatedAttributePoints: 0,
+      lastBlock: 0
+    };
+    return worldSnapshotToGameState(defaultSnapshot, prevState);
+  }
+  
   return worldSnapshotToGameState(snapshot, prevState);
 }

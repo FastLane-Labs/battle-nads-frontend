@@ -44,6 +44,8 @@ export const useChat = () => {
   
   // Send chat message with optimistic updates
   const sendChatMessage = async (message: string) => {
+    console.log(`[useChat] Preparing to send message: "${message}" for character ${characterId}`);
+    
     // Add optimistic update to cache
     const previousData = queryClient.getQueryData<ui.GameState>(['uiSnapshot', owner]);
     
@@ -55,12 +57,18 @@ export const useChat = () => {
         timestamp: Date.now()
       };
       
+      console.log(`[useChat] Adding optimistic chat update: ${JSON.stringify(optimisticChat)}`);
+      
       // Update cache with optimistic chat message
       queryClient.setQueryData(['uiSnapshot', owner], {
         ...previousData,
         chatLogs: [...(previousData.chatLogs || []), optimisticChat]
       });
+    } else {
+      console.warn(`[useChat] Missing data for optimistic update. Owner: ${owner}, Character: ${characterId}`);
     }
+    
+    console.log(`[useChat] Calling client.chat with characterId: ${characterId}`);
     
     // Send the actual message
     return chatMutation.mutateAsync(message);

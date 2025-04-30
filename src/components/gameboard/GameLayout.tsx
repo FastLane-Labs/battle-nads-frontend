@@ -73,7 +73,6 @@ export const GameLayout: React.FC<GameLayoutProps> = ({
         <DataFeed
           key={characterId || 'no-char'} // Use characterId for key stability
           characterId={characterId || ''}
-          sendChatMessage={onSendChatMessage}
         />
       </Box>
     </Flex>

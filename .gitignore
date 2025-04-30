@@ -18,6 +18,8 @@ out/
 .env.*
 !.env.example
 
+CLAUDE.md
+
 # Logs
 logs
 *.log

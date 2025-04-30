@@ -4,6 +4,12 @@ import { contract, domain } from '../../types';
 import { POLL_INTERVAL } from '../../config/env';
 import { contractToWorldSnapshot } from '../../mappers';
 
+// Define specific result type to avoid TypeScript issues
+export type SnapshotResult = {
+  data: Partial<domain.WorldSnapshot> & { __ts: number };
+  raw: contract.PollFrontendDataReturn;
+};
+
 /**
  * Hook for polling UI snapshot data from the blockchain
  * Uses React-Query for caching and deduplication of requests
@@ -12,10 +18,10 @@ import { contractToWorldSnapshot } from '../../mappers';
 export const useUiSnapshot = (owner: string | null) => {
   const { client } = useBattleNadsClient();
 
-  return useQuery<{ data: domain.WorldSnapshot & { __ts: number }; raw: contract.PollFrontendDataReturn }>({
+  return useQuery<SnapshotResult, Error>({
     queryKey: ['uiSnapshot', owner],
     enabled: !!owner && !!client,
-    queryFn: async () => {
+    queryFn: async (): Promise<SnapshotResult> => {
       console.log(`[useUiSnapshot] queryFn executing for owner: ${owner}`);
       if (!client || !owner) {
         throw new Error('Client or owner address missing');
@@ -30,11 +36,13 @@ export const useUiSnapshot = (owner: string | null) => {
       // Convert contract data to domain model
       const snapshot = contractToWorldSnapshot(raw, owner);
       
-      // Return both raw contract data and mapped domain data
-      return {
+      // Create fully typed object with type assertion for safety
+      const result: SnapshotResult = {
         raw,
-        data: { ...snapshot, __ts: Date.now() }
+        data: { ...snapshot as any, __ts: Date.now() }
       };
+      
+      return result;
     },
     refetchInterval: POLL_INTERVAL,
     staleTime: 0, // Consider all data immediately stale for real-time updates
