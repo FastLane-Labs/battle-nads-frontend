@@ -2,14 +2,14 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { useGame } from '../useGame';
 import { useBattleNads } from '../useBattleNads';
 import { useSessionKey } from '../../session/useSessionKey';
-import { useCharacter } from '../useCharacter';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
+import { isValidCharacterId } from '../../../utils/getCharacterLocalStorageKey';
+import { SessionKeyState } from '@/types/domain/session';
 
 // Mock dependencies
 jest.mock('../useBattleNads');
 jest.mock('../../session/useSessionKey');
-jest.mock('../useCharacter');
 jest.mock('../../../providers/WalletProvider', () => ({
   useWallet: jest.fn().mockReturnValue({
     injectedWallet: { address: '0x0000000000000000000000000000000000000001' },
@@ -35,218 +35,190 @@ const createWrapper = () => {
 
 describe('useGame', () => {
   const mockOwner = '0x0000000000000000000000000000000000000001';
-  const characterId = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
-  const sessionKeyAddress = '0x0000000000000000000000000000000000000002';
+  const mockCharacterId = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
+  const zeroAddress = "0x0000000000000000000000000000000000000000000000000000000000000000";
+  const mockSessionKeyAddress = '0x0000000000000000000000000000000000000002';
+  const mockCharacter = { id: mockCharacterId, name: 'TestCharacter', position: { x: 1, y: 1, depth: 1 } };
+  const mockBaseGameState = { 
+    character: mockCharacter,
+    combatants: [],
+    noncombatants: [],
+    eventLogs: [],
+    chatLogs: [],
+    balanceShortfall: 0,
+    unallocatedAttributePoints: 0,
+    movementOptions: { canMoveNorth: true },
+    lastBlock: 100,
+    position: { x: 1, y: 1, depth: 1 },
+    id: mockCharacterId
+  };
   const wrapper = createWrapper();
   
   beforeEach(() => {
     jest.clearAllMocks();
     
-    // Default mock for useBattleNads matches the shape useGame expects
     (useBattleNads as jest.Mock).mockReturnValue({
-      gameState: 'ready', // Add this to match what useGame expects
-      character: { id: characterId, name: 'TestCharacter' },
+      gameState: mockBaseGameState,
       isLoading: false,
       error: null,
-      moveCharacter: jest.fn().mockResolvedValue({}),
-      attack: jest.fn().mockResolvedValue({}),
       refetch: jest.fn()
     });
     
-    // Default mock for useSessionKey
     (useSessionKey as jest.Mock).mockReturnValue({
-      sessionKeyState: 'valid',
-      sessionKeyData: { key: sessionKeyAddress, expiration: 9999999n },
+      sessionKeyState: SessionKeyState.VALID,
+      sessionKey: { key: mockSessionKeyAddress, expiration: '9999999', owner: mockOwner },
       needsUpdate: false,
       isLoading: false,
-      updateSessionKey: jest.fn(),
       refreshSessionKey: jest.fn()
     });
-    
-    // Default mock for useCharacter
-    (useCharacter as jest.Mock).mockReturnValue({
-      hasCharacter: true,
-      character: { id: characterId },
-      isLoading: false,
-      createCharacter: jest.fn()
+
+    (jest.requireMock('../../../providers/WalletProvider').useWallet as jest.Mock).mockReturnValue({
+      injectedWallet: { address: mockOwner },
+      embeddedWallet: { address: mockSessionKeyAddress },
+      connectMetamask: jest.fn(),
     });
   });
   
   it('resolves to ready state when all conditions met', async () => {
-    // Make sure the useGame hook receives and passes through the character
-    const mockCharacter = { id: characterId, name: 'TestCharacter' };
+    const { result } = renderHook(() => useGame(), { wrapper });
     
-    (useBattleNads as jest.Mock).mockReturnValue({
-      gameState: 'ready',
-      character: mockCharacter,
-      isLoading: false,
-      error: null,
-      moveCharacter: jest.fn().mockResolvedValue({}),
-      attack: jest.fn().mockResolvedValue({}),
-      refetch: jest.fn()
-    });
-    
-    const { result } = renderHook(
-      () => useGame(),
-      { wrapper }
-    );
-    
-    // Wait for the gameState to be ready, with type assertion
-    await waitFor(() => (result.current.gameState as any) === 'ready');
-    
-    // Verify the expected state
-    expect(result.current.gameState).toBe('ready');
-    
-    // Skip the character test since it might not be directly exposed in useGame's return value
-    // or update the test if we know exactly how it should be exposed
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBe(null);
+    expect(result.current.hasWallet).toBe(true);
+    expect(result.current.characterId).toBe(mockCharacterId);
+    expect(isValidCharacterId(result.current.characterId)).toBe(true);
+    expect(result.current.needsSessionKeyUpdate).toBe(false);
+    expect(result.current.character).toEqual(mockCharacter);
+    expect(result.current.worldSnapshot).toBeDefined();
+    expect(result.current.worldSnapshot?.characterID).toBe(mockCharacterId);
+    expect(result.current.worldSnapshot?.sessionKeyData?.key).toBe(mockSessionKeyAddress);
   });
   
   it('detects missing character', async () => {
-    // Update the mock to simulate missing character
-    (useCharacter as jest.Mock).mockReturnValue({
-      hasCharacter: false,
-      character: null,
-      isLoading: false,
-      createCharacter: jest.fn()
-    });
-    
-    // Update useBattleNads mock to match the state we expect
     (useBattleNads as jest.Mock).mockReturnValue({
-      gameState: 'need-character',
-      character: null,
+      gameState: { ...mockBaseGameState, character: { id: zeroAddress, name: '', position: {x:0, y:0, depth:0} } },
       isLoading: false,
       error: null,
       refetch: jest.fn()
     });
     
-    const { result } = renderHook(
-      () => useGame(),
-      { wrapper }
-    );
+    const { result } = renderHook(() => useGame(), { wrapper });
     
-    await waitFor(() => (result.current.gameState as any) === 'need-character');
-    
-    expect(result.current.gameState).toBe('need-character');
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBe(null);
+    expect(result.current.hasWallet).toBe(true);
+    expect(result.current.characterId).toBe(zeroAddress);
+    expect(isValidCharacterId(result.current.characterId)).toBe(false);
+    expect(result.current.character?.id).toBe(zeroAddress);
+    expect(result.current.needsSessionKeyUpdate).toBe(false);
   });
   
   it('detects invalid session key', async () => {
-    // Update the mock to simulate invalid session key
     (useSessionKey as jest.Mock).mockReturnValue({
-      sessionKeyState: 'invalid',
-      sessionKeyData: null,
+      sessionKeyState: SessionKeyState.EXPIRED,
+      sessionKey: { key: mockSessionKeyAddress, expiration: '10', owner: mockOwner },
       needsUpdate: true,
       isLoading: false,
-      updateSessionKey: jest.fn(),
       refreshSessionKey: jest.fn()
     });
+        
+    const { result } = renderHook(() => useGame(), { wrapper });
     
-    // Update useBattleNads mock to match the state we expect
-    (useBattleNads as jest.Mock).mockReturnValue({
-      gameState: 'session-key-warning',
-      character: { id: characterId },
-      isLoading: false,
-      error: null,
-      refetch: jest.fn()
-    });
-    
-    const { result } = renderHook(
-      () => useGame(),
-      { wrapper }
-    );
-    
-    await waitFor(() => (result.current.gameState as any) === 'session-key-warning');
-    
-    expect(result.current.gameState).toBe('session-key-warning');
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await waitFor(() => expect(result.current.needsSessionKeyUpdate).toBe(true));
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBe(null);
+    expect(result.current.hasWallet).toBe(true);
+    expect(result.current.characterId).toBe(mockCharacterId);
+    expect(result.current.needsSessionKeyUpdate).toBe(true);
+    expect(result.current.sessionKeyState).toBe(SessionKeyState.EXPIRED);
   });
   
   it('handles loading states correctly', async () => {
-    // First render with loading state
-    (useCharacter as jest.Mock).mockReturnValue({
-      hasCharacter: false,
-      character: null,
-      isLoading: true,
-      createCharacter: jest.fn()
-    });
-    
-    // Update useBattleNads mock to match the loading state
+    // Simulate initial loading state from useBattleNads
     (useBattleNads as jest.Mock).mockReturnValue({
-      gameState: 'loading',
-      character: null,
+      gameState: null,
       isLoading: true,
       error: null,
       refetch: jest.fn()
     });
-    
-    const { result, rerender } = renderHook(
-      () => useGame(),
-      { wrapper }
-    );
-    
-    // Should be loading while dependencies are loading
-    expect(result.current.gameState).toBe('loading');
+    // Session key also loading initially, state is undetermined (null)
+    (useSessionKey as jest.Mock).mockReturnValue({
+      sessionKeyState: null, // State is null while loading
+      sessionKey: null,
+      needsUpdate: false,
+      isLoading: true,
+      refreshSessionKey: jest.fn()
+    });
+
+    const { result, rerender } = renderHook(() => useGame(), { wrapper });
+
+    // Check initial loading state
     expect(result.current.isLoading).toBe(true);
-    
-    // Update mocks before rerendering
-    (useCharacter as jest.Mock).mockReturnValue({
-      hasCharacter: true,
-      character: { id: characterId },
-      isLoading: false,
-      createCharacter: jest.fn()
-    });
-    
-    // Update useBattleNads mock to be ready
+    expect(result.current.error).toBe(null);
+    expect(result.current.characterId).toBe(null);
+    expect(result.current.worldSnapshot).toBe(null);
+
     (useBattleNads as jest.Mock).mockReturnValue({
-      gameState: 'ready',
-      character: { id: characterId, name: 'TestCharacter' },
+      gameState: mockBaseGameState,
       isLoading: false,
       error: null,
-      moveCharacter: jest.fn().mockResolvedValue({}),
-      attack: jest.fn().mockResolvedValue({}),
       refetch: jest.fn()
     });
-    
-    // Trigger a rerender to use the updated mocks
+    (useSessionKey as jest.Mock).mockReturnValue({
+      sessionKeyState: SessionKeyState.VALID,
+      sessionKey: { key: mockSessionKeyAddress, expiration: '9999999', owner: mockOwner },
+      needsUpdate: false,
+      isLoading: false,
+      refreshSessionKey: jest.fn()
+    });
+
     rerender();
-    
-    // Wait for the state to update
-    await waitFor(() => (result.current.gameState as any) === 'ready');
-    
-    // Should now be in ready state
-    expect(result.current.gameState).toBe('ready');
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
     expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBe(null);
+    expect(result.current.hasWallet).toBe(true);
+    expect(result.current.characterId).toBe(mockCharacterId);
+    expect(result.current.needsSessionKeyUpdate).toBe(false);
+    expect(result.current.character).toEqual(mockCharacter);
+    expect(result.current.worldSnapshot).toBeDefined();
   });
   
   it('handles game actions correctly', async () => {
-    // Simplify the test and just check that the hook exposes functions with the right names
-    const { result } = renderHook(
-      () => useGame(),
-      { wrapper }
-    );
+    const { result } = renderHook(() => useGame(), { wrapper });
     
-    await waitFor(() => (result.current.gameState as any) === 'ready');
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
     
-    // Only check that the hook exposes the expected functions
     expect(typeof result.current.moveCharacter).toBe('function');
     expect(typeof result.current.attack).toBe('function');
+    expect(typeof result.current.sendChatMessage).toBe('function');
+    expect(typeof result.current.updateSessionKey).toBe('function');
   });
   
   it('handles error states', async () => {
+    const mockError = 'Failed to load game data';
     (useBattleNads as jest.Mock).mockReturnValue({
-      gameState: 'error',
-      character: null,
+      gameState: null,
       isLoading: false,
-      error: 'Failed to load game data',
+      error: mockError,
       refetch: jest.fn()
     });
     
-    const { result } = renderHook(
-      () => useGame(),
-      { wrapper }
-    );
+    const { result } = renderHook(() => useGame(), { wrapper });
     
-    await waitFor(() => (result.current.gameState as any) === 'error');
-    
-    expect(result.current.error).toBe('Failed to load game data');
-    expect(result.current.gameState).toBe('error');
+    await waitFor(() => expect(result.current.error).toBe(mockError));
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.error).toBe(mockError);
+    expect(result.current.hasWallet).toBe(true);
+    expect(result.current.characterId).toBe(null);
+    expect(result.current.worldSnapshot).toBe(null);
   });
 }); 
