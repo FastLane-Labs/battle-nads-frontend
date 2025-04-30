@@ -3,7 +3,7 @@
  * This centralizes all transformation logic between the contract and domain layers
  */
 
-import { contract, domain } from '../types';
+import { contract, domain } from '@/types';
 
 /**
  * Converts raw bitmap status effects to domain StatusEffect arrays
@@ -177,12 +177,12 @@ export function mapEventLog(
  * Maps contract chat log to domain chat message
  */
 export function mapChatLog(
-  rawLog: contract.ChatLog
+  rawLog: string
 ): domain.ChatMessage {
   return {
-    characterName: rawLog.sender,
-    message: rawLog.content,
-    timestamp: Number(rawLog.timestamp)
+    characterName: "Other",
+    message: rawLog,
+    timestamp: Date.now() // Add current time as real timestamp
   };
 }
 
@@ -199,7 +199,8 @@ function mergeDataFeeds(feeds: contract.DataFeed[] = []) {
 }
 
 /**
- * Maps complete contract data to domain world snapshot
+ * Maps contract data to domain world snapshot
+ * Works with both raw PollFrontendDataRaw and extended PollFrontendDataReturn
  */
 export function contractToWorldSnapshot(
   raw: contract.PollFrontendDataReturn | null,
@@ -211,54 +212,53 @@ export function contractToWorldSnapshot(
     return null;
   }
 
-  /* --------- NEW: aggregate logs from dataFeeds --------- */
+  /* --------- Aggregate logs from dataFeeds --------- */
   const { eventLogs: mergedEvents, chatLogs: mergedChats } = mergeDataFeeds(raw.dataFeeds);
   
+  // Get movement options
+  const movementOptions = raw.movementOptions;
+  
   // Debug logs to monitor event and chat log sources and lengths
-  console.log(`[contractToDomain] Raw eventLogs length: ${raw.eventLogs?.length || 0}`);
   console.log(`[contractToDomain] Merged events from dataFeeds length: ${mergedEvents.length}`);
-  console.log(`[contractToDomain] Raw chatLogs length: ${raw.chatLogs?.length || 0}`);
   console.log(`[contractToDomain] Merged chats from dataFeeds length: ${mergedChats.length}`);
 
-  // Map session key data (which might be null)
+  // Map session key data
   const mappedSessionKeyData = mapSessionKeyData(raw.sessionKeyData, owner);
 
   // Create the domain world snapshot with appropriate types
   const worldSnapshot: domain.WorldSnapshot = {
     characterID: raw.characterID || '',
-    sessionKeyData: mappedSessionKeyData, // Use the potentially null mapped data
+    sessionKeyData: mappedSessionKeyData,
     character: mapCharacter(raw.character),
     combatants: raw.combatants?.map(mapCharacterLite) || [],
     noncombatants: raw.noncombatants?.map(mapCharacterLite) || [],
     
-    /* use merged logs unless tuple contained explicit values */
-    eventLogs: raw.eventLogs?.length ? raw.eventLogs.map(mapEventLog) : mergedEvents.map(log => {
-      console.log(`[contractToDomain] Using merged event log: ${JSON.stringify(log)}`);
-      return {
-        message: log.logType.toString(), // Basic conversion - adapt as needed
-        timestamp: Number(raw.endBlock),
-        type: log.logType as domain.LogType
-      };
-    }),
-    chatLogs: raw.chatLogs?.length ? raw.chatLogs.map(mapChatLog) : mergedChats.map(content => {
+    /* Always use merged logs from dataFeeds */
+    eventLogs: mergedEvents
+      .filter(log => log && typeof log.logType !== 'undefined')
+      .map(log => {
+        console.log(`[contractToDomain] Using merged event log: ${JSON.stringify(log)}`);
+        return {
+          message: String(log.logType || 'Unknown'),
+          timestamp: Number(raw.endBlock),
+          type: (log.logType !== undefined) ? 
+            (log.logType as domain.LogType) : 
+            domain.LogType.Unknown // Use Unknown for undefined types
+        };
+      }),
+    
+    chatLogs: mergedChats.map(content => {
       console.log(`[contractToDomain] Using merged chat message: ${content}`);
       return {
-        characterName: 'Unknown', // Basic placeholder
+        characterName: "Other",
         message: content,
-        timestamp: Number(raw.endBlock)
+        timestamp: Date.now()
       };
     }),
     
     balanceShortfall: Number(raw.balanceShortfall || 0),
     unallocatedAttributePoints: Number(raw.unallocatedAttributePoints || 0),
-    movementOptions: raw.movementOptions || { 
-      canMoveNorth: false, 
-      canMoveSouth: false, 
-      canMoveEast: false, 
-      canMoveWest: false, 
-      canMoveUp: false,
-      canMoveDown: false
-    },
+    movementOptions,
     lastBlock: Number(raw.endBlock || 0)
   };
   
@@ -279,4 +279,4 @@ export function contractToWorldSnapshot(
   }
   
   return worldSnapshot;
-} 
+}

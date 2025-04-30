@@ -35,16 +35,4 @@ export interface SessionKeyValidation {
   data?: SessionKeyData;
 }
 
-export interface WorldSnapshot {
-  characterID: string;
-  sessionKeyData: SessionKeyData | null;
-  character: any; // Will reference Character from ./character
-  combatants: any[]; // Will reference CharacterLite[] from ./character
-  noncombatants: any[]; // Will reference CharacterLite[] from ./character
-  movementOptions: any; // Will reference MovementOptions from ./combat
-  eventLogs: any[]; // Will reference EventMessage[] from ./combat
-  chatLogs: any[]; // Will reference ChatMessage[] from ./combat
-  balanceShortfall: number;
-  unallocatedAttributePoints: number;
-  lastBlock: number;
-} 
+// WorldSnapshot moved to worldSnapshot.ts 

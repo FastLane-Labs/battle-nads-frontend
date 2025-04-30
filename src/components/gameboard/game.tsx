@@ -176,7 +176,15 @@ const Game: React.FC = () => {
     );
   }
 
-  if (!isLoading && !characterId) {
+  if (!isLoading && (!characterId || !character)) {
+     // Debug log to help diagnose issues
+     console.log("[Game] Character not found or invalid:", {
+       isLoading,
+       characterId,
+       character,
+       owner: owner?.slice(0, 10)
+     });
+     
      return (
       <Center height="100vh" className="bg-gray-900" color="white">
         <VStack spacing={6} maxWidth="600px" p={6}>
@@ -185,6 +193,7 @@ const Game: React.FC = () => {
            <Text color="white" textAlign="center">We couldn't find a character associated with your wallet ({owner?.slice(0, 6)}...).</Text>
            <Button colorScheme="blue" size="lg" onClick={() => router.push('/create')}>Create Character</Button>
            <Button variant="outline" onClick={() => router.push('/')}>Change Wallet</Button>
+           <Button variant="ghost" colorScheme="blue" onClick={() => refetch?.()}>Retry</Button>
         </VStack>
       </Center>
     );
@@ -215,7 +224,13 @@ const Game: React.FC = () => {
       );
   }
 
-  if (character) {
+  if (character && characterId && !needsSessionKeyUpdate) {
+      console.log("[Game] Rendering game layout with:", {
+        characterName: character.name,
+        characterId: characterId?.slice(0, 10),
+        position
+      });
+      
       return (
         <Box height="calc(100vh - 60px)" position="relative">
           <Box position="fixed" right="20px" bottom="20px" zIndex={1000}>

@@ -4,10 +4,10 @@ import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useBattleNads } from './useBattleNads';
 import { useSessionKey } from '../session/useSessionKey';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ui, domain } from '../../types';
+import { domain, contract } from '@/types';
 import { useToast } from '@chakra-ui/react';
 import { MAX_SESSION_KEY_VALIDITY_BLOCKS } from '../../config/env';
-import { TransactionResponse, parseEther } from 'ethers';
+import { TransactionResponse } from 'ethers';
 import { safeStringify } from '../../utils/bigintSerializer';
 
 /**
@@ -118,20 +118,24 @@ export const useGame = () => {
   // Optimistic update helper for chat
   const sendChatMessage = async (message: string) => {
     // Add optimistic update to cache
-    const previousData = queryClient.getQueryData<ui.GameState>(['uiSnapshot', owner]);
+    const previousData = queryClient.getQueryData<contract.PollFrontendDataReturn>(['uiSnapshot', owner]);
     
-    if (previousData && gameState) {
-      // Create optimistic update
-      const optimisticChat = {
-        characterName: gameState.character?.name || 'You',
-        message,
-        timestamp: Date.now()
+    if (previousData && gameState && gameState.character) {
+      const chatMessage = `${gameState.character.name || 'You'}: ${message}`;
+      
+      console.log(`[useGame] Adding optimistic chat update: ${chatMessage}`);
+      
+      // Create a new optimistic dataFeed to add to the list
+      const optimisticFeed: contract.DataFeed = {
+        blockNumber: previousData.endBlock || BigInt(0), // Use the latest known block
+        logs: [],
+        chatLogs: [chatMessage]
       };
       
-      // Update cache with optimistic chat message
+      // Update cache with our optimistic dataFeed
       queryClient.setQueryData(['uiSnapshot', owner], {
         ...previousData,
-        chatLogs: [...(previousData.chatLogs || []), optimisticChat]
+        dataFeeds: [...(previousData.dataFeeds || []), optimisticFeed]
       });
     }
     

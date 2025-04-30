@@ -28,7 +28,8 @@ const NavBar: React.FC = () => {
   const pathname = usePathname();
   const router = useRouter();
 
-  const hasCharacter = isValidCharacterId(characterId);
+  // Safely check for a valid character ID (handles null/undefined case)
+  const hasCharacter = characterId ? isValidCharacterId(characterId) : false;
 
   useEffect(() => {
     console.log("NavBar Component - Game Hook State:", {

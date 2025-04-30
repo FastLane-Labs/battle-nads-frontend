@@ -124,8 +124,6 @@ export interface DataFeed {
   logs: Log[];
   chatLogs: string[];
 }
-
-// Poll frontend data return structure
 export interface PollFrontendDataReturn {
   characterID: string;
   sessionKeyData: SessionKeyData;
@@ -141,7 +139,4 @@ export interface PollFrontendDataReturn {
   unallocatedAttributePoints: bigint;
   endBlock: bigint;
   movementOptions: MovementOptions;
-  eventLogs?: EventLog[];
-  chatLogs?: ChatLog[];
-  startBlock: bigint;
 } 

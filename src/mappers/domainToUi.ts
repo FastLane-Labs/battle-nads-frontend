@@ -3,123 +3,88 @@
  * This centralizes all transformation logic between the domain and UI layers
  */
 
-import { domain, ui } from '../types';
+import { domain, ui } from '@/types';
 
 /**
- * Determines if a character is hostile based on domain logic
- */
-function isHostile(character: domain.CharacterLite): boolean {
-  // Simple rule - monsters are hostile, players are not
-  // This would be expanded with actual game logic
-  return character.class < 4; // Assuming classes below 4 are monsters
-}
-
-/**
- * Maps domain character lite array to UI character lite array with hostility flag
+ * Maps domain characters with added UI hostility markers
  */
 export function mapCharactersWithHostility(
-  characters: domain.CharacterLite[]
+  characters: domain.CharacterLite[], 
+  mainCharacter: domain.Character | null
 ): (domain.CharacterLite & { isHostile: boolean })[] {
-  return characters.map(character => ({
-    ...character,
-    isHostile: isHostile(character)
+  return characters.map(char => ({
+    ...char,
+    isHostile: false, // Default value, would be determined by game rules
   }));
 }
 
 /**
- * Creates empty updates object for the UI
- */
-function createEmptyUpdates(): ui.GameUpdates {
-  return {
-    owner: false,
-    character: false,
-    sessionKey: false,
-    others: new Array(64).fill(false),
-    position: false,
-    combat: false,
-    movementOptions: false,
-    eventLogs: false,
-    chatLogs: false,
-    lastBlock: false,
-    error: false
-  };
-}
-
-/**
- * Maps domain world snapshot to UI game state
+ * Maps a domain WorldSnapshot to a UI GameState
  */
 export function worldSnapshotToGameState(
   snapshot: domain.WorldSnapshot,
   prevState?: ui.GameState
 ): ui.GameState {
-  // Create empty session key if none exists
-  const defaultSessionKey: domain.SessionKeyData = {
-    owner: '0x0000000000000000000000000000000000000000',
-    key: '0x0000000000000000000000000000000000000000',
-    balance: BigInt(0),
-    targetBalance: BigInt(0),
-    ownerCommittedAmount: BigInt(0),
-    ownerCommittedShares: BigInt(0),
-    expiry: BigInt(0)
+  // Create default update flags
+  const updates: ui.GameUpdates = {
+    owner: true,
+    character: true,
+    sessionKey: true,
+    others: Array(64).fill(true),
+    position: true,
+    combat: true,
+    movementOptions: true,
+    eventLogs: true,
+    chatLogs: true,
+    lastBlock: true,
+    error: false
   };
-
-  // Start with a base object
-  const gameState: ui.GameState = {
-    owner: null,
+  
+  // If previous state exists, determine what changed
+  if (prevState) {
+    updates.owner = prevState.owner !== (snapshot.character?.owner ?? null);
+    updates.character = JSON.stringify(prevState.character) !== JSON.stringify(snapshot.character);
+    updates.sessionKey = JSON.stringify(prevState.sessionKey) !== JSON.stringify(snapshot.sessionKeyData);
+    updates.position = (
+      (prevState.position.x !== (snapshot.character?.position?.x ?? 0)) ||
+      (prevState.position.y !== (snapshot.character?.position?.y ?? 0)) ||
+      (prevState.position.depth !== (snapshot.character?.position?.depth ?? 0))
+    );
+    updates.movementOptions = JSON.stringify(prevState.movementOptions) !== JSON.stringify(snapshot.movementOptions);
+    updates.eventLogs = prevState.eventLogs.length !== snapshot.eventLogs.length;
+    updates.chatLogs = prevState.chatLogs.length !== snapshot.chatLogs.length;
+    updates.lastBlock = prevState.lastBlock !== snapshot.lastBlock;
+  }
+  
+  return {
+    owner: snapshot.character?.owner ?? null,
     character: snapshot.character,
-    others: new Array(64).fill(null), // Initialize a 64-length array
-    position: snapshot.character?.position || { x: 0, y: 0, depth: 0 },
+    others: [...(snapshot.combatants ?? []), ...(snapshot.noncombatants ?? [])],
+    position: snapshot.character?.position ?? { x: 0, y: 0, depth: 0 },
     movementOptions: snapshot.movementOptions,
     eventLogs: snapshot.eventLogs,
     chatLogs: snapshot.chatLogs,
-    sessionKey: snapshot.sessionKeyData || defaultSessionKey, // Provide fallback
+    sessionKey: snapshot.sessionKeyData ?? {
+      owner: '0x0000000000000000000000000000000000000000',
+      key: '0x0000000000000000000000000000000000000000',
+      balance: '0',
+      targetBalance: '0',
+      ownerCommittedAmount: '0',
+      ownerCommittedShares: '0',
+      expiry: '0'
+    },
     lastBlock: snapshot.lastBlock,
     characterID: snapshot.characterID,
-    combatants: snapshot.combatants,
-    noncombatants: snapshot.noncombatants,
-    equipableWeaponIDs: [], // Placeholder
-    equipableWeaponNames: [], // Placeholder
-    equipableArmorIDs: [], // Placeholder
-    equipableArmorNames: [], // Placeholder
+    combatants: snapshot.combatants || [],
+    noncombatants: snapshot.noncombatants || [],
+    equipableWeaponIDs: [], // Not in WorldSnapshot, would come from equipmentData
+    equipableWeaponNames: [],
+    equipableArmorIDs: [],
+    equipableArmorNames: [],
     unallocatedAttributePoints: snapshot.unallocatedAttributePoints,
     balanceShortfall: snapshot.balanceShortfall,
-    
-    // UI-specific flags
-    updates: createEmptyUpdates(),
+    updates,
     loading: false,
     error: null
   };
-  
-  // Initialize the 'others' array with all characters
-  const allCharacters = [...snapshot.combatants, ...snapshot.noncombatants];
-  allCharacters.forEach(character => {
-    if (character.index >= 0 && character.index < 64) {
-      gameState.others[character.index] = character;
-    }
-  });
-  
-  // Mark what was updated compared to the previous state
-  if (prevState) {
-    const updates = createEmptyUpdates();
-    
-    // Check for character updates
-    updates.character = JSON.stringify(prevState.character) !== JSON.stringify(snapshot.character);
-    
-    // Check for position updates
-    updates.position = JSON.stringify(prevState.position) !== JSON.stringify(gameState.position);
-    
-    // Check for movement options updates
-    updates.movementOptions = JSON.stringify(prevState.movementOptions) !== JSON.stringify(snapshot.movementOptions);
-    
-    // Check for session key updates
-    updates.sessionKey = JSON.stringify(prevState.sessionKey) !== JSON.stringify(snapshot.sessionKeyData || defaultSessionKey);
-    
-    // Check for last block updates
-    updates.lastBlock = prevState.lastBlock !== snapshot.lastBlock;
-    
-    // Add updates to the game state
-    gameState.updates = updates;
-  }
-  
-  return gameState;
-} 
+}

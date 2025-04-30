@@ -16,6 +16,7 @@ import { contract, domain, ui } from '../types';
 
 /**
  * Maps contract data directly to UI game state
+ * @deprecated Use mapPollDataToUi with PollFrontendDataRaw and then extract game state
  */
 export function contractToGameState(
   data: contract.PollFrontendDataReturn,
