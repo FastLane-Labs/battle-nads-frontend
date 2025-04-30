@@ -8,9 +8,18 @@ interface MinimapProps {
 }
 
 const Minimap: React.FC<MinimapProps> = ({ character, position }) => {
-  // In a real implementation, this would render a grid based on the minimap data
-  // For now, we'll just show a placeholder
-  
+  const GRID_SIZE = 7;
+  const ZONE_SIZE = 7;
+
+  const playerX = Number(position.x);
+  const playerY = Number(position.y);
+
+  const zoneX = Math.floor(playerX / ZONE_SIZE);
+  const zoneY = Math.floor(playerY / ZONE_SIZE);
+
+  const clampedGridX = Math.min(GRID_SIZE - 1, zoneX);
+  const clampedGridY = Math.min(GRID_SIZE - 1, zoneY);
+
   return (
     <Box bg="gray.800" p={4} borderRadius="md" h="100%">
       <Heading size="md" mb={4}>Game Map</Heading>
@@ -29,10 +38,12 @@ const Minimap: React.FC<MinimapProps> = ({ character, position }) => {
         h="calc(100% - 80px)"
       >
         {/* This would be populated with actual map tiles based on data */}
-        {Array(49).fill(0).map((_, index) => { // Update loop for 7x7
-          const x = index % 7;
-          const y = Math.floor(index / 7);
-          const isPlayerPosition = x === 3 && y === 3; // Center position (7x7)
+        {Array(GRID_SIZE * GRID_SIZE).fill(0).map((_, index) => { // Use GRID_SIZE
+          const x = index % GRID_SIZE; // Use GRID_SIZE
+          const y = Math.floor(index / GRID_SIZE); // Use GRID_SIZE
+          
+          // Compare loop coords with calculated clamped coords
+          const isPlayerPosition = x === clampedGridX && y === clampedGridY; 
           
           // Explicitly return the Box component
           return (
