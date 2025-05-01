@@ -11,8 +11,12 @@ export const invalidateSnapshot = (queryClient: QueryClient, owner: string | nul
 /**
  * Helper function to invalidate session key queries
  */
-export const invalidateSessionKey = (queryClient: QueryClient, characterId: string | null) => {
-  return queryClient.invalidateQueries({ queryKey: ['sessionKey', characterId] });
+export const invalidateSessionKey = (
+  queryClient: QueryClient, 
+  ownerAddress: string | null | undefined,
+  characterId: string | null
+) => {
+  return queryClient.invalidateQueries({ queryKey: ['sessionKey', ownerAddress, characterId] });
 };
 
 /**
