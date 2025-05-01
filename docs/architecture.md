@@ -2,6 +2,8 @@
 
 ## Project Architecture Overview
 
+This document records significant architectural decisions and structural changes.
+
 ```
 /src
 ├── app                         # Next.js app directory
