@@ -13,13 +13,17 @@ These rules provide guidance for working with the Battle-Nads frontend codebase,
 
 1. **Data Flow Pattern**
    - Always follow the established data flow pattern:
-     - Data reads: Smart Contract → `useBattleNadsClient` → `useUiSnapshot` → React-Query Cache → Gameplay Hooks → UI Components
-     - Data writes: UI Components → Gameplay Hooks → `useBattleNadsClient` → Smart Contract → Invalidate Cache
+     - Historical Data: `localforage` → `useCachedDataFeed`
+     - Live Data Reads: Smart Contract → `useBattleNadsClient` → `useUiSnapshot` (informed by `useCachedDataFeed`, combines live/cached) → React-Query Cache (`['uiSnapshot', owner]`) → `useBattleNads` (maps contract→domain→UI) → `useGame` (orchestration) → UI Components
+     - Session Key Validation: Smart Contract → `useBattleNadsClient` → `useSessionKey` → `useGame` (*Note: Current implementation uses an independent, redundant fetch*)
+     - Data Writes: UI Components → `useGame` (action handlers) → `useBattleNadsClient` → Smart Contract → Invalidate Cache (`['uiSnapshot', owner]`)
 
-2. **Single Source of Truth**
-   - Use `useUiSnapshot` as the single polling source of truth
-   - Never create additional polling mechanisms
-   - All gameplay hooks must read from the React-Query cache established by `useUiSnapshot`
+2. **Single Source of Truth for Live State**
+   - Use `useUiSnapshot` as the single polling source of truth for **live** game world state.
+   - `useCachedDataFeed` manages historical data feed caching (events/chat).
+   - Do not create additional polling mechanisms for the core world state.
+   - Acknowledge that specific, ancillary data (e.g., balances via `useWalletBalances`, session key via `useSessionKey`'s redundant fetch) might have separate queries. Minimize such cases.
+   - All gameplay hooks requiring live state must ultimately read from the React-Query cache established by `useUiSnapshot` (often via `useBattleNads`).
 
 3. **XState Integration**
    - Game flow state must use the XState machine in `machines/gameStateMachine.ts`
@@ -36,19 +40,30 @@ These rules provide guidance for working with the Battle-Nads frontend codebase,
 ## Contract Integration Guidelines
 
 1. **Character Management**
-   - For character creation, use the `createCharacter` function with proper stat distribution
-   - Poll `getFrontendData(characterID)` to get character state, never implement duplicate polling
+   - For character creation, use the `createCharacter` function exposed via relevant hooks/client methods.
+   - Rely solely on the `useUiSnapshot` → `useBattleNads` flow for character state.
    - Handle character state through the domain model, not raw contract data
 
 2. **Game Actions**
-   - Movement must be implemented using the directional methods (`moveNorth`, etc.)
-   - Combat actions must use the `attack` method with proper target index
+   - Implement actions (movement, combat, chat) through the mutation hooks provided by `useGame` or specific action hooks (like `useEquipment`).
+   - These hooks handle client interaction and cache invalidation.
    - Equipment changes require checking availability first with `getEquippableWeapons/Armor`
 
 3. **Session Key Handling**
-   - Always check session key status with `useSessionKey` before operations
-   - Implement proper error handling for session key expiration or insufficient balance
-   - Use `useSessionFunding` for monitoring and managing session key funding
+   - Use `useSessionKey` to get the validation status (`sessionKeyState`, `needsUpdate`) of the AA key. (*Be aware of its current redundant data fetching*).
+   - Use `useGame` or specific hooks to trigger session key updates (`updateSessionKey`).
+   - Use `useSessionFunding` or `WalletBalances` component logic for monitoring and managing session key funding.
+
+## Hook Responsibilities (Illustrative - Refer to `architecture.md` for full detail)
+
+- **`useCachedDataFeed`**: Manages local cache of historical event/chat logs, determines start block for snapshot polling.
+- **`useUiSnapshot`**: Polls for live data (`client.getUiSnapshot`), integrates cached data, handles raw data mapping (currently array-based), caches result. The core data fetcher.
+- **`useBattleNads`**: Consumes `useUiSnapshot` data, maps contract → domain → UI models, provides stable `gameState`.
+- **`useSessionKey`**: Validates AA session key state. *Currently fetches data independently and redundantly*.
+- **`useGame`**: Orchestrates high-level game state, combines data from other hooks (`useBattleNads`, `useSessionKey`), provides action mutations (`moveCharacter`, `attack`, `sendChatMessage`, `updateSessionKey`). Primary interface for `AppInitializer`.
+- **`useGameMachine`**: Manages pre-game state flow (wallet/character/key checks).
+- **`useWalletBalances`**: Manages fetching and display of wallet balance information.
+- **`useEquipment`**: Focused hook for equipment viewing and modification actions.
 
 ## Error Handling & Performance
 
@@ -94,4 +109,4 @@ These rules provide guidance for working with the Battle-Nads frontend codebase,
 2. **Documentation**
    - Document all hooks with JSDoc comments
    - Update architecture documentation when making structural changes
-   - Document all public APIs and component props 
+   - Document all public APIs and component props

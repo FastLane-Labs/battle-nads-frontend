@@ -26,18 +26,24 @@ These rules provide guidance for integrating with the Battle-Nads blockchain con
 ## Primary Data Source
 
 1. **Using `getUiSnapshot` as Main Data Source**
-   - Always use `getUiSnapshot()` as the primary data source
-   - This returns a comprehensive snapshot containing:
-     - Character data
-     - Combatants in the area
-     - Non-combatants in the area
-     - Minimap around character
-     - Equipable items
-     - Unallocated attribute points
-   - Data flow: Contract → `useBattleNadsClient` → `useUiSnapshot` → React-Query Cache → Gameplay Hooks → UI
+   - Always use `client.getUiSnapshot()` via the `useUiSnapshot` hook as the primary data source for live game world state.
+   - This function currently returns an **array** requiring careful client-side mapping based on the expected order of `contract.PollFrontendDataReturn`.
+   - The returned data includes:
+     - Character ID (`characterID`)
+     - Session Key Data (`sessionKeyData`)
+     - Character details (`character`)
+     - Combatants (`combatants`)
+     - Non-combatants (`noncombatants`)
+     - Equipable items (IDs and names)
+     - Live Data Feeds (`dataFeeds` - events/chats for the polled range)
+     - Balance Shortfall (`balanceShortfall`)
+     - Unallocated Attribute Points (`unallocatedAttributePoints`)
+     - End Block (`endBlock` - the block number up to which data was fetched)
+   - Data flow: Contract → `useBattleNadsClient` → `useUiSnapshot` (fetches, combines cached feeds) → React-Query Cache → `useBattleNads` (maps) → `useGame` / UI
 
-2. **Single Polling Source of Truth**
-   - `useUiSnapshot` should be the ONLY polling mechanism in the application
+2. **Single Polling Source of Truth for Live State**
+   - `useUiSnapshot` should be the ONLY polling mechanism for the core game world state.
+   - Use `useCachedDataFeed` with `client.getDataFeed(owner, startBlock, endBlock)` for retrieving historical event/chat logs to populate the local cache.
    - All data should flow from this single source to minimize RPC load
    - Use cache invalidation rather than additional polling elsewhere
 
@@ -57,29 +63,31 @@ These rules provide guidance for integrating with the Battle-Nads blockchain con
 ## Hook Implementation Guidelines
 
 1. **Core Hooks Organization**
-   - `useBattleNadsClient`: Primary client access hook
-   - `useUiSnapshot`: Central polling mechanism for game data
-   - `useGame`: High-level game orchestration (wallet→key→play)
-   - `useBattleNads`: Core game data and contract interactions
-   - `useSessionKey`/`useSessionFunding`: AA key management
-   - `useGameMachine`: XState bridge for game flow
+   - `useBattleNadsClient`: Primary client access hook.
+   - `useCachedDataFeed`: Manages local cache of historical event/chat logs.
+   - `useUiSnapshot`: Central polling mechanism for live game data, integrates cached data.
+   - `useBattleNads`: Consumes snapshot data, maps contract → domain → UI models.
+   - `useGame`: High-level game orchestration (wallet→key→play), provides action wrappers.
+   - `useSessionKey`: Manages AA key validation (*currently fetches data redundantly*).
+   - `useSessionFunding`: Manages session key funding actions.
+   - `useGameMachine`: XState bridge for game flow (pre-game readiness).
 
 2. **Hook Responsibilities**
-   - Gameplay hooks should select from the uiSnapshot cache
-   - Mutations should invalidate the cache after completion
-   - Action logic should remain in hooks, not components
-   - Components should be primarily presentational
+   - Gameplay hooks requiring live state must read from the `uiSnapshot` cache (usually via `useBattleNads`).
+   - Action logic should reside within mutation hooks (often exposed via `useGame` or specific hooks like `useEquipment`).
+   - Mapping logic (contract→domain→UI) should be centralized in `src/mappers` and utilized primarily by `useBattleNads`.
+   - Components should primarily consume data and trigger actions provided by hooks.
 
 ## Action Implementation
 
 1. **Movement Actions**
-   - Implement movement using `useBattleNads` hook
+   - Implement movement using action handlers provided by `useGame` (which wraps the mutation).
    - Handle optimistic updates for better UX
    - Invalidate cache after movement confirmation
    - Handle potential movement errors
 
 2. **Combat Actions**
-   - Use `useBattleNads` hook for initiating combat
+   - Use action handlers provided by `useGame` for initiating combat.
    - Get valid targets from the UI snapshot data
    - Update UI based on combat events
 
@@ -96,8 +104,10 @@ These rules provide guidance for integrating with the Battle-Nads blockchain con
 ## Session Key Management
 
 1. **Account Abstraction Implementation**
-   - Use `useSessionKey` hook to manage AA session keys
-   - Monitor and top up balances with `useSessionFunding`
+   - Use `useSessionKey` hook to manage AA session key validation state.
+   - Use `client.validateSessionKey(owner)` (called within `useSessionKey` or directly if needed) to check key status.
+   - Use `client.updateSessionKey(...)` for updating the key, typically via `useGame` or `useGameMachine`.
+   - Monitor and top up balances with `useSessionFunding` or `WalletBalances` component.
    - Integrate with game state machine for key validation flow
 
 2. **Session Key Health Checks**
@@ -126,4 +136,4 @@ These rules provide guidance for integrating with the Battle-Nads blockchain con
 2. **State Machine Testing**
    - Validate state transitions in the game machine
    - Test guards and conditions for various states
-   - Ensure proper error recovery paths 
+   - Ensure proper error recovery paths
