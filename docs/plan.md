@@ -1,10 +1,10 @@
 ---
-title: Battle-Nads Frontend — High-Level Execution Plan
+title: Updated Battle-Nads Frontend — High-Level Execution Plan
 ---
 
-# Battle-Nads Frontend — High-Level Execution Plan
+# Updated Battle-Nads Frontend — High-Level Execution Plan
 
-Grouping features by Must-Have (MVP) vs Next-Wave (Nice-to-Have / Polish) so you can slice them into breakout tasks later. No code details—just the WHAT & WHY.
+Based on the conversation logs, I've updated the roadmap to reflect the current priorities and deprioritized features. I've reorganized features according to the team's discussion about what's crucial for the MVP versus what can come later.
 
 ---
 
@@ -19,71 +19,82 @@ Grouping features by Must-Have (MVP) vs Next-Wave (Nice-to-Have / Polish) so you
 
 ---
 
-## 2. Must-Have Features (MVP)
+## 2. Must-Have Features (MVP) - UPDATED
 
 | # | Feature Group                   | Impact                               | Key User Story                                                                 |
 |:--|:--------------------------------|:-------------------------------------|:-------------------------------------------------------------------------------|
 | A | Combat & Event Log Rendering    | 🔥 Critical—explains what just happened | "After I attack, I want to see hits, crits, XP gained, and loot messages."       |
-| B | Area View (Other Entities)      | 🔥 Situational awareness & targeting   | "I can see nearby monsters/players with health bars & select a target."        |
-| C | Ability Use & Cooldown Indicators | 🔥 Core combat mechanic                | "I can pick an ability, see if it's on cooldown, and know when it's ready."    |
-| D | Session Key Management UI       | 🔥 Blocks every transaction            | "I can create, view expiry/balance, and deactivate my session key."          |
-| E | Gas / shMON Funding Prompts     | 🔥 Prevents soft-locks                 | "If my balances are low, I'm warned and can top-up in-app."                   |
-| F | Chat History Rendering          | 💬 Social glue                         | "I see zone chat scroll in real time while I play."                          |
-| G | Async Feedback & Loading States | 🧭 Aligns expectations                 | "Whenever an action is pending (task queued), I see a spinner/progress badge." |
+| B | Ability Use & Cooldown Indicators | 🔥 Core combat mechanic                | "I can pick an ability, see if it's on cooldown, and know when it's ready."    |
+| C | Session Key Management UI       | 🔥 Blocks every transaction            | "I can create, view expiry/balance, and deactivate my session key."          |
+| D | Gas / shMON Funding Prompts     | 🔥 Prevents soft-locks                 | "If my balances are low, I'm warned and can top-up in-app."                   |
+| E | Async Feedback & Loading States | 🧭 Aligns expectations                 | "Whenever an action is pending (task queued), I see a spinner/progress badge." |
+| F | Combat State Indicators         | 🔥 User awareness                      | "I can see when I'm in combat and what actions are available to me." |
+| G | Equipment Inventory Management  | 🔥 Core gameplay mechanic              | "I can equip items that I find or start with." |
 
-**Delivery Goal:** A player can create a character, explore, fight, chat, and manage gas without leaving the browser.
+**Delivery Goal:** A player can create a character, explore, fight, manage equipment, and handle gas without leaving the browser.
 
 ---
 
-## 3. Next-Wave Features (High ROI but Not Blocking MVP)
+## 3. Next-Wave Features (High ROI but Not Blocking MVP) - UPDATED
 
 | # | Feature Group                        | Benefit                            | Notes                                                                       |
 |:--|:-------------------------------------|:-----------------------------------|:----------------------------------------------------------------------------|
-| H | Equipment Inventory Management       | Deepens RPG loop                   | View backpack, equip/unequip items. Relies on poll data & `useEquipment`.     |
+| H | Area View (Other Entities)           | Situational awareness & targeting  | "I can see nearby monsters/players with health bars & select a target."      |
 | I | Stat Allocation UI                   | Player progression                 | Spend level-up points; small contract write (`allocatePoints`).             |
-| J | Monster & Boss Visual Differentiation | Immersion & clarity                | Icons/colors for elites, bosses, dead entities.                            |
-| K | Task & Ability Timers                | Transparency                       | Real-time countdown (block→seconds). Builds on cooldown meta from MVP.        |
-| L | Error Boundary & Typed Errors        | Stability                          | Central wrapper around game routes using existing custom errors.            |
-| M | Event Listeners (Log Subscriptions)  | Snappier UX                        | Supplement polling for near-instant updates; graceful fallback to polling. |
+| J | Chat Functionality                   | Basic social interaction           | "I can send and receive messages in my current zone."                       |
+| K | Monster & Boss Visual Differentiation | Immersion & clarity                | Icons/colors for elites, bosses, dead entities.                            |
+| L | Task & Ability Timers                | Transparency                       | Real-time countdown (block→seconds). Builds on cooldown meta from MVP.        |
+| M | Error Boundary & Typed Errors        | Stability                          | Central wrapper around game routes using existing custom errors.            |
 
 ---
 
-## 4. Polish & Long-Term Enhancements
+## 4. Polish & Long-Term Enhancements - UPDATED
 
 | # | Feature Group                      | Purpose                                       |
 |:--|:-----------------------------------|:----------------------------------------------|
-| N | Death / Revival Flow               | Full loop handling—death screen, options, redirect. |
-| O | Depth & Dungeon Progress UI        | Sense of long-term progress, map overview.    |
-| P | Onboarding / Guided Tutorial       | New-player conversion.                        |
-| Q | Mobile & Accessibility Pass        | Broader reach & compliance.                   |
-| R | Sepukku UI                         | Niche but fun "rage-quit" action.              |
-| S | Class Visualization During Creation | Immediate feedback on build choices.          |
+| N | Chat History Rendering             | Expanded chat functionality with history      |
+| O | Mini-map / Area Visualization      | Spatial awareness and navigation aid          |
+| P | Event Listeners (Log Subscriptions) | Snappier UX                                 |
+| Q | Death / Revival Flow               | Full loop handling—death screen, options, redirect. |
+| R | Depth & Dungeon Progress UI        | Sense of long-term progress, map overview.    |
+| S | Onboarding / Guided Tutorial       | New-player conversion.                        |
+| T | Transaction History UI             | Debug and information tool for players.       |
+| U | Mobile & Accessibility Pass        | Broader reach & compliance.                   |
+| V | Sepukku UI                         | Character deletion/"rage-quit" action.        |
 
 ---
 
-## 5. Sequencing & Dependencies
+## 5. Sequencing & Dependencies - UPDATED
 
 1.  **Foundation**
     *   Finalize mocked data contracts for logs, combatants, ability cooldowns to unblock UI work.
     *   Confirm `pollForFrontendData` shape stability.
+    *   Fix identified bugs (character health display, is_dead flag, etc.)
+
 2.  **MVP Track (A → G)**
-    *   Tackle A & B in parallel (shared snapshot data).
-    *   Slipstream D & E once gas data surfaces in the same snapshot.
-    *   Implement C after core combat targets (B) are interactive.
-    *   Integrate F & G continuously; they're mostly UI wrappers.
+    *   Focus on combat functionality (A, B, F) as the core gameplay loop.
+    *   Fix equipment management (G) to ensure basic character functionality.
+    *   Ensure session key and gas management (C, D) work consistently.
+    *   Integrate E continuously as it wraps all actions.
+
 3.  **Hardening & Expansion**
-    *   Layer H-M iteratively, leveraging the stable snapshot and existing hooks.
-    *   Each adds depth without massive contract changes.
+    *   Add Area View (H) once core mechanics are stable.
+    *   Implement Stat Allocation (I) to complete the character progression loop.
+    *   Add basic Chat (J) for minimal social interaction.
+    *   Layer in K-M to improve the player experience.
+
 4.  **Polish Track**
-    *   Schedule N-S post-launch or when design bandwidth allows.
+    *   Schedule N-V post-launch or when design/development bandwidth allows.
 
 ---
 
-## 6. Outcome-Based Milestones
+## 6. Outcome-Based Milestones - UPDATED
 
 | Milestone             | Feature Completion          |
 |:----------------------|:----------------------------|
-| M0 – Internal Alpha   | A, B (basic), G             |
+| M0 – Internal Alpha   | A, B, E, F                  |
 | M1 – Testnet Beta     | A–G fully functional        |
-| M2 – Feature-Complete Beta | + H, I, K, L              |
-| M3 – Public Mainnet   | + J, M, selected N-S      |
+| M2 – Feature-Complete Beta | + H, I, J, M           |
+| M3 – Public Mainnet   | + K, L, selected N-V        |
+
+This updated roadmap reflects the team's discussion about prioritizing the core gameplay mechanics while deprioritizing features like the mini-map, extensive chat history, and area view for later stages. The focus is now on ensuring that combat, equipment, and session management work properly before expanding to other features.
