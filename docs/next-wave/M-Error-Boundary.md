@@ -1,9 +1,13 @@
-# L – Error Boundary
+# M – Error Boundary & Typed Errors
 
 |  |  |
 |---|---|
-| **Goal** | Graceful handling of wallet/RPC/tx errors |
-| **Primary Data** | Caught exceptions, custom error classes |
-| **UI** | Friendly fallback view + retry button |
-| **Logic** | Map `instanceof WalletMissingError` → prompt connect; others → bug report link |
-| **Edge Cases** | Error inside boundary recursion → show minimal text |
+| **Goal** | Graceful failure + debuggability |
+| **Primary Data** | React `error`, custom contract error types |
+| **UI** | Generic "Oops" screen + Send Report button (Sentry?) |
+| **Logic** | `componentDidCatch`/`getDerivedStateFromError`; map known errors; **Needs type migration after health/isDead bug fix** |
+| **Edge Cases** | Error during error reporting |
+
+**Design Ref Notes:**
+*   Remote logging (e.g., Sentry) is Nice-to-have post-MVP.
+*   Health/isDead bug fix requires frontend type updates (Issue #3).
