@@ -322,7 +322,7 @@ export class BattleNadsAdapter {
     
     try {
       // Don't include explicit gas limit - let embedded wallet optimize this
-      const tx = await this.contract.zoneChat(characterId, message);
+      const tx = await this.contract.zoneChat(characterId, message, { gasLimit: GAS_LIMITS.chat });
       console.log(`[BattleNadsAdapter] zoneChat transaction sent. Hash: ${tx.hash}`);
       return tx;
     } catch (error) {
