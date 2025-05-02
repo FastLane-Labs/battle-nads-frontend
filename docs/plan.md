@@ -28,8 +28,8 @@ Based on the conversation logs, I've updated the roadmap to reflect the current 
 | C | Session Key Management UI       | 🔥 Blocks every transaction            | "I can create, view expiry/balance, and deactivate my session key."          |
 | D | Gas / shMON Funding Prompts     | 🔥 Prevents soft-locks                 | "If my balances are low, I'm warned and can top-up in-app."                   |
 | E | Async Feedback & Loading States | 🧭 Aligns expectations                 | "Whenever an action is pending (task queued), I see a spinner/progress badge." |
-| F | Combat State Indicators         | 🔥 User awareness                      | "I can see when I'm in combat and what actions are available to me." |
-| G | Equipment Inventory Management  | 🔥 Core gameplay mechanic              | "I can equip items that I find or start with." |
+| F | Combat State Indicators         | 🔥 User awareness -> ✅ Implemented    | "I can see when I'm in combat and what actions are available to me."           |
+| G | Equipment Inventory Management  | 🔥 Core gameplay mechanic              | "I can equip items that I find or start with."                                 |
 
 **Delivery Goal:** A player can create a character, explore, fight, manage equipment, and handle gas without leaving the browser.
 
