@@ -193,7 +193,6 @@ export const createGameState = (data: any): GameState => {
     character: data.player ? convertCharacterData(data.player) : null,
     others: others,
     position: data.position || { x: 0, y: 0, depth: 1 },
-    movementOptions: data.movementOptions || { canMoveNorth: false, canMoveSouth: false, canMoveEast: false, canMoveWest: false, canMoveUp: false, canMoveDown: false },
     eventLogs: data.eventLogs || [],
     chatLogs: data.chatLogs || [],
     updates: data.updates || {
@@ -203,7 +202,6 @@ export const createGameState = (data: any): GameState => {
       others: [],
       position: false,
       combat: false,
-      movementOptions: false,
       eventLogs: false,
       chatLogs: false,
       lastBlock: false,

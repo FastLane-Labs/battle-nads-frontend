@@ -17,7 +17,6 @@ export interface WorldSnapshot {
   character: Character | null;
   combatants: CharacterLite[]; 
   noncombatants: CharacterLite[];
-  movementOptions: MovementOptions;
   eventLogs: EventMessage[];
   chatLogs: ChatMessage[];
   balanceShortfall: number;

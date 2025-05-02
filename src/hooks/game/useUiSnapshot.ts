@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { contract } from '../../types';
-import { POLL_INTERVAL } from '../../config/env';
+import { POLL_INTERVAL, INITIAL_SNAPSHOT_LOOKBACK_BLOCKS } from '../../config/env';
 import { useCachedDataFeed, CachedDataBlock } from './useCachedDataFeed';
 
 /**
@@ -13,6 +13,7 @@ import { useCachedDataFeed, CachedDataBlock } from './useCachedDataFeed';
 export const useUiSnapshot = (owner: string | null) => {
   const { client } = useBattleNadsClient();
   const { blocks: cachedDataBlocks, latest: latestCachedBlock } = useCachedDataFeed(owner);
+  const queryClient = useQueryClient();
 
   return useQuery<contract.PollFrontendDataReturn, Error>({
     queryKey: ['uiSnapshot', owner],
@@ -23,10 +24,14 @@ export const useUiSnapshot = (owner: string | null) => {
     queryFn: async () => {
       if (!client || !owner) throw new Error('Missing client or owner');
       
-      const startBlock = latestCachedBlock > 0n
-        ? latestCachedBlock + 1n
-        : (await client.getLatestBlockNumber()) - 2n * 60n * 10n;
-        
+      // Get previous data from cache
+      const previousData = queryClient.getQueryData<contract.PollFrontendDataReturn>(['uiSnapshot', owner]);
+      
+      // Calculate startBlock based on previous endBlock if available
+      const startBlock = previousData?.endBlock 
+        ? previousData.endBlock + 1n 
+        : (await client.getLatestBlockNumber()) - BigInt(INITIAL_SNAPSHOT_LOOKBACK_BLOCKS);
+
       // Get the raw array data
       const rawArrayData = await client.getUiSnapshot(owner, startBlock);
 
@@ -56,10 +61,10 @@ export const useUiSnapshot = (owner: string | null) => {
           balanceShortfall: rawArrayData[10],
           unallocatedAttributePoints: rawArrayData[11],
           endBlock: rawArrayData[12],
-          movementOptions: { 
+          /* movementOptions: { // REMOVED - Not returned by contract
             canMoveNorth: false, canMoveSouth: false, canMoveEast: false, 
             canMoveWest: false, canMoveUp: false, canMoveDown: false 
-          } 
+          } */
         };
       } catch (mappingError) {
         console.error("[useUiSnapshot] Error during array mapping:", mappingError);

@@ -19,11 +19,11 @@ export enum SessionKeyState {
 export interface SessionKeyData {
   owner: string;
   key: string;
-  balance: string | bigint;  // Using string to avoid serialization issues
-  targetBalance: string | bigint;
-  ownerCommittedAmount: string | bigint;
-  ownerCommittedShares: string | bigint;
-  expiry: string | bigint;
+  balance: string; // Representing bigint as string
+  targetBalance: string; // Representing bigint as string
+  ownerCommittedAmount: string; // Representing bigint as string
+  ownerCommittedShares: string; // Representing bigint as string
+  expiry: string; // Representing block number as string
 }
 
 /**
@@ -36,3 +36,14 @@ export interface SessionKeyValidation {
 }
 
 // WorldSnapshot moved to worldSnapshot.ts 
+
+// Default object for uninitialized SessionKeyData
+export const DEFAULT_SESSION_KEY_DATA: SessionKeyData = {
+  owner: '0x0000000000000000000000000000000000000000',
+  key: '0x0000000000000000000000000000000000000000',
+  balance: '0',
+  targetBalance: '0',
+  ownerCommittedAmount: '0',
+  ownerCommittedShares: '0',
+  expiry: '0'
+}; 

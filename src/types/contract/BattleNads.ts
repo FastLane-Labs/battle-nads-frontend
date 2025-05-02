@@ -138,5 +138,4 @@ export interface PollFrontendDataReturn {
   balanceShortfall: bigint;
   unallocatedAttributePoints: bigint;
   endBlock: bigint;
-  movementOptions: MovementOptions;
 } 

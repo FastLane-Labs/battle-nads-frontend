@@ -34,14 +34,6 @@ export function contractToGameState(
       character: null,
       combatants: [],
       noncombatants: [],
-      movementOptions: {
-        canMoveNorth: false,
-        canMoveSouth: false,
-        canMoveEast: false,
-        canMoveWest: false,
-        canMoveUp: false,
-        canMoveDown: false
-      },
       eventLogs: [],
       chatLogs: [],
       balanceShortfall: 0,
