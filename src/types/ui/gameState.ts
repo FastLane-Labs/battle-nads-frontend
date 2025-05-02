@@ -13,7 +13,6 @@ export interface GameUpdates {
   others: boolean[]; // Should be 64-length array of boolean - responds to battleNad.index
   position: boolean;
   combat: boolean;
-  movementOptions: boolean;
   eventLogs: boolean;
   chatLogs: boolean;
   lastBlock: boolean;
@@ -46,7 +45,6 @@ export interface GameState {
   character: Character | null;
   others: CharacterLite[]; // Should be 64-length array of CharacterLite
   position: { x: number; y: number; depth: number };
-  movementOptions: MovementOptions;
   eventLogs: EventMessage[];
   chatLogs: ChatMessage[];
   sessionKey: SessionKeyData;

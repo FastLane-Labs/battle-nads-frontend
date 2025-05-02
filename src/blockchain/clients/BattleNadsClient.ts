@@ -114,12 +114,13 @@ export class BattleNadsClient {
       // Convert contract session key data to domain session key data
       const domainSessionKey: domain.SessionKeyData = {
         key: contractSessionKey.key,
-        expiry: contractSessionKey.expiration, // Keep as bigint to match type
+        expiry: String(contractSessionKey.expiration), // Convert bigint to string
         owner: owner,
-        balance: BigInt(0), // Add required fields with defaults
-        targetBalance: BigInt(0),
-        ownerCommittedAmount: BigInt(0),
-        ownerCommittedShares: BigInt(0)
+        // Convert contract values (if they exist) or use default string '0'
+        balance: String(contractSessionKey.balance ?? '0'), 
+        targetBalance: String(contractSessionKey.targetBalance ?? '0'),
+        ownerCommittedAmount: String(contractSessionKey.ownerCommittedAmount ?? '0'),
+        ownerCommittedShares: String(contractSessionKey.ownerCommittedShares ?? '0')
       };
       
       // Get current block number instead of timestamp for correct validation

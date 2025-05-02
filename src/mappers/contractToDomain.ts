@@ -224,11 +224,12 @@ export function mapChatLog(
 /**
  * Maps contract data to domain world snapshot
  * Works with both raw PollFrontendDataRaw and extended PollFrontendDataReturn
+ * NOTE: Does not include 'movementOptions', which must be calculated separately.
  */
 export function contractToWorldSnapshot(
   raw: contract.PollFrontendDataReturn | null,
   owner: string | null = null
-): domain.WorldSnapshot | null {
+): Omit<domain.WorldSnapshot, 'movementOptions'> | null {
   
   if (!raw) {
     return null;
@@ -303,8 +304,8 @@ export function contractToWorldSnapshot(
   // Map session key data (assuming this doesn't depend on dataFeeds structure)
   const mappedSessionKeyData = mapSessionKeyData(raw.sessionKeyData, owner);
 
-  // Create the domain world snapshot using the processed logs
-  const worldSnapshot: domain.WorldSnapshot = {
+  // Create the domain world snapshot using the processed logs (excluding movementOptions)
+  const partialWorldSnapshot: Omit<domain.WorldSnapshot, 'movementOptions'> = {
     characterID: raw.characterID || '',
     sessionKeyData: mappedSessionKeyData,
     character: mapCharacter(raw.character),
@@ -314,11 +315,6 @@ export function contractToWorldSnapshot(
     chatLogs: allChatMessages,      // Use processed chat logs
     balanceShortfall: Number(raw.balanceShortfall || 0),
     unallocatedAttributePoints: Number(raw.unallocatedAttributePoints || 0),
-    // Ensure movementOptions has a default if raw.movementOptions is null/undefined
-    movementOptions: raw.movementOptions || { 
-      canMoveNorth: false, canMoveSouth: false, canMoveEast: false, 
-      canMoveWest: false, canMoveUp: false, canMoveDown: false 
-    },
     lastBlock: Number(raw.endBlock || 0)
   };
   
@@ -337,5 +333,5 @@ export function contractToWorldSnapshot(
     console.log(`[contractToDomain] Owner passed: ${owner}`); // Modified log message slightly
   }
   
-  return worldSnapshot;
+  return partialWorldSnapshot;
 }

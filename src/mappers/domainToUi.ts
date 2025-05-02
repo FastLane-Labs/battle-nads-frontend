@@ -4,6 +4,7 @@
  */
 
 import { domain, ui } from '@/types';
+import { DEFAULT_SESSION_KEY_DATA } from '@/types/domain';
 
 /**
  * Maps domain characters with added UI hostility markers
@@ -33,7 +34,6 @@ export function worldSnapshotToGameState(
     others: Array(64).fill(true),
     position: true,
     combat: true,
-    movementOptions: true,
     eventLogs: true,
     chatLogs: true,
     lastBlock: true,
@@ -50,7 +50,6 @@ export function worldSnapshotToGameState(
       (prevState.position.y !== (snapshot.character?.position?.y ?? 0)) ||
       (prevState.position.depth !== (snapshot.character?.position?.depth ?? 0))
     );
-    updates.movementOptions = JSON.stringify(prevState.movementOptions) !== JSON.stringify(snapshot.movementOptions);
     updates.eventLogs = prevState.eventLogs.length !== snapshot.eventLogs.length;
     updates.chatLogs = prevState.chatLogs.length !== snapshot.chatLogs.length;
     updates.lastBlock = prevState.lastBlock !== snapshot.lastBlock;
@@ -61,18 +60,9 @@ export function worldSnapshotToGameState(
     character: snapshot.character,
     others: [...(snapshot.combatants ?? []), ...(snapshot.noncombatants ?? [])],
     position: snapshot.character?.position ?? { x: 0, y: 0, depth: 0 },
-    movementOptions: snapshot.movementOptions,
     eventLogs: snapshot.eventLogs,
     chatLogs: snapshot.chatLogs,
-    sessionKey: snapshot.sessionKeyData ?? {
-      owner: '0x0000000000000000000000000000000000000000',
-      key: '0x0000000000000000000000000000000000000000',
-      balance: '0',
-      targetBalance: '0',
-      ownerCommittedAmount: '0',
-      ownerCommittedShares: '0',
-      expiry: '0'
-    },
+    sessionKey: snapshot.sessionKeyData ?? DEFAULT_SESSION_KEY_DATA,
     lastBlock: snapshot.lastBlock,
     characterID: snapshot.characterID,
     combatants: snapshot.combatants || [],

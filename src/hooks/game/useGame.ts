@@ -61,16 +61,6 @@ export const useGame = () => {
   // Character position
   const position = useMemo(() => gameState?.position || { x: 0, y: 0, depth: 0 }, [gameState]);
   
-  // Movement options
-  const movementOptions = useMemo(() => gameState?.movementOptions || {
-    canMoveNorth: false,
-    canMoveSouth: false,
-    canMoveEast: false,
-    canMoveWest: false,
-    canMoveUp: false,
-    canMoveDown: false
-  }, [gameState]);
-  
   // Mutation for moving character
   const moveCharacterMutation = useMutation({
     mutationFn: async ({ direction }: { direction: domain.Direction }) => {
@@ -255,10 +245,6 @@ export const useGame = () => {
       chatLogs: gameState.chatLogs || [],
       balanceShortfall: gameState.balanceShortfall || 0,
       unallocatedAttributePoints: gameState.unallocatedAttributePoints || 0,
-      movementOptions: gameState.movementOptions || {
-        canMoveNorth: false, canMoveSouth: false, canMoveEast: false, 
-        canMoveWest: false, canMoveUp: false, canMoveDown: false
-      },
       lastBlock: gameState.lastBlock || 0
       // Note: Original gameState structure from useBattleNads might slightly differ
       // We might need to adjust which properties are pulled from where if needed
@@ -300,10 +286,6 @@ export const useGame = () => {
                  y: worldSnapshot.character.position.y, 
                  depth: worldSnapshot.character.position.depth
               } : { x: 0, y: 0, depth: 0 }, 
-    movementOptions: worldSnapshot?.movementOptions || { 
-      canMoveNorth: false, canMoveSouth: false, canMoveEast: false, 
-      canMoveWest: false, canMoveUp: false, canMoveDown: false 
-    },
     
     // Combat State
     isInCombat,
