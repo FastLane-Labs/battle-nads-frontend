@@ -15,6 +15,7 @@ jest.mock('../../../providers/WalletProvider', () => ({
     injectedWallet: { address: '0x0000000000000000000000000000000000000001' },
     embeddedWallet: { address: '0x0000000000000000000000000000000000000002' },
     connectMetamask: jest.fn(),
+    isInitialized: true
   }),
 }));
 
@@ -76,6 +77,7 @@ describe('useGame', () => {
       injectedWallet: { address: mockOwner },
       embeddedWallet: { address: mockSessionKeyAddress },
       connectMetamask: jest.fn(),
+      isInitialized: true
     });
   });
   

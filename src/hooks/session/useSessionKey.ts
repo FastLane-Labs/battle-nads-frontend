@@ -91,7 +91,8 @@ export const useSessionKey = (characterId: string | null) => {
   // Effect to calculate and update session key state when relevant dependencies change
   useEffect(() => {
     const isQueryEnabled = !!characterId && !!client && !!injectedWallet?.address;
-    const areQueriesLoading = isLoadingSessionKey || isLoadingBlock;
+    // Use initial loading flags for core readiness check
+    const areQueriesInitiallyLoading = isLoadingSessionKey || isLoadingBlock;
     
     const hasQueryError = !!sessionKeyError || !!blockError;
 
@@ -106,19 +107,18 @@ export const useSessionKey = (characterId: string | null) => {
     // Check if all data required for validation is ready and valid
     const isReadyForValidation = 
       isQueryEnabled &&
-      sessionKey !== undefined && // Data is fetched
-      sessionKey?.key && // Key is present
-      sessionKey.key.toLowerCase() !== ZeroAddress.toLowerCase() && // Key is NOT the zero address
-      currentBlock !== undefined && // Data is fetched
-      currentBlock > 0 && // Block number is valid
-      embeddedWallet?.address && // Wallet is present
-      !areQueriesLoading && // Initial load finished
-      !hasQueryError; // No errors
+      sessionKey !== undefined && // Data is fetched (even if potentially stale during refetch)
+      sessionKey?.key && 
+      sessionKey.key.toLowerCase() !== ZeroAddress.toLowerCase() && 
+      currentBlock !== undefined && 
+      currentBlock > 0 && 
+      embeddedWallet?.address && 
+      !areQueriesInitiallyLoading && // Ensure initial load is complete
+      !hasQueryError; 
 
     let newSessionKeyState = SessionKeyState.IDLE;
 
     if (isReadyForValidation) {
-      console.log("[useSessionKey Effect] Validating session key:", validationInput);
       // All checks passed, safe to assert non-null
       newSessionKeyState = sessionKeyMachine.validate(
         sessionKey.key!, // Asserting non-null based on isReadyForValidation
@@ -132,13 +132,10 @@ export const useSessionKey = (characterId: string | null) => {
       if (!isQueryEnabled) {
         console.log("[useSessionKey Effect] Validation skipped: Query disabled.");
         newSessionKeyState = SessionKeyState.IDLE;
-      } else if (areQueriesLoading) {
+      } else if (areQueriesInitiallyLoading) { // Check INITIAL loading state here
         // Log loading state only during initial load (isLoading)
-        console.log("[useSessionKey Effect] Validation skipped: Queries loading...", {
-            isLoadingSessionKey,
-            isLoadingBlock
-        });
-        newSessionKeyState = SessionKeyState.MISSING; // Indicate data is not ready
+        console.log("[useSessionKey Effect] Validation skipped: Initial queries loading...");
+        newSessionKeyState = SessionKeyState.MISSING; // Indicate data is not ready during initial load
       } else if (hasQueryError) {
         console.log("[useSessionKey Effect] Validation skipped: Query error...", {
             sessionKeyError: sessionKeyError?.message,
@@ -180,9 +177,12 @@ export const useSessionKey = (characterId: string | null) => {
     client,
     injectedWallet?.address,
     embeddedWallet?.address,
-    sessionKey, // Reference check for sessionKey data object
-    currentBlock, // Value check for currentBlock
-    isLoadingSessionKey,
+    // Use stable primitives/strings from sessionKey where possible
+    sessionKey?.key,
+    sessionKey?.expiration,
+    // sessionKey, // Avoid depending on the whole object reference if possible 
+    currentBlock, 
+    isLoadingSessionKey, // Still need loading flags
     isLoadingBlock,
     sessionKeyError,
     blockError

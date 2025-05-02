@@ -161,6 +161,11 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
 
+      if (authenticated) {
+        await privyLogout();
+      }
+      
+      // Clear state AFTER privyLogout
       setCurrentWallet('none');
       setSigner(null);
       setProvider(null);
@@ -168,40 +173,21 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       setSessionKey(null);
       setInjectedWallet(null);
       setEmbeddedWallet(null);
-      setIsInitialized(false); // Set to false during logout process
-
-      // Clear embedded wallet reference
       lastEmbeddedWalletRef.current = null;
-
-      // Also call the Privy logout if user is authenticated
-      if (authenticated) {
-        await privyLogout();
-      }
       
-      // After logout, set isInitialized back to true so we can redirect to login
-      setIsInitialized(true);
     } catch (err: any) {
       setError(err.message || 'Logout failed');
     } finally {
       setLoading(false);
     }
-  }, [authenticated, privyLogout, injectedWallet?.address]);
+  }, [authenticated, privyLogout]);
 
   // Sync with Privy wallets and update state
   const syncWithPrivyWallets = useCallback(async () => {
-    console.log(`[syncWithPrivyWallets] Starting wallet sync. PrivyReady: ${privyReady}, WalletsReady: ${walletsReady}, Authenticated: ${authenticated}`);
-    
     if (!privyReady || !walletsReady || !authenticated) {
-      console.log('[syncWithPrivyWallets] Privy not ready, wallets not ready, or not authenticated. Aborting sync.');
-          return;
-        }
+      return;
+    }
         
-    console.log('[syncWithPrivyWallets] Available Privy wallets:', wallets);
-    
-    // Reset fallback timers and state
-    clearTimeout(fallbackTimerRef.current);
-    fallbackTimerRef.current = undefined;
-    
     // Tracking variables for wallet creation
     let foundInjectedWallet: FoundWalletInfo | null = null;
     let foundEmbeddedWallet: FoundWalletInfo | null = null;
@@ -209,25 +195,18 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     if (wallets && wallets.length > 0) {
       // Find the MetaMask wallet first
       const metamaskWallet = wallets.find((wallet: any) => wallet.walletClientType === 'metamask');
-      if (metamaskWallet) {
-        console.log('FOUND OWNER WALLET (MetaMask):', metamaskWallet.address);
-      }
 
       // Store the embedded wallet address for resilience
       const embeddedWallet = wallets.find((wallet: any) => wallet.connectorType === 'embedded');
       if (embeddedWallet) {
-        console.log('Stored embedded wallet address for resilience:', embeddedWallet.address);
         lastEmbeddedWalletRef.current = embeddedWallet.address;
       }
       
       // Process wallets and create providers/signers
       for (const wallet of wallets) {
-        console.log('Wallet:', wallet.address, 'Type:', wallet.walletClientType, 'ConnectorType:', wallet.connectorType);
-
         if (wallet.connectorType === 'injected') {
           // If it's MetaMask, prioritize it
           if (wallet.walletClientType === 'metamask') {
-            console.log('Found MetaMask wallet, setting as injectedWallet:', wallet.address);
             try {
               // Create provider/signer for injected wallet
               const privyProvider = await wallet.getEthereumProvider();
@@ -241,11 +220,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
                 signer,
                 walletType: wallet.walletClientType as InjectedWalletClientType
               };
-              console.log('[WalletProvider] Successfully created MetaMask wallet signer:', {
-                address: wallet.address,
-                hasProvider: !!provider,
-                hasSigner: !!signer
-              });
             } catch (e) {
               console.error('[WalletProvider] Failed to create MetaMask wallet signer:', e);
             }
@@ -265,11 +239,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
                 signer,
                 walletType: wallet.walletClientType as InjectedWalletClientType
               };
-              console.log('[WalletProvider] Successfully created injected wallet signer:', {
-                address: wallet.address,
-                hasProvider: !!provider,
-                hasSigner: !!signer
-              });
             } catch (e) {
               console.error('[WalletProvider] Failed to create injected wallet signer:', e);
             }
@@ -281,7 +250,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
             // Create provider/signer for embedded wallet
             const privyProvider = await wallet.getEthereumProvider();
             
-            // Set auto-approval options on the provider if possible
+            // Set auto-approval properties on the provider if possible
             if (privyProvider && typeof privyProvider === 'object') {
               try {
                 // Set any available auto-approval properties
@@ -290,8 +259,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
                 (privyProvider as any).autoApproveTransactions = true;
                 (privyProvider as any).noPromptOnSignature = true;
                 (privyProvider as any).noPromptOnTransaction = true;
-                
-                console.log('[WalletProvider] Set auto-approval properties on embedded wallet provider');
               } catch (propErr) {
                 console.warn('[WalletProvider] Could not set auto-approval properties:', propErr);
               }
@@ -319,11 +286,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
               signer,
               walletType: 'privy' as const
             };
-            console.log('[WalletProvider] Successfully created embedded wallet signer:', {
-              address: wallet.address,
-              hasProvider: !!provider,
-              hasSigner: !!signer
-            });
           } catch (e) {
             console.error('[WalletProvider] Failed to create embedded wallet signer:', e);
           }
@@ -364,8 +326,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       const hasInjected = !!foundInjectedWallet && !!foundInjectedWallet.signer;
       const hasEmbedded = !!foundEmbeddedWallet && !!foundEmbeddedWallet.signer;
       
-      console.log(`Setting isInitialized: ${hasInjected && hasEmbedded} HasInjected: ${hasInjected} HasEmbedded: ${hasEmbedded} Stored embedded wallet: ${lastEmbeddedWalletRef.current}`);
-      
       if (hasInjected && hasEmbedded) {
         setIsInitialized(true);
         
@@ -403,16 +363,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         } else {
           setIsInitialized(true);
         }
-
-        // Log wallet state for debugging
-        console.log('[WalletProvider] Current wallet state:', safeStringify({
-          currentWallet,
-          address, 
-          injected: injectedWallet?.address,
-          embedded: embeddedWallet?.address,
-          sessionKey,
-          isInitialized
-        }));
       } catch (error) {
         console.error('[WalletProvider] Error initializing wallets:', error);
         setIsInitialized(true); // Still set to true so the app can proceed
@@ -435,7 +385,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   };
 
   const sendPrivyTransaction = useCallback(async (unsignedTx: TransactionRequest): Promise<TransactionResponse> => {
-    console.log(`[WalletProvider] sending transaction`); 
     try {
       let unsignedTransactionRequest: UnsignedTransactionRequest = {
         to: unsignedTx.to as string,
@@ -468,7 +417,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         unsignedTransactionRequest,
         {uiOptions: {showWalletUIs: false}}
       );
-      console.log(`[WalletProvider] transaction sent with hash: ${hash}`);
 
       // Create a minimal TransactionResponse object that satisfies the required interface
       return {

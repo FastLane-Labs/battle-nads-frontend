@@ -329,9 +329,6 @@ export function contractToWorldSnapshot(
   // Debugging logs (can be removed later)
   console.log(`[contractToDomain] Processed ${allChatMessages.length} chat messages.`);
   console.log(`[contractToDomain] Processed ${allEventLogs.length} event logs.`);
-  if (owner) {
-    console.log(`[contractToDomain] Owner passed: ${owner}`); // Modified log message slightly
-  }
   
   return partialWorldSnapshot;
 }

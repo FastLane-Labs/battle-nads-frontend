@@ -13,6 +13,7 @@ import { Box } from '@chakra-ui/react';
 
 const AppInitializer: React.FC = () => {
   const game = useGame();
+  const router = useRouter();
   const zeroCharacterId = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
   const renderWithNav = (content: React.ReactNode, label?: string) => {
@@ -26,12 +27,24 @@ const AppInitializer: React.FC = () => {
 
   // --- State Rendering Logic (Corrected Order) --- 
 
-  // 1. Loading State
-  if (game.isLoading || (game.hasWallet && game.characterId === null && !game.error)) { 
+  // 0. Wait for Wallet Initialization
+  if (!game.isInitialized) {
+    return renderWithNav(<LoadingScreen message="Initializing Wallet..." />, "Wallet Init Loading");
+  }
+  
+  // 1. No Wallet Connected State (HIGHEST PRIORITY after init)
+  if (!game.hasWallet) {
+    return <Login />; 
+  }
+
+  // --- Wallet IS Connected States --- 
+
+  // 2. Loading State (Only relevant if wallet IS connected)
+  if (game.isLoading) { 
     return renderWithNav(<LoadingScreen message="Initializing Game Data..." />, "Loading Screen");
   }
 
-  // 2. Error State
+  // 3. Error State
   if (game.error) {
     return renderWithNav(
       <ErrorScreen error={game.error} retry={game.refetch} onGoToLogin={() => window.location.reload()} />,
@@ -39,16 +52,10 @@ const AppInitializer: React.FC = () => {
     );
   }
 
-  // 3. No Wallet Connected State
-  if (!game.hasWallet) {
-    return <Login />;
-  }
-
-  // --- Wallet IS Connected States --- 
-
-  // 4. PRIORITY: No Character Found State 
-  if (game.hasWallet && !game.isLoading && game.characterId === zeroCharacterId) {
-    redirect('/create'); 
+  // 4. PRIORITY: No Character Found State (Wallet connected, not loading, no error)
+  if (game.hasWallet && game.characterId === zeroCharacterId) { 
+    router.push('/create'); 
+    return renderWithNav(<LoadingScreen message="Redirecting..." />, "Redirecting"); 
   }
 
   // 5. Session Key Needs Update State (Only checked if a valid character exists AND data is loaded)
@@ -109,7 +116,6 @@ const AppInitializer: React.FC = () => {
   }
   
   // Fallback:
-  console.warn("[AppInit] Reached Fallback. Rendering Loading.", safeStringify(game)); 
   return renderWithNav(<LoadingScreen message="Verifying state..." />, "Fallback Loading Screen"); 
 };
 
