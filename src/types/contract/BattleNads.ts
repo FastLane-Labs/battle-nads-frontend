@@ -77,16 +77,6 @@ export interface CharacterLite {
   isDead: boolean;
 }
 
-// Movement options structure
-export interface MovementOptions {
-  canMoveNorth: boolean;
-  canMoveSouth: boolean;
-  canMoveEast: boolean;
-  canMoveWest: boolean;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-}
-
 // Event log structure
 export interface EventLog {
   timestamp: bigint;
