@@ -15,44 +15,36 @@
 *   `createCharacter` provides starting gear which MUST be equippable.
 *   Functionality existed previously and needs to be restored/re-implemented.
 
-**Implementation Status: COMPLETED** ✅
-* Created standalone `EquipmentPanel` component for equipment management
-* Enhanced `useEquipment` hook with combat state check using `character.isInCombat`
-* Integrated in both `CharacterCard` and `CharacterInfo` components
-* Basic implementation without stat comparison tooltips (nice-to-have for future)
+**Implementation Status: COMPLETED & ENHANCED** ✅
 
 **UI & Implementation Details:**
 
-1.  **Equipped Slots:**
-    *   Display current `equippedWeaponName` and `equippedArmorName` clearly.
-    *   Each slot should be clickable to open the relevant dropdown.
+1.  **Equipped Slots & Stat Display:**
+    *   Displays current `equippedWeaponName` and `equippedArmorName` clearly.
+    *   Below the name, detailed stats for the equipped item (Base Dmg, Accuracy, Armor Factor, etc.) are shown.
+    *   Each displayed stat has an info icon (`ⓘ`) that reveals a popover explaining the stat on hover/tap.
     
-    **✅ Completed Implementation:** Current equipment displayed using `currentWeapon` and `currentArmor` from `useEquipment` hook with clear formatting.
+    **✅ Completed Implementation:** Current equipment name and stats are displayed. Popovers explain each stat.
 
-2.  **Equipment Dropdowns:**
-    *   Triggered by clicking an equipment slot (Weapon/Armor).
-    *   Populate with items listed in `equipableWeaponIDs/Names` or `equipableArmorIDs/Names` respectively.
-    *   Clicking an item in the dropdown triggers the `equipItem` mutation.
-    *   Consider adding item stats/tooltips within the dropdown (could be nice-to-have).
+2.  **Changing Equipment:**
+    *   A dropdown (`<Select>`) next to each equipment slot (Weapon/Armor) lists available items to equip, populated from `equipableWeaponIDs/Names` or `equipableArmorIDs/Names`.
+    *   Users **first select** an item from the dropdown.
+    *   Users then **click an adjacent "Equip" button** (`<Button>`) to confirm the change and trigger the mutation (`equipWeapon`/`equipArmor`).
+    *   The "Equip" button displays a loading state while the transaction is processing.
     
-    **✅ Completed Implementation:** Implemented using ChakraUI Select components with data from `weaponOptions`/`armorOptions`. Used `equipWeapon`/`equipArmor` mutations for blockchain updates. Stat comparison tooltips not implemented yet.
+    **✅ Completed Implementation:** Implemented using Select + Button pattern. Button shows loading state during mutation.
 
 3.  **Combat State Interaction:**
-    *   The equip slots/dropdown triggers MUST be disabled when the player is in the combat state (derived from Feature F).
-    *   Provide a tooltip on the disabled element: "Cannot change equipment while in combat". 
+    *   The equip dropdown (`<Select>`) and confirm button (`<Button>`) MUST be disabled when the player is in the combat state.
+    *   Tooltips indicate why controls are disabled (e.g., "Cannot change equipment while in combat", "Select an item to equip").
     
-    **✅ Completed Implementation:** Equipment changes disabled during combat using `isInCombat` flag from `useEquipment`. Tooltips show "Cannot change equipment while in combat" as specified.
+    **✅ Completed Implementation:** Equipment changes disabled during combat. Tooltips provide context.
 
 **Features Not Yet Implemented:**
-1. **Item Stat Comparison Tooltips**: The nice-to-have feature to show stat differences between current equipment and potential new equipment was not implemented. The component structure is prepared for this with:
-   * A `getEquipmentStatDiff` function placeholder in `useEquipment` (removed to avoid confusion)
-   * The `EquipmentTooltip` component was created but was removed as it wasn't being used
-
-2. **Item Stats in Dropdowns**: Equipment options in the dropdowns currently only show item names without additional stats
-
-3. **Equipment Visualization**: No visual representation of equipment on character model/avatar
+1.  **Item Stat Comparison Tooltips**: Showing stat differences between current and selected equipment.
+2.  **Item Stats in Dropdowns**: Displaying basic stats next to item names in the `<Select>` options.
 
 **Future Enhancement Path:**
-* Implement stat comparison by enhancing `useEquipment` hook to fetch and compare item stats
-* Create hover tooltips that show detailed stat comparisons with visual indicators for improvements/downgrades
-* Add equipment visual indicators on character profiles/avatars 
+* Implement stat comparison by enhancing `useEquipment` hook to fetch and compare item stats (potentially using the `getWeaponName`/`getArmorName` or fetching full item details).
+* Create hover tooltips or enhance popovers to show detailed stat comparisons with visual indicators.
+* Add stats to the dropdown options for easier selection. 
