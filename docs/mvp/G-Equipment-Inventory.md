@@ -15,18 +15,30 @@
 *   `createCharacter` provides starting gear which MUST be equippable.
 *   Functionality existed previously and needs to be restored/re-implemented.
 
+**Implementation Status: COMPLETED** ✅
+* Created standalone `EquipmentPanel` component for equipment management
+* Enhanced `useEquipment` hook with combat state check using `character.isInCombat`
+* Integrated in both `CharacterCard` and `CharacterInfo` components
+* Basic implementation without stat comparison tooltips (nice-to-have for future)
+
 **UI & Implementation Details:**
 
 1.  **Equipped Slots:**
     *   Display current `equippedWeaponName` and `equippedArmorName` clearly.
     *   Each slot should be clickable to open the relevant dropdown.
+    
+    **✅ Completed Implementation:** Current equipment displayed using `currentWeapon` and `currentArmor` from `useEquipment` hook with clear formatting.
 
 2.  **Equipment Dropdowns:**
     *   Triggered by clicking an equipment slot (Weapon/Armor).
     *   Populate with items listed in `equipableWeaponIDs/Names` or `equipableArmorIDs/Names` respectively.
     *   Clicking an item in the dropdown triggers the `equipItem` mutation.
     *   Consider adding item stats/tooltips within the dropdown (could be nice-to-have).
+    
+    **✅ Completed Implementation:** Implemented using ChakraUI Select components with data from `weaponOptions`/`armorOptions`. Used `equipWeapon`/`equipArmor` mutations for blockchain updates. Stat comparison tooltips not implemented yet.
 
 3.  **Combat State Interaction:**
     *   The equip slots/dropdown triggers MUST be disabled when the player is in the combat state (derived from Feature F).
     *   Provide a tooltip on the disabled element: "Cannot change equipment while in combat". 
+    
+    **✅ Completed Implementation:** Equipment changes disabled during combat using `isInCombat` flag from `useEquipment`. Tooltips show "Cannot change equipment while in combat" as specified. 
