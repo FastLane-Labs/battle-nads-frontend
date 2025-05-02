@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Select, Button, Stat, StatLabel, StatNumber } from '@chakra-ui/react';
 import { Character } from '@/types/domain/character';
 import { calculateMaxHealth } from '../../utils/gameDataConverters';
+import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
 
 interface CharacterCardProps {
   character: Character; // Corrected type name
@@ -125,7 +126,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
   const equipableArmorNames: string[] = []; // Placeholder
 
   return (
-    <Box borderWidth="1px" borderRadius="lg" p={4} boxShadow="md" bg="gray.800" color="white">
+    <Box borderWidth="1px" borderRadius="lg" p={4} boxShadow="md" bg="yellow.800" color="white">
       <VStack spacing={3} align="stretch">
         {/* Character Name and Level */}
         <Flex justify="space-between" align="center">
@@ -206,67 +207,8 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
         
         <Divider />
         
-        {/* Equipment */}
-        <Box>
-          <Text fontWeight="bold" mb={2}>Equipment</Text>
-          <VStack align="stretch" spacing={2}>
-            {/* Weapon Selection */}
-            <Flex justify="space-between" align="center">
-              <Text fontSize="sm">Weapon:</Text>
-              <Flex align="center">
-                <Text fontSize="sm" fontWeight="medium" mr={2}>{weapon?.name}</Text>
-                {equipableWeaponIDs?.length > 0 && ( // Using placeholder
-                  <Select 
-                    size="xs" 
-                    width="auto" 
-                    onChange={(e) => {
-                      if (character.id) {
-                        // TODO: Implement weapon change using correct hook
-                        // changeEquippedWeapon(character.id, Number(e.target.value));
-                        console.warn("Weapon change not implemented yet.");
-                      }
-                    }}
-                    placeholder="Change"
-                  >
-                    {equipableWeaponIDs.map((id: number, index: number) => (
-                      <option key={id} value={id}>
-                        {equipableWeaponNames[index]} {/* Using placeholder */}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </Flex>
-            </Flex>
-            
-            {/* Armor Selection */}
-            <Flex justify="space-between" align="center">
-              <Text fontSize="sm">Armor:</Text>
-              <Flex align="center">
-                <Text fontSize="sm" fontWeight="medium" mr={2}>{armor?.name}</Text>
-                {equipableArmorIDs?.length > 0 && ( // Using placeholder
-                  <Select 
-                    size="xs" 
-                    width="auto"
-                    onChange={(e) => {
-                      if (character.id) {
-                         // TODO: Implement armor change using correct hook
-                        // changeEquippedArmor(character.id, Number(e.target.value));
-                        console.warn("Armor change not implemented yet.");
-                      }
-                    }}
-                    placeholder="Change"
-                  >
-                    {equipableArmorIDs.map((id: number, index: number) => (
-                      <option key={id} value={id}>
-                        {equipableArmorNames[index]} {/* Using placeholder */}
-                      </option>
-                    ))}
-                  </Select>
-                )}
-              </Flex>
-            </Flex>
-          </VStack>
-        </Box>
+        {/* Equipment - Replace with dedicated component */}
+        <EquipmentPanel characterId={character?.id} />
         
         <Divider />
         
