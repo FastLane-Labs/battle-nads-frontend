@@ -126,7 +126,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
   const equipableArmorNames: string[] = []; // Placeholder
 
   return (
-    <Box borderWidth="1px" borderRadius="lg" p={4} boxShadow="md" bg="yellow.800" color="white">
+    <Box borderWidth="1px" borderRadius="lg" p={4} boxShadow="md" bg="gray.800" color="white">
       <VStack spacing={3} align="stretch">
         {/* Character Name and Level */}
         <Flex justify="space-between" align="center">
