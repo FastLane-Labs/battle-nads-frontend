@@ -14,6 +14,7 @@ import {
   VStack
 } from '@chakra-ui/react';
 import { domain } from '@/types';
+import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
 
 // Constants from the smart contract
 const EXP_BASE = 100; // Base experience points required per level
@@ -48,11 +49,6 @@ interface CharacterInfoProps {
 }
 
 const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) => {
-  // No need for separate currentStats state if just reading from props now
-  // const [currentStats, setCurrentStats] = useState<typeof character.stats>(character.stats);
-  
-  // Removed useEffect hooks related to currentStats and event listeners
-
   if (!character) return null;
 
   // Destructure health AND maxHealth directly from the character prop
@@ -156,19 +152,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
         <Divider />
         
         {/* Equipment */}
-        <Box>
-          <Text fontWeight="bold" mb={2}>Equipment</Text>
-          <VStack align="stretch" spacing={2}>
-            <Flex justify="space-between" align="center">
-              <Text fontSize="sm">Weapon:</Text>
-              <Text fontSize="sm" fontWeight="medium">{weapon?.name || `ID #${weapon?.id || 'None'}`}</Text>
-            </Flex>
-            <Flex justify="space-between" align="center">
-              <Text fontSize="sm">Armor:</Text>
-              <Text fontSize="sm" fontWeight="medium">{armor?.name || `ID #${armor?.id || 'None'}`}</Text>
-            </Flex>
-          </VStack>
-        </Box>
+        <EquipmentPanel characterId={character?.id} />
         
         <Divider />
         
