@@ -54,7 +54,6 @@ const NavBar: React.FC = () => {
   const handleLogout = async () => {
     try {
       await logout();
-      await new Promise(resolve => setTimeout(resolve, 100));
       router.push('/');
     } catch (error) {
       console.error("Logout failed:", error);

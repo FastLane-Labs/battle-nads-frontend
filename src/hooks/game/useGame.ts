@@ -16,7 +16,12 @@ import { mapSessionKeyData } from '../../mappers/contractToDomain';
  * Combines UI snapshot data with session key management and game actions
  */
 export const useGame = () => {
-  const { injectedWallet, embeddedWallet, connectMetamask } = useWallet();
+  const { 
+    injectedWallet, 
+    embeddedWallet, 
+    connectMetamask, 
+    isInitialized: isWalletInitialized
+  } = useWallet();
   const { client } = useBattleNadsClient();
   const queryClient = useQueryClient();
   const toast = useToast();
@@ -261,9 +266,10 @@ export const useGame = () => {
   return {
     // State
     worldSnapshot, // Return the unified snapshot
-    isLoading: isLoadingGameState,
+    isLoading: isLoadingGameState || !isWalletInitialized, // Combine loading states
     error: gameStateError,
     refetch: refetchGameState,
+    isInitialized: isWalletInitialized, // Expose wallet initialization status
     
     // Wallet
     owner,
