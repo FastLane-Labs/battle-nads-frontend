@@ -41,4 +41,18 @@
     *   The equip slots/dropdown triggers MUST be disabled when the player is in the combat state (derived from Feature F).
     *   Provide a tooltip on the disabled element: "Cannot change equipment while in combat". 
     
-    **✅ Completed Implementation:** Equipment changes disabled during combat using `isInCombat` flag from `useEquipment`. Tooltips show "Cannot change equipment while in combat" as specified. 
+    **✅ Completed Implementation:** Equipment changes disabled during combat using `isInCombat` flag from `useEquipment`. Tooltips show "Cannot change equipment while in combat" as specified.
+
+**Features Not Yet Implemented:**
+1. **Item Stat Comparison Tooltips**: The nice-to-have feature to show stat differences between current equipment and potential new equipment was not implemented. The component structure is prepared for this with:
+   * A `getEquipmentStatDiff` function placeholder in `useEquipment` (removed to avoid confusion)
+   * The `EquipmentTooltip` component was created but was removed as it wasn't being used
+
+2. **Item Stats in Dropdowns**: Equipment options in the dropdowns currently only show item names without additional stats
+
+3. **Equipment Visualization**: No visual representation of equipment on character model/avatar
+
+**Future Enhancement Path:**
+* Implement stat comparison by enhancing `useEquipment` hook to fetch and compare item stats
+* Create hover tooltips that show detailed stat comparisons with visual indicators for improvements/downgrades
+* Add equipment visual indicators on character profiles/avatars 
