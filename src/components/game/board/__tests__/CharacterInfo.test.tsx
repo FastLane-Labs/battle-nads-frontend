@@ -1,8 +1,34 @@
 import React from 'react';
 import { render, screen } from '@testing-library/react';
 import { ChakraProvider } from '@chakra-ui/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import CharacterInfo from '../CharacterInfo';
 import { domain } from '@/types'; // Assuming types are exported from domain
+import { useEquipment } from '@/hooks/game/useEquipment'; // Import the hook
+
+// Mock the useEquipment hook
+jest.mock('@/hooks/game/useEquipment', () => ({
+  useEquipment: jest.fn(),
+}));
+
+// Helper function to setup the mock implementation for useEquipment
+const setupMockUseEquipment = (character: domain.Character) => {
+  (useEquipment as jest.Mock).mockReturnValue({
+    currentWeapon: character.weapon,
+    currentArmor: character.armor,
+    weaponOptions: [], // Mocking empty options for simplicity in this test
+    armorOptions: [],  // Mocking empty options for simplicity in this test
+    equipWeapon: jest.fn(),
+    isEquippingWeapon: false,
+    weaponError: null,
+    equipArmor: jest.fn(),
+    isEquippingArmor: false,
+    armorError: null,
+    getWeaponName: jest.fn().mockResolvedValue('Mocked Weapon Name'),
+    getArmorName: jest.fn().mockResolvedValue('Mocked Armor Name'),
+    isInCombat: character.isInCombat,
+  });
+};
 
 // Mock Data
 const mockCharacter: domain.Character = {
@@ -38,10 +64,28 @@ const mockMultipleCombatants: domain.CharacterLite[] = [
 
 // Helper to render with ChakraProvider
 const renderWithProvider = (component: React.ReactElement) => {
-  return render(<ChakraProvider>{component}</ChakraProvider>);
+  // Create a new QueryClient instance for each test to ensure isolation
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        // ✅ turns retries off
+        retry: false,
+      },
+    },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ChakraProvider>{component}</ChakraProvider>
+    </QueryClientProvider>
+  );
 };
 
 describe('CharacterInfo Component', () => {
+  // Setup the mock before each test
+  beforeEach(() => {
+    setupMockUseEquipment(mockCharacter);
+  });
+
   it('should render character details correctly', () => {
     renderWithProvider(<CharacterInfo character={mockCharacter} combatants={[]} />);
 
@@ -50,6 +94,7 @@ describe('CharacterInfo Component', () => {
     expect(screen.getByText(`${mockCharacter.health} / ${mockCharacter.maxHealth}`)).toBeInTheDocument();
     expect(screen.getByText(String(mockCharacter.stats.strength))).toBeInTheDocument();
     expect(screen.getByText(mockCharacter.weapon.name)).toBeInTheDocument();
+    expect(screen.getByText(mockCharacter.armor.name)).toBeInTheDocument();
     // ... add more checks for other stats/info if needed
   });
 
@@ -70,7 +115,11 @@ describe('CharacterInfo Component', () => {
   });
 
   it('should display combat indicator with multiple combatants count', () => {
-    renderWithProvider(<CharacterInfo character={mockCharacter} combatants={mockMultipleCombatants} />);
+    // Re-setup mock if combatants affect equipment display logic (e.g., isInCombat)
+    const combatCharacter = { ...mockCharacter, isInCombat: true };
+    setupMockUseEquipment(combatCharacter); // Ensure isInCombat is true for this test
+
+    renderWithProvider(<CharacterInfo character={combatCharacter} combatants={mockMultipleCombatants} />);
 
     // Use regex to ignore surrounding icons/whitespace
     const indicator = screen.getByText(/Fighting: Multiple Enemies \(2\)/i); // Escape parentheses
