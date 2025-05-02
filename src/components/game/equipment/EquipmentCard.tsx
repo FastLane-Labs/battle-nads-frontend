@@ -47,9 +47,6 @@ const StatDisplay: React.FC<{
 
 
 export const EquipmentCard: React.FC<EquipmentCardProps> = ({ slot, equipmentHookResult, characterId }) => {
-  // Log props on render
-  console.log(`[EquipmentCard-${slot}] Render. Character ID: ${characterId}`, { equipmentHookResult });
-  
   const {
     currentWeapon, currentArmor,
     weaponOptions, armorOptions,

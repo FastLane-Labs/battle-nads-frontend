@@ -5,7 +5,7 @@ import { useSessionKey } from '../../session/useSessionKey';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 import { isValidCharacterId } from '../../../utils/getCharacterLocalStorageKey';
-import { SessionKeyState } from '@/types/domain/session';
+import { SessionKeyState } from '../../../machines/sessionKeyMachine';
 
 // Mock dependencies
 jest.mock('../useBattleNads');
@@ -67,9 +67,19 @@ describe('useGame', () => {
     
     (useSessionKey as jest.Mock).mockReturnValue({
       sessionKeyState: SessionKeyState.VALID,
-      sessionKey: { key: mockSessionKeyAddress, expiration: '9999999', owner: mockOwner },
+      sessionKeyData: { 
+        key: mockSessionKeyAddress, 
+        expiration: 9999999n,
+        owner: mockOwner, 
+        balance: 10n**18n,
+        targetBalance: 10n**18n,
+        ownerCommittedAmount: 5n * 10n**18n,
+        ownerCommittedShares: 5n * 10n**18n
+      },
       needsUpdate: false,
       isLoading: false,
+      error: null,
+      currentBlock: 500,
       refreshSessionKey: jest.fn()
     });
 
@@ -122,9 +132,19 @@ describe('useGame', () => {
   it('detects invalid session key', async () => {
     (useSessionKey as jest.Mock).mockReturnValue({
       sessionKeyState: SessionKeyState.EXPIRED,
-      sessionKey: { key: mockSessionKeyAddress, expiration: '10', owner: mockOwner },
+      sessionKeyData: {
+        key: mockSessionKeyAddress, 
+        expiration: 10n,
+        owner: mockOwner,
+        balance: 10n**18n,
+        targetBalance: 10n**18n,
+        ownerCommittedAmount: 5n * 10n**18n,
+        ownerCommittedShares: 5n * 10n**18n
+      },
       needsUpdate: true,
       isLoading: false,
+      error: null,
+      currentBlock: 100,
       refreshSessionKey: jest.fn()
     });
         
@@ -149,12 +169,14 @@ describe('useGame', () => {
       error: null,
       refetch: jest.fn()
     });
-    // Session key also loading initially, state is undetermined (null)
+    // Session key also loading initially
     (useSessionKey as jest.Mock).mockReturnValue({
-      sessionKeyState: null, // State is null while loading
-      sessionKey: null,
-      needsUpdate: false,
+      sessionKeyState: SessionKeyState.MISSING,
+      sessionKeyData: undefined,
+      needsUpdate: true,
       isLoading: true,
+      error: null,
+      currentBlock: 0,
       refreshSessionKey: jest.fn()
     });
 
@@ -174,9 +196,19 @@ describe('useGame', () => {
     });
     (useSessionKey as jest.Mock).mockReturnValue({
       sessionKeyState: SessionKeyState.VALID,
-      sessionKey: { key: mockSessionKeyAddress, expiration: '9999999', owner: mockOwner },
+      sessionKeyData: {
+        key: mockSessionKeyAddress, 
+        expiration: 9999999n,
+        owner: mockOwner, 
+        balance: 10n**18n,
+        targetBalance: 10n**18n,
+        ownerCommittedAmount: 5n * 10n**18n,
+        ownerCommittedShares: 5n * 10n**18n
+      },
       needsUpdate: false,
       isLoading: false,
+      error: null,
+      currentBlock: 500,
       refreshSessionKey: jest.fn()
     });
 

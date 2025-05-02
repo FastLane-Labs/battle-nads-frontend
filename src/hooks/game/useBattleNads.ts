@@ -20,6 +20,11 @@ export const useBattleNads = (owner: string | null) => {
   /* ---------- preserve previous data ---------- */
   const previousGameStateRef = useRef<ui.GameState | null>(null);
 
+  // Extract session key data and end block before mapping to UI state
+  const sessionKeyData = useMemo(() => rawData?.sessionKeyData, [rawData]);
+  const endBlock = useMemo(() => rawData?.endBlock, [rawData]);
+  const balanceShortfall = useMemo(() => rawData?.balanceShortfall, [rawData]);
+
   // Map the raw data to a GameState using the mapper utility
   const gameState = useMemo(
     () => {
@@ -56,7 +61,12 @@ export const useBattleNads = (owner: string | null) => {
 
   return {
     gameState,
-    raw: rawData,
+    // Expose raw data needed by other hooks
+    rawSessionKeyData: sessionKeyData, 
+    rawEndBlock: endBlock,
+    rawBalanceShortfall: balanceShortfall,
+    // Keep the full raw snapshot if needed elsewhere, though potentially large
+    // rawSnapshot: rawData, 
     isLoading,
     error: error ? (error as Error).message : null,
     refetch

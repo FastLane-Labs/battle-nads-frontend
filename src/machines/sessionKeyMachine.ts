@@ -108,8 +108,10 @@ export class SessionKeyMachine {
       return this.state;
     }
 
-    // Check if renewal needed soon (within 20% of validity period)
-    const renewalNeededSoon = expiration - currentBlock < MAX_SESSION_KEY_VALIDITY_BLOCKS * 0.2;
+    // Check if renewal needed soon (within 5 minutes = 600 blocks)
+    const RENEWAL_BUFFER_BLOCKS = 600; // 5 mins * 60 secs/min * 2 blocks/sec
+    const blocksRemaining = expiration - currentBlock;
+    const renewalNeededSoon = blocksRemaining < RENEWAL_BUFFER_BLOCKS;
 
     // Key is valid
     this.transition(SessionKeyState.VALID, SessionKeyEvent.VALID, { 

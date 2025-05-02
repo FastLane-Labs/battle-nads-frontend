@@ -5,30 +5,20 @@ import { useBattleNadsClient } from '../../contracts/useBattleNadsClient';
 import { useSessionKey } from '../useSessionKey';
 import { SessionKeyState } from '../../../machines/sessionKeyMachine';
 import { useWallet } from '../../../providers/WalletProvider';
+import { useBattleNads } from '../../game/useBattleNads';
 
 // Mock dependencies
 jest.mock('../../contracts/useBattleNadsClient');
 jest.mock('../useSessionKey');
 jest.mock('../../../providers/WalletProvider');
+jest.mock('../../game/useBattleNads');
 
-// --- Mock TanStack Query ---
-const mockQueryResults: Record<string, any> = {};
-const mockMutationStates: Record<string, { isPending: boolean, error: Error | null, mutate?: jest.Mock }> = {}; // Keyed by JSON string
-
-// Replacer function for JSON.stringify to handle BigInt
+// --- Mock Mutation Helpers (Keep for now, may need adjustment later) ---
+const mockMutationStates: Record<string, { isPending: boolean, error: Error | null, mutate?: jest.Mock }> = {};
 const replacer = (key: string, value: any) => {
   return typeof value === 'bigint' ? value.toString() : value;
 };
-
-// Helper to set query mock results
-const setMockQueryResult = (queryKey: Array<string | any>, result: any) => {
-  // Use the replacer function here
-  mockQueryResults[JSON.stringify(queryKey, replacer)] = result;
-};
-
-// Helper to initialize/get mutation mock state and function
 const getOrInitializeMutationMock = (mutationKey: Array<string | any>) => {
-  // Use the replacer function here
   const key = JSON.stringify(mutationKey, replacer);
   if (!mockMutationStates[key]) {
     mockMutationStates[key] = {
@@ -39,36 +29,24 @@ const getOrInitializeMutationMock = (mutationKey: Array<string | any>) => {
   }
   return mockMutationStates[key];
 };
-
-// Helper to update mutation state by key
 const setMockMutationStateByKey = (mutationKey: Array<string | any>, state: Partial<{ isPending: boolean; error: Error | null }>) => {
-  // Use the replacer function here
   const key = JSON.stringify(mutationKey, replacer);
   if (mockMutationStates[key]) {
     mockMutationStates[key] = { ...mockMutationStates[key], ...state };
   }
 };
-// -- End Mocking Helpers --
+// --------------------------------------------------------------------
 
 jest.mock('@tanstack/react-query', () => {
   const original = jest.requireActual('@tanstack/react-query');
   return {
     ...original,
-    useQuery: jest.fn(({ queryKey }) => {
-      // Use the replacer function here
-      const key = JSON.stringify(queryKey, replacer);
-      return mockQueryResults[key] || {
-        data: undefined, isLoading: true, error: null, refetch: jest.fn(),
-      };
-    }),
     useMutation: jest.fn(({ mutationKey }) => {
-      // Use the mutationKey provided by the hook
       if (!mutationKey) {
         console.warn('useMutation called without mutationKey in test environment');
         return { isPending: false, error: null, mutate: jest.fn() }; 
       }
-      // Use the replacer function here
-      return getOrInitializeMutationMock(mutationKey); // getOrInitializeMutationMock now uses replacer
+      return getOrInitializeMutationMock(mutationKey);
     }),
     useQueryClient: jest.fn(() => ({ invalidateQueries: jest.fn() })),
     __esModule: true,
@@ -76,79 +54,98 @@ jest.mock('@tanstack/react-query', () => {
 });
 // --- End Mock TanStack Query ---
 
+// --- Mock useBattleNads --- 
+const mockUseBattleNads = useBattleNads as jest.Mock;
+// -------------------------
+
 describe('useSessionFunding', () => {
   const ownerAddress = '0x0000000000000000000000000000000000000001';
   const characterId = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
-  // Define keys including ownerAddress now
-  const balanceShortfallQueryKey = ['balanceShortfall', characterId, ownerAddress]; 
-  const replenishMutationKey = ['replenishBalance', characterId, ownerAddress];
-  // Note: deactivateKey mutation key depends on sessionKey, handle in specific tests if needed
+  const mockSessionKeyAddress = '0xSessionKey123';
   
-  // Mock client methods that might be called by mutations
+  const replenishMutationKey = ['replenishBalance', characterId, ownerAddress];
+  const deactivateMutationKey = ['deactivateKey', characterId, mockSessionKeyAddress, ownerAddress];
+  
   const mockReplenishGasBalance = jest.fn().mockResolvedValue({});
   const mockDeactivateSessionKey = jest.fn().mockResolvedValue({});
   const mockClient = {
-    shortfallToRecommendedBalanceInMON: jest.fn(), // Query function - controlled by useQuery mock
+    shortfallToRecommendedBalanceInMON: jest.fn(),
     replenishGasBalance: mockReplenishGasBalance,
     deactivateSessionKey: mockDeactivateSessionKey,
   };
 
-  // Default mock for useSessionKey hook
   const mockUseSessionKeyResult = {
-    sessionKey: { key: '0xSessionKey', expiration: 9999 },
+    sessionKeyData: {
+      key: mockSessionKeyAddress,
+      expiration: 9999n,
+      owner: ownerAddress,
+      balance: 10n**18n,
+      targetBalance: 10n**18n,
+      ownerCommittedAmount: 5n * 10n**18n,
+      ownerCommittedShares: 5n * 10n**18n
+    },
     sessionKeyState: SessionKeyState.VALID,
+    needsUpdate: false,
+    isLoading: false,
+    error: null,
+    currentBlock: 500,
     refreshSessionKey: jest.fn(),
   };
 
-  // Default mock for useWallet hook
   const mockUseWalletResult = {
     injectedWallet: { address: ownerAddress },
-    embeddedWallet: null, // Add other properties if needed by the hook under test
+    embeddedWallet: null,
     connectMetamask: jest.fn(),
     disconnect: jest.fn(),
-    // ... add other potential return values if needed
   };
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Clear query mocks
-    Object.keys(mockQueryResults).forEach(key => delete mockQueryResults[key]);
-    // Clear mutation mocks
     Object.keys(mockMutationStates).forEach(key => delete mockMutationStates[key]);
 
-    // Set default hook mocks
     (useBattleNadsClient as jest.Mock).mockReturnValue({ client: mockClient, error: null });
     (useSessionKey as jest.Mock).mockReturnValue(mockUseSessionKeyResult);
     (useWallet as jest.Mock).mockReturnValue(mockUseWalletResult);
     
-    // No need to pre-initialize mutation mocks, getOrInitializeMutationMock handles it
+    mockUseBattleNads.mockReturnValue({
+      rawBalanceShortfall: 0n,
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(), 
+    });
   });
 
-  // --- Test Implementations (Adjusted for key-based mock access) ---
   it('reports sufficient funding when shortfall is zero', () => {
-    setMockQueryResult(balanceShortfallQueryKey, { isLoading: false, data: 0n, error: null, refetch: jest.fn() });
     const { result } = renderHook(() => useSessionFunding(characterId));
-    expect(result.current.balanceShortfall).toBe(0n); 
+    expect(result.current.balanceShortfall?.toString()).toBe('0'); 
   });
 
   it('reports funding needed when shortfall is positive', () => {
     const mockShortfall = 1000000000000000000n;
-    setMockQueryResult(balanceShortfallQueryKey, { isLoading: false, data: mockShortfall, error: null, refetch: jest.fn() });
+    mockUseBattleNads.mockReturnValueOnce({
+        rawBalanceShortfall: mockShortfall,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+    });
     const { result } = renderHook(() => useSessionFunding(characterId));
-    expect(result.current.balanceShortfall).toBe(mockShortfall);
-    // Check defined before comparison
+    expect(result.current.balanceShortfall?.toString()).toBe(mockShortfall.toString());
     expect(result.current.balanceShortfall !== undefined && result.current.balanceShortfall > 0n).toBe(true);
   });
 
   it('successfully calls replenishBalance mutation', () => {
     const mockShortfall = 1000000000000000000n;
-    setMockQueryResult(balanceShortfallQueryKey, { isLoading: false, data: mockShortfall, error: null, refetch: jest.fn() });
+    mockUseBattleNads.mockReturnValueOnce({
+        rawBalanceShortfall: mockShortfall,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+    });
     
     const { result } = renderHook(() => useSessionFunding(characterId));
     const mutationMock = getOrInitializeMutationMock(replenishMutationKey);
     const replenishMutateMock = mutationMock.mutate!;
 
-    // Check defined before comparison
     expect(result.current.balanceShortfall !== undefined && result.current.balanceShortfall > 0n).toBe(true);
     expect(result.current.isReplenishing).toBe(false);
 
@@ -156,14 +153,34 @@ describe('useSessionFunding', () => {
       result.current.replenishBalance(mockShortfall);
     });
 
-    expect(replenishMutateMock).toHaveBeenCalledWith(mockShortfall);
+    expect(replenishMutateMock).toHaveBeenCalledWith(mockShortfall); 
+  });
+
+  it('successfully calls deactivateKey mutation', () => {
+    const { result } = renderHook(() => useSessionFunding(characterId));
+    const mutationMock = getOrInitializeMutationMock(deactivateMutationKey);
+    const deactivateMutateMock = mutationMock.mutate!;
+
+    expect(result.current.isDeactivating).toBe(false);
+    expect(result.current.sessionKeyAddress).toBe(mockSessionKeyAddress);
+
+    act(() => { 
+      result.current.deactivateKey();
+    });
+
+    expect(deactivateMutateMock).toHaveBeenCalled(); 
   });
 
   it('handles replenishBalance mutation error', () => {
     const mockShortfall = 1000000000000000000n;
     const mockError = new Error('Funding failed');
-
-    setMockQueryResult(balanceShortfallQueryKey, { isLoading: false, data: mockShortfall, error: null, refetch: jest.fn() });
+    
+    mockUseBattleNads.mockReturnValue({
+        rawBalanceShortfall: mockShortfall,
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+    });
     
     const { result, rerender } = renderHook(() => useSessionFunding(characterId));
     const mutationMock = getOrInitializeMutationMock(replenishMutationKey);
@@ -173,7 +190,6 @@ describe('useSessionFunding', () => {
       setMockMutationStateByKey(replenishMutationKey, { error: mockError, isPending: false });
     });
 
-    // Check defined before comparison
     expect(result.current.balanceShortfall !== undefined && result.current.balanceShortfall > 0n).toBe(true);
 
     act(() => {
@@ -183,17 +199,20 @@ describe('useSessionFunding', () => {
     rerender();
 
     expect(replenishMutateMock).toHaveBeenCalledWith(mockShortfall);
-    // Check defined before comparison
     expect(result.current.balanceShortfall !== undefined && result.current.balanceShortfall > 0n).toBe(true);
   });
 
   it('handles client error state from useBattleNadsClient', () => {
     const clientError = 'Client creation failed';
     (useBattleNadsClient as jest.Mock).mockReturnValue({ client: null, error: clientError });
-    setMockQueryResult(balanceShortfallQueryKey, { isLoading: false, data: 0n, error: null, refetch: jest.fn() });
+    mockUseBattleNads.mockReturnValueOnce({
+        rawBalanceShortfall: 0n,
+        isLoading: false,
+        error: clientError,
+        refetch: jest.fn(),
+    });
 
     const { result } = renderHook(() => useSessionFunding(characterId));
-    expect(result.current.balanceShortfall).toBe(0n); 
-    // Removed checks for replenishError and deactivateError
+    expect(result.current.balanceShortfall?.toString()).toBe('0'); 
   });
 }); 
