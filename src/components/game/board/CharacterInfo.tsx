@@ -49,6 +49,10 @@ interface CharacterInfoProps {
 }
 
 const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) => {
+  // No need for separate currentStats state if just reading from props now
+  // const [currentStats, setCurrentStats] = useState<typeof character.stats>(character.stats);
+
+  // Removed useEffect hooks related to currentStats and event listeners
   if (!character) return null;
 
   // Destructure health AND maxHealth directly from the character prop
