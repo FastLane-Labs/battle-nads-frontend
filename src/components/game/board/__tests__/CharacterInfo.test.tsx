@@ -30,7 +30,7 @@ const setupMockUseEquipment = (character: domain.Character) => {
   });
 };
 
-// Mock Data
+// Restore inline Mock Data
 const mockCharacter: domain.Character = {
   id: 'char1',
   index: 1,
@@ -53,6 +53,7 @@ const mockCharacter: domain.Character = {
   isDead: false,
 };
 
+// Mock Data
 const mockSingleCombatant: domain.CharacterLite[] = [
   { id: 'combatant1', index: 2, name: 'Goblin', class: domain.CharacterClass.Basic, level: 3, health: 30, maxHealth: 30, buffs: [], debuffs: [], ability: { ability: domain.Ability.None, stage: 0, targetIndex: 0, taskAddress: '0x0', targetBlock: 0 }, weaponName: 'Club', armorName: 'Loincloth', isDead: false },
 ];
@@ -91,8 +92,12 @@ describe('CharacterInfo Component', () => {
 
     expect(screen.getByText(mockCharacter.name)).toBeInTheDocument();
     expect(screen.getByText(`Level ${mockCharacter.level}`)).toBeInTheDocument();
-    expect(screen.getByText(`${mockCharacter.health} / ${mockCharacter.maxHealth}`)).toBeInTheDocument();
-    expect(screen.getByText(String(mockCharacter.stats.strength))).toBeInTheDocument();
+    expect(screen.getByText(`${Number(mockCharacter.health)} / ${Number(mockCharacter.maxHealth)}`)).toBeInTheDocument();
+    
+    const strengthElement = screen.getByTestId('character-strength');
+    expect(strengthElement).toBeInTheDocument();
+    expect(strengthElement).toHaveTextContent(String(Number(mockCharacter.stats.strength)));
+    
     expect(screen.getByText(mockCharacter.weapon.name)).toBeInTheDocument();
     expect(screen.getByText(mockCharacter.armor.name)).toBeInTheDocument();
     // ... add more checks for other stats/info if needed

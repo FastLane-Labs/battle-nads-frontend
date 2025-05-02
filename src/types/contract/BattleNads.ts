@@ -12,30 +12,36 @@ export interface SessionKeyData {
   expiration: bigint; // uint64 - Block number when the key expires
 }
 
-// Character stats structure
+// Character stats structure (Matches BattleNadStats struct)
 export interface CharacterStats {
-  index: number;
-  class: number;
-  level: number;
-  experience: bigint;
-  health: bigint;
-  maxHealth: bigint;
-  strength: bigint;
-  vitality: bigint;
-  dexterity: bigint;
-  quickness: bigint;
-  sturdiness: bigint;
-  luck: bigint;
-  unspentAttributePoints: bigint;
-  x: number;
-  y: number;
-  depth: number;
-  combatantBitMap: bigint;
-  buffs: number[];
-  debuffs: number[];
+  index: number; // uint8
+  class: number; // uint8 (enum CharacterClass)
+  level: number; // uint8
+  experience: bigint; // uint16 - Use bigint for safety, map to number later
+  // health: bigint; // uint16 - Health is separate in BattleNad struct now
+  strength: bigint; // uint8 - Use bigint for safety
+  vitality: bigint; // uint8
+  dexterity: bigint; // uint8
+  quickness: bigint; // uint8
+  sturdiness: bigint; // uint8
+  luck: bigint; // uint8
+  unspentAttributePoints: bigint; // uint8
+  x: number; // uint8
+  y: number; // uint8
+  depth: number; // uint8
+  combatantBitMap: bigint; // uint64
+  buffs: number[]; // uint8[] - Placeholder, actual type might be bitmap or array
+  debuffs: number[]; // uint8[] - Placeholder
+  weaponID: number; // uint8 - ADDED
+  armorID: number; // uint8 - ADDED
+  health: number; // uint16 - ADDED from BattleNadStats ABI
+  sumOfCombatantLevels: number; // uint8 - ADDED from BattleNadStats ABI
+  combatants: number; // uint8 - ADDED from BattleNadStats ABI
+  nextTargetIndex: number; // uint8 - ADDED from BattleNadStats ABI
+  // maxHealth: bigint; // REMOVED - Belongs on Character struct
 }
 
-// Ability state structure
+// Ability state structure (Matches AbilityTracker struct)
 export interface AbilityState {
   ability: number;
   stage: number;
@@ -44,20 +50,53 @@ export interface AbilityState {
   targetBlock: bigint;
 }
 
-// Character structure
-export interface Character {
-  id: string;
+// --- ADDED Contract Struct Definitions ---
+export interface Weapon {
   name: string;
-  owner: string;
+  baseDamage: bigint; // uint256
+  bonusDamage: bigint; // uint256
+  accuracy: bigint; // uint256
+  speed: bigint; // uint256
+}
+
+export interface Armor {
+  name: string;
+  armorFactor: bigint; // uint256
+  armorQuality: bigint; // uint256
+  flexibility: bigint; // uint256
+  weight: bigint; // uint256
+}
+
+export interface Inventory {
+  weaponBitmap: bigint; // uint64
+  armorBitmap: bigint; // uint64
+  balance: bigint; // uint128
+}
+
+export interface StorageTracker {
+  updateStats: boolean;
+  updateInventory: boolean;
+  updateActiveTask: boolean;
+  updateActiveAbility: boolean;
+  updateOwner: boolean;
+  classStatsAdded: boolean;
+  died: boolean;
+}
+// --- END ADDED Struct Definitions ---
+
+// Character structure (Matches BattleNad struct)
+export interface Character {
+  id: string; // bytes32
+  name: string;
+  owner: string; // address
   stats: CharacterStats;
-  weapon: number;
-  armor: number;
-  activeTask: string;
-  activeAbility: AbilityState;
-  inventory: number[];
-  tracker: {
-    died: boolean;
-  };
+  maxHealth: bigint; // uint256 - ADDED
+  weapon: Weapon; // UPDATED type
+  armor: Armor; // UPDATED type
+  activeTask: string; // address
+  activeAbility: AbilityState; // Matches AbilityTracker
+  inventory: Inventory; // UPDATED type
+  tracker: StorageTracker; // UPDATED type
 }
 
 // Lite character structure (for others in the zone)

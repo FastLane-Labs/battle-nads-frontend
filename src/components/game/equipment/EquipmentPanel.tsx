@@ -1,105 +1,46 @@
 import React from 'react';
-import { Box, Text, Flex, Select, Tooltip } from '@chakra-ui/react';
+import { Box, Text, SimpleGrid, Alert, AlertIcon, AlertTitle, AlertDescription, VStack } from '@chakra-ui/react';
 import { useEquipment } from '@/hooks/game/useEquipment';
+import { EquipmentCard } from './EquipmentCard';
 
 interface EquipmentPanelProps {
   characterId: string | null;
 }
 
 export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) => {
-  const { 
-    currentWeapon,
-    currentArmor,
-    weaponOptions,
-    armorOptions,
-    equipWeapon,
-    equipArmor,
-    isEquippingWeapon,
-    isEquippingArmor,
-    weaponError,
-    armorError,
-    isInCombat
-  } = useEquipment();
+  const equipmentHookResult = useEquipment(); // Get the hook results once
+  const { weaponError, armorError } = equipmentHookResult;
 
-  // Equipment change handlers
-  const handleWeaponChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (!characterId || isInCombat) return;
-    equipWeapon(Number(e.target.value));
-  };
-
-  const handleArmorChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    if (!characterId || isInCombat) return;
-    equipArmor(Number(e.target.value));
-  };
+  // Combine errors for a potential shared display if needed, but card handles specifics
+  const combinedError = weaponError && armorError ? "Multiple equipment errors" : weaponError || armorError;
 
   return (
     <Box>
       <Text fontWeight="bold" mb={2}>Equipment</Text>
-      
-      {/* Weapon Selection */}
-      <Flex justify="space-between" align="center" mb={2}>
-        <Text fontSize="sm">Weapon:</Text>
-        <Flex align="center">
-          <Text fontSize="sm" fontWeight="medium" mr={2}>
-            {currentWeapon?.name || 'None'}
-          </Text>
-          <Tooltip 
-            label={isInCombat ? "Cannot change equipment while in combat" : ""}
-            isDisabled={!isInCombat}
-          >
-            <Select
-              size="xs"
-              width="auto"
-              onChange={handleWeaponChange}
-              placeholder="Change"
-              disabled={isInCombat || isEquippingWeapon || !weaponOptions.length}
-              data-testid="weapon-select"
-            >
-              {weaponOptions.map((weapon) => (
-                <option key={weapon.id} value={weapon.id}>
-                  {weapon.name}
-                </option>
-              ))}
-            </Select>
-          </Tooltip>
-        </Flex>
-      </Flex>
-      
-      {/* Armor Selection */}
-      <Flex justify="space-between" align="center">
-        <Text fontSize="sm">Armor:</Text>
-        <Flex align="center">
-          <Text fontSize="sm" fontWeight="medium" mr={2}>
-            {currentArmor?.name || 'None'}
-          </Text>
-          <Tooltip 
-            label={isInCombat ? "Cannot change equipment while in combat" : ""}
-            isDisabled={!isInCombat}
-          >
-            <Select
-              size="xs"
-              width="auto"
-              onChange={handleArmorChange}
-              placeholder="Change"
-              disabled={isInCombat || isEquippingArmor || !armorOptions.length}
-              data-testid="armor-select"
-            >
-              {armorOptions.map((armor) => (
-                <option key={armor.id} value={armor.id}>
-                  {armor.name}
-                </option>
-              ))}
-            </Select>
-          </Tooltip>
-        </Flex>
-      </Flex>
-      
-      {/* Error Messages */}
-      {(weaponError || armorError) && (
-        <Text color="red.500" fontSize="xs" mt={1}>
-          {weaponError || armorError}
-        </Text>
+
+      {/* Display combined error centrally if needed, or rely on card errors */}
+      {/* 
+      {combinedError && !weaponError && !armorError && ( // Example: only show if BOTH fail?
+        <Alert status="error" mb={2} fontSize="xs">
+          <AlertIcon />
+          <AlertTitle mr={2}>Error!</AlertTitle>
+          <AlertDescription>{combinedError}</AlertDescription>
+        </Alert>
       )}
+      */}
+
+      <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}> {/* Responsive Grid */}
+        <EquipmentCard 
+          slot="weapon" 
+          equipmentHookResult={equipmentHookResult} 
+          characterId={characterId} 
+        />
+        <EquipmentCard 
+          slot="armor" 
+          equipmentHookResult={equipmentHookResult} 
+          characterId={characterId} 
+        />
+      </SimpleGrid>
     </Box>
   );
 }; 
