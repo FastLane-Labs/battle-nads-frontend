@@ -207,7 +207,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
         
         <Divider />
         
-        {/* Equipment - Replace with dedicated component */}
+        {/* Equipment */}
         <EquipmentPanel characterId={character?.id} />
         
         <Divider />
