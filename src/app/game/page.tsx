@@ -89,6 +89,7 @@ export default function GameV2Page() {
             isMoving={game.isMoving}
             isAttacking={game.isAttacking}
             isSendingChat={game.isSendingChat}
+            isInCombat={game.isInCombat}
           />
         </Box>
       </>

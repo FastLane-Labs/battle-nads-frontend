@@ -20,6 +20,7 @@ interface GameViewProps {
   isMoving: boolean;
   isAttacking: boolean;
   characterId: string;
+  isInCombat: boolean;
 }
 
 const GameView: React.FC<GameViewProps> = ({
@@ -33,7 +34,8 @@ const GameView: React.FC<GameViewProps> = ({
   onSendChatMessage,
   isMoving,
   isAttacking,
-  characterId
+  characterId,
+  isInCombat
 }) => {
   return (
     <Grid
@@ -58,7 +60,10 @@ const GameView: React.FC<GameViewProps> = ({
 
       {/* Character Info */}
       <GridItem area="character">
-        <CharacterInfo character={character} />
+        <CharacterInfo 
+          character={character} 
+          combatants={combatants}
+        />
       </GridItem>
 
       {/* Game Controls */}
@@ -70,6 +75,7 @@ const GameView: React.FC<GameViewProps> = ({
               onMove={onMove} 
               isMoving={isMoving} 
               position={position}
+              isInCombat={isInCombat}
             />
           </Box>
 

@@ -44,9 +44,10 @@ const formatGold = (value: number | bigint | undefined): string => {
 
 interface CharacterInfoProps {
   character: domain.Character;
+  combatants: domain.CharacterLite[];
 }
 
-const CharacterInfo: React.FC<CharacterInfoProps> = ({ character }) => {
+const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) => {
   // No need for separate currentStats state if just reading from props now
   // const [currentStats, setCurrentStats] = useState<typeof character.stats>(character.stats);
   
@@ -74,6 +75,16 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character }) => {
     return Math.min(100, (currentExperience / experienceNeededForNextLevel) * 100); // Cap at 100%
   }, [level, stats?.experience]);
 
+  // Determine combat indicator text
+  const isInCombat = combatants && combatants.length > 0;
+  const combatIndicatorText = useMemo(() => {
+    if (!isInCombat) return null;
+    if (combatants.length === 1) {
+      return `Fighting: ${combatants[0]?.name || 'Unknown'}`;
+    }
+    return `Fighting: Multiple Enemies (${combatants.length})`;
+  }, [combatants, isInCombat]);
+
   return (
     <Box bg="gray.800" p={4} borderRadius="md" h="100%" overflowY="auto">
       <VStack spacing={3} align="stretch">
@@ -86,6 +97,13 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character }) => {
             </Badge>
           )}
         </Flex>
+        
+        {/* Combat Indicator - NEW */}
+        {isInCombat && (
+          <Badge colorScheme="red" variant="solid" p={1} textAlign="center" w="100%">
+            ⚔️ {combatIndicatorText} ⚔️
+          </Badge>
+        )}
         
         <Divider />
         
