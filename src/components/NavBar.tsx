@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip, Spinner, Image } from '@chakra-ui/react';
 import { MoonIcon, SunIcon } from '@chakra-ui/icons';
 import Link from 'next/link';
@@ -9,10 +9,11 @@ import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from '@/providers/WalletProvider';
 import { useGame } from '@/hooks/game/useGame';
 import { isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
+import { useSessionFunding } from '@/hooks/session/useSessionFunding';
 
 const NavBar: React.FC = () => {
   const { colorMode, toggleColorMode } = useColorMode();
-  const { login, authenticated } = usePrivy();
+  const { login } = usePrivy();
   const {
     logout,
     injectedWallet,
@@ -22,23 +23,21 @@ const NavBar: React.FC = () => {
   const { 
     isLoading,
     characterId,
-    hasWallet
+    hasWallet,
+    sessionKeyData
   } = useGame();
+  
+  const { 
+    deactivateKey, 
+    isDeactivating 
+  } = useSessionFunding(characterId);
   
   const pathname = usePathname();
   const router = useRouter();
 
-  // Safely check for a valid character ID (handles null/undefined case)
   const hasCharacter = characterId ? isValidCharacterId(characterId) : false;
-
-  useEffect(() => {
-    console.log("NavBar Component - Game Hook State:", {
-      isLoading,
-      characterId,
-      hasCharacter,
-      hasWallet
-    });
-  }, [isLoading, characterId, hasCharacter, hasWallet]);
+  const sessionKeyAddress = sessionKeyData?.key;
+  const canDeactivate = !!sessionKeyAddress && sessionKeyAddress !== '0x0000000000000000000000000000000000000000';
 
   const isActive = (path: string) => pathname === path;
   
@@ -174,6 +173,17 @@ const NavBar: React.FC = () => {
                 )}
               </HStack>
               
+              <Button 
+                colorScheme="orange" 
+                size="sm" 
+                onClick={() => deactivateKey()} 
+                isLoading={isDeactivating}
+                isDisabled={!canDeactivate || isDeactivating}
+                ml={2}
+              >
+                Deactivate Key
+              </Button>
+
               <Button colorScheme="red" size="sm" onClick={handleLogout}>
                 Disconnect
               </Button>
