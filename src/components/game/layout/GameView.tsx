@@ -62,7 +62,7 @@ const GameView: React.FC<GameViewProps> = ({
       <GridItem area="character">
         <CharacterInfo 
           character={character} 
-          isInCombat={isInCombat}
+          combatants={combatants}
         />
       </GridItem>
 
