@@ -44,24 +44,30 @@ export function mapCharacter(
 ): domain.Character | null {
   if (!rawCharacter) return null;
   
-  // Map weapon
+  // --- Corrected Weapon Mapping ---
   const weapon: domain.Weapon = {
-    id: rawCharacter.weapon,
-    name: `Weapon ${rawCharacter.weapon}`, // Placeholder
-    baseDamage: 10, // Placeholder
-    bonusDamage: 2, // Placeholder
-    accuracy: 80, // Placeholder
-    speed: 5 // Placeholder
+    // Use the numeric ID from stats
+    id: Number(rawCharacter.stats.weaponID),
+    // Use the name directly from the nested weapon struct
+    name: rawCharacter.weapon.name,
+    // Map actual stats, converting from BigInt/string to number
+    baseDamage: Number(rawCharacter.weapon.baseDamage),
+    bonusDamage: Number(rawCharacter.weapon.bonusDamage),
+    accuracy: Number(rawCharacter.weapon.accuracy),
+    speed: Number(rawCharacter.weapon.speed) 
   };
   
-  // Map armor
+  // --- Corrected Armor Mapping ---
   const armor: domain.Armor = {
-    id: rawCharacter.armor,
-    name: `Armor ${rawCharacter.armor}`, // Placeholder
-    armorFactor: 5, // Placeholder
-    armorQuality: 3, // Placeholder
-    flexibility: 2, // Placeholder
-    weight: 10 // Placeholder
+    // Use the numeric ID from stats
+    id: Number(rawCharacter.stats.armorID),
+    // Use the name directly from the nested armor struct
+    name: rawCharacter.armor.name,
+    // Map actual stats, converting from BigInt/string to number
+    armorFactor: Number(rawCharacter.armor.armorFactor),
+    armorQuality: Number(rawCharacter.armor.armorQuality),
+    flexibility: Number(rawCharacter.armor.flexibility),
+    weight: Number(rawCharacter.armor.weight)
   };
   
   // Map inventory
@@ -82,7 +88,7 @@ export function mapCharacter(
     class: rawCharacter.stats.class as domain.CharacterClass,
     level: rawCharacter.stats.level,
     health: Number(rawCharacter.stats.health),
-    maxHealth: Number(rawCharacter.stats.maxHealth),
+    maxHealth: Number(rawCharacter.maxHealth),
     buffs: mapStatusEffects(rawCharacter.stats.buffs[0] || 0),
     debuffs: mapStatusEffects(rawCharacter.stats.debuffs[0] || 0),
     stats: mapCharacterStats(rawCharacter.stats),

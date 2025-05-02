@@ -128,7 +128,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
           <SimpleGrid columns={3} spacing={2}>
             <Stat size="sm">
               <StatLabel fontSize="xs">STR</StatLabel>
-              <StatNumber fontSize="md">{Number(stats?.strength)}</StatNumber>
+              <StatNumber fontSize="md" data-testid="character-strength">{Number(stats?.strength)}</StatNumber>
             </Stat>
             <Stat size="sm">
               <StatLabel fontSize="xs">VIT</StatLabel>
