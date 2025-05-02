@@ -5,15 +5,6 @@
 
 import { LogType } from './enums';
 
-export interface MovementOptions {
-  canMoveNorth: boolean;
-  canMoveSouth: boolean;
-  canMoveEast: boolean;
-  canMoveWest: boolean;
-  canMoveUp: boolean;
-  canMoveDown: boolean;
-}
-
 export interface EventMessage {
   message: string;
   timestamp: number;

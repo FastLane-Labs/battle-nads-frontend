@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from './useBattleNads';
+import type { Weapon, Armor } from '@/types/domain';
 
 /**
  * Hook for equipment management
@@ -23,8 +24,8 @@ export const useEquipment = () => {
   const characterId = gameState?.character?.id || null;
   
   // Current equipment
-  const currentWeapon = useMemo(() => gameState?.character?.weapon || null, [gameState]);
-  const currentArmor = useMemo(() => gameState?.character?.armor || null, [gameState]);
+  const currentWeapon = useMemo((): Weapon | null => gameState?.character?.weapon || null, [gameState]);
+  const currentArmor = useMemo((): Armor | null => gameState?.character?.armor || null, [gameState]);
   
   // Available equipment
   const weaponOptions = useMemo(() => {
