@@ -95,35 +95,6 @@ export const useEquipment = () => {
     }
     return client.getArmorName(armorId);
   };
-
-  // Get stat differences for tooltips (nice-to-have)
-  const getEquipmentStatDiff = (itemType: 'weapon' | 'armor', itemId: number) => {
-    // Implementation to compare stats between current and selected equipment
-    if (!gameState?.character) return null;
-    
-    const currentStats = itemType === 'weapon' 
-      ? currentWeapon 
-      : currentArmor;
-      
-    // Get stats for the selected item
-    const selectedItem = itemType === 'weapon'
-      ? weaponOptions.find(weapon => weapon.id === itemId)
-      : armorOptions.find(armor => armor.id === itemId);
-    
-    if (!selectedItem || !currentStats) return null;
-    
-    // This is a placeholder implementation since we don't have access to item stats yet
-    // In a real implementation, we would fetch the item stats from the backend
-    // Return difference object for tooltip display
-    return [
-      { 
-        statName: 'Power', 
-        currentValue: 0, 
-        newValue: 0, 
-        difference: 0 
-      }
-    ];
-  };
   
   return {
     // Current equipment
@@ -147,8 +118,7 @@ export const useEquipment = () => {
     getWeaponName,
     getArmorName,
     
-    // New properties
-    isInCombat,
-    getEquipmentStatDiff
+    // Combat state
+    isInCombat
   };
 }; 

@@ -18,8 +18,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
     isEquippingArmor,
     weaponError,
     armorError,
-    isInCombat,
-    getEquipmentStatDiff
+    isInCombat
   } = useEquipment();
 
   // Equipment change handlers
