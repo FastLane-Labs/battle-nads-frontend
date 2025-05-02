@@ -29,7 +29,7 @@ Based on the conversation logs, I've updated the roadmap to reflect the current 
 | D | Gas / shMON Funding Prompts     | 🔥 Prevents soft-locks                 | "If my balances are low, I'm warned and can top-up in-app."                   |
 | E | Async Feedback & Loading States | 🧭 Aligns expectations                 | "Whenever an action is pending (task queued), I see a spinner/progress badge." |
 | F | Combat State Indicators         | 🔥 User awareness -> ✅ Implemented    | "I can see when I'm in combat and what actions are available to me."           |
-| G | Equipment Inventory Management  | 🔥 Core gameplay mechanic              | "I can equip items that I find or start with."                                 |
+| G | Equipment Inventory Management  | 🔥 Core gameplay mechanic -> ✅ Implemented | "I can equip items that I find or start with."                                 |
 
 **Delivery Goal:** A player can create a character, explore, fight, manage equipment, and handle gas without leaving the browser.
 
@@ -73,7 +73,7 @@ Based on the conversation logs, I've updated the roadmap to reflect the current 
 
 2.  **MVP Track (A → G)**
     *   Focus on combat functionality (A, B, F) as the core gameplay loop.
-    *   Fix equipment management (G) to ensure basic character functionality.
+    *   ✅ Fix equipment management (G) to ensure basic character functionality.
     *   Ensure session key and gas management (C, D) work consistently.
     *   Integrate E continuously as it wraps all actions.
 
@@ -92,7 +92,7 @@ Based on the conversation logs, I've updated the roadmap to reflect the current 
 
 | Milestone             | Feature Completion          |
 |:----------------------|:----------------------------|
-| M0 – Internal Alpha   | A, B, E, F                  |
+| M0 – Internal Alpha   | A, B, E, F, G               |
 | M1 – Testnet Beta     | A–G fully functional        |
 | M2 – Feature-Complete Beta | + H, I, J, M           |
 | M3 – Public Mainnet   | + K, L, selected N-V        |
