@@ -42,7 +42,7 @@ export const useGame = () => {
   
   // Session key management
   const { 
-    sessionKey, 
+    sessionKeyData,
     sessionKeyState, 
     needsUpdate: needsSessionKeyUpdate,
     refreshSessionKey
@@ -52,9 +52,9 @@ export const useGame = () => {
   useEffect(() => {
       console.log(`[useGame] Session key state changed: ${sessionKeyState}`, { 
         needsUpdate: needsSessionKeyUpdate, 
-        rawData: safeStringify(sessionKey)
+        rawData: safeStringify(sessionKeyData)
       });
-  }, [sessionKeyState, needsSessionKeyUpdate, sessionKey]);
+  }, [sessionKeyState, needsSessionKeyUpdate, sessionKeyData]);
   // ---------------------------------------------------
   
   // Extract chat logs
@@ -234,7 +234,7 @@ export const useGame = () => {
     return {
       // Combine data from gameState (from useBattleNads) and sessionKey
       characterID: gameState.character.id, 
-      sessionKeyData: mapSessionKeyData(sessionKey ?? null, owner) ?? {
+      sessionKeyData: mapSessionKeyData(sessionKeyData ?? null, owner) ?? {
         owner: owner ?? '', // Use hook's owner, fallback to empty
         key: '',
         balance: '0',
@@ -254,7 +254,7 @@ export const useGame = () => {
       // Note: Original gameState structure from useBattleNads might slightly differ
       // We might need to adjust which properties are pulled from where if needed
     };
-  }, [gameState, sessionKey]);
+  }, [gameState, sessionKeyData]);
   // -----------------------------------------
 
   // --- Determine Combat State ---
@@ -277,7 +277,7 @@ export const useGame = () => {
     hasWallet: !!injectedWallet?.address,
     
     // Session key
-    sessionKey,
+    sessionKeyData,
     sessionKeyState,
     needsSessionKeyUpdate,
     updateSessionKey: updateSessionKeyMutation.mutate,

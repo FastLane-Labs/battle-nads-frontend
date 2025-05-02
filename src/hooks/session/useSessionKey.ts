@@ -1,163 +1,92 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
+import { useState, useEffect } from 'react';
 import { SessionKeyState, sessionKeyMachine } from '../../machines/sessionKeyMachine';
 import { useWallet } from '../../providers/WalletProvider';
-import { useState, useEffect } from 'react';
+import { useBattleNads } from '../game/useBattleNads';
 import { ZeroAddress } from 'ethers';
+import { contract } from '../../types';
 
 /**
  * Hook for managing and validating session keys
- * Leverages React-Query for caching and the session key state machine for validation
+ * Derives session key data and block number from useBattleNads (which uses useUiSnapshot)
+ * Leverages the session key state machine for validation
  */
 export const useSessionKey = (characterId: string | null) => {
-  const { client } = useBattleNadsClient();
+  // Get wallets
   const { embeddedWallet, injectedWallet } = useWallet();
+  const ownerAddress = injectedWallet?.address ?? null; // Ensure ownerAddress is string | null
+  
+  // Get snapshot data from useBattleNads
+  const { 
+    rawSessionKeyData, // Use the raw data exposed by useBattleNads
+    rawEndBlock,       // Use the raw endBlock exposed by useBattleNads
+    isLoading: isSnapshotLoading, 
+    error: snapshotError, 
+    refetch: refreshSnapshot // Can use this to trigger a refresh of the source data
+  } = useBattleNads(ownerAddress); // Pass owner address (now guaranteed string | null)
+
+  // Local state for the derived validation state
   const [sessionKeyState, setSessionKeyState] = useState<SessionKeyState>(SessionKeyState.IDLE);
-  const queryClient = useQueryClient();
-
-  // Query for session key data
-  const { 
-    data: sessionKey, 
-    isLoading: isLoadingSessionKey,
-    isFetching: isFetchingSessionKey,
-    error: sessionKeyError,
-    refetch: refreshSessionKey 
-  } = useQuery({
-    queryKey: ['sessionKey', injectedWallet?.address, characterId],
-    queryFn: async () => {
-      const owner = injectedWallet?.address;
-      if (!client || !owner || !characterId) {
-        throw new Error('Client, owner address, or character ID missing for session key fetch');
-      }
-      
-      console.log(`[useSessionKey] Fetching session key data for owner: ${owner}`);
-      
-      try {
-        const data = await client.getCurrentSessionKeyData(owner);
-        console.log(`[useSessionKey] Received session key data:`, JSON.stringify(data, (key, value) => 
-          typeof value === 'bigint' ? value.toString() : value
-        ));
-        
-        return data === undefined ? null : data; 
-      } catch (error) {
-        console.error("[useSessionKey] Error fetching session key data:", error);
-        throw error;
-      }
-    },
-    enabled: !!characterId && !!client && !!injectedWallet?.address,
-    // Keep optimistic caching settings
-    staleTime: 5 * 60 * 1000, 
-    refetchInterval: 5 * 60 * 1000, 
-  });
-
-  // Query for current block number (for expiration checks)
-  const { 
-    data: currentBlock,
-    isLoading: isLoadingBlock,
-    isFetching: isFetchingBlock, // Use isFetching to track background updates
-    error: blockError
-  } = useQuery({
-    queryKey: ['currentBlock'],
-    queryFn: async () => {
-      if (!client) {
-        // Should not happen if enabled is correct, but good practice
-        console.error("[useSessionKey] Client missing for block number fetch despite query being enabled.");
-        throw new Error('Client missing for block number fetch'); 
-      }
-      // Wallet address check is now implicitly handled by the 'enabled' condition below
-      console.log("[useSessionKey] Fetching current block number...");
-      
-      try {
-        const block = await client.getLatestBlockNumber();
-        const blockNumber = Number(block);
-        // Ensure we don't return NaN or a non-positive number
-        if (isNaN(blockNumber) || blockNumber <= 0) {
-            console.warn(`[useSessionKey] Invalid block number received: ${blockNumber}, returning 0`);
-            return 0; // Return 0 if block number is invalid
-        }
-        console.log(`[useSessionKey] Current block number: ${blockNumber}`);
-        return blockNumber;
-      } catch (err) {
-        console.error("[useSessionKey] Error fetching block number:", err);
-        return 0;
-      }
-    },
-    // Enable only when the client AND at least one wallet (owner or session) is available
-    enabled: !!client && !!(injectedWallet?.address || embeddedWallet?.address),
-    staleTime: 12_000, // ~1 block time
-    refetchInterval: 12_000,
-  });
 
   // Effect to calculate and update session key state when relevant dependencies change
   useEffect(() => {
-    const isQueryEnabled = !!characterId && !!client && !!injectedWallet?.address;
-    // Use initial loading flags for core readiness check
-    const areQueriesInitiallyLoading = isLoadingSessionKey || isLoadingBlock;
+    // Determine if the necessary inputs for validation are available and valid
+    const embeddedAddr = embeddedWallet?.address;
+    const sessionKey = rawSessionKeyData?.key; // Use optional chaining
+    const expiration = rawSessionKeyData?.expiration ? Number(rawSessionKeyData.expiration) : 0;
+    const currentBlock = rawEndBlock ? Number(rawEndBlock) : 0;
     
-    const hasQueryError = !!sessionKeyError || !!blockError;
+    const isInputAvailable = 
+      !!characterId && 
+      !!ownerAddress && 
+      !!embeddedAddr &&
+      rawSessionKeyData !== undefined && // Check if data object exists (even if null)
+      rawEndBlock !== undefined; // Check if endBlock exists
 
-    const validationInput = {
-      sessionKeyAddress: sessionKey?.key,
-      ownerAddress: injectedWallet?.address,
-      embeddedAddress: embeddedWallet?.address,
-      expiration: sessionKey?.expiration ? Number(sessionKey.expiration) : 0,
-      currentBlock: currentBlock || 0
-    };
-
-    // Check if all data required for validation is ready and valid
     const isReadyForValidation = 
-      isQueryEnabled &&
-      sessionKey !== undefined && // Data is fetched (even if potentially stale during refetch)
-      sessionKey?.key && 
-      sessionKey.key.toLowerCase() !== ZeroAddress.toLowerCase() && 
-      currentBlock !== undefined && 
-      currentBlock > 0 && 
-      embeddedWallet?.address && 
-      !areQueriesInitiallyLoading && // Ensure initial load is complete
-      !hasQueryError; 
+      isInputAvailable && 
+      !isSnapshotLoading && // Only validate after initial load of snapshot
+      !snapshotError && 
+      sessionKey && // Ensure key is not null/undefined
+      sessionKey.toLowerCase() !== ZeroAddress.toLowerCase() && 
+      currentBlock > 0; 
 
     let newSessionKeyState = SessionKeyState.IDLE;
 
     if (isReadyForValidation) {
-      // All checks passed, safe to assert non-null
+      // All checks passed, safe to assert non-null based on isReadyForValidation checks
       newSessionKeyState = sessionKeyMachine.validate(
-        sessionKey.key!, // Asserting non-null based on isReadyForValidation
-        embeddedWallet.address!, // Asserting non-null based on isReadyForValidation
-        Number(sessionKey.expiration!), // Asserting non-null based on isReadyForValidation
-        currentBlock! // Asserting non-null and >0 based on isReadyForValidation
+        sessionKey!, 
+        embeddedAddr!, 
+        expiration, // Already converted to number
+        currentBlock
       );
       console.log("[useSessionKey Effect] Validation result state:", newSessionKeyState);
     } else {
       // Determine why validation isn't ready and set state
-      if (!isQueryEnabled) {
-        console.log("[useSessionKey Effect] Validation skipped: Query disabled.");
+      if (!characterId || !ownerAddress) {
+        console.log("[useSessionKey Effect] Validation skipped: Hook disabled (no charId or owner).");
         newSessionKeyState = SessionKeyState.IDLE;
-      } else if (areQueriesInitiallyLoading) { // Check INITIAL loading state here
-        // Log loading state only during initial load (isLoading)
-        console.log("[useSessionKey Effect] Validation skipped: Initial queries loading...");
+      } else if (isSnapshotLoading) { 
+        console.log("[useSessionKey Effect] Validation skipped: Snapshot loading...");
         newSessionKeyState = SessionKeyState.MISSING; // Indicate data is not ready during initial load
-      } else if (hasQueryError) {
-        console.log("[useSessionKey Effect] Validation skipped: Query error...", {
-            sessionKeyError: sessionKeyError?.message,
-            blockError: blockError?.message
-        });
+      } else if (snapshotError) {
+        console.log("[useSessionKey Effect] Validation skipped: Snapshot query error...", snapshotError);
         newSessionKeyState = SessionKeyState.MISSING; // Error prevents validation
-      } else if (sessionKey !== undefined && currentBlock !== undefined) {
-          // Queries finished loading without error, but data is still invalid
-          console.log("[useSessionKey Effect] Validation skipped: Invalid data post-load:", validationInput);
-          // Check for specific invalid data conditions
-          if (!sessionKey?.key || sessionKey.key.toLowerCase() === ZeroAddress.toLowerCase()) {
+      } else if (isInputAvailable) { // Snapshot loaded without error, but data is invalid
+          console.log("[useSessionKey Effect] Validation skipped: Invalid data post-load:", {
+              sessionKey, expiration, currentBlock, embeddedAddr
+          });
+          if (!sessionKey || sessionKey.toLowerCase() === ZeroAddress.toLowerCase()) {
              console.warn("[useSessionKey Effect] - Session key missing or zero address post-load");
           }
-          if (!embeddedWallet?.address) console.warn("[useSessionKey Effect] - Embedded wallet address missing post-load");
-          // Only log block error if it finished loading and is <= 0
-          if (!isLoadingBlock && !blockError && currentBlock <= 0) {
+          if (!embeddedAddr) console.warn("[useSessionKey Effect] - Embedded wallet address missing post-load");
+          if (currentBlock <= 0) {
               console.warn("[useSessionKey Effect] - Current block number invalid (<=0) post-load");
           }
           newSessionKeyState = SessionKeyState.MISSING; // Data present but invalid
       } else {
-          // Fallback for any other intermediate state before both queries resolve
-          console.log("[useSessionKey Effect] Validation skipped: Waiting for data...");
+          // Fallback for any other intermediate state
+          console.log("[useSessionKey Effect] Validation skipped: Waiting for data (snapshot query enabled but data missing)...", { characterId, ownerAddress, embeddedAddr, rawSessionKeyData, rawEndBlock });
           newSessionKeyState = SessionKeyState.MISSING;
       }
     }
@@ -174,18 +103,12 @@ export const useSessionKey = (characterId: string | null) => {
   }, [
     // Dependencies that should trigger re-validation
     characterId,
-    client,
-    injectedWallet?.address,
+    ownerAddress,
     embeddedWallet?.address,
-    // Use stable primitives/strings from sessionKey where possible
-    sessionKey?.key,
-    sessionKey?.expiration,
-    // sessionKey, // Avoid depending on the whole object reference if possible 
-    currentBlock, 
-    isLoadingSessionKey, // Still need loading flags
-    isLoadingBlock,
-    sessionKeyError,
-    blockError
+    rawSessionKeyData, // Depend on the raw data object from snapshot
+    rawEndBlock,       // Depend on the raw end block from snapshot
+    isSnapshotLoading, // Depend on snapshot loading state
+    snapshotError      // Depend on snapshot error state
   ]);
 
   // Determine if session key needs update (based on final state)
@@ -195,22 +118,17 @@ export const useSessionKey = (characterId: string | null) => {
     sessionKeyState === SessionKeyState.MISSING;
 
   // Return values needed by consuming components
-  const finalIsLoading = isLoadingSessionKey || isLoadingBlock;
-  console.log(`[useSessionKey Return Debug] isLoadingSessionKey=${isLoadingSessionKey}, isLoadingBlock=${isLoadingBlock}, finalIsLoading=${finalIsLoading}`);
+  // isLoading/isFetching now reflect the snapshot query state
+  console.log(`[useSessionKey Return Debug] isSnapshotLoading=${isSnapshotLoading}`);
 
   return {
-    sessionKey,
-    // Use isLoading for initial load indication, isFetching for background updates
-    isLoading: finalIsLoading, 
-    isFetching: isFetchingSessionKey || isFetchingBlock, 
-    error: sessionKeyError 
-      ? (sessionKeyError as Error).message 
-      : blockError 
-        ? (blockError as Error).message 
-        : null,
-    refreshSessionKey,
+    // Return the raw data used for validation (might be needed by UI)
+    sessionKeyData: rawSessionKeyData,
+    isLoading: isSnapshotLoading, 
+    error: snapshotError, // Pass snapshot error
+    refreshSessionKey: refreshSnapshot, // Expose snapshot refetch
     sessionKeyState, // The state calculated by the useEffect
     needsUpdate,
-    currentBlock: currentBlock || 0
+    currentBlock: rawEndBlock ? Number(rawEndBlock) : 0 // Provide current block derived from snapshot
   };
 }; 
