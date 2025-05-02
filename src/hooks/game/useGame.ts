@@ -266,6 +266,12 @@ export const useGame = () => {
   }, [gameState, sessionKey]);
   // -----------------------------------------
 
+  // --- Determine Combat State ---
+  const isInCombat = useMemo(() => {
+      return !!worldSnapshot && worldSnapshot.combatants.length > 0;
+  }, [worldSnapshot]);
+  // ----------------------------
+
   return {
     // State
     worldSnapshot, // Return the unified snapshot
@@ -299,6 +305,9 @@ export const useGame = () => {
       canMoveWest: false, canMoveUp: false, canMoveDown: false 
     },
     
+    // Combat State
+    isInCombat,
+
     // Actions
     moveCharacter: (direction: domain.Direction) => 
       moveCharacterMutation.mutate({ direction }),

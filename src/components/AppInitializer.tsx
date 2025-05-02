@@ -102,6 +102,7 @@ const AppInitializer: React.FC = () => {
            isMoving={game.isMoving}
            isAttacking={game.isAttacking}
            isSendingChat={game.isSendingChat}
+           isInCombat={game.isInCombat}
          />,
          "Game Container"
       );

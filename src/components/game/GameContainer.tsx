@@ -33,6 +33,7 @@ interface GameContainerProps {
   isMoving: boolean;
   isAttacking: boolean;
   isSendingChat: boolean;
+  isInCombat: boolean;
 }
 
 const GameContainer: React.FC<GameContainerProps> = (props) => {
@@ -46,7 +47,8 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
     sendChatMessage,
     isMoving,
     isAttacking,
-    isSendingChat
+    isSendingChat,
+    isInCombat
   } = props;
 
   const toast = useToast();
@@ -108,6 +110,9 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
 
   return (
     <Box height="calc(100vh - 60px)" position="relative">
+      {/* Combat State Banner - REMOVED */}
+      {/* <InCombatBanner isVisible={isInCombat} /> */}
+
       {/* Debug Button */}
       <Box position="fixed" right="20px" bottom="20px" zIndex={1000}>
         <IconButton
@@ -144,6 +149,7 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
           isAttacking={isAttacking}
           characterId={characterId}
           onSendChatMessage={handleSendChatMessage}
+          isInCombat={isInCombat}
         />
 
         {/* Wallet Balances */}

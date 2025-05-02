@@ -1,4 +1,5 @@
 // jest.setup.js
+// This will extend Jest's expect functionality with Testing Library's custom matchers.
 import '@testing-library/jest-dom';
 const { TextEncoder, TextDecoder } = require('util');
 global.TextEncoder = TextEncoder;

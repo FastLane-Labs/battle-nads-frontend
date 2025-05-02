@@ -25,11 +25,15 @@ interface MovementControlsProps {
   onMove: (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => Promise<void>;
   isMoving: boolean;
   position: { x: number; y: number; z: number };
+  isInCombat: boolean;
 }
 
-const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, position }) => {
+const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, position, isInCombat }) => {
 
   const getTooltipLabel = (dir: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
+    if (isInCombat) {
+      return "⚔️ Cannot move while in combat";
+    }
     if (!position) return 'Move';
     let x = Number(position.x);
     let y = Number(position.y);
@@ -70,7 +74,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, p
               icon={<ChevronUpIcon boxSize={6} />}
               size="md"
               onClick={() => onMove('north')}
-              isDisabled={isMoving}
+              isDisabled={isMoving || isInCombat}
               colorScheme="blue"
             />
           </Tooltip>
@@ -83,7 +87,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, p
               icon={<ArrowBackIcon boxSize={6} />}
               size="md"
               onClick={() => onMove('west')}
-              isDisabled={isMoving}
+              isDisabled={isMoving || isInCombat}
               colorScheme="blue"
             />
           </Tooltip>
@@ -96,7 +100,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, p
               icon={<ArrowForwardIcon boxSize={6} />}
               size="md"
               onClick={() => onMove('east')}
-              isDisabled={isMoving}
+              isDisabled={isMoving || isInCombat}
               colorScheme="blue"
             />
           </Tooltip>
@@ -109,7 +113,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, p
               icon={<ChevronDownIcon boxSize={6} />}
               size="md"
               onClick={() => onMove('south')}
-              isDisabled={isMoving}
+              isDisabled={isMoving || isInCombat}
               colorScheme="blue"
             />
           </Tooltip>
@@ -122,7 +126,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, p
               icon={<ChevronUpIcon boxSize={5} />}
               size="md" 
               onClick={() => onMove('up')} 
-              isDisabled={isMoving}
+              isDisabled={isMoving || isInCombat}
               colorScheme="purple"
             />
           </Tooltip>
@@ -135,7 +139,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, p
               icon={<ChevronDownIcon boxSize={5} />}
               size="md" 
               onClick={() => onMove('down')} 
-              isDisabled={isMoving}
+              isDisabled={isMoving || isInCombat}
               colorScheme="purple"
             />
           </Tooltip>

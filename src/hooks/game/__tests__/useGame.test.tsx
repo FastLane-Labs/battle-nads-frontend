@@ -221,4 +221,44 @@ describe('useGame', () => {
     expect(result.current.characterId).toBe(null);
     expect(result.current.worldSnapshot).toBe(null);
   });
+
+  // --- NEW Test Cases for isInCombat --- 
+
+  it('should return isInCombat: false when combatants array is empty', async () => {
+    (useBattleNads as jest.Mock).mockReturnValue({
+      gameState: {
+        ...mockBaseGameState,
+        combatants: [], // Ensure empty array
+      },
+      isLoading: false,
+      error: null,
+      refetch: jest.fn()
+    });
+    
+    const { result } = renderHook(() => useGame(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.isInCombat).toBe(false);
+  });
+
+  it('should return isInCombat: true when combatants array has items', async () => {
+    const mockCombatant = { id: 'combatant1', name: 'Goblin' }; 
+    (useBattleNads as jest.Mock).mockReturnValue({
+      gameState: {
+        ...mockBaseGameState,
+        combatants: [mockCombatant], // Ensure non-empty array
+      },
+      isLoading: false,
+      error: null,
+      refetch: jest.fn()
+    });
+    
+    const { result } = renderHook(() => useGame(), { wrapper });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    expect(result.current.isInCombat).toBe(true);
+  });
+  // --- END NEW Test Cases --- 
 }); 
