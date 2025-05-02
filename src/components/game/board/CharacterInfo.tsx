@@ -14,8 +14,6 @@ import {
   VStack
 } from '@chakra-ui/react';
 import { domain } from '@/types';
-import { calculateMaxHealth } from '@/utils/gameDataConverters';
-import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
 
 // Constants from the smart contract
 const EXP_BASE = 100; // Base experience points required per level
@@ -46,10 +44,15 @@ const formatGold = (value: number | bigint | undefined): string => {
 
 interface CharacterInfoProps {
   character: domain.Character;
-  isInCombat: boolean;
+  combatants: domain.CharacterLite[];
 }
 
-const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, isInCombat }) => {
+const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) => {
+  // No need for separate currentStats state if just reading from props now
+  // const [currentStats, setCurrentStats] = useState<typeof character.stats>(character.stats);
+  
+  // Removed useEffect hooks related to currentStats and event listeners
+
   if (!character) return null;
 
   // Destructure health AND maxHealth directly from the character prop
@@ -72,8 +75,18 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, isInCombat }) 
     return Math.min(100, (currentExperience / experienceNeededForNextLevel) * 100); // Cap at 100%
   }, [level, stats?.experience]);
 
+  // Determine combat indicator text
+  const isInCombat = combatants && combatants.length > 0;
+  const combatIndicatorText = useMemo(() => {
+    if (!isInCombat) return null;
+    if (combatants.length === 1) {
+      return `Fighting: ${combatants[0]?.name || 'Unknown'}`;
+    }
+    return `Fighting: Multiple Enemies (${combatants.length})`;
+  }, [combatants, isInCombat]);
+
   return (
-    <Box bg="red.800" p={4} borderRadius="md" h="100%" overflowY="auto">
+    <Box bg="gray.800" p={4} borderRadius="md" h="100%" overflowY="auto">
       <VStack spacing={3} align="stretch">
         {/* Character Name and Level */}
         <Flex justify="space-between" align="center">
@@ -85,10 +98,10 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, isInCombat }) 
           )}
         </Flex>
         
-        {/* Combat Indicator - Simplified */}
+        {/* Combat Indicator - NEW */}
         {isInCombat && (
           <Badge colorScheme="red" variant="solid" p={1} textAlign="center" w="100%">
-            ⚔️ In Combat ⚔️
+            ⚔️ {combatIndicatorText} ⚔️
           </Badge>
         )}
         
@@ -143,7 +156,19 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, isInCombat }) 
         <Divider />
         
         {/* Equipment */}
-        <EquipmentPanel characterId={character?.id} />
+        <Box>
+          <Text fontWeight="bold" mb={2}>Equipment</Text>
+          <VStack align="stretch" spacing={2}>
+            <Flex justify="space-between" align="center">
+              <Text fontSize="sm">Weapon:</Text>
+              <Text fontSize="sm" fontWeight="medium">{weapon?.name || `ID #${weapon?.id || 'None'}`}</Text>
+            </Flex>
+            <Flex justify="space-between" align="center">
+              <Text fontSize="sm">Armor:</Text>
+              <Text fontSize="sm" fontWeight="medium">{armor?.name || `ID #${armor?.id || 'None'}`}</Text>
+            </Flex>
+          </VStack>
+        </Box>
         
         <Divider />
         
