@@ -1,8 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip, Spinner, Image } from '@chakra-ui/react';
-import { MoonIcon, SunIcon } from '@chakra-ui/icons';
+import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip, Spinner, Image, useClipboard, IconButton } from '@chakra-ui/react';
+import { MoonIcon, SunIcon, CopyIcon, CheckIcon } from '@chakra-ui/icons';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
@@ -39,6 +39,9 @@ const NavBar: React.FC = () => {
   const sessionKeyAddress = sessionKeyData?.key;
   const canDeactivate = !!sessionKeyAddress && sessionKeyAddress !== '0x0000000000000000000000000000000000000000';
 
+  const { onCopy: onCopyEmbedded, hasCopied: hasCopiedEmbedded } = useClipboard(embeddedWallet?.address ?? '');
+  const { onCopy: onCopyInjected, hasCopied: hasCopiedInjected } = useClipboard(injectedWallet?.address ?? '');
+
   const isActive = (path: string) => pathname === path;
   
   const formatWalletType = (type?: string): string => {
@@ -58,7 +61,7 @@ const NavBar: React.FC = () => {
       console.error("Logout failed:", error);
     }
   };
-  
+
   return (
     <Box
       position="fixed"
@@ -150,39 +153,77 @@ const NavBar: React.FC = () => {
             </Button>
           ) : (
             <HStack spacing={4}>
-              <HStack spacing={3}>
-                {embeddedWallet && (
-                  <Tooltip label="Session Key for Account Abstraction" placement="bottom">
-                    <HStack>
-                      <Badge colorScheme="green" fontSize="xs">SESSION KEY</Badge>
-                      <Text fontSize="sm" fontFamily="monospace">
-                        {`${embeddedWallet.address?.slice(0, 6)}...${embeddedWallet.address?.slice(-4)}`}
-                      </Text>
-                    </HStack>
-                  </Tooltip>
+              <HStack spacing={3}> 
+                {embeddedWallet?.address && (
+                   <Tooltip 
+                     label={
+                       <HStack spacing={1}>
+                         <Text>{hasCopiedEmbedded ? 'Copied!' : 'Copy Session Key'}</Text>
+                         {hasCopiedEmbedded ? <CheckIcon color="green.500" /> : <CopyIcon />}
+                       </HStack>
+                     } 
+                     closeOnClick={false}
+                     placement="bottom"
+                   >
+                     <Button 
+                       variant="ghost" 
+                       size="sm" 
+                       onClick={onCopyEmbedded} 
+                       height="auto" 
+                       p={1}
+                     >
+                        <HStack spacing={1}> 
+                          <Badge colorScheme="green" fontSize="xs">SESSION KEY</Badge>
+                          <Text fontSize="sm" fontFamily="monospace">
+                            {`${embeddedWallet.address.slice(0, 6)}...${embeddedWallet.address.slice(-4)}`}
+                          </Text>
+                        </HStack>
+                      </Button>
+                   </Tooltip>
                 )}
-                {injectedWallet && (
-                  <Tooltip label={`${formatWalletType(injectedWallet.walletClientType)} Wallet`} placement="bottom">
-                    <HStack>
-                      <Badge colorScheme="blue" fontSize="xs">{formatWalletType(injectedWallet.walletClientType).toUpperCase()}</Badge>
-                      <Text fontSize="sm" fontFamily="monospace">
-                        {`${injectedWallet.address?.slice(0, 6)}...${injectedWallet.address?.slice(-4)}`}
-                      </Text>
-                    </HStack>
-                  </Tooltip>
+                {injectedWallet?.address && (
+                  <Tooltip 
+                     label={
+                       <HStack spacing={1}>
+                         <Text>{hasCopiedInjected ? 'Copied!' : `Copy ${formatWalletType(injectedWallet.walletClientType)}`}</Text>
+                         {hasCopiedInjected ? <CheckIcon color="green.500" /> : <CopyIcon />}
+                       </HStack>
+                     }
+                     closeOnClick={false} 
+                     placement="bottom"
+                   >
+                     <Button 
+                       variant="ghost" 
+                       size="sm" 
+                       onClick={onCopyInjected} 
+                       height="auto" 
+                       p={1}
+                      >
+                        <HStack spacing={1}>
+                          <Badge colorScheme="blue" fontSize="xs">{formatWalletType(injectedWallet.walletClientType).toUpperCase()}</Badge>
+                          <Text fontSize="sm" fontFamily="monospace">
+                            {`${injectedWallet.address.slice(0, 6)}...${injectedWallet.address.slice(-4)}`}
+                          </Text>
+                        </HStack>
+                      </Button>
+                   </Tooltip>
                 )}
               </HStack>
               
-              <Button 
-                colorScheme="orange" 
-                size="sm" 
-                onClick={() => deactivateKey()} 
-                isLoading={isDeactivating}
-                isDisabled={!canDeactivate || isDeactivating}
-                ml={2}
-              >
-                Deactivate Key
-              </Button>
+              <Tooltip label="Disable session key for game actions" placement="bottom">
+                <span>
+                  <Button 
+                    colorScheme="orange" 
+                    size="sm" 
+                    onClick={() => deactivateKey()} 
+                    isLoading={isDeactivating}
+                    isDisabled={!canDeactivate || isDeactivating}
+                    ml={2}
+                  >
+                    Deactivate Session
+                  </Button>
+                </span>
+              </Tooltip>
 
               <Button colorScheme="red" size="sm" onClick={handleLogout}>
                 Disconnect
