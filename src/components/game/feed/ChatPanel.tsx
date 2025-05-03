@@ -5,12 +5,14 @@ import { domain } from '@/types'; // Import domain types
 interface ChatPanelProps {
   characterId: string;
   onSendChatMessage: (message: string) => Promise<void>;
+  addOptimisticChatMessage: (message: string) => void;
   chatLogs: domain.ChatMessage[]; // Accept chatLogs prop
 }
 
 const ChatPanel: React.FC<ChatPanelProps> = ({ 
   characterId, 
   onSendChatMessage, 
+  addOptimisticChatMessage,
   chatLogs // Destructure chatLogs
 }) => {
   const [inputValue, setInputValue] = useState('');
@@ -26,20 +28,25 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   }, [chatLogs]);
   
   const handleSendMessage = async () => {
-    if (inputValue.trim() && !isSubmitting) {
+    const messageToSend = inputValue.trim();
+    if (messageToSend && !isSubmitting) {
       setIsSubmitting(true);
       
       try {
-        await onSendChatMessage(inputValue);
-        // Remove local message simulation
-        // const newMessage: ChatMessage = { ... };
-        // setMessages(prev => [...prev, newMessage]);
+        // 1. Send the message to the blockchain
+        await onSendChatMessage(messageToSend);
+        
+        // 2. Add the message to the optimistic local state
+        addOptimisticChatMessage(messageToSend);
+
+        // 3. Clear the input field
         setInputValue('');
       } catch (error) {
         console.error('Failed to send message:', error);
+        // Optionally show a toast or error message to the user
       } finally {
         setIsSubmitting(false);
-      }
+      } 
     }
   };
   
@@ -85,19 +92,17 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               alignSelf={isOwnMessage ? 'flex-end' : 'flex-start'}
               maxW="80%"
             >
-              <Flex justify="space-between" mb={1}>
+              <Flex justify="space-between" alignItems="flex-end" mb={1}>
                 <Text fontWeight="bold" fontSize="sm" color="blue.300">
-                  {message.sender.name} {/* Use sender name from the structured object */}
+                  {message.sender.name}
                 </Text>
-                <Text fontSize="xs" color="gray.400">
-                  {/* Format timestamp if needed, assumes it's a number (block number) */}
-                  {new Date(message.timestamp * 1000).toLocaleTimeString()} {/* Convert block timestamp */}
+                <Text fontSize="xs" color="gray.400" ml={2}>
+                  {/* Format timestamp without seconds */}
+                  {new Date(message.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </Text>
               </Flex>
-              <Text fontWeight={isOwnMessage ? "bold" : "normal"}>
-                {/* Use sender name from the structured object */}
-                {message.sender.name}: <chakra.span fontWeight="normal">{message.message}</chakra.span>
-              </Text>
+              {/* Render only the message content */}
+              <Text>{message.message}</Text>
             </Box>
           );
         })}

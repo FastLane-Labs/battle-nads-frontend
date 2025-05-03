@@ -34,6 +34,7 @@ interface GameContainerProps {
   isAttacking: boolean;
   isSendingChat: boolean;
   isInCombat: boolean;
+  addOptimisticChatMessage: (message: string) => void;
 }
 
 const GameContainer: React.FC<GameContainerProps> = (props) => {
@@ -48,7 +49,8 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
     isMoving,
     isAttacking,
     isSendingChat,
-    isInCombat
+    isInCombat,
+    addOptimisticChatMessage
   } = props;
 
   const toast = useToast();
@@ -63,10 +65,6 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
     down: domain.Direction.Down,
   };
 
-  const addToCombatLog = useCallback((message: string) => {
-    console.log("[Combat Log]:", message);
-  }, []);
-
   const handleMovement = useCallback(async (directionString: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
     if (!isMoving) {
       const directionEnum = directionMap[directionString];
@@ -74,29 +72,25 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
         console.error(`Invalid direction string: ${directionString}`);
         return;
       }
-      addToCombatLog(`Attempting move: ${directionString}`);
       try {
         await moveCharacter(directionEnum);
         toast({ title: `Moved ${directionString}`, status: "success", duration: 1500 });
       } catch (err: any) {
         toast({ title: "Movement Failed", description: err.message, status: "error", duration: 3000 });
-        addToCombatLog(`Failed move ${directionString}: ${err.message}`);
       }
     }
-  }, [moveCharacter, isMoving, addToCombatLog, toast, directionMap]);
+  }, [moveCharacter, isMoving, toast, directionMap]);
   
   const handleAttack = useCallback(async (targetIndex: number) => {
     if (!isAttacking) {
-      addToCombatLog(`Attempting attack on index: ${targetIndex}`);
       try {
         await attack(targetIndex);
         toast({ title: `Attacked target ${targetIndex}`, status: "success", duration: 1500 });
       } catch (err: any) {
         toast({ title: "Attack Failed", description: err.message, status: "error", duration: 3000 });
-        addToCombatLog(`Failed attack on ${targetIndex}: ${err.message}`);
       }
     }
-  }, [attack, isAttacking, addToCombatLog, toast]);
+  }, [attack, isAttacking, toast]);
 
   const handleSendChatMessage = useCallback(async (message: string) => {
     if (!isSendingChat && message.trim()) {
@@ -149,6 +143,7 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
           isAttacking={isAttacking}
           characterId={characterId}
           onSendChatMessage={handleSendChatMessage}
+          addOptimisticChatMessage={addOptimisticChatMessage}
           isInCombat={isInCombat}
         />
 

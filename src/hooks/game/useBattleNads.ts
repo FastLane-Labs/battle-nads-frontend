@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState, useCallback } from 'react';
 import { ui, domain, contract } from '../../types';
 import { useUiSnapshot } from './useUiSnapshot';
 import { worldSnapshotToGameState, contractToWorldSnapshot } from '../../mappers';
@@ -17,6 +17,9 @@ export const useBattleNads = (owner: string | null) => {
     refetch 
   } = useUiSnapshot(owner);
 
+  /* ---------- Optimistic Chat State ---------- */
+  const [optimisticChatMessages, setOptimisticChatMessages] = useState<domain.ChatMessage[]>([]);
+
   /* ---------- preserve previous data ---------- */
   const previousGameStateRef = useRef<ui.GameState | null>(null);
 
@@ -26,47 +29,105 @@ export const useBattleNads = (owner: string | null) => {
   const balanceShortfall = useMemo(() => rawData?.balanceShortfall, [rawData]);
 
   // Map the raw data to a GameState using the mapper utility
-  const gameState = useMemo(
+  const { gameState, mappedDomainSnapshot } = useMemo(
     () => {
       if (!rawData) {
         // return last good state during refetch to avoid "flash of empty"
-        return previousGameStateRef.current;
+        return { gameState: previousGameStateRef.current, mappedDomainSnapshot: null };
       }
            
+      let currentGameState: ui.GameState | null = null;
+      let domainSnapshot: Omit<domain.WorldSnapshot, 'movementOptions'> | null = null;
       try {
         // First convert contract data to domain model
-        const domainSnapshot = contractToWorldSnapshot(rawData, owner);
+        domainSnapshot = contractToWorldSnapshot(rawData, owner, rawData.characterID);
         
         if (!domainSnapshot) {
-          return previousGameStateRef.current;
+          return { gameState: previousGameStateRef.current, mappedDomainSnapshot: null };
         }
         
         // Safe log to help with debugging BigInt issues
-        console.log(`[useBattleNads] Processing snapshot with sessionKey: ${safeStringify(domainSnapshot.sessionKeyData)}`);
+        // console.log(`[useBattleNads] Processing snapshot with sessionKey: ${safeStringify(domainSnapshot.sessionKeyData)}`);
         
+        // --- Optimistic Chat Merging --- 
+        const confirmedChatLogs = domainSnapshot.chatLogs || [];
+        let remainingOptimistic: domain.ChatMessage[] = [];
+
+        // Simple matching: check if sender/message match between optimistic and confirmed
+        // A more robust solution might involve temporary IDs or content hashing
+        setOptimisticChatMessages(prevOptimistic => {
+          remainingOptimistic = prevOptimistic.filter(optimisticMsg => {
+            const match = confirmedChatLogs.find(confirmedLog => 
+              confirmedLog.sender.id === optimisticMsg.sender.id && 
+              confirmedLog.message === optimisticMsg.message
+              // Add timestamp proximity check if needed
+            );
+            return !match; // Keep optimistic message if no match found
+          });
+          return remainingOptimistic;
+        });
+
+        // Combine remaining optimistic messages with confirmed logs
+        const finalChatLogs = [...remainingOptimistic, ...confirmedChatLogs].sort(
+          (a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp
+        );
+        // --- End Optimistic Chat Merging ---
+
+        // Update the chatLogs in the snapshot before final mapping
+        const snapshotWithMergedChat: typeof domainSnapshot = {
+          ...domainSnapshot,
+          chatLogs: finalChatLogs
+        };
+
         // Then convert domain model to UI model
-        const mapped = worldSnapshotToGameState(domainSnapshot);
+        currentGameState = worldSnapshotToGameState(snapshotWithMergedChat);
         
         // store for next render cycle
-        previousGameStateRef.current = mapped;
-        return mapped;
-      } catch (error) {
-        console.error("[useBattleNads] Error processing game state:", error);
+        previousGameStateRef.current = currentGameState;
+        
+      } catch (err) {
+        console.error("[useBattleNads] Error processing game state:", err);
         console.log("[useBattleNads] Problematic data:", safeStringify(rawData));
-        return previousGameStateRef.current;
+        currentGameState = previousGameStateRef.current; // Return previous state on error
       }
+      
+      return { gameState: currentGameState, mappedDomainSnapshot: domainSnapshot };
     },
     [rawData, owner]
   );
 
+  // Function to add an optimistic message
+  const addOptimisticChatMessage = useCallback((message: string) => {
+    // Requires gameState to have character info to correctly populate sender
+    // If called before gameState is ready, it might fail or use default sender
+    const currentPlayer = gameState?.character;
+    if (!currentPlayer) {
+      console.warn("[useBattleNads] Cannot add optimistic message: current player data not available.");
+      return;
+    }
+
+    const optimisticMsg: domain.ChatMessage = {
+      logIndex: -(Date.now()), // Temporary unique negative index
+      timestamp: Date.now() / 1000, // Approximate timestamp (seconds)
+      sender: { 
+        id: currentPlayer.id, 
+        name: currentPlayer.name, 
+        index: currentPlayer.index 
+      },
+      message: message,
+      isOptimistic: true,
+    };
+
+    setOptimisticChatMessages(prev => [...prev, optimisticMsg]);
+  }, [gameState]); // Dependency on gameState to access current player info
+
   return {
     gameState,
+    addOptimisticChatMessage, // Expose the function
     // Expose raw data needed by other hooks
     rawSessionKeyData: sessionKeyData, 
     rawEndBlock: endBlock,
     rawBalanceShortfall: balanceShortfall,
-    // Keep the full raw snapshot if needed elsewhere, though potentially large
-    // rawSnapshot: rawData, 
     isLoading,
     error: error ? (error as Error).message : null,
     refetch

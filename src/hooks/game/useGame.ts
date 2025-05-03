@@ -32,6 +32,7 @@ export const useGame = () => {
   // Get game state
   const { 
     gameState, 
+    addOptimisticChatMessage,
     isLoading: isLoadingGameState, 
     error: gameStateError, 
     refetch: refetchGameState 
@@ -47,24 +48,6 @@ export const useGame = () => {
     needsUpdate: needsSessionKeyUpdate,
     refreshSessionKey
   } = useSessionKey(characterId);
-  
-  // Safely log state with BigInt values
-  useEffect(() => {
-      console.log(`[useGame] Session key state changed: ${sessionKeyState}`, { 
-        needsUpdate: needsSessionKeyUpdate, 
-        rawData: safeStringify(sessionKeyData)
-      });
-  }, [sessionKeyState, needsSessionKeyUpdate, sessionKeyData]);
-  // ---------------------------------------------------
-  
-  // Extract chat logs
-  const chatLogs = useMemo(() => gameState?.chatLogs || [], [gameState]);
-  
-  // Extract event logs
-  const eventLogs = useMemo(() => gameState?.eventLogs || [], [gameState]);
-  
-  // Character position
-  const position = useMemo(() => gameState?.position || { x: 0, y: 0, depth: 0 }, [gameState]);
   
   // Mutation for moving character
   const moveCharacterMutation = useMutation({
@@ -113,29 +96,10 @@ export const useGame = () => {
   
   // Optimistic update helper for chat
   const sendChatMessage = async (message: string) => {
-    // Add optimistic update to cache
-    const previousData = queryClient.getQueryData<contract.PollFrontendDataReturn>(['uiSnapshot', owner]);
+    // Add optimistic update locally BEFORE sending the transaction
+    addOptimisticChatMessage(message);
     
-    if (previousData && gameState && gameState.character) {
-      const chatMessage = `${gameState.character.name || 'You'}: ${message}`;
-      
-      console.log(`[useGame] Adding optimistic chat update: ${chatMessage}`);
-      
-      // Create a new optimistic dataFeed to add to the list
-      const optimisticFeed: contract.DataFeed = {
-        blockNumber: previousData.endBlock || BigInt(0), // Use the latest known block
-        logs: [],
-        chatLogs: [chatMessage]
-      };
-      
-      // Update cache with our optimistic dataFeed
-      queryClient.setQueryData(['uiSnapshot', owner], {
-        ...previousData,
-        dataFeeds: [...(previousData.dataFeeds || []), optimisticFeed]
-      });
-    }
-    
-    // Send the actual message
+    // Send the actual message via mutation
     return chatMutation.mutateAsync({ message });
   };
   
@@ -149,7 +113,6 @@ export const useGame = () => {
       // --- Calculate expiration block --- 
       const currentBlock = await client.getLatestBlockNumber(); 
       const expirationBlock = currentBlock + BigInt(MAX_SESSION_KEY_VALIDITY_BLOCKS);
-      console.log(`[useGame] Updating session key ${embeddedWallet.address}. Current Block: ${currentBlock}, Validity: ${MAX_SESSION_KEY_VALIDITY_BLOCKS}, Target Expiration: ${expirationBlock}`);
       // ---------------------------------
 
       // --- Fetch estimateBuyInAmountInMON and double it --- 
@@ -157,7 +120,6 @@ export const useGame = () => {
       try {
         const estimatedBuyIn = await client.estimateBuyInAmountInMON();
         valueToSend = estimatedBuyIn * BigInt(2); 
-        console.log(`[useGame] Estimated buy-in: ${estimatedBuyIn}, sending 2x as value: ${valueToSend}`);
       } catch (estimateError) {
         console.error("[useGame] Error fetching estimateBuyInAmountInMON for session key update:", estimateError);
         throw new Error("Could not calculate required funds for session key update.");
@@ -170,7 +132,6 @@ export const useGame = () => {
         expirationBlock, // Pass BigInt directly
         valueToSend 
       );
-      console.log("[useGame] updateSessionKey transaction sent:", tx.hash);
       return tx;
       // ---------------------------------
     },
@@ -200,9 +161,7 @@ export const useGame = () => {
         // --------------------------------
 
         // --- Invalidate session key query AFTER confirmation ---
-        console.log("[useGame] Invalidating sessionKey query after confirmation...");
         queryClient.invalidateQueries({ queryKey: ['sessionKey', injectedWallet?.address, characterId] }); // Use the updated query key
-        // refreshSessionKey(); // invalidateQueries should handle refetch
         // -----------------------------------------------------
 
       } catch (waitError: any) {
@@ -306,6 +265,7 @@ export const useGame = () => {
     isAttacking: attackMutation.isPending,
     
     sendChatMessage,
+    addOptimisticChatMessage,
     isSendingChat: chatMutation.isPending,
     
     // Logs (Extract from snapshot for convenience)

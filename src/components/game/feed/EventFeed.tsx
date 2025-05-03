@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { Box, Heading, VStack, Text, Divider } from '@chakra-ui/react';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Box, Heading, Text, chakra } from '@chakra-ui/react';
 import { domain } from '../../../types'; // Import domain types
+import { useVirtualizer } from '@tanstack/react-virtual'; // <-- Import virtualization hook
 
 // Remove internal GameEvent type if domain.EventMessage matches structure
 // interface GameEvent {
@@ -13,27 +14,24 @@ import { domain } from '../../../types'; // Import domain types
 interface EventFeedProps {
   characterId: string;
   eventLogs: domain.EventMessage[]; // Accept eventLogs prop
+  combatants: domain.CharacterLite[]; // Add combatants for highlighting
 }
 
 const EventFeed: React.FC<EventFeedProps> = ({ 
   characterId, 
-  eventLogs // Destructure eventLogs
+  eventLogs, // Destructure eventLogs
+  combatants // Destructure combatants
 }) => {
-  // Remove placeholder events state
-  // const [events, setEvents] = useState<GameEvent[]>([...]);
   
-  // Remove placeholder subscription useEffect
-  // useEffect(() => {
-  //   if (characterId) {
-  //     console.log(`Subscribing to events for character: ${characterId}`);
-  //     // Subscribe to events logic would go here
-  //   }
-  //   return () => {
-  //     console.log(`Unsubscribing from events for character: ${characterId}`);
-  //     // Unsubscribe logic would go here
-  //   };
-  // }, [characterId]);
-  
+  const parentRef = useRef<HTMLDivElement>(null); // Ref for the scrollable container
+
+  const rowVirtualizer = useVirtualizer({ 
+    count: eventLogs.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 60, // Estimate row height (adjust as needed)
+    overscan: 5, // Render items slightly outside viewport
+  });
+
   // Map domain.LogType to colors
   const getEventColor = (type: domain.LogType) => {
     switch (type) {
@@ -53,36 +51,109 @@ const EventFeed: React.FC<EventFeedProps> = ({
         return 'gray.400'; // Use a neutral color for unknown/default
     }
   };
-  
+
+  // Create a set of current combatant IDs for quick lookup
+  const combatantIds = useMemo(() => new Set(combatants.map(c => c.id)), [combatants]);
+
   return (
-    <Box>
+    <Box h="100%" display="flex" flexDirection="column"> {/* Ensure parent has height */} 
       <Heading size="md" mb={4}>Event Log</Heading>
       
-      {/* Use eventLogs prop */}
-      <VStack spacing={2} align="stretch" maxH="500px" overflowY="auto">
-        {eventLogs.map((event, index) => { // Add index for key fallback
-          // Create a unique key
-          const eventKey = `${event.timestamp}-${index}`;
-          return (
-            <Box key={eventKey} p={2} borderRadius="md" bg="gray.700">
-              <Text color={getEventColor(event.type)} fontWeight="bold">
-                {/* Use the pre-formatted displayMessage for now */}
-                {event.displayMessage}
-              </Text>
-              <Text fontSize="xs" color="gray.400">
-                {/* Format timestamp if needed, assumes it's a number (block number) */}
-                {new Date(event.timestamp * 1000).toLocaleTimeString()} {/* Convert block timestamp */}
-              </Text>
-            </Box>
-          );
-        })}
+      {/* Scrollable Container */}
+      <Box 
+        ref={parentRef} 
+        flex="1" 
+        overflowY="auto" // Enable scrolling on this element
+        position="relative" // Needed for absolute positioning of virtual items
+      >
+        {/* Virtualized List Container (takes total height) */}
+        <Box 
+          height={`${rowVirtualizer.getTotalSize()}px`} 
+          width="100%" 
+          position="relative"
+        >
+          {/* Render only virtual items */} 
+          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+            const event = eventLogs[virtualRow.index];
+            if (!event) return null; // Should not happen, but safety check
+
+            const eventKey = `${event.timestamp}-${event.logIndex}`;
+            const involvesCombatant = 
+              (event.attacker && combatantIds.has(event.attacker.id)) || 
+              (event.defender && combatantIds.has(event.defender.id));
+            const isPlayerAction = event.isPlayerInitiated;
+            let bgColor = "gray.700";
+            if (involvesCombatant) bgColor = "red.900"; 
+            if (isPlayerAction) bgColor = "blue.900"; 
+
+            return (
+              <Box 
+                key={eventKey} 
+                position="absolute" 
+                top={0} 
+                left={0} 
+                width="100%" 
+                height={`${virtualRow.size}px`} 
+                transform={`translateY(${virtualRow.start}px)`} // Position item absolutely
+                p={2} 
+                // borderRadius="md" // Apply border radius if needed within the item
+                fontSize="sm" 
+              >
+                {/* Inner content box with background and padding */}
+                <Box bg={bgColor} p={2} borderRadius="md" h="100%">
+                  <Text color={getEventColor(event.type)} fontWeight="bold" display="inline">
+                    {event.attacker?.name && `${event.attacker.name} `}
+                    {domain.LogType[event.type] || `Event ${event.type}`}
+                    {event.defender?.name && ` on ${event.defender.name}`}
+                  </Text>
+                  
+                  {/* Display details based on the log type and available data */}
+                  <Text display="inline">:
+                    {event.details.hit && (
+                      <chakra.span color={event.details.critical ? "yellow.300" : "inherit"} fontWeight={event.details.critical ? "bold" : "normal"}> Hit{event.details.critical ? " (CRIT!) " : ". "}</chakra.span>
+                    )}
+                    {!event.details.hit && event.type === domain.LogType.Combat && (
+                      <chakra.span> Miss. </chakra.span>
+                    )}
+                    {event.details.damageDone && event.details.damageDone > 0 && (
+                      <chakra.span> [{event.details.damageDone} dmg]. </chakra.span>
+                    )}
+                    {event.details.healthHealed && event.details.healthHealed > 0 && (
+                      <chakra.span> [{event.details.healthHealed} heal]. </chakra.span>
+                    )}
+                    {event.details.experience && event.details.experience > 0 && (
+                      <chakra.span color="green.300"> [+{event.details.experience} XP]. </chakra.span>
+                    )}
+                    {event.details.lootedWeaponID && event.details.lootedWeaponID > 0 && (
+                      <chakra.span color="orange.300"> [Looted Wpn {event.details.lootedWeaponID}]. </chakra.span> // TODO: Map ID to name?
+                    )}
+                    {event.details.lootedArmorID && event.details.lootedArmorID > 0 && (
+                      <chakra.span color="orange.300"> [Looted Arm {event.details.lootedArmorID}]. </chakra.span> // TODO: Map ID to name?
+                    )}
+                     {event.details.targetDied && (
+                      <chakra.span color="red.500" fontWeight="bold"> Target Died! </chakra.span>
+                    )}
+                    {/* Add rendering for other details (e.g., event.details.value for ability cooldown?) if needed */}
+                  </Text>
+
+                  {/* Remove the old displayMessage rendering - handled by details above */}
+                  {/* <Text display="inline">: {event.displayMessage}</Text> */}
+                  
+                  <Text fontSize="xs" color="gray.400" mt={1}>
+                    {new Date(event.timestamp * 1000).toLocaleTimeString()} (Block: {event.timestamp}, Idx: {event.logIndex})
+                  </Text>
+                </Box>
+              </Box>
+            );
+          })}
+        </Box>
         
         {eventLogs.length === 0 && (
           <Box p={4} textAlign="center">
             <Text>No events yet</Text>
           </Box>
         )}
-      </VStack>
+      </Box>
     </Box>
   );
 };

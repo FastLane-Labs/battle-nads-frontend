@@ -167,18 +167,27 @@ export function mapSessionKeyData(
 }
 
 /**
- * Helper function to find character name by index
- * TODO: Implement actual lookup logic
+ * Helper function to find character name and ID by index
  */
-function findCharacterNameByIndex(
+function findCharacterParticipantByIndex(
   index: number, 
   combatants: contract.CharacterLite[], 
   noncombatants: contract.CharacterLite[]
-): string {
+): domain.EventParticipant | null {
+  if (index <= 0) return null; // Index 0 usually means no participant
   // Combine lists for easier lookup
   const allCharacters = [...combatants, ...noncombatants];
-  const character = allCharacters.find(c => Number(c.index) === index); // Convert bigint index
-  return character ? character.name : `Index ${index}`;
+  // IMPORTANT: Contract CharacterLite.index is uint256, often large, need to compare safely
+  const character = allCharacters.find(c => BigInt(c.index) === BigInt(index)); 
+  
+  if (character) {
+    return {
+      id: character.id,
+      name: character.name,
+      index: index // Use the original index passed in
+    };
+  }
+  return null; // Or return a default participant like { id: 'unknown', name: `Index ${index}`, index: index }
 }
 
 /**
@@ -188,7 +197,8 @@ function findCharacterNameByIndex(
  */
 export function contractToWorldSnapshot(
   raw: contract.PollFrontendDataReturn | null,
-  owner: string | null = null
+  owner: string | null = null,
+  ownerCharacterId?: string // Optional: Pass player's character ID for isPlayerInitiated flag
 ): Omit<domain.WorldSnapshot, 'movementOptions'> | null {
   
   if (!raw) {
@@ -207,43 +217,126 @@ export function contractToWorldSnapshot(
     const blockTimestamp = Number(feed.blockNumber || 0); // Use feed's block number
 
     // Map Event Logs (including Chat type) for this feed
+    // Keep track of chat log index within the current block
+    let blockChatLogIndex = 0; 
     (feed.logs || []).forEach(log => {
       const logTypeNum = Number(log.logType);
-      const logIndex = Number(log.index);
+      const logIndex = Number(log.index); // Overall index within block logs
       const mainPlayerIdx = Number(log.mainPlayerIndex);
       const otherPlayerIdx = Number(log.otherPlayerIndex);
       
-      // --- TODO: Implement mapping based on logTypeNum ---
       switch (logTypeNum) {
         case domain.LogType.Chat: {
-          // --- TODO: Create domain.ChatMessage ---
-          const senderName = findCharacterNameByIndex(mainPlayerIdx, combatants, noncombatants);
-          // Placeholder for actual chat message content (how is it stored in Log?)
-          // Need to figure out where the message string comes from for LogType.Chat
-          const messageContent = `Chat from ${senderName} (Content Missing)`; 
-          /* allChatMessages.push({
-            logIndex: logIndex,
-            timestamp: blockTimestamp,
-            sender: { id: 'TBD', name: senderName, index: mainPlayerIdx }, 
-            message: messageContent
-          }); */
+          const sender = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
+          const messageContent = feed.chatLogs?.[blockChatLogIndex] ?? "[Chat message content unavailable]";
+          blockChatLogIndex++;
+          
+          if (sender) {
+            allChatMessages.push({
+              logIndex: logIndex,
+              timestamp: blockTimestamp,
+              sender: sender, 
+              message: messageContent
+              // isOptimistic flag is added later by the state management hook
+            });
+          } else {
+             // Log potentially? Or handle system messages differently if they use LogType.Chat
+             console.warn(`[Mapper] Chat log found but sender index ${mainPlayerIdx} not resolved.`);
+          }
           break;
         }
-        default: {
-          // --- TODO: Create domain.EventMessage ---
-          const attackerName = findCharacterNameByIndex(mainPlayerIdx, combatants, noncombatants);
-          const defenderName = findCharacterNameByIndex(otherPlayerIdx, combatants, noncombatants); // Might be 0 if no defender
-          const messageContent = `Event ${logTypeNum} Attacker: ${attackerName} Defender: ${defenderName} (Details TBD)`;
-          /* allEventLogs.push({
+        // Add specific cases for other LogTypes if distinct details are needed
+        case domain.LogType.EnteredArea:
+        case domain.LogType.LeftArea: { 
+          const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
+          const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
+          const displayMessage = `Movement: ${participant?.name || `Index ${mainPlayerIdx}`} ${logTypeNum === domain.LogType.EnteredArea ? 'entered' : 'left'} area.`;
+          allEventLogs.push({
             logIndex: logIndex,
             timestamp: blockTimestamp,
             type: logTypeNum as domain.LogType,
-            attacker: { id: 'TBD', name: attackerName, index: mainPlayerIdx },
-            defender: (otherPlayerIdx > 0) ? { id: 'TBD', name: defenderName, index: otherPlayerIdx } : undefined,
-            isPlayerInitiated: false, // TODO: Determine this
-            details: { ...log }, // Placeholder
-            displayMessage: messageContent // Optional pre-formatted string
-          }); */
+            attacker: participant || undefined,
+            // No defender for movement
+            isPlayerInitiated: isPlayer, // Movement is initiated by the participant
+            details: { value: log.value }, // Any relevant value?
+            displayMessage: displayMessage
+          });
+          break;
+        } 
+        case domain.LogType.Ability: { 
+          const caster = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
+          // Target might be in otherPlayerIndex or derived from log.value?
+          // For now, assume otherPlayerIndex holds target if applicable
+          const target = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants);
+          const isPlayer = !!ownerCharacterId && !!caster && caster.id === ownerCharacterId;
+          let displayMessage = `Ability: ${caster?.name || `Index ${mainPlayerIdx}`} used ability`;
+          if (target) displayMessage += ` on ${target.name}`;
+          // TODO: Add more ability-specific details if available in log.value or other fields
+          displayMessage += `.`; 
+
+          allEventLogs.push({
+            logIndex: logIndex,
+            timestamp: blockTimestamp,
+            type: logTypeNum as domain.LogType,
+            attacker: caster || undefined,
+            defender: target || undefined, 
+            isPlayerInitiated: isPlayer, 
+            details: { value: log.value }, // Ability details might be packed here
+            displayMessage: displayMessage
+          });
+          break;
+        } 
+        case domain.LogType.Sepukku: { 
+           const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
+           const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
+           const displayMessage = `Death: ${participant?.name || `Index ${mainPlayerIdx}`} died.`; 
+            allEventLogs.push({
+              logIndex: logIndex,
+              timestamp: blockTimestamp,
+              type: logTypeNum as domain.LogType,
+              attacker: participant || undefined, // The one who died is the primary participant here
+              isPlayerInitiated: isPlayer, // Action initiated by the participant
+              details: { targetDied: true, value: log.value },
+              displayMessage: displayMessage
+            });
+          break;
+        }
+        case domain.LogType.Combat:
+        case domain.LogType.InstigatedCombat: // Treat InstigatedCombat similarly for event structure
+        default: { // Handle combat and any other unknown types
+          const attacker = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
+          const defender = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants);
+          const isPlayerInitiated = !!ownerCharacterId && !!attacker && attacker.id === ownerCharacterId;
+          
+          // Refined display message for combat/default
+          let displayMessage = `${domain.LogType[logTypeNum] || `Event ${logTypeNum}`}:`;
+          if (attacker) displayMessage += ` ${attacker.name}`; else displayMessage += ` P${mainPlayerIdx}`;
+          if (defender) displayMessage += ` vs ${defender.name}`; else if (otherPlayerIdx > 0) displayMessage += ` vs P${otherPlayerIdx}`;
+          if (log.hit) displayMessage += ` Hit${log.critical ? ' (Crit!)' : ''}.`;
+          else if (logTypeNum === domain.LogType.Combat) displayMessage += ` Miss.`; // Indicate miss only for standard combat
+          if (log.damageDone > 0) displayMessage += ` [${log.damageDone} dmg].`;
+          if (log.healthHealed > 0) displayMessage += ` [${log.healthHealed} heal].`;
+          if (log.experience > 0) displayMessage += ` [+${log.experience} XP].`;
+          if (log.targetDied) displayMessage += ` Target Died!`;
+
+          allEventLogs.push({
+            logIndex: logIndex,
+            timestamp: blockTimestamp,
+            type: logTypeNum as domain.LogType,
+            attacker: attacker || undefined,
+            defender: defender || undefined,
+            isPlayerInitiated: isPlayerInitiated,
+            details: { 
+              hit: log.hit,
+              critical: log.critical,
+              damageDone: log.damageDone,
+              healthHealed: log.healthHealed,
+              targetDied: log.targetDied,
+              experience: log.experience,
+              value: log.value
+            },
+            displayMessage: displayMessage
+          });
           break;
         }
       }
