@@ -96,6 +96,7 @@ const AppInitializer: React.FC = () => {
       const moveCharacter = async (direction: any) => { await game.moveCharacter(direction); };
       const attack = async (targetIndex: number) => { await game.attack(targetIndex); };
       const sendChatMessage = async (message: string) => { await game.sendChatMessage(message); };
+      const addOptimisticChatMessage = (message: string) => { game.addOptimisticChatMessage(message); };
 
       return renderWithNav(
          <GameContainer
@@ -106,6 +107,7 @@ const AppInitializer: React.FC = () => {
            moveCharacter={moveCharacter}
            attack={attack}
            sendChatMessage={sendChatMessage}
+           addOptimisticChatMessage={addOptimisticChatMessage}
            isMoving={game.isMoving}
            isAttacking={game.isAttacking}
            isSendingChat={game.isSendingChat}

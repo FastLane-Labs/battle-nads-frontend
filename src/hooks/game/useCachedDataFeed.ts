@@ -36,19 +36,19 @@ export type CachedDataBlock = {
 };
 
 // Constants
-const CHAT_CACHE = 'bn-chat-cache';          // localForage store name
-const CHAT_TTL = 1000 * 60 * 60;             // 1 hour in ms
+const FEED_CACHE = 'bn-feed-cache';          // localForage store name (RENAMED)
+const FEED_TTL = 1000 * 60 * 60;             // 1 hour in ms (RENAMED for consistency)
 const BLOCKS_PER_MINUTE = 2;
 const DEFAULT_MINUTES_WINDOW = 10;
 
-// Helper to get the owner-specific localStorage key
-const getLastBlockKey = (owner: string) => `bn-last-chat-block:${owner}`;
+// Helper to get the owner-specific localStorage key for the last processed block
+const getLastFeedBlockKey = (owner: string) => `bn-last-feed-block:${owner}`; // RENAMED function and key pattern
 
 // Initialize localForage
 localforage.config({
-  name: CHAT_CACHE,
-  storeName: CHAT_CACHE,
-  description: 'Battle Nads chat log cache'
+  name: FEED_CACHE, // Use renamed constant
+  storeName: FEED_CACHE, // Use renamed constant
+  description: 'Battle Nads data feed cache' // Updated description
 });
 
 /**
@@ -61,7 +61,7 @@ export const useCachedDataFeed = (owner: string | null) => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    console.log("[CachedDataFeed Effect] Running effect. Owner:", owner, "Client available:", !!client);
+    // console.log("[CachedDataFeed Effect] Running effect. Owner:", owner, "Client available:", !!client);
 
     // Skip if no owner or client
     if (!owner || !client) {
@@ -73,7 +73,7 @@ export const useCachedDataFeed = (owner: string | null) => {
 
     // Load and update cache
     const updateCache = async () => {
-      console.log("[CachedDataFeed UpdateCache] Starting updateCache..."); // Log start of function
+      // console.log("[CachedDataFeed UpdateCache] Starting updateCache..."); // Log start of function
       try {
         setIsLoading(true);
         
@@ -84,7 +84,7 @@ export const useCachedDataFeed = (owner: string | null) => {
         const defaultBlockWindow = BigInt(BLOCKS_PER_MINUTE * 60 * DEFAULT_MINUTES_WINDOW);
         
         // 3. Get last fetched block from localStorage
-        const lastBlockKey = getLastBlockKey(owner);
+        const lastBlockKey = getLastFeedBlockKey(owner); // Use renamed function
         const storedLastBlock = localStorage.getItem(lastBlockKey);
         
         // 4. Calculate start block
@@ -121,7 +121,7 @@ export const useCachedDataFeed = (owner: string | null) => {
           // Update type for getItem
           const block = await localforage.getItem<CachedDataBlock>(key);
           if (block) {
-            if (now - block.ts <= CHAT_TTL) {
+            if (now - block.ts <= FEED_TTL) { // Use renamed TTL constant
               storedBlocks.push(block);
             } else {
               await localforage.removeItem(key);

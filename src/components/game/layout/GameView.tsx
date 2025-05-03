@@ -17,6 +17,7 @@ interface GameViewProps {
   onMove: (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => Promise<void>;
   onAttack: (targetIndex: number) => Promise<void>;
   onSendChatMessage: (message: string) => Promise<void>;
+  addOptimisticChatMessage: (message: string) => void;
   isMoving: boolean;
   isAttacking: boolean;
   characterId: string;
@@ -32,6 +33,7 @@ const GameView: React.FC<GameViewProps> = ({
   onMove,
   onAttack,
   onSendChatMessage,
+  addOptimisticChatMessage,
   isMoving,
   isAttacking,
   characterId,
@@ -96,6 +98,7 @@ const GameView: React.FC<GameViewProps> = ({
           <EventFeed 
             characterId={characterId} 
             eventLogs={eventLogs}
+            combatants={combatants}
           />
         </Box>
       </GridItem>
@@ -105,8 +108,9 @@ const GameView: React.FC<GameViewProps> = ({
         <Box p={4} bg="gray.800" borderRadius="md" h="100%">
           <ChatPanel 
             characterId={characterId} 
-            onSendChatMessage={onSendChatMessage} 
             chatLogs={chatLogs}
+            onSendChatMessage={onSendChatMessage}
+            addOptimisticChatMessage={addOptimisticChatMessage}
           />
         </Box>
       </GridItem>
