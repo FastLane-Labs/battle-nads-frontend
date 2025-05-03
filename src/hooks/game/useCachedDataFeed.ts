@@ -115,8 +115,6 @@ export const useCachedDataFeed = (owner: string | null) => {
         // Ensure startBlock is not negative
         startBlock = startBlock < 0n ? 0n : startBlock; 
 
-        // console.log(`[CachedDataFeed] Current: ${currentBlock}, Last Stored: ${lastStoredBlockNum}, Fetching from: ${startBlock}`);
-
         // Declare blocksToStore here to make it accessible later
         let blocksToStore: StoredDataBlock[] = [];
 
