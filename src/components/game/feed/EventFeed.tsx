@@ -66,7 +66,8 @@ const EventFeed: React.FC<EventFeedProps> = ({
           return (
             <Box key={eventKey} p={2} borderRadius="md" bg="gray.700">
               <Text color={getEventColor(event.type)} fontWeight="bold">
-                {event.message}
+                {/* Use the pre-formatted displayMessage for now */}
+                {event.displayMessage}
               </Text>
               <Text fontSize="xs" color="gray.400">
                 {/* Format timestamp if needed, assumes it's a number (block number) */}

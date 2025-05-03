@@ -23,7 +23,7 @@ function mapStatusEffects(bitmap: number): domain.StatusEffect[] {
 /**
  * Maps contract character stats to domain character stats
  */
-function mapCharacterStats(stats: contract.CharacterStats): domain.CharacterStats {
+function mapCharacterStats(stats: contract.BattleNadStats): domain.CharacterStats {
   return {
     strength: Number(stats.strength),
     vitality: Number(stats.vitality),
@@ -89,8 +89,8 @@ export function mapCharacter(
     level: rawCharacter.stats.level,
     health: Number(rawCharacter.stats.health),
     maxHealth: Number(rawCharacter.maxHealth),
-    buffs: mapStatusEffects(rawCharacter.stats.buffs[0] || 0),
-    debuffs: mapStatusEffects(rawCharacter.stats.debuffs[0] || 0),
+    buffs: mapStatusEffects(Number(rawCharacter.stats.buffs)),
+    debuffs: mapStatusEffects(Number(rawCharacter.stats.debuffs)),
     stats: mapCharacterStats(rawCharacter.stats),
     weapon,
     armor,
@@ -122,17 +122,17 @@ export function mapCharacterLite(
 ): domain.CharacterLite {
   return {
     id: rawCharacter.id,
-    index: rawCharacter.index,
+    index: Number(rawCharacter.index),
     name: rawCharacter.name,
     class: rawCharacter.class as domain.CharacterClass,
-    level: rawCharacter.level,
+    level: Number(rawCharacter.level),
     health: Number(rawCharacter.health),
     maxHealth: Number(rawCharacter.maxHealth),
     buffs: [], // Would parse from bitmap
     debuffs: [], // Would parse from bitmap
     ability: {
       ability: rawCharacter.ability as domain.Ability,
-      stage: rawCharacter.abilityStage,
+      stage: Number(rawCharacter.abilityStage),
       targetIndex: 0, // Placeholder
       taskAddress: '', // Placeholder
       targetBlock: Number(rawCharacter.abilityTargetBlock)
@@ -166,65 +166,19 @@ export function mapSessionKeyData(
   };
 }
 
-// Helper to format event messages based on Log type and data
-function formatEventMessage(log: contract.Log): string {
-  const logTypeNum = Number(log.logType); // Convert BigInt/number to number
-  switch (logTypeNum) {
-    case domain.LogType.Combat:
-      // Basic combat log example - Needs refinement based on actual meaning
-      let combatMsg = `Combat: P${log.mainPlayerIndex} vs P${log.otherPlayerIndex}.`;
-      if (log.hit) combatMsg += ` Hit${log.critical ? ' (Crit!)' : ''}.`;
-      if (log.damageDone > 0) combatMsg += ` Dealt ${log.damageDone} dmg.`;
-      if (log.healthHealed > 0) combatMsg += ` Healed ${log.healthHealed} HP.`;
-      if (log.targetDied) combatMsg += ` Target died.`;
-      if (log.lootedWeaponID > 0) combatMsg += ` Looted Wpn ${log.lootedWeaponID}.`;
-      if (log.lootedArmorID > 0) combatMsg += ` Looted Arm ${log.lootedArmorID}.`;
-      if (log.experience > 0) combatMsg += ` Gained ${log.experience} XP.`;
-      return combatMsg;
-    case domain.LogType.InstigatedCombat:
-      return `Combat Started: P${log.mainPlayerIndex} attacked P${log.otherPlayerIndex}.`;
-    case domain.LogType.EnteredArea:
-      // Assuming index might relate to player index or area?
-      return `Movement: P${log.index} entered area.`; 
-    case domain.LogType.LeftArea:
-      return `Movement: P${log.index} left area.`;
-    case domain.LogType.Ability:
-      return `Ability used by P${log.index}.`; 
-    case domain.LogType.Sepukku:
-      return `Death: P${log.index} died.`; 
-    case domain.LogType.Chat:
-      return `Chat Event`;
-    case domain.LogType.Unknown:
-    default:
-      // Use number version in fallback message
-      return `System Event (Type ${logTypeNum}): Data ${JSON.stringify(log)}`; 
-  }
-}
-
 /**
- * Maps contract event log to domain event message
+ * Helper function to find character name by index
+ * TODO: Implement actual lookup logic
  */
-export function mapEventLog(
-  rawLog: contract.EventLog
-): domain.EventMessage {
-  return {
-    message: rawLog.content,
-    timestamp: Number(rawLog.timestamp),
-    type: rawLog.eventType as domain.LogType
-  };
-}
-
-/**
- * Maps contract chat log to domain chat message
- */
-export function mapChatLog(
-  rawLog: string
-): domain.ChatMessage {
-  return {
-    characterName: "Other",
-    message: rawLog,
-    timestamp: Date.now() // Add current time as real timestamp
-  };
+function findCharacterNameByIndex(
+  index: number, 
+  combatants: contract.CharacterLite[], 
+  noncombatants: contract.CharacterLite[]
+): string {
+  // Combine lists for easier lookup
+  const allCharacters = [...combatants, ...noncombatants];
+  const character = allCharacters.find(c => Number(c.index) === index); // Convert bigint index
+  return character ? character.name : `Index ${index}`;
 }
 
 /**
@@ -244,67 +198,61 @@ export function contractToWorldSnapshot(
   // --- Process DataFeeds directly for Logs and Chat Messages ---
   const allChatMessages: domain.ChatMessage[] = [];
   const allEventLogs: domain.EventMessage[] = [];
+  
+  // Pre-extract character lists for efficient lookup
+  const combatants = raw.combatants || [];
+  const noncombatants = raw.noncombatants || [];
 
   (raw.dataFeeds || []).forEach(feed => {
     const blockTimestamp = Number(feed.blockNumber || 0); // Use feed's block number
 
-    // Map Chat Logs for this feed
-    (feed.chatLogs || []).forEach(chatString => {
-      let senderName = "System"; // Default sender
-      let messageContent = chatString;
-
-      // Basic sender parsing (adjust if format differs)
-      if (typeof chatString === 'string' && chatString.includes(":")) { // Check it's a string first
-          const colonIndex = chatString.indexOf(":");
-          // Ensure colon is present and not the first character
-          if (colonIndex > 0) { 
-              const potentialSender = chatString.substring(0, colonIndex).trim();
-              // Basic check if sender looks reasonable (e.g., not empty)
-              if (potentialSender) { 
-                  senderName = potentialSender;
-                  messageContent = chatString.substring(colonIndex + 1).trim();
-              } else {
-                // Malformed (e.g., ": message"), keep default sender, use whole string as message
-                messageContent = chatString; 
-              }
-          } else {
-             // Malformed (e.g., ": message"), keep default sender, use whole string as message
-             messageContent = chatString;
-          }
-      } // else: No colon found or not a string, keep default sender "System"
-
-      allChatMessages.push({
-          characterName: senderName,
-          message: messageContent,
-          timestamp: blockTimestamp 
-      });
-    });
-
-    // Map Event Logs for this feed
+    // Map Event Logs (including Chat type) for this feed
     (feed.logs || []).forEach(log => {
-      const logTypeNum = Number(log.logType); 
-      // --- DEBUG LOGGING ---
-      console.log("[Mapper] Raw Event Log:", log);
-      // --- END DEBUG --- 
-      const messageContent = formatEventMessage(log); 
-      // --- DEBUG LOGGING ---
-      console.log(`[Mapper] Formatted Event Message (Type: ${logTypeNum}):`, messageContent);
-      // --- END DEBUG --- 
-
-      allEventLogs.push({
-        message: messageContent, 
-        timestamp: blockTimestamp,          
-        // Use the number version for the check and the cast
-        type: (logTypeNum !== undefined && !isNaN(logTypeNum) && domain.LogType[logTypeNum] !== undefined) ? 
-              (logTypeNum as domain.LogType) : 
-              domain.LogType.Unknown 
-      });
+      const logTypeNum = Number(log.logType);
+      const logIndex = Number(log.index);
+      const mainPlayerIdx = Number(log.mainPlayerIndex);
+      const otherPlayerIdx = Number(log.otherPlayerIndex);
+      
+      // --- TODO: Implement mapping based on logTypeNum ---
+      switch (logTypeNum) {
+        case domain.LogType.Chat: {
+          // --- TODO: Create domain.ChatMessage ---
+          const senderName = findCharacterNameByIndex(mainPlayerIdx, combatants, noncombatants);
+          // Placeholder for actual chat message content (how is it stored in Log?)
+          // Need to figure out where the message string comes from for LogType.Chat
+          const messageContent = `Chat from ${senderName} (Content Missing)`; 
+          /* allChatMessages.push({
+            logIndex: logIndex,
+            timestamp: blockTimestamp,
+            sender: { id: 'TBD', name: senderName, index: mainPlayerIdx }, 
+            message: messageContent
+          }); */
+          break;
+        }
+        default: {
+          // --- TODO: Create domain.EventMessage ---
+          const attackerName = findCharacterNameByIndex(mainPlayerIdx, combatants, noncombatants);
+          const defenderName = findCharacterNameByIndex(otherPlayerIdx, combatants, noncombatants); // Might be 0 if no defender
+          const messageContent = `Event ${logTypeNum} Attacker: ${attackerName} Defender: ${defenderName} (Details TBD)`;
+          /* allEventLogs.push({
+            logIndex: logIndex,
+            timestamp: blockTimestamp,
+            type: logTypeNum as domain.LogType,
+            attacker: { id: 'TBD', name: attackerName, index: mainPlayerIdx },
+            defender: (otherPlayerIdx > 0) ? { id: 'TBD', name: defenderName, index: otherPlayerIdx } : undefined,
+            isPlayerInitiated: false, // TODO: Determine this
+            details: { ...log }, // Placeholder
+            displayMessage: messageContent // Optional pre-formatted string
+          }); */
+          break;
+        }
+      }
     });
   });
 
-  // Sort combined logs by timestamp (block number)
-  allChatMessages.sort((a, b) => a.timestamp - b.timestamp);
-  allEventLogs.sort((a, b) => a.timestamp - b.timestamp);
+  // Sort combined logs by timestamp (block number) then log index
+  allChatMessages.sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
+  allEventLogs.sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
   // -----------------------------------------------------------
 
   // Map session key data (assuming this doesn't depend on dataFeeds structure)

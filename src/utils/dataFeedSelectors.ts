@@ -32,27 +32,33 @@ export const getLatestBlockFromFeeds = (dataFeeds: contract.DataFeed[] = []): bi
   }, 0n);
 };
 
-/**
- * Get chat logs as domain chat messages
+// [REMOVING - Logic moved to main mapper contractToDomain.ts]
+/* 
+ * Returns formatted chat messages from dataFeeds 
  * @param dataFeeds Array of DataFeed objects
- * @returns Array of domain chat messages
+ * @returns Array of formatted chat messages
  */
-export const getChatMessagesFromFeeds = (dataFeeds: contract.DataFeed[] = []): domain.ChatMessage[] => {
+/* export const getChatMessagesFromFeeds = (dataFeeds: contract.DataFeed[] = []): domain.ChatMessage[] => {
   return getFlattenedChatLogs(dataFeeds).map(content => {
     // Try to parse the content to extract character name
     let characterName = "System";
     let message = content;
-    
-    if (content && content.includes(":")) {
-      const colonIndex = content.indexOf(":");
-      characterName = content.substring(0, colonIndex).trim();
-      message = content.substring(colonIndex + 1).trim();
+
+    if (typeof content === 'string' && content.includes(':')) {
+      const colonIndex = content.indexOf(':');
+      if (colonIndex > 0) {
+        const potentialSender = content.substring(0, colonIndex).trim();
+        if (potentialSender) {
+          characterName = potentialSender;
+          message = content.substring(colonIndex + 1).trim();
+        }
+      }
     }
-    
+
     return {
-      characterName,
-      message,
-      timestamp: Date.now() // Use current time as timestamp
+      characterName: characterName,
+      message: message,
+      timestamp: Date.now() // This timestamp is incorrect, needs block timestamp
     };
   });
-};
+}; */

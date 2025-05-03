@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Heading, VStack, Input, Button, HStack, Text, Flex } from '@chakra-ui/react';
+import { Box, Heading, VStack, Input, Button, HStack, Text, Flex, useToast, chakra } from '@chakra-ui/react';
 import { domain } from '@/types'; // Import domain types
 
 interface ChatPanelProps {
@@ -66,14 +66,15 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         borderRadius="md"
       >
         {/* Use chatLogs prop */} 
-        {chatLogs.map((message, index) => { // Add index for potential key fallback
-          // Determine if the sender is the current player
+        {chatLogs.map((message, index) => {
+          // Determine if the message is sent by the current user
           // NOTE: This assumes the chat log sender name matches the current character's name
           // A more robust solution might involve passing the current character's name or ID
-          const isOwnMessage = message.characterName === "You"; // Placeholder - needs current character name/ID
+          // TODO: Pass playerCharacterId and compare message.sender.id === playerCharacterId
+          const isOwnMessage = message.sender.name === "You"; // Placeholder - needs current character name/ID comparison using sender.id
 
           // Create a unique key - use timestamp + index as fallback
-          const messageKey = `${message.timestamp}-${index}`;
+          const messageKey = `${message.timestamp}-${message.logIndex}`; // Use logIndex for uniqueness
           
           return (
             <Box 
@@ -86,14 +87,17 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             >
               <Flex justify="space-between" mb={1}>
                 <Text fontWeight="bold" fontSize="sm" color="blue.300">
-                  {message.characterName} {/* Use characterName from domain type */}
+                  {message.sender.name} {/* Use sender name from the structured object */}
                 </Text>
                 <Text fontSize="xs" color="gray.400">
                   {/* Format timestamp if needed, assumes it's a number (block number) */}
                   {new Date(message.timestamp * 1000).toLocaleTimeString()} {/* Convert block timestamp */}
                 </Text>
               </Flex>
-              <Text>{message.message}</Text> {/* Use message from domain type */}
+              <Text fontWeight={isOwnMessage ? "bold" : "normal"}>
+                {/* Use sender name from the structured object */}
+                {message.sender.name}: <chakra.span fontWeight="normal">{message.message}</chakra.span>
+              </Text>
             </Box>
           );
         })}
