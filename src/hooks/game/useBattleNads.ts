@@ -46,10 +46,6 @@ export const useBattleNads = (owner: string | null) => {
           return { gameState: previousGameStateRef.current, mappedDomainSnapshot: null };
         }
         
-        // Safe log to help with debugging BigInt issues
-        // console.log(`[useBattleNads] Processing snapshot with sessionKey: ${safeStringify(domainSnapshot.sessionKeyData)}`);
-        
-        // --- Get Confirmed Logs --- 
         const confirmedChatLogs = domainSnapshot.chatLogs || [];
         const confirmedEventLogs = domainSnapshot.eventLogs || []; 
 
