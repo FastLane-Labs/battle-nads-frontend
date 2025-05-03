@@ -19,6 +19,7 @@ out/
 !.env.example
 
 CLAUDE.md
+docs/current-feature.md
 
 # Logs
 logs
