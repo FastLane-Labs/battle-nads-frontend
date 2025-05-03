@@ -12,12 +12,12 @@ import { useCachedDataFeed, CachedDataBlock } from './useCachedDataFeed';
  */
 export const useUiSnapshot = (owner: string | null) => {
   const { client } = useBattleNadsClient();
-  const { blocks: cachedDataBlocks, latest: latestCachedBlock } = useCachedDataFeed(owner);
+  const { blocks: cachedDataBlocks, isLoading: isCacheLoading } = useCachedDataFeed(owner);
   const queryClient = useQueryClient();
 
   return useQuery<contract.PollFrontendDataReturn, Error>({
     queryKey: ['uiSnapshot', owner, cachedDataBlocks],
-    enabled: !!owner && !!client,
+    enabled: !!owner && !!client && !isCacheLoading,
     staleTime: POLL_INTERVAL,
     refetchInterval: POLL_INTERVAL,
     
