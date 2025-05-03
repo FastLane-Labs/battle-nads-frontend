@@ -71,15 +71,6 @@ export const useCachedDataFeed = (owner: string | null) => {
 
     const updateCache = async () => {
       try {
-        setIsLoading(true);
-
-        // Dexie handles DB opening implicitly on first operation
-        // Remove explicit .open() call and rely on outer catch
-        /* await db.open().catch(err => {
-          console.error("[CachedDataFeed] Dexie failed to open database:", err);
-          throw new Error("Cache initialization failed."); 
-        }); */
-
         // 1. Get current block number from client
         const currentBlock = await client.getLatestBlockNumber();
         setLatestBlock(currentBlock);
