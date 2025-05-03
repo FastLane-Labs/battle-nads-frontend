@@ -12,45 +12,35 @@ export interface SessionKeyData {
   expiration: bigint; // uint64 - Block number when the key expires
 }
 
-// Character stats structure (Matches BattleNadStats struct)
-export interface CharacterStats {
-  index: number; // uint8
+// --- ADDED Contract Struct Definitions ---
+// Represents the BattleNadStats struct packed into uint256
+// Frontend should ideally receive this unpacked from the contract/client
+export interface BattleNadStats {
   class: number; // uint8 (enum CharacterClass)
+  buffs: number; // uint8 - bitmap for StatusEffect
+  debuffs: number; // uint8 - bitmap for StatusEffect
   level: number; // uint8
-  experience: bigint; // uint16 - Use bigint for safety, map to number later
-  // health: bigint; // uint16 - Health is separate in BattleNad struct now
-  strength: bigint; // uint8 - Use bigint for safety
-  vitality: bigint; // uint8
-  dexterity: bigint; // uint8
-  quickness: bigint; // uint8
-  sturdiness: bigint; // uint8
-  luck: bigint; // uint8
-  unspentAttributePoints: bigint; // uint8
+  unspentAttributePoints: number; // uint8
+  experience: number; // uint16
+  strength: number; // uint8
+  vitality: number; // uint8
+  dexterity: number; // uint8
+  quickness: number; // uint8
+  sturdiness: number; // uint8
+  luck: number; // uint8
+  depth: number; // uint8
   x: number; // uint8
   y: number; // uint8
-  depth: number; // uint8
+  index: number; // uint8
+  weaponID: number; // uint8
+  armorID: number; // uint8
+  health: number; // uint16
+  sumOfCombatantLevels: number; // uint8
+  combatants: number; // uint8 - Count of current opponents
+  nextTargetIndex: number; // uint8
   combatantBitMap: bigint; // uint64
-  buffs: number[]; // uint8[] - Placeholder, actual type might be bitmap or array
-  debuffs: number[]; // uint8[] - Placeholder
-  weaponID: number; // uint8 - ADDED
-  armorID: number; // uint8 - ADDED
-  health: number; // uint16 - ADDED from BattleNadStats ABI
-  sumOfCombatantLevels: number; // uint8 - ADDED from BattleNadStats ABI
-  combatants: number; // uint8 - ADDED from BattleNadStats ABI
-  nextTargetIndex: number; // uint8 - ADDED from BattleNadStats ABI
-  // maxHealth: bigint; // REMOVED - Belongs on Character struct
 }
 
-// Ability state structure (Matches AbilityTracker struct)
-export interface AbilityState {
-  ability: number;
-  stage: number;
-  targetIndex: number;
-  taskAddress: string;
-  targetBlock: bigint;
-}
-
-// --- ADDED Contract Struct Definitions ---
 export interface Weapon {
   name: string;
   baseDamage: bigint; // uint256
@@ -73,6 +63,15 @@ export interface Inventory {
   balance: bigint; // uint128
 }
 
+// Ability state structure (Matches AbilityTracker struct)
+export interface AbilityState {
+  ability: number; // uint8 (enum Ability)
+  stage: number; // uint8
+  targetIndex: number; // uint8
+  taskAddress: string; // address
+  targetBlock: bigint; // uint64
+}
+
 export interface StorageTracker {
   updateStats: boolean;
   updateInventory: boolean;
@@ -89,82 +88,74 @@ export interface Character {
   id: string; // bytes32
   name: string;
   owner: string; // address
-  stats: CharacterStats;
-  maxHealth: bigint; // uint256 - ADDED
-  weapon: Weapon; // UPDATED type
-  armor: Armor; // UPDATED type
+  stats: BattleNadStats; // Matches the unpacked BattleNadStats fields
+  maxHealth: bigint; // uint256
+  weapon: Weapon;
+  armor: Armor;
   activeTask: string; // address
-  activeAbility: AbilityState; // Matches AbilityTracker
-  inventory: Inventory; // UPDATED type
-  tracker: StorageTracker; // UPDATED type
+  activeAbility: AbilityState;
+  inventory: Inventory;
+  tracker: StorageTracker; // Not directly used by frontend polling, but part of struct
 }
 
-// Lite character structure (for others in the zone)
+// Lite character structure (Matches BattleNadLite struct)
 export interface CharacterLite {
-  id: string;
-  index: number;
+  id: string; // bytes32
   name: string;
-  class: number;
-  level: number;
-  health: bigint;
-  maxHealth: bigint;
-  ability: number;
-  abilityStage: number;
-  abilityTargetBlock: bigint;
+  class: number; // uint8 (enum CharacterClass)
+  health: bigint; // uint256 - NOTE: Contract returns uint256 here
+  maxHealth: bigint; // uint256
+  buffs: bigint; // uint256 - bitmap (returned as uint256)
+  debuffs: bigint; // uint256 - bitmap (returned as uint256)
+  level: bigint; // uint256 - NOTE: Contract returns uint256 here
+  index: bigint; // uint256 - NOTE: Contract returns uint256 here
+  combatantBitMap: bigint; // uint256 - NOTE: Contract returns uint256 here
+  ability: number; // uint8 (enum Ability)
+  abilityStage: bigint; // uint256
+  abilityTargetBlock: bigint; // uint256
   weaponName: string;
   armorName: string;
   isDead: boolean;
 }
 
-// Event log structure
-export interface EventLog {
-  timestamp: bigint;
-  eventType: number;
-  content: string;
-}
-
-// Chat log structure
-export interface ChatLog {
-  timestamp: bigint;
-  sender: string;
-  content: string;
-}
-
-// Log structure
+// Log structure (Matches Log struct)
 export interface Log {
-  logType: number;
-  index: number;
-  mainPlayerIndex: number;
-  otherPlayerIndex: number;
+  logType: number; // uint8 (enum LogType)
+  index: number; // uint16
+  mainPlayerIndex: number; // uint8
+  otherPlayerIndex: number; // uint8
   hit: boolean;
   critical: boolean;
-  damageDone: number;
-  healthHealed: number;
+  damageDone: number; // uint16
+  healthHealed: number; // uint16
   targetDied: boolean;
-  lootedWeaponID: number;
-  lootedArmorID: number;
-  experience: number;
-  value: bigint;
+  lootedWeaponID: number; // uint8
+  lootedArmorID: number; // uint8
+  experience: number; // uint16
+  value: bigint; // uint128
 }
 
-// Data feed structure
+// Data feed structure (Matches DataFeed struct)
 export interface DataFeed {
-  blockNumber: bigint;
+  blockNumber: bigint; // uint256
   logs: Log[];
-  chatLogs: string[];
+  chatLogs: string[]; // Raw chat strings from contract
 }
+
+// Represents the mapped object return type of client.getUiSnapshot()
+// as used within the useUiSnapshot hook.
 export interface PollFrontendDataReturn {
-  characterID: string;
+  characterID: string; // bytes32
   sessionKeyData: SessionKeyData;
-  character: Character;
-  combatants: CharacterLite[];
-  noncombatants: CharacterLite[];
-  equipableWeaponIDs: number[];
+  character: Character; // Full BattleNad struct for the player
+  combatants: CharacterLite[]; // BattleNadLite[] for enemies
+  noncombatants: CharacterLite[]; // BattleNadLite[] for others in area
+  equipableWeaponIDs: number[]; // uint8[]
   equipableWeaponNames: string[];
-  equipableArmorIDs: number[];
+  equipableArmorIDs: number[]; // uint8[]
   equipableArmorNames: string[];
-  dataFeeds: DataFeed[];
-  balanceShortfall: bigint;
-  unallocatedAttributePoints: bigint;
-  endBlock: bigint;
+  dataFeeds: DataFeed[]; // Array of per-block data feeds
+  balanceShortfall: bigint; // uint256
+  unallocatedAttributePoints: bigint; // uint256 - NOTE: Contract seems to return uint256 here
+  endBlock: bigint; // uint256
 } 
