@@ -34,6 +34,7 @@ export interface EventMessage {
     // Add other potential details for non-combat events if needed
   };
   displayMessage: string; // Pre-formatted message for simple display
+  count?: number; // Optional: For coalescing identical sequential events
 }
 
 // Represents a structured chat log entry

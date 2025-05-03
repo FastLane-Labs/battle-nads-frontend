@@ -17,8 +17,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Remove placeholder messages state
-  // const [messages, setMessages] = useState<ChatMessage[]>([...]);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -80,17 +78,19 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           // TODO: Pass playerCharacterId and compare message.sender.id === playerCharacterId
           const isOwnMessage = message.sender.name === "You"; // Placeholder - needs current character name/ID comparison using sender.id
 
-          // Create a unique key - use timestamp + index as fallback
-          const messageKey = `${message.timestamp}-${message.logIndex}`; // Use logIndex for uniqueness
-          
+          // Use a more robust composite key to avoid potential collisions
+          // ---> Use composite key: timestamp-logIndex-isOptimistic
+          const messageKey = `${message.timestamp}-${message.logIndex}-${message.isOptimistic ? 1 : 0}`; 
+
           return (
             <Box 
-              key={messageKey} // Use generated key
+              key={messageKey} 
               p={2} 
-              borderRadius="md" 
-              bg={isOwnMessage ? 'blue.800' : 'gray.800'}
-              alignSelf={isOwnMessage ? 'flex-end' : 'flex-start'}
-              maxW="80%"
+              // Temporarily simplified styling:
+              // borderRadius="md" 
+              // bg={isOwnMessage ? 'blue.800' : 'gray.800'}
+              // alignSelf={isOwnMessage ? 'flex-end' : 'flex-start'}
+              // maxW="80%"
             >
               <Flex justify="space-between" alignItems="flex-end" mb={1}>
                 <Text fontWeight="bold" fontSize="sm" color="blue.300">

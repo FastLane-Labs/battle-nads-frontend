@@ -16,7 +16,7 @@ export const useUiSnapshot = (owner: string | null) => {
   const queryClient = useQueryClient();
 
   return useQuery<contract.PollFrontendDataReturn, Error>({
-    queryKey: ['uiSnapshot', owner],
+    queryKey: ['uiSnapshot', owner, cachedDataBlocks],
     enabled: !!owner && !!client,
     staleTime: POLL_INTERVAL,
     refetchInterval: POLL_INTERVAL,
@@ -31,10 +31,10 @@ export const useUiSnapshot = (owner: string | null) => {
       const startBlock = previousData?.endBlock 
         ? previousData.endBlock + 1n 
         : (await client.getLatestBlockNumber()) - BigInt(INITIAL_SNAPSHOT_LOOKBACK_BLOCKS);
-
+      
       // Get the raw array data
       const rawArrayData = await client.getUiSnapshot(owner, startBlock);
-
+      
       // --- VALIDATE AND MAP ARRAY TO OBJECT ---
       // Check if the received data is NOT an array
       if (!Array.isArray(rawArrayData)) {
@@ -114,8 +114,7 @@ export const useUiSnapshot = (owner: string | null) => {
 
       // Combine: Live feeds first, then filtered historical feeds
       const combinedFeeds = [...liveFeeds, ...historicalCachedFeeds];
-
-      // Sort just to be safe
+      
       combinedFeeds.sort((a, b) => Number(a.blockNumber - b.blockNumber));
       
       // --- Merged Feeds Ready --- 

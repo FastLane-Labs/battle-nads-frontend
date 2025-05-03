@@ -119,7 +119,7 @@ export const useSessionKey = (characterId: string | null) => {
 
   // Return values needed by consuming components
   // isLoading/isFetching now reflect the snapshot query state
-  console.log(`[useSessionKey Return Debug] isSnapshotLoading=${isSnapshotLoading}`);
+  //console.log(`[useSessionKey Return Debug] isSnapshotLoading=${isSnapshotLoading}`);
 
   return {
     // Return the raw data used for validation (might be needed by UI)
