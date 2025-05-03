@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import localforage from 'localforage';
+import { useQueryClient } from '@tanstack/react-query';
 import { contract } from '../../types';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
+import { db, StoredDataBlock } from '../../lib/db'; // Import Dexie db instance
 
 // Define SerializedEventLog based on contract.Log, converting BigInts
 interface SerializedEventLog {
@@ -27,43 +28,40 @@ interface SerializedChatLog {
   timestamp: string;    // Block timestamp as string
 }
 
-// RENAME CachedChatBlock to CachedDataBlock and add events field
-export type CachedDataBlock = {
-  block: string | bigint;  // canonical block number (string in storage, bigint when returned)
-  ts: number;              // Date.now() when we stored it
-  chats: SerializedChatLog[]
-  events: SerializedEventLog[]; // Add events array
-};
+// Return type still aims to match the old CachedDataBlock structure for compatibility
+// with useUiSnapshot mapping logic
+export interface CachedDataBlock { 
+  block: bigint; 
+  ts: number;
+  chats: SerializedChatLog[];
+  events: SerializedEventLog[];
+}
 
 // Constants
-const FEED_CACHE = 'bn-feed-cache';          // localForage store name (RENAMED)
-const FEED_TTL = 1000 * 60 * 60;             // 1 hour in ms (RENAMED for consistency)
+// Removed: const FEED_CACHE = 'bn-feed-cache';
+const FEED_TTL = 1000 * 60 * 60; // 1 hour in ms 
 const BLOCKS_PER_MINUTE = 2;
 const DEFAULT_MINUTES_WINDOW = 10;
 
 // Helper to get the owner-specific localStorage key for the last processed block
 const getLastFeedBlockKey = (owner: string) => `bn-last-feed-block:${owner}`; // RENAMED function and key pattern
 
-// Initialize localForage
-localforage.config({
-  name: FEED_CACHE, // Use renamed constant
-  storeName: FEED_CACHE, // Use renamed constant
-  description: 'Battle Nads data feed cache' // Updated description
-});
+// Removed: localforage config and driver logging
 
 /**
- * Hook to manage cached chat/event logs (DataFeed components) with seamless incremental fetching
+ * Hook to manage cached data feed blocks using Dexie
  */
 export const useCachedDataFeed = (owner: string | null) => {
   const { client } = useBattleNadsClient();
-  const [cachedBlocks, setCachedBlocks] = useState<CachedDataBlock[]>([]); 
+  const queryClient = useQueryClient();
+  const [cachedBlocks, setCachedBlocks] = useState<CachedDataBlock[]>([]); // Still returns this type
   const [latestBlock, setLatestBlock] = useState<bigint>(BigInt(0));
   const [isLoading, setIsLoading] = useState(true);
+  // Removed: const [storageErrorOccurred, setStorageErrorOccurred] = useState(false);
 
   useEffect(() => {
-    // console.log("[CachedDataFeed Effect] Running effect. Owner:", owner, "Client available:", !!client);
-
-    // Skip if no owner or client
+    // Removed: Early bailout for storageErrorOccurred
+    
     if (!owner || !client) {
       setCachedBlocks([]);
       setLatestBlock(BigInt(0));
@@ -71,184 +69,217 @@ export const useCachedDataFeed = (owner: string | null) => {
       return;
     }
 
-    // Load and update cache
     const updateCache = async () => {
-      // console.log("[CachedDataFeed UpdateCache] Starting updateCache..."); // Log start of function
       try {
         setIsLoading(true);
-        
-        // 1. Get current block
+
+        // Dexie handles DB opening implicitly on first operation
+        // Remove explicit .open() call and rely on outer catch
+        /* await db.open().catch(err => {
+          console.error("[CachedDataFeed] Dexie failed to open database:", err);
+          throw new Error("Cache initialization failed."); 
+        }); */
+
+        // 1. Get current block number from client
         const currentBlock = await client.getLatestBlockNumber();
+        setLatestBlock(currentBlock);
+
+        // 2. Purge expired blocks using Dexie index
+        const now = Date.now();
+        const expirationTime = now - FEED_TTL;
+        const expiredKeys = await db.dataBlocks
+          .where('ts').below(expirationTime)
+          .primaryKeys();
+        if (expiredKeys.length > 0) {
+          console.log(`[CachedDataFeed] Purging ${expiredKeys.length} expired blocks...`);
+          await db.dataBlocks.bulkDelete(expiredKeys);
+        }
+
+        // 3. Get all currently stored blocks for the owner
+        const storedBlocks = await db.dataBlocks.where('owner').equals(owner).toArray();
+
+        // 4. Determine the latest block stored for this owner
+        let lastStoredBlockNum = 0n;
+        if (storedBlocks.length > 0) {
+          lastStoredBlockNum = storedBlocks.reduce((max, block) => {
+            const blockNum = BigInt(block.block);
+            return blockNum > max ? blockNum : max;
+          }, 0n);
+        }
         
-        // 2. Calculate default block window
+        // 5. Calculate fetch range (startBlock)
         const defaultBlockWindow = BigInt(BLOCKS_PER_MINUTE * 60 * DEFAULT_MINUTES_WINDOW);
-        
-        // 3. Get last fetched block from localStorage
-        const lastBlockKey = getLastFeedBlockKey(owner); // Use renamed function
-        const storedLastBlock = localStorage.getItem(lastBlockKey);
-        
-        // 4. Calculate start block
         let startBlock: bigint;
-        if (!storedLastBlock) {
-          // Cold start: use default window
+        if (lastStoredBlockNum === 0n) {
+          // Cold start
           startBlock = currentBlock - defaultBlockWindow;
         } else {
-          // Incremental: continue from last block + 1
-          const lastFetchedBlock = BigInt(storedLastBlock);
-          
-          // Ensure we don't request too many blocks if there's a large gap
-          if (currentBlock - lastFetchedBlock > defaultBlockWindow) {
+          // Incremental fetch
+          startBlock = lastStoredBlockNum + 1n;
+          // Apply lookback window limit if gap is too large
+          if (currentBlock - lastStoredBlockNum > defaultBlockWindow) {
             startBlock = currentBlock - defaultBlockWindow;
-          } else {
-            startBlock = lastFetchedBlock + BigInt(1);
           }
         }
-        
-        // 5. Get stored blocks and purge expired ones
-        // Update type for stored blocks
-        const storedBlocks: CachedDataBlock[] = []; 
-        const now = Date.now();
-        
-        // Get all keys in the store
-        const keys = await localforage.keys();
-        
-        // Filter owner-specific blocks
-        const ownerPrefix = `${owner}:`;
-        const ownerKeys = keys.filter(key => key.startsWith(ownerPrefix));
-        
-        // Load and filter blocks by TTL
-        for (const key of ownerKeys) {
-          // Update type for getItem
-          const block = await localforage.getItem<CachedDataBlock>(key);
-          if (block) {
-            if (now - block.ts <= FEED_TTL) { // Use renamed TTL constant
-              storedBlocks.push(block);
-            } else {
-              await localforage.removeItem(key);
-            }
-          }
-        }
-        
-        // 6. Only fetch if we need to (current block > last fetched block)
-        if (startBlock < currentBlock) {
-          try {
-            // Fetch data feeds for the block range
-            const dataFeeds = await client.getDataFeed(owner, startBlock, currentBlock);
-            
-            // Process and store each data feed
-            let blockStorageSuccess = true; 
-            for (const feed of dataFeeds) {
-              // console.log('[CacheChat] Processing feed for block:', feed.blockNumber?.toString()); // Log feed block
-              // Check if there are chats OR events to process
-              if (feed.blockNumber && ((feed.chatLogs && feed.chatLogs.length > 0) || (feed.logs && feed.logs.length > 0))) { 
-                const blockNumber = BigInt(feed.blockNumber);
-                
-                // --- Process Chats --- 
-                const serializedChats = (feed.chatLogs || []).map(chatString => {
-                  const chatLogEntry: SerializedChatLog = { 
-                    content: chatString, 
-                    timestamp: blockNumber.toString()
-                  };
-                  return chatLogEntry;
-                });
-                
-                // --- Process Events --- 
-                const serializedEvents = (feed.logs || []).map((log: contract.Log) => {
-                  const eventLogEntry: SerializedEventLog = {
-                    logType: log.logType,
-                    index: log.index,
-                    mainPlayerIndex: log.mainPlayerIndex,
-                    otherPlayerIndex: log.otherPlayerIndex,
-                    hit: log.hit,
-                    critical: log.critical,
-                    damageDone: log.damageDone,
-                    healthHealed: log.healthHealed,
-                    targetDied: log.targetDied,
-                    lootedWeaponID: log.lootedWeaponID,
-                    lootedArmorID: log.lootedArmorID,
-                    experience: log.experience,
-                    value: String(log.value || '0') // Convert BigInt to string
-                  };
-                  return eventLogEntry;
-                });
+        // Ensure startBlock is not negative
+        startBlock = startBlock < 0n ? 0n : startBlock; 
 
-                // Update type for the new block object
-                const newDataBlock: CachedDataBlock = { 
-                  block: blockNumber.toString(), 
-                  ts: Date.now(),
-                  chats: serializedChats,
-                  events: serializedEvents // Add serialized events
-                };
-                
-                // Store in IndexedDB
-                const key = `${owner}:${blockNumber.toString()}`;
-                try {
-                  // console.log(`[CacheChat] Attempting to store block: ${key}`); // Log before storing
-                  await localforage.setItem(key, newDataBlock); // Store the new block structure
-                  // console.log(`[CacheChat] Successfully stored block: ${key}`); // Log after successful store
-                  // Add to state (only if stored successfully)
-                  storedBlocks.push(newDataBlock);
-                } catch (storageError) {
-                  console.error(`[CachedDataFeed] Failed to store block ${key}:`, storageError);
-                  blockStorageSuccess = false; 
-                }
-              }
-            }
-            
-            // Update last fetched block in localStorage ONLY if all blocks in range stored successfully
-            if (blockStorageSuccess) {
-              localStorage.setItem(lastBlockKey, currentBlock.toString());
-              // console.log(`[CacheChat] Updated lastBlockKey for ${owner} to ${currentBlock.toString()}`);
-            } else {
-              // console.warn(`[CacheChat] Did not update lastBlockKey for ${owner} due to storage errors in the range.`);
-            }
+        // console.log(`[CachedDataFeed] Current: ${currentBlock}, Last Stored: ${lastStoredBlockNum}, Fetching from: ${startBlock}`);
 
-          } catch (error) {
-            // console.error('[CacheChat] Error fetching data feeds:', error);
-            // On error, still use cached blocks, DO NOT update lastBlockKey
+        // Declare blocksToStore here to make it accessible later
+        let blocksToStore: StoredDataBlock[] = [];
+
+        // 6. Fetch new data if needed
+        if (startBlock <= currentBlock) {
+          const dataFeeds = await client.getDataFeed(owner, startBlock, currentBlock);
+          
+          // 7. Prepare blocks for Dexie storage
+          for (const feed of dataFeeds) {
+            if (feed.blockNumber && ((feed.chatLogs && feed.chatLogs.length > 0) || (feed.logs && feed.logs.length > 0))) {
+              const blockNumber = BigInt(feed.blockNumber);
+              const serializedChats = (feed.chatLogs || []).map(chatString => ({
+                content: chatString,
+                timestamp: blockNumber.toString()
+              }));
+              const serializedEvents = (feed.logs || []).map((log: contract.Log) => ({
+                logType: log.logType,
+                index: log.index,
+                mainPlayerIndex: log.mainPlayerIndex,
+                otherPlayerIndex: log.otherPlayerIndex,
+                hit: log.hit,
+                critical: log.critical,
+                damageDone: log.damageDone,
+                healthHealed: log.healthHealed,
+                targetDied: log.targetDied,
+                lootedWeaponID: log.lootedWeaponID,
+                lootedArmorID: log.lootedArmorID,
+                experience: log.experience,
+                value: String(log.value || '0')
+              }));
+
+              blocksToStore.push({ 
+                owner: owner, // Add owner for compound key
+                block: blockNumber.toString(), // Use string for compound key
+                ts: Date.now(),
+                chats: serializedChats,
+                events: serializedEvents
+              });
+            }
+          }
+          
+          // 8. Store new blocks in Dexie
+          if (blocksToStore.length > 0) {
+            // --- Wrap write in explicit transaction ---
+            try {
+              await db.transaction('rw', db.dataBlocks, async () => {
+                // Operations within this block are transactional
+                await db.dataBlocks.bulkPut(blocksToStore);
+                // console.log(`[CachedDataFeed] Dexie transaction: Stored ${blocksToStore.length} new blocks.`);
+
+                // Optional: Verify read WITHIN the transaction
+                const firstStoredKey = { owner: owner, block: blocksToStore[0].block };
+                const verifyRead = await db.dataBlocks.get(firstStoredKey);
+                // console.log(`[CachedDataFeed] Dexie transaction: Verification read for block ${firstStoredKey.block}:`, verifyRead ? 'Found' : 'NOT FOUND');
+              
+              }); // Transaction commits here if no errors were thrown
+
+              // Invalidation happens AFTER successful transaction commit
+              queryClient.invalidateQueries({ queryKey: ['uiSnapshot', owner] });
+              // console.log(`[CachedDataFeed] Invalidated uiSnapshot query for owner: ${owner} after successful transaction.`);
+
+              // --- Update In-Memory State --- 
+              // Convert the newly stored blocks back to the CachedDataBlock format for the state
+              const newlyDeserializedBlocks = blocksToStore.map(stored => ({
+                  block: BigInt(stored.block),
+                  ts: stored.ts,
+                  chats: stored.chats,
+                  events: stored.events
+              }));
+              
+              setCachedBlocks(prevBlocks => {
+                // Combine previous blocks and newly added ones
+                const combined = [...prevBlocks, ...newlyDeserializedBlocks];
+                
+                // Apply TTL purging to the combined in-memory array
+                const now = Date.now();
+                const expirationTime = now - FEED_TTL;
+                const purged = combined.filter(block => block.ts >= expirationTime);
+                
+                // Sort the final, purged blocks by block number
+                purged.sort((a, b) => (a.block < b.block ? -1 : 1));
+                // console.log(`[CachedDataFeed] Updating in-memory state with ${newlyDeserializedBlocks.length} new blocks, ${purged.length} total after purge.`);
+                return purged;
+              });
+              // --- End Update In-Memory State ---
+
+              /* // Update local state *after* successful transaction and invalidation (OLD WAY)
+              storedBlocks.push(...blocksToStore); */
+
+            } catch (txError) {
+               console.error("[CachedDataFeed] Dexie transaction failed:", txError);
+               // Rethrow the error to ensure the calling code knows the transaction failed
+               throw txError; 
+               // Handle transaction error - maybe don't invalidate or update local state?
+               // For now, we will let the process continue and potentially use stale local state,
+               // but ideally, more robust error handling would go here.
+            }
+            // --- End transaction wrap ---
+
+            /* // ---> Verify write immediately (Moved inside transaction)
+            const firstStoredKey = { owner: owner, block: blocksToStore[0].block };
+            const verifyRead = await db.dataBlocks.get(firstStoredKey);
+            console.log(`[CachedDataFeed] Verification read for block ${firstStoredKey.block}:`, verifyRead ? 'Found' : 'NOT FOUND');
+            // <--- End verification
+
+            // ---> Invalidate uiSnapshot query after successful cache write (Moved after transaction)
+            queryClient.invalidateQueries({ queryKey: ['uiSnapshot', owner] });
+            console.log(`[CachedDataFeed] Invalidated uiSnapshot query for owner: ${owner}`);
+            // Combine newly stored blocks with previously stored ones for the current state
+            // This avoids needing a second read query immediately after writing
+            storedBlocks.push(...blocksToStore); */
           }
         }
         
-        // 7. Sort blocks by block number (ascending)
-        storedBlocks.sort((a, b) => {
-          const blockA = BigInt(a.block);
-          const blockB = BigInt(b.block);
-          return blockA < blockB ? -1 : 1;
+        // 9. Prepare final state (convert StoredDataBlock back to CachedDataBlock format for consumer)
+        // THIS SECTION IS NOW ONLY FOR INITIAL LOAD or if no new blocks were fetched
+        const initialDeserializedBlocks = storedBlocks
+            .filter(block => block.ts >= (Date.now() - FEED_TTL)) // Apply TTL filter here too for initial load
+            .map(stored => ({
+                block: BigInt(stored.block),
+                ts: stored.ts,
+                chats: stored.chats,
+                events: stored.events
+            }));
+        
+        // Sort final blocks by block number (ascending)
+        initialDeserializedBlocks.sort((a, b) => {
+          return a.block < b.block ? -1 : 1;
         });
-        
-        // Update state
-        setCachedBlocks(storedBlocks);
-        setLatestBlock(currentBlock);
+
+        // Only set state if it hasn't potentially been updated by the new block logic already
+        // Check if blocksToStore had content; if so, state was likely updated already.
+        if (!(blocksToStore && blocksToStore.length > 0)) {
+            // console.log(`[CachedDataFeed] Setting initial/unchanged state with ${initialDeserializedBlocks.length} blocks.`);
+            setCachedBlocks(initialDeserializedBlocks);
+        }
+
       } catch (error) {
-        console.error('Error in useCachedDataFeed:', error);
+        console.error('Error in useCachedDataFeed updateCache:', error);
+        setCachedBlocks([]); // Clear cache on error
+        // Optionally, still try to set latestBlock if possible
+        client?.getLatestBlockNumber().then(setLatestBlock).catch(console.error); 
       } finally {
         setIsLoading(false);
       }
     };
 
     updateCache();
-  }, [owner, client]);
+  // Dependencies: owner and client. Rerun when they change.
+  }, [owner, client]); 
 
-  // Convert serialized blocks back to expected format when returning
-  // Adjust this final mapping as needed - for now, it returns CachedDataBlock[]
-  const deserializedBlocks = cachedBlocks.map(block => {
-    // Convert block number back to BigInt
-    const blockBigInt = block.block ? BigInt(block.block) : BigInt(0);
-    // Note: Events remain as SerializedEventLog[] here.
-    // The consumer (useUiSnapshot) will handle mapping them back to contract.Log if needed.
-    return {
-      ...block,
-      block: blockBigInt,
-      // Chats deserialization might need adjustment if downstream expects domain.ChatMessage
-      // For now, keeping it simple - assuming consumer handles it or type changes later
-      chats: block.chats, // Already SerializedChatLog[]
-      events: block.events // Already SerializedEventLog[] 
-    };
-  });
-
+  // Return value remains compatible with useUiSnapshot's expectations
   return {
-    // Return the processed blocks (containing SerializedEventLog)
-    blocks: deserializedBlocks, 
+    blocks: cachedBlocks, 
     latest: latestBlock,
     isLoading
   };

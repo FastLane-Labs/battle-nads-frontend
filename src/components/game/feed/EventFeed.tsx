@@ -109,6 +109,10 @@ const EventFeed: React.FC<EventFeedProps> = ({
                   
                   {/* Display details based on the log type and available data */}
                   <Text display="inline">:
+                    {/* Display count if > 1 */}
+                    {event.count && event.count > 1 && (
+                      <chakra.span fontWeight="bold" mr={1}>({event.count}x)</chakra.span>
+                    )}
                     {event.details.hit && (
                       <chakra.span color={event.details.critical ? "yellow.300" : "inherit"} fontWeight={event.details.critical ? "bold" : "normal"}> Hit{event.details.critical ? " (CRIT!) " : ". "}</chakra.span>
                     )}
