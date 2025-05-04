@@ -112,7 +112,7 @@ const WalletBalances: React.FC = () => {
       setIsDirectFunding(true);
       
       // Get session key address from gameState
-      const sessionKeyAddress = gameState?.sessionKey?.key;
+      const sessionKeyAddress = gameState?.sessionKeyData?.key;
       if (!sessionKeyAddress) {
          throw new Error('Session key not available.');
       }
@@ -161,7 +161,7 @@ const WalletBalances: React.FC = () => {
   if (gameStateError) {
      return (
       <Box p={4} borderWidth="1px" borderRadius="lg" bg="red.900" color="white">
-        <Text>Error loading game data: {gameStateError}</Text>
+        <Text>Error loading game data: {gameStateError ? gameStateError.message : 'Unknown error'}</Text>
       </Box>
     );
   }
@@ -171,7 +171,7 @@ const WalletBalances: React.FC = () => {
   
   // Determine if direct funding should be offered
   const showDirectFunding = sessionKeyBalanceNum < LOW_SESSION_KEY_THRESHOLD;
-  const sessionKeyAddress = gameState?.sessionKey?.key;
+  const sessionKeyAddress = gameState?.sessionKeyData?.key;
   
   return (
     <Box p={3} borderWidth="1px" borderRadius="lg" bg="gray.800" color="white">
