@@ -2,49 +2,40 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { contract } from '../../types';
 import { POLL_INTERVAL, INITIAL_SNAPSHOT_LOOKBACK_BLOCKS } from '../../config/env';
-import { useCachedDataFeed, CachedDataBlock } from './useCachedDataFeed';
+import { storeFeedData } from './useCachedDataFeed';
+import { mapCharacterLite } from '@/mappers';
 
 /**
  * Hook for polling UI snapshot data from the blockchain
  * Uses React-Query for caching and deduplication of requests
- * Returns raw contract data with dataFeeds as the source of truth
- * Integrates cached data from useCachedDataFeed
+ * Returns raw contract data including dataFeeds directly from the poll.
+ * Asynchronously stores fetched feeds to Dexie via storeFeedData utility.
  */
 export const useUiSnapshot = (owner: string | null) => {
   const { client } = useBattleNadsClient();
-  const { blocks: cachedDataBlocks, isLoading: isCacheLoading } = useCachedDataFeed(owner);
   const queryClient = useQueryClient();
 
   return useQuery<contract.PollFrontendDataReturn, Error>({
-    queryKey: ['uiSnapshot', owner, cachedDataBlocks],
-    enabled: !!owner && !!client && !isCacheLoading,
+    queryKey: ['uiSnapshot', owner],
+    enabled: !!owner && !!client,
     staleTime: POLL_INTERVAL,
     refetchInterval: POLL_INTERVAL,
     
     queryFn: async () => {
       if (!client || !owner) throw new Error('Missing client or owner');
       
-      // Get previous data from cache
       const previousData = queryClient.getQueryData<contract.PollFrontendDataReturn>(['uiSnapshot', owner]);
       
-      // Calculate startBlock based on previous endBlock if available
       const startBlock = previousData?.endBlock 
         ? previousData.endBlock + 1n 
         : (await client.getLatestBlockNumber()) - BigInt(INITIAL_SNAPSHOT_LOOKBACK_BLOCKS);
       
-      // Get the raw array data
       const rawArrayData = await client.getUiSnapshot(owner, startBlock);
       
-      // --- VALIDATE AND MAP ARRAY TO OBJECT ---
-      // Check if the received data is NOT an array
       if (!Array.isArray(rawArrayData)) {
-          // If it's neither an array nor the expected object, it's an unknown structure
           throw new Error("Invalid data structure received from getUiSnapshot");
       }
       
-      // --- At this point, rawArrayData is confirmed to be an array ---
-
-      // Explicitly map array elements to named fields based on PollFrontendDataReturn order
       let mappedData: contract.PollFrontendDataReturn;
       try {
         mappedData = {
@@ -57,75 +48,35 @@ export const useUiSnapshot = (owner: string | null) => {
           equipableWeaponNames: rawArrayData[6],
           equipableArmorIDs: rawArrayData[7],
           equipableArmorNames: rawArrayData[8],
-          dataFeeds: rawArrayData[9], // Assuming dataFeeds is at index 9
+          dataFeeds: rawArrayData[9] || [],
           balanceShortfall: rawArrayData[10],
           unallocatedAttributePoints: rawArrayData[11],
           endBlock: rawArrayData[12],
-          /* movementOptions: { // REMOVED - Not returned by contract
-            canMoveNorth: false, canMoveSouth: false, canMoveEast: false, 
-            canMoveWest: false, canMoveUp: false, canMoveDown: false 
-          } */
         };
       } catch (mappingError) {
         console.error("[useUiSnapshot] Error during array mapping:", mappingError);
-        // console.error("[useUiSnapshot] rawArrayData at time of error:", rawArrayData); 
-        // Type check before accessing message property
         const errorMessage = mappingError instanceof Error ? mappingError.message : String(mappingError);
-        throw new Error(`Failed to map snapshot array: ${errorMessage}`); // Re-throw to let React Query handle it
+        throw new Error(`Failed to map snapshot array: ${errorMessage}`);
       }
-      // ---------------------------------------------
       
-      // --- Combine Cached and Live Chat/Event Logs --- 
-      const liveFeeds = mappedData.dataFeeds || [];
-      const liveFeedBlockNumbers = new Set(liveFeeds.map(f => f.blockNumber.toString()));
+      // Asynchronously store the newly fetched feeds
+      const liveFeeds = mappedData.dataFeeds;
+      // Pass combatants/noncombatants context needed for sender mapping
+      // Map contract types to domain types using the mapper
+      const domainCombatantsContext = (mappedData.combatants || []).map(mapCharacterLite);
+      const domainNonCombatantsContext = (mappedData.noncombatants || []).map(mapCharacterLite);
 
-      // Convert cached blocks, filtering out any block also present in the live feed
-      const historicalCachedFeeds: contract.DataFeed[] = cachedDataBlocks
-        .filter((cachedBlock: CachedDataBlock) => !liveFeedBlockNumbers.has(cachedBlock.block.toString()))
-        .map((block: CachedDataBlock) => {
-          // Map cached events (SerializedEventLog[]) back to contract.Log[]
-          const contractLogs: contract.Log[] = (block.events || []).map((e: any) => ({
-            logType: e.logType,
-            index: e.index,
-            mainPlayerIndex: e.mainPlayerIndex,
-            otherPlayerIndex: e.otherPlayerIndex,
-            hit: e.hit,
-            critical: e.critical,
-            damageDone: e.damageDone,
-            healthHealed: e.healthHealed,
-            targetDied: e.targetDied,
-            lootedWeaponID: e.lootedWeaponID,
-            lootedArmorID: e.lootedArmorID,
-            experience: e.experience,
-            value: BigInt(e.value || '0') // Convert string back to BigInt
-          }));
-          
-          // Ensure blockNumber is BigInt for the DataFeed type
-          const blockNumBigInt = typeof block.block === 'bigint' 
-              ? block.block 
-              : BigInt(block.block || '0'); // Convert string/fallback to BigInt
-
-          return {
-            blockNumber: blockNumBigInt, 
-            logs: contractLogs, 
-            chatLogs: (block.chats || []).map((chat: any) => chat.content)
-          };
-        });
-
-      // Combine: Live feeds first, then filtered historical feeds
-      const combinedFeeds = [...liveFeeds, ...historicalCachedFeeds];
+      if (liveFeeds && liveFeeds.length > 0) {
+        // Call storeFeedData with mapped context but DO NOT await it
+        storeFeedData(owner, liveFeeds, domainCombatantsContext, domainNonCombatantsContext)
+          .catch(storageError => {
+            console.error("[useUiSnapshot] Background feed storage failed:", storageError);
+          });
+      }
       
-      combinedFeeds.sort((a, b) => Number(a.blockNumber - b.blockNumber));
-      
-      // --- Merged Feeds Ready --- 
-
-      // Return the snapshot using the correctly prioritized combined feeds
-      return {
-        ...mappedData,
-        dataFeeds: combinedFeeds
-      };
+      return mappedData;
     },
     refetchOnWindowFocus: true,
-    structuralSharing: false // Disable structural sharing to handle BigInts
+    structuralSharing: false
   });
 };

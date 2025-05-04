@@ -22,6 +22,7 @@ interface GameViewProps {
   isAttacking: boolean;
   characterId: string;
   isInCombat: boolean;
+  isCacheLoading: boolean;
 }
 
 const GameView: React.FC<GameViewProps> = ({
@@ -37,7 +38,8 @@ const GameView: React.FC<GameViewProps> = ({
   isMoving,
   isAttacking,
   characterId,
-  isInCombat
+  isInCombat,
+  isCacheLoading
 }) => {
   return (
     <Grid
@@ -99,6 +101,7 @@ const GameView: React.FC<GameViewProps> = ({
             characterId={characterId} 
             eventLogs={eventLogs}
             combatants={combatants}
+            isCacheLoading={isCacheLoading}
           />
         </Box>
       </GridItem>
@@ -111,6 +114,7 @@ const GameView: React.FC<GameViewProps> = ({
             chatLogs={chatLogs}
             onSendChatMessage={onSendChatMessage}
             addOptimisticChatMessage={addOptimisticChatMessage}
+            isCacheLoading={isCacheLoading}
           />
         </Box>
       </GridItem>

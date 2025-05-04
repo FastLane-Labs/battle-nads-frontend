@@ -45,15 +45,15 @@ export function useWalletBalances(owner: string | null) {
   const ownerBalance = useOwnerBalance(owner);
   
   // --- Add Guards: Only format if gameState and sessionKey are valid --- 
-  const hasValidSessionKeyData = gameState && gameState.sessionKey && gameState.sessionKey.key !== '0x0000000000000000000000000000000000000000';
+  const hasValidSessionKeyData = gameState && gameState.sessionKeyData && gameState.sessionKeyData.key !== '0x0000000000000000000000000000000000000000';
   
   // Extract session key and funding data from the game state
   const sessionKeyBalance = hasValidSessionKeyData
-    ? ethers.formatUnits(gameState.sessionKey.balance, 18) // Use formatUnits here too
+    ? ethers.formatUnits(gameState.sessionKeyData?.balance || BigInt(0), 18) // Use formatUnits here too
     : '0';
     
   const bondedBalance = hasValidSessionKeyData
-    ? ethers.formatUnits(gameState.sessionKey.ownerCommittedAmount, 18) // Use formatUnits here too
+    ? ethers.formatUnits(gameState.sessionKeyData?.ownerCommittedAmount || BigInt(0), 18) // Use formatUnits here too
     : '0';
     
   const shortfall = hasValidSessionKeyData ? (gameState.balanceShortfall || BigInt(0)) : BigInt(0);
@@ -61,7 +61,7 @@ export function useWalletBalances(owner: string | null) {
   const formattedShortfall = hasValidSessionKeyData && shortfall > 0 ? ethers.formatUnits(BigInt(shortfall), 18) : '0'; 
   
   // Determine if the session key balance is below threshold
-  const targetBalance = hasValidSessionKeyData ? (gameState.sessionKey.targetBalance || BigInt(0)) : BigInt(0);
+  const targetBalance = hasValidSessionKeyData ? (gameState.sessionKeyData?.targetBalance || BigInt(0)) : BigInt(0);
   const formattedTargetBalance = hasValidSessionKeyData ? ethers.formatUnits(targetBalance, 18) : '0';
   // ---------------------------------------------------------------------
 

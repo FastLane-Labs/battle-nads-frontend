@@ -10,6 +10,7 @@ import { MAX_SESSION_KEY_VALIDITY_BLOCKS } from '../../config/env';
 import { TransactionResponse } from 'ethers';
 import { safeStringify } from '../../utils/bigintSerializer';
 import { mapSessionKeyData } from '../../mappers/contractToDomain';
+import { useCachedDataFeed, CachedDataBlock } from './useCachedDataFeed';
 
 /**
  * Hook for game state and actions
@@ -29,17 +30,19 @@ export const useGame = () => {
   // Owner address from wallet
   const owner = injectedWallet?.address || null;
   
-  // Get game state
+  // Get LIVE game state data (includes LIVE chat/event logs from last poll)
   const { 
-    gameState, 
+    gameState: liveGameState, // Renamed for clarity
     addOptimisticChatMessage,
     isLoading: isLoadingGameState, 
     error: gameStateError, 
-    refetch: refetchGameState 
   } = useBattleNads(owner);
   
+  // Get historical cache data and loading state
+  const { historicalBlocks, isHistoryLoading: isCacheLoading } = useCachedDataFeed(owner);
+  
   // Character ID from game state
-  const characterId = gameState?.character?.id || null;
+  const characterId = liveGameState?.character?.id || null;
   
   // Session key management
   const { 
@@ -186,13 +189,55 @@ export const useGame = () => {
     }
   });
   
+  // --- Map historical blocks to domain.ChatMessage --- 
+  const historicalChatMessages = useMemo<domain.ChatMessage[]>(() => {
+    if (!historicalBlocks || historicalBlocks.length === 0) return [];
+    
+    const messages: domain.ChatMessage[] = [];
+    
+    historicalBlocks.forEach((block: CachedDataBlock) => {
+      block.chats?.forEach((chat, index) => { // chat is now SerializedChatLog
+        messages.push({
+          // Use stored sender info, provide fallback for older data / robustness
+          sender: { 
+            id: chat.senderId || 'unknown-id', 
+            name: chat.senderName || 'Unknown', 
+            index: -1 // Historical logs don't have a reliable runtime index
+          }, 
+          message: chat.content,
+          blocknumber: BigInt(chat.timestamp), // Assuming timestamp is block number
+          timestamp: Number(chat.timestamp), // Assuming timestamp is block number
+          logIndex: index, // Use index within block as pseudo logIndex
+          isOptimistic: false
+        });
+      });
+    });
+    return messages;
+  }, [historicalBlocks]);
+  // ----------------------------------------------------
+
   // --- Construct the unified WorldSnapshot --- 
   const worldSnapshot = useMemo<domain.WorldSnapshot | null>(() => {
-    if (!gameState || !gameState.character) return null; // Need character for a valid snapshot
+    if (!liveGameState || !liveGameState.character) return null; // Need live character data
     
+    // Combine live and historical chat logs
+    const liveChatLogs = liveGameState.chatLogs || [];
+    const combinedChatLogs = [...historicalChatMessages, ...liveChatLogs];
+    
+    // Remove duplicates (preferring live/optimistic ones)
+    const uniqueChatLogs = combinedChatLogs.reduce((acc, current) => {
+      const key = `${current.timestamp}-${current.sender.id}-${current.message}`;
+      if (!acc.find(item => `${item.timestamp}-${item.sender.id}-${item.message}` === key)) {
+        acc.push(current);
+      }
+      return acc;
+    }, [] as domain.ChatMessage[]);
+    
+    uniqueChatLogs.sort((a, b) => a.timestamp - b.timestamp); // Sort by timestamp
+
     return {
-      // Combine data from gameState (from useBattleNads) and sessionKey
-      characterID: gameState.character.id, 
+      // Combine data from liveGameState and sessionKey
+      characterID: liveGameState.character.id, 
       sessionKeyData: mapSessionKeyData(sessionKeyData ?? null, owner) ?? {
         owner: owner ?? '', // Use hook's owner, fallback to empty
         key: '',
@@ -202,18 +247,16 @@ export const useGame = () => {
         ownerCommittedShares: '0',
         expiry: '0'
       },
-      character: gameState.character,
-      combatants: gameState.combatants || [],
-      noncombatants: gameState.noncombatants || [],
-      eventLogs: gameState.eventLogs || [],
-      chatLogs: gameState.chatLogs || [],
-      balanceShortfall: gameState.balanceShortfall || 0,
-      unallocatedAttributePoints: gameState.unallocatedAttributePoints || 0,
-      lastBlock: gameState.lastBlock || 0
-      // Note: Original gameState structure from useBattleNads might slightly differ
-      // We might need to adjust which properties are pulled from where if needed
+      character: liveGameState.character,
+      combatants: liveGameState.combatants || [],
+      noncombatants: liveGameState.noncombatants || [],
+      eventLogs: liveGameState.eventLogs || [], // Using only live events for now
+      chatLogs: uniqueChatLogs, // Use combined, unique, sorted chat logs
+      balanceShortfall: liveGameState.balanceShortfall || 0,
+      unallocatedAttributePoints: liveGameState.unallocatedAttributePoints || 0,
+      lastBlock: liveGameState.lastBlock || 0
     };
-  }, [gameState, sessionKeyData]);
+  }, [liveGameState, sessionKeyData, historicalChatMessages]); // Add historicalChatMessages dependency
   // -----------------------------------------
 
   // --- Determine Combat State ---
@@ -222,13 +265,17 @@ export const useGame = () => {
   }, [worldSnapshot]);
   // ----------------------------
 
+  // --- Combine Loading States (Now includes cache loading) ---
+  const isLoading = !isWalletInitialized || isCacheLoading || isLoadingGameState;
+  // --------------------------------------------------------
+
   return {
     // State
-    worldSnapshot, // Return the unified snapshot
-    isLoading: isLoadingGameState || !isWalletInitialized, // Combine loading states
+    worldSnapshot, 
+    isLoading: isLoading, 
+    isCacheLoading: isCacheLoading, 
     error: gameStateError,
-    refetch: refetchGameState,
-    isInitialized: isWalletInitialized, // Expose wallet initialization status
+    isInitialized: isWalletInitialized,
     
     // Wallet
     owner,
@@ -268,9 +315,9 @@ export const useGame = () => {
     addOptimisticChatMessage,
     isSendingChat: chatMutation.isPending,
     
-    // Logs (Extract from snapshot for convenience)
+    // Logs (Extract from snapshot for convenience - will now include historical chat)
     chatLogs: worldSnapshot?.chatLogs || [],
-    eventLogs: worldSnapshot?.eventLogs || [],
+    eventLogs: worldSnapshot?.eventLogs || [], // Still only live events
     
     // Other characters (Extract from snapshot - adjust property name if needed)
     others: worldSnapshot?.noncombatants || [] // Assuming noncombatants are the 'others'

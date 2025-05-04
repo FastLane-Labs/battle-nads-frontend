@@ -49,7 +49,8 @@ const StatDisplay: React.FC<{
 export const EquipmentCard: React.FC<EquipmentCardProps> = ({ slot, equipmentHookResult, characterId }) => {
   const {
     currentWeapon, currentArmor,
-    weaponOptions, armorOptions,
+    equipableWeapons,
+    equipableArmors,
     equipWeapon, equipArmor,
     isEquippingWeapon, isEquippingArmor,
     weaponError, armorError,
@@ -60,7 +61,7 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({ slot, equipmentHoo
 
   const isWeapon = slot === 'weapon';
   const currentItem = isWeapon ? currentWeapon : currentArmor;
-  const options = isWeapon ? weaponOptions : armorOptions;
+  const options = isWeapon ? equipableWeapons : equipableArmors;
   const equipAction = isWeapon ? equipWeapon : equipArmor;
   const isEquipping = isWeapon ? isEquippingWeapon : isEquippingArmor;
   const error = isWeapon ? weaponError : armorError;
@@ -72,10 +73,10 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({ slot, equipmentHoo
     }
   }, [error, slot]);
   
-  const handleEquip = () => {
+  const handleEquip = (selectedItemId: number) => {
     console.log(`[EquipmentCard-${slot}] handleEquip called. Pending ID: ${pendingId}, In Combat: ${isInCombat}`);
-    if (pendingId !== null && !isInCombat) {
-      equipAction(pendingId);
+    if (selectedItemId !== null && !isInCombat) {
+      equipAction(selectedItemId);
       setPendingId(null); // Reset selection after initiating equip
     }
   };
@@ -129,7 +130,7 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({ slot, equipmentHoo
           size="xs"
           placeholder={currentItem ? 'Change...' : 'Equip...'}
           value={pendingId ?? ''}
-          onChange={(e) => {
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
             const newId = Number(e.target.value);
             console.log(`[EquipmentCard-${slot}] Selection changed. New pending ID: ${newId}`);
             setPendingId(newId);
@@ -137,25 +138,23 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({ slot, equipmentHoo
           disabled={isInCombat || isEquipping || !options.length}
           flexGrow={1} // Allow select to take available space
         >
-          {options.map((item) => (
+          {options.map((item: { id: number; name: string }) => (
             <option key={item.id} value={item.id}>
               {item.name} {/* TODO: Consider adding basic stats here */}
             </option>
           ))}
         </Select>
         <Tooltip 
-          label={isInCombat ? "Cannot change equipment while in combat" : (pendingId === null ? "Select an item to equip" : `Equip ${options.find(o => o.id === pendingId)?.name}`)}
+          label={isInCombat ? "Cannot change equipment while in combat" : (pendingId === null ? "Select an item to equip" : `Equip ${options.find((o: { id: number; name: string }) => o.id === pendingId)?.name}`)}
           isDisabled={!isInCombat && pendingId !== null}
         >
           {/* Wrap button for tooltip when disabled */}
-          <Box> 
-            <Button
+          <Box>
+            <Button 
+              onClick={() => { if (pendingId !== null) { handleEquip(pendingId); } }} 
+              disabled={!pendingId || isInCombat || isEquipping}
               size="xs"
-              onClick={handleEquip}
               isLoading={isEquipping}
-              loadingText="Equip..."
-              isDisabled={!pendingId || isInCombat || isEquipping}
-              minW="60px" // Ensure button text is visible
             >
               Equip
             </Button>
@@ -166,7 +165,7 @@ export const EquipmentCard: React.FC<EquipmentCardProps> = ({ slot, equipmentHoo
       {/* Error Display */}
       {error && (
         <Text color="red.500" fontSize="xs" mt={1}>
-          Error: {error}
+          Error: {error.message}
           {/* TODO: Add Retry button */}
         </Text>
       )}

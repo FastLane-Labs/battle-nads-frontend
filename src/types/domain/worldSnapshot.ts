@@ -4,7 +4,7 @@
  */
 
 import { Character, CharacterLite } from './character';
-import { ChatMessage, EventMessage } from './combat';
+import { ChatMessage, EventMessage } from './dataFeed';
 import { SessionKeyData } from './session';
 
 /**

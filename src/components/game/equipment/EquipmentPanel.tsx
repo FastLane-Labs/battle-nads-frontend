@@ -8,7 +8,7 @@ interface EquipmentPanelProps {
 }
 
 export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) => {
-  const equipmentHookResult = useEquipment(); // Get the hook results once
+  const equipmentHookResult = useEquipment(characterId); // Get the hook results once
   const { weaponError, armorError } = equipmentHookResult;
 
   // Combine errors for a potential shared display if needed, but card handles specifics

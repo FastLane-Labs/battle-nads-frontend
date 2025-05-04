@@ -3,7 +3,7 @@
  * These types represent game logic and are independent of UI or contract specifics
  */
 
-import { LogType, Ability, CharacterClass } from './enums';
+import { LogType } from './enums';
 
 // Represents a character involved in an event (sender, attacker, defender)
 export interface EventParticipant {
@@ -40,34 +40,9 @@ export interface EventMessage {
 // Represents a structured chat log entry
 export interface ChatMessage {
   logIndex: number; // uint16 - Original index from contract Log
-  timestamp: number; // blockNumber
+  blocknumber: bigint; // blockNumber
+  timestamp: number; // timestamp
   sender: EventParticipant;
   message: string;
   isOptimistic?: boolean; // Flag for locally added messages
 }
-
-// --- Keeping old types temporarily for reference during refactor, REMOVE LATER ---
-/*
-export interface CombatLog {
-  logType: LogType;
-  index: number;
-  mainPlayerIndex: number;
-  otherPlayerIndex: number;
-  hit: boolean;
-  critical: boolean;
-  damageDone: number;
-  healthHealed: number;
-  targetDied: boolean;
-  lootedWeaponID: number;
-  lootedArmorID: number;
-  experience: number;
-  value: number;
-}
-
-export interface DataFeed {
-  blockNumber: number;
-  logs: CombatLog[];
-  chatLogs: string[];
-}
-*/
-// --- END TEMP SECTION --- 

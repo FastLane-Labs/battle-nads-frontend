@@ -66,4 +66,9 @@ export enum Direction {
   West = 3,
   Up = 4,
   Down = 5
+}
+
+export enum EquipmentSlot {
+  WEAPON = 0,
+  ARMOR = 1,
 } 
