@@ -6,7 +6,8 @@ import { CharacterLite } from '@/types/domain'; // Import CharacterLite
 import { estimateBlockTimestamp } from '@/utils/blockUtils'; // Import the new utility function
 
 // Define SerializedEventLog based on contract.Log, converting BigInts
-interface SerializedEventLog {
+// Export needed types
+export interface SerializedEventLog {
   logType: number;
   index: number;
   mainPlayerIndex: number;
@@ -23,7 +24,8 @@ interface SerializedEventLog {
 }
 
 // Create a SerializedChatLog type to match what we store
-interface SerializedChatLog {
+// Export needed types
+export interface SerializedChatLog {
   // sender: string;       // Sender (wallet address or character name) - REMOVE
   content: string;      // Raw Message content string
   timestamp: string;    // Block timestamp as string
@@ -33,6 +35,7 @@ interface SerializedChatLog {
 
 // Return type still aims to match the old CachedDataBlock structure for compatibility
 // with useUiSnapshot mapping logic
+// Export needed types
 export interface CachedDataBlock { 
   blockNumber: bigint; 
   timestamp: number;
