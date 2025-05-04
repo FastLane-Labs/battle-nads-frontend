@@ -29,7 +29,7 @@ export const useEquipment = (characterId: string | null) => {
     rawEquipableWeaponNames,
     rawEquipableArmorIDs,
     rawEquipableArmorNames,
-  } = useBattleNads(characterId ? characterId.split(':')[0] : null); // Assuming owner is needed
+  } = useBattleNads(owner); // Use the owner address directly
   
   // Character ID from state
   const currentCharacterIdFromState = gameState?.character?.id || null;
