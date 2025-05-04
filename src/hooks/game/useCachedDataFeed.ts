@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useEffect, useState, useCallback } from 'react';
 import { contract } from '../../types';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { db, StoredDataBlock } from '../../lib/db'; // Import Dexie db instance
+import { LogType } from '@/types/domain/enums'; // Import LogType
+import { CharacterLite } from '@/types/domain'; // Import CharacterLite
 
 // Define SerializedEventLog based on contract.Log, converting BigInts
 interface SerializedEventLog {
@@ -26,250 +27,241 @@ interface SerializedChatLog {
   // sender: string;       // Sender (wallet address or character name) - REMOVE
   content: string;      // Raw Message content string
   timestamp: string;    // Block timestamp as string
+  senderId: string;
+  senderName: string;
 }
 
 // Return type still aims to match the old CachedDataBlock structure for compatibility
 // with useUiSnapshot mapping logic
 export interface CachedDataBlock { 
-  block: bigint; 
-  ts: number;
+  blockNumber: bigint; 
+  timestamp: number;
   chats: SerializedChatLog[];
   events: SerializedEventLog[];
 }
 
 // Constants
-// Removed: const FEED_CACHE = 'bn-feed-cache';
 const FEED_TTL = 1000 * 60 * 60; // 1 hour in ms 
-const BLOCKS_PER_MINUTE = 2;
-const DEFAULT_MINUTES_WINDOW = 10;
 
-// Helper to get the owner-specific localStorage key for the last processed block
-const getLastFeedBlockKey = (owner: string) => `bn-last-feed-block:${owner}`; // RENAMED function and key pattern
-
-// Removed: localforage config and driver logging
 
 /**
- * Hook to manage cached data feed blocks using Dexie
+ * Hook to manage cached data feed blocks using Dexie.
+ * Loads initial historical blocks from Dexie and handles purging.
+ * Does NOT perform network fetches itself anymore.
  */
 export const useCachedDataFeed = (owner: string | null) => {
-  const { client } = useBattleNadsClient();
-  const queryClient = useQueryClient();
-  const [cachedBlocks, setCachedBlocks] = useState<CachedDataBlock[]>([]); // Still returns this type
-  const [latestBlock, setLatestBlock] = useState<bigint>(BigInt(0));
-  const [isLoading, setIsLoading] = useState(true);
-  // Removed: const [storageErrorOccurred, setStorageErrorOccurred] = useState(false);
+  const [cachedBlocks, setCachedBlocks] = useState<CachedDataBlock[]>([]);
+  // Removed: latestBlock state
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true); // Renamed from isLoading
+  // Removed: storageErrorOccurred state
 
+  // --- Function to load recent blocks into state --- 
+  const loadRecentBlocksIntoState = useCallback(async (owner: string) => {
+    // Removed: console.time
+    setIsHistoryLoading(true); 
+
+    try {
+      
+      // Query Dexie for ALL blocks for the owner, ordered descending by block
+      const recentStoredBlocks = await db.dataBlocks
+        .where('owner').equals(owner)
+        .reverse() // Get newest first (relative order)
+        .sortBy('blockNumber'); // Sort ascending by block number before mapping
+
+      const deserializedBlocks = recentStoredBlocks.map(stored => ({
+        blockNumber: BigInt(stored.block),
+        timestamp: stored.ts,
+        chats: stored.chats,
+        events: stored.events
+      }));
+      
+      setCachedBlocks(deserializedBlocks);
+    } catch (error) {
+      console.error('[CachedDataFeed] Error loading recent blocks from Dexie:', error);
+      setCachedBlocks([]); // Clear cache on error
+    } finally {
+      setIsHistoryLoading(false); 
+      // Removed: console.timeEnd
+    }
+  }, []); // No dependencies needed for this function itself
+  // ------------------------------------------------
+
+  // Effect for initial load from Dexie and purging
   useEffect(() => {
-    // Removed: Early bailout for storageErrorOccurred
-    
-    if (!owner || !client) {
-      setCachedBlocks([]);
-      setLatestBlock(BigInt(0));
-      setIsLoading(false);
+    let isMounted = true;
+    if (!owner) { // Removed client check here, only owner needed for Dexie ops
+      if (isMounted) {
+        setCachedBlocks([]);
+        // Removed: setLatestBlock(BigInt(0));
+        setIsHistoryLoading(false); // Ensure loading is false if no owner
+      }
       return;
     }
 
-    const updateCache = async () => {
-      try {
-        // 1. Get current block number from client
-        const currentBlock = await client.getLatestBlockNumber();
-        setLatestBlock(currentBlock);
+    const initialLoadAndPurge = async () => {
+      if (!isMounted) return;
+      
+      // 1. Load initial historical data from Dexie
+      await loadRecentBlocksIntoState(owner); // Await the initial load
 
-        // 2. Purge expired blocks using Dexie index
-        const now = Date.now();
-        const expirationTime = now - FEED_TTL;
-        const expiredKeys = await db.dataBlocks
-          .where('ts').below(expirationTime)
-          .primaryKeys();
-        if (expiredKeys.length > 0) {
-          console.log(`[CachedDataFeed] Purging ${expiredKeys.length} expired blocks...`);
-          await db.dataBlocks.bulkDelete(expiredKeys);
-        }
-
-        // 3. Get all currently stored blocks for the owner
-        const storedBlocks = await db.dataBlocks.where('owner').equals(owner).toArray();
-
-        // 4. Determine the latest block stored for this owner
-        let lastStoredBlockNum = 0n;
-        if (storedBlocks.length > 0) {
-          lastStoredBlockNum = storedBlocks.reduce((max, block) => {
-            const blockNum = BigInt(block.block);
-            return blockNum > max ? blockNum : max;
-          }, 0n);
-        }
-        
-        // 5. Calculate fetch range (startBlock)
-        const defaultBlockWindow = BigInt(BLOCKS_PER_MINUTE * 60 * DEFAULT_MINUTES_WINDOW);
-        let startBlock: bigint;
-        if (lastStoredBlockNum === 0n) {
-          // Cold start
-          startBlock = currentBlock - defaultBlockWindow;
-        } else {
-          // Incremental fetch
-          startBlock = lastStoredBlockNum + 1n;
-          // Apply lookback window limit if gap is too large
-          if (currentBlock - lastStoredBlockNum > defaultBlockWindow) {
-            startBlock = currentBlock - defaultBlockWindow;
-          }
-        }
-        // Ensure startBlock is not negative
-        startBlock = startBlock < 0n ? 0n : startBlock; 
-
-        // Declare blocksToStore here to make it accessible later
-        let blocksToStore: StoredDataBlock[] = [];
-
-        // 6. Fetch new data if needed
-        if (startBlock <= currentBlock) {
-          const dataFeeds = await client.getDataFeed(owner, startBlock, currentBlock);
-          
-          // 7. Prepare blocks for Dexie storage
-          for (const feed of dataFeeds) {
-            if (feed.blockNumber && ((feed.chatLogs && feed.chatLogs.length > 0) || (feed.logs && feed.logs.length > 0))) {
-              const blockNumber = BigInt(feed.blockNumber);
-              const serializedChats = (feed.chatLogs || []).map(chatString => ({
-                content: chatString,
-                timestamp: blockNumber.toString()
-              }));
-              const serializedEvents = (feed.logs || []).map((log: contract.Log) => ({
-                logType: log.logType,
-                index: log.index,
-                mainPlayerIndex: log.mainPlayerIndex,
-                otherPlayerIndex: log.otherPlayerIndex,
-                hit: log.hit,
-                critical: log.critical,
-                damageDone: log.damageDone,
-                healthHealed: log.healthHealed,
-                targetDied: log.targetDied,
-                lootedWeaponID: log.lootedWeaponID,
-                lootedArmorID: log.lootedArmorID,
-                experience: log.experience,
-                value: String(log.value || '0')
-              }));
-
-              blocksToStore.push({ 
-                owner: owner, // Add owner for compound key
-                block: blockNumber.toString(), // Use string for compound key
-                ts: Date.now(),
-                chats: serializedChats,
-                events: serializedEvents
-              });
-            }
-          }
-          
-          // 8. Store new blocks in Dexie
-          if (blocksToStore.length > 0) {
-            // --- Wrap write in explicit transaction ---
-            try {
-              await db.transaction('rw', db.dataBlocks, async () => {
-                // Operations within this block are transactional
-                await db.dataBlocks.bulkPut(blocksToStore);
-                // console.log(`[CachedDataFeed] Dexie transaction: Stored ${blocksToStore.length} new blocks.`);
-
-                // Optional: Verify read WITHIN the transaction
-                const firstStoredKey = { owner: owner, block: blocksToStore[0].block };
-                const verifyRead = await db.dataBlocks.get(firstStoredKey);
-                // console.log(`[CachedDataFeed] Dexie transaction: Verification read for block ${firstStoredKey.block}:`, verifyRead ? 'Found' : 'NOT FOUND');
-              
-              }); // Transaction commits here if no errors were thrown
-
-              // Invalidation happens AFTER successful transaction commit
-              queryClient.invalidateQueries({ queryKey: ['uiSnapshot', owner] });
-              // console.log(`[CachedDataFeed] Invalidated uiSnapshot query for owner: ${owner} after successful transaction.`);
-
-              // --- Update In-Memory State --- 
-              // Convert the newly stored blocks back to the CachedDataBlock format for the state
-              const newlyDeserializedBlocks = blocksToStore.map(stored => ({
-                  block: BigInt(stored.block),
-                  ts: stored.ts,
-                  chats: stored.chats,
-                  events: stored.events
-              }));
-              
-              setCachedBlocks(prevBlocks => {
-                // Combine previous blocks and newly added ones
-                const combined = [...prevBlocks, ...newlyDeserializedBlocks];
-                
-                // Apply TTL purging to the combined in-memory array
-                const now = Date.now();
-                const expirationTime = now - FEED_TTL;
-                const purged = combined.filter(block => block.ts >= expirationTime);
-                
-                // Sort the final, purged blocks by block number
-                purged.sort((a, b) => (a.block < b.block ? -1 : 1));
-                // console.log(`[CachedDataFeed] Updating in-memory state with ${newlyDeserializedBlocks.length} new blocks, ${purged.length} total after purge.`);
-                return purged;
-              });
-              // --- End Update In-Memory State ---
-
-              /* // Update local state *after* successful transaction and invalidation (OLD WAY)
-              storedBlocks.push(...blocksToStore); */
-
-            } catch (txError) {
-               console.error("[CachedDataFeed] Dexie transaction failed:", txError);
-               // Rethrow the error to ensure the calling code knows the transaction failed
-               throw txError; 
-               // Handle transaction error - maybe don't invalidate or update local state?
-               // For now, we will let the process continue and potentially use stale local state,
-               // but ideally, more robust error handling would go here.
-            }
-            // --- End transaction wrap ---
-
-            /* // ---> Verify write immediately (Moved inside transaction)
-            const firstStoredKey = { owner: owner, block: blocksToStore[0].block };
-            const verifyRead = await db.dataBlocks.get(firstStoredKey);
-            console.log(`[CachedDataFeed] Verification read for block ${firstStoredKey.block}:`, verifyRead ? 'Found' : 'NOT FOUND');
-            // <--- End verification
-
-            // ---> Invalidate uiSnapshot query after successful cache write (Moved after transaction)
-            queryClient.invalidateQueries({ queryKey: ['uiSnapshot', owner] });
-            console.log(`[CachedDataFeed] Invalidated uiSnapshot query for owner: ${owner}`);
-            // Combine newly stored blocks with previously stored ones for the current state
-            // This avoids needing a second read query immediately after writing
-            storedBlocks.push(...blocksToStore); */
-          }
-        }
-        
-        // 9. Prepare final state (convert StoredDataBlock back to CachedDataBlock format for consumer)
-        // THIS SECTION IS NOW ONLY FOR INITIAL LOAD or if no new blocks were fetched
-        const initialDeserializedBlocks = storedBlocks
-            .filter(block => block.ts >= (Date.now() - FEED_TTL)) // Apply TTL filter here too for initial load
-            .map(stored => ({
-                block: BigInt(stored.block),
-                ts: stored.ts,
-                chats: stored.chats,
-                events: stored.events
-            }));
-        
-        // Sort final blocks by block number (ascending)
-        initialDeserializedBlocks.sort((a, b) => {
-          return a.block < b.block ? -1 : 1;
+      // 2. Purge expired blocks (can run async without blocking the main flow)
+      // This runs independently in the background
+      const now = Date.now();
+      const expirationTime = now - FEED_TTL;
+      db.dataBlocks
+        .where('ts').below(expirationTime)
+        .delete()
+        .then(deleteCount => {
+            // Removed: Purge count log
+        }).catch(err => {
+            // Removed: Purge error log 
         });
 
-        // Only set state if it hasn't potentially been updated by the new block logic already
-        // Check if blocksToStore had content; if so, state was likely updated already.
-        if (!(blocksToStore && blocksToStore.length > 0)) {
-            // console.log(`[CachedDataFeed] Setting initial/unchanged state with ${initialDeserializedBlocks.length} blocks.`);
-            setCachedBlocks(initialDeserializedBlocks);
-        }
-
-      } catch (error) {
-        console.error('Error in useCachedDataFeed updateCache:', error);
-        setCachedBlocks([]); // Clear cache on error
-        // Optionally, still try to set latestBlock if possible
-        client?.getLatestBlockNumber().then(setLatestBlock).catch(console.error); 
-      } finally {
-        setIsLoading(false);
-      }
+      // NOTE: No network fetch (getDataFeed) or storage (bulkPut) happens here anymore.
+      // The 'isLoading duration' timer was removed as it measured the removed network fetch.
     };
 
-    updateCache();
-  // Dependencies: owner and client. Rerun when they change.
-  }, [owner, client]); 
+    initialLoadAndPurge();
 
-  // Return value remains compatible with useUiSnapshot's expectations
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
+  // Dependencies: owner. Rerun when owner changes. loadRecentBlocksIntoState is stable.
+  }, [owner, loadRecentBlocksIntoState]); 
+
+  // Return only the historical blocks and the loading state for that history
   return {
-    blocks: cachedBlocks, 
-    latest: latestBlock,
-    isLoading
+    historicalBlocks: cachedBlocks, // Renamed blocks to historicalBlocks for clarity
+    isHistoryLoading // Expose the loading state related to Dexie history read
   };
 };
+
+// --- Utility function to process raw DataFeed into CachedDataBlock format ---
+export const processDataFeedsToCachedBlocks = (
+  dataFeeds: contract.DataFeed[],
+  combatantsContext: CharacterLite[] | undefined,
+  nonCombatantsContext: CharacterLite[] | undefined
+): CachedDataBlock[] => {
+  if (!dataFeeds || dataFeeds.length === 0) {
+    return []; 
+  }
+
+  // Create lookup maps from context (index -> {id, name})
+  const characterLookup = new Map<number, { id: string; name: string }>();
+  (combatantsContext || []).forEach(c => characterLookup.set(c.index, { id: c.id, name: c.name }));
+  (nonCombatantsContext || []).forEach(c => characterLookup.set(c.index, { id: c.id, name: c.name }));
+  
+  const processedBlocks: CachedDataBlock[] = [];
+
+  for (const feed of dataFeeds) {
+    if (!feed.blockNumber) continue;
+
+    const blockNumber = BigInt(feed.blockNumber);
+    // If not, we might need to adjust where the timestamp comes from.
+    // For now, let's assume feed.timestamp exists and is a number.
+    // If feed.timestamp is BigInt, it needs conversion: Number(feed.timestamp)
+    // const blockTimestamp = typeof feed.timestamp === 'bigint' ? Number(feed.timestamp) : feed.timestamp ?? Date.now(); // Fallback if undefined
+    const blockTimestamp = Date.now(); // Use current time for processing/cache TTL
+
+
+    const serializedChatsForBlock: SerializedChatLog[] = [];
+    const serializedEventsForBlock: SerializedEventLog[] = []; 
+
+    // Process logs to find chat messages and map senders
+    (feed.logs || []).forEach((log: contract.Log) => { // Removed unused logIndexInArray
+      // Map general event log data
+      const eventLog: SerializedEventLog = {
+        logType: log.logType,
+        index: log.index,
+        mainPlayerIndex: log.mainPlayerIndex,
+        otherPlayerIndex: log.otherPlayerIndex,
+        hit: log.hit,
+        critical: log.critical,
+        damageDone: log.damageDone,
+        healthHealed: log.healthHealed,
+        targetDied: log.targetDied,
+        lootedWeaponID: log.lootedWeaponID,
+        lootedArmorID: log.lootedArmorID,
+        experience: log.experience,
+        value: String(log.value || '0')
+      };
+      serializedEventsForBlock.push(eventLog);
+
+      // If it's a chat log, extract sender and find message
+      if (Number(log.logType) === LogType.Chat) { // Compare as numbers
+        const senderIndex = Number(log.mainPlayerIndex);
+        const senderInfo = characterLookup.get(senderIndex);
+        
+        // Find corresponding chat string - REVISIT THIS ASSUMPTION
+        const messageContent = feed.chatLogs?.[Number(log.index)]; 
+        
+        if (messageContent) { 
+          serializedChatsForBlock.push({
+            content: messageContent,
+            // Use the blockTimestamp derived earlier
+            timestamp: blockTimestamp.toString(), // Store timestamp string matching interface
+            senderId: senderInfo?.id || 'unknown-id', 
+            senderName: senderInfo?.name || 'Unknown' 
+          });
+        }
+      }
+    });
+
+    // Only add block if it has chats or events worth storing
+    if (serializedChatsForBlock.length > 0 || serializedEventsForBlock.length > 0) {
+      processedBlocks.push({ 
+        blockNumber: blockNumber, 
+        timestamp: blockTimestamp, // Use the derived numeric timestamp
+        chats: serializedChatsForBlock,
+        events: serializedEventsForBlock 
+      });
+    }
+  }
+  return processedBlocks;
+};
+// --- End Utility Function ---
+
+
+// --- Utility function to store feed data (can be called from useUiSnapshot) ---
+export const storeFeedData = async (
+  owner: string, 
+  dataFeeds: contract.DataFeed[],
+  // Add context parameters
+  combatantsContext: CharacterLite[] | undefined,
+  nonCombatantsContext: CharacterLite[] | undefined
+) => {
+  if (!owner || !dataFeeds || dataFeeds.length === 0) {
+    return; // No owner or data to store
+  }
+
+  // 1. Process the feeds using the new utility function
+  const processedBlocks = processDataFeedsToCachedBlocks(
+    dataFeeds, 
+    combatantsContext, 
+    nonCombatantsContext
+  );
+
+  // 2. Transform processed blocks into the format needed for Dexie (StoredDataBlock)
+  const blocksToStore: StoredDataBlock[] = processedBlocks.map(block => ({
+    owner: owner,
+    block: block.blockNumber.toString(), // Store block number as string
+    ts: block.timestamp, // Store numeric timestamp
+    chats: block.chats, // Already in correct format
+    events: block.events // Already in correct format
+  }));
+
+
+  // 3. Store in Dexie
+  if (blocksToStore.length > 0) {
+    console.log(`[storeFeedData] Storing ${blocksToStore.length} processed blocks to Dexie...`); // Updated log message
+    try {
+      await db.transaction('rw', db.dataBlocks, async () => {
+        await db.dataBlocks.bulkPut(blocksToStore);
+      });
+    } catch (txError) {
+       console.error("[storeFeedData] Dexie transaction failed:", txError);
+    }
+  }
+};
+// --- End Store Utility Function ---

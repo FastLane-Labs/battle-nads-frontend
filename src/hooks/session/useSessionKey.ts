@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { SessionKeyState, sessionKeyMachine } from '../../machines/sessionKeyMachine';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from '../game/useBattleNads';
@@ -14,6 +15,7 @@ export const useSessionKey = (characterId: string | null) => {
   // Get wallets
   const { embeddedWallet, injectedWallet } = useWallet();
   const ownerAddress = injectedWallet?.address ?? null; // Ensure ownerAddress is string | null
+  const queryClient = useQueryClient();
   
   // Get snapshot data from useBattleNads
   const { 
@@ -21,7 +23,6 @@ export const useSessionKey = (characterId: string | null) => {
     rawEndBlock,       // Use the raw endBlock exposed by useBattleNads
     isLoading: isSnapshotLoading, 
     error: snapshotError, 
-    refetch: refreshSnapshot // Can use this to trigger a refresh of the source data
   } = useBattleNads(ownerAddress); // Pass owner address (now guaranteed string | null)
 
   // Local state for the derived validation state
@@ -29,76 +30,82 @@ export const useSessionKey = (characterId: string | null) => {
 
   // Effect to calculate and update session key state when relevant dependencies change
   useEffect(() => {
+    let isMounted = true; // Add mount check for safety with async nature
+
     // Determine if the necessary inputs for validation are available and valid
     const embeddedAddr = embeddedWallet?.address;
-    const sessionKey = rawSessionKeyData?.key; // Use optional chaining
-    const expiration = rawSessionKeyData?.expiration ? Number(rawSessionKeyData.expiration) : 0;
-    const currentBlock = rawEndBlock ? Number(rawEndBlock) : 0;
+    const sessionKey = rawSessionKeyData?.key;
+    // Ensure expiration and currentBlock are derived safely
+    const expiration = Number(rawSessionKeyData?.expiration || '0');
+    const currentBlock = Number(rawEndBlock || '0'); 
     
     const isInputAvailable = 
       !!characterId && 
       !!ownerAddress && 
       !!embeddedAddr &&
-      rawSessionKeyData !== undefined && // Check if data object exists (even if null)
-      rawEndBlock !== undefined; // Check if endBlock exists
+      rawSessionKeyData !== undefined && 
+      rawEndBlock !== undefined;
 
-    const isReadyForValidation = 
-      isInputAvailable && 
-      !isSnapshotLoading && // Only validate after initial load of snapshot
-      !snapshotError && 
-      sessionKey && // Ensure key is not null/undefined
-      sessionKey.toLowerCase() !== ZeroAddress.toLowerCase() && 
-      currentBlock > 0; 
+    // --- Primary Logic: Only calculate final state AFTER loading is complete --- 
+    if (!isSnapshotLoading) {
+      // Snapshot has finished loading (or wasn't loading)
+      let newSessionKeyState = SessionKeyState.IDLE; // Default if validation can't run
 
-    let newSessionKeyState = SessionKeyState.IDLE;
-
-    if (isReadyForValidation) {
-      // All checks passed, safe to assert non-null based on isReadyForValidation checks
-      newSessionKeyState = sessionKeyMachine.validate(
-        sessionKey!, 
-        embeddedAddr!, 
-        expiration, // Already converted to number
-        currentBlock
-      );
-      console.log("[useSessionKey Effect] Validation result state:", newSessionKeyState);
-    } else {
-      // Determine why validation isn't ready and set state
-      if (!characterId || !ownerAddress) {
-        console.log("[useSessionKey Effect] Validation skipped: Hook disabled (no charId or owner).");
-        newSessionKeyState = SessionKeyState.IDLE;
-      } else if (isSnapshotLoading) { 
-        console.log("[useSessionKey Effect] Validation skipped: Snapshot loading...");
-        newSessionKeyState = SessionKeyState.MISSING; // Indicate data is not ready during initial load
-      } else if (snapshotError) {
-        console.log("[useSessionKey Effect] Validation skipped: Snapshot query error...", snapshotError);
+      if (snapshotError) {
+        console.log("[useSessionKey Effect] Snapshot query finished with error:", snapshotError);
         newSessionKeyState = SessionKeyState.MISSING; // Error prevents validation
-      } else if (isInputAvailable) { // Snapshot loaded without error, but data is invalid
-          console.log("[useSessionKey Effect] Validation skipped: Invalid data post-load:", {
-              sessionKey, expiration, currentBlock, embeddedAddr
-          });
-          if (!sessionKey || sessionKey.toLowerCase() === ZeroAddress.toLowerCase()) {
-             console.warn("[useSessionKey Effect] - Session key missing or zero address post-load");
-          }
-          if (!embeddedAddr) console.warn("[useSessionKey Effect] - Embedded wallet address missing post-load");
-          if (currentBlock <= 0) {
-              console.warn("[useSessionKey Effect] - Current block number invalid (<=0) post-load");
-          }
-          newSessionKeyState = SessionKeyState.MISSING; // Data present but invalid
-      } else {
-          // Fallback for any other intermediate state
-          console.log("[useSessionKey Effect] Validation skipped: Waiting for data (snapshot query enabled but data missing)...", { characterId, ownerAddress, embeddedAddr, rawSessionKeyData, rawEndBlock });
-          newSessionKeyState = SessionKeyState.MISSING;
-      }
-    }
+      } else if (isInputAvailable) {
+          // We have the inputs, now check if they are valid for validation machine
+          const isReadyForValidationMachine = 
+             sessionKey && 
+             sessionKey.toLowerCase() !== ZeroAddress.toLowerCase() &&
+             currentBlock > 0;
 
-    // Update the state only if it has actually changed
-    setSessionKeyState(prevState => {
-        if (prevState !== newSessionKeyState) {
-            console.log(`[useSessionKey Effect] State transition: ${prevState} -> ${newSessionKeyState}`);
-            return newSessionKeyState;
-        }
-        return prevState;
-    });
+          if (isReadyForValidationMachine) {
+             // All checks passed, safe to assert non-null
+             newSessionKeyState = sessionKeyMachine.validate(
+                 sessionKey!, 
+                 embeddedAddr!, 
+                 expiration, 
+                 currentBlock
+             );
+             console.log("[useSessionKey Effect] Validation result state:", newSessionKeyState);
+          } else {
+             // Data is available post-load, but invalid for validation (e.g., zero key)
+             console.warn("[useSessionKey Effect] Validation skipped post-load: Invalid data:", {
+                 sessionKey, expiration, currentBlock, embeddedAddr
+             });
+             newSessionKeyState = SessionKeyState.MISSING; 
+          }
+      } else {
+          // Snapshot loaded fine, but core inputs (charId, owner, embedAddr, rawData) missing
+          console.log("[useSessionKey Effect] Validation skipped post-load: Core inputs missing.");
+          newSessionKeyState = SessionKeyState.IDLE; // Or MISSING depending on desired state
+      }
+      
+      // Update the state only if it has actually changed
+      if (isMounted) { // Check mount status before setting state
+          setSessionKeyState(prevState => {
+              if (prevState !== newSessionKeyState) {
+                  console.log(`[useSessionKey Effect] State transition: ${prevState} -> ${newSessionKeyState}`);
+                  return newSessionKeyState;
+              }
+              return prevState;
+          });
+      }
+
+    } else {
+      // --- Snapshot IS Loading --- 
+      // Do not change the session key state while the underlying data is refreshing.
+      // Keep the previous state.
+      console.log("[useSessionKey Effect] Snapshot loading... maintaining previous state.");
+    }
+    // --- End Primary Logic --- 
+
+    // Cleanup function
+    return () => {
+        isMounted = false;
+    };
 
   }, [
     // Dependencies that should trigger re-validation
@@ -121,12 +128,19 @@ export const useSessionKey = (characterId: string | null) => {
   // isLoading/isFetching now reflect the snapshot query state
   //console.log(`[useSessionKey Return Debug] isSnapshotLoading=${isSnapshotLoading}`);
 
+  // Define refresh function using queryClient
+  const refreshSessionKey = () => {
+    if (ownerAddress) {
+      queryClient.invalidateQueries({ queryKey: ['uiSnapshot', ownerAddress] });
+    }
+  };
+
   return {
     // Return the raw data used for validation (might be needed by UI)
     sessionKeyData: rawSessionKeyData,
     isLoading: isSnapshotLoading, 
     error: snapshotError, // Pass snapshot error
-    refreshSessionKey: refreshSnapshot, // Expose snapshot refetch
+    refreshSessionKey, // Expose the new refresh function
     sessionKeyState, // The state calculated by the useEffect
     needsUpdate,
     currentBlock: rawEndBlock ? Number(rawEndBlock) : 0 // Provide current block derived from snapshot

@@ -234,6 +234,7 @@ export function contractToWorldSnapshot(
           if (sender) {
             allChatMessages.push({
               logIndex: logIndex,
+              blocknumber: feed.blockNumber,
               timestamp: blockTimestamp,
               sender: sender, 
               message: messageContent

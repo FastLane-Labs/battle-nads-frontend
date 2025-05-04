@@ -22,6 +22,8 @@ interface SerializedEventLog {
 interface SerializedChatLog {
   content: string;
   timestamp: string; // Storing block number as string
+  senderId: string;   // Added
+  senderName: string; // Added
 }
 
 // Interface for the data stored in Dexie table
@@ -43,12 +45,15 @@ const db = new Dexie('BattleNadsFeedCache') as Dexie & {
   >;
 };
 
-// Define schema version 1
-db.version(1).stores({
+// Define schema version 3 (Incremented from 2)
+db.version(3).stores({
   // Table name: dataBlocks
   // Primary key: [owner+block] (compound key)
   // Indexed properties: owner (for querying by user), ts (for TTL cleanup)
-  dataBlocks: '&[owner+block], owner, ts' 
+  dataBlocks: '&[owner+block], owner, ts, [owner+ts]',
+  // Store character metadata keyed by owner address
+  // Currently stores last known character ID for an owner
+  characters: '&owner, characterId',
 });
 
 export { db }; 
