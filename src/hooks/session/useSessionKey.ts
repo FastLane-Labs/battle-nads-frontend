@@ -56,6 +56,12 @@ export const useSessionKey = (characterId: string | null) => {
         newSessionKeyState = SessionKeyState.MISSING; // Error prevents validation
       } else if (isInputAvailable) {
           // We have the inputs, now check if they are valid for validation machine
+          console.log("[useSessionKey Effect] Checking isReadyForValidationMachine:", {
+              sessionKey,
+              isNotZero: sessionKey ? sessionKey.toLowerCase() !== ZeroAddress.toLowerCase() : false,
+              currentBlock,
+              isBlockPositive: currentBlock > 0
+          });
           const isReadyForValidationMachine = 
              sessionKey && 
              sessionKey.toLowerCase() !== ZeroAddress.toLowerCase() &&

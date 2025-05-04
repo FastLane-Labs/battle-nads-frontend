@@ -33,6 +33,9 @@ import mockPollData from '../../../mappers/__tests__/__fixtures__/pollFrontendDa
 // Mock dependencies and React Query
 jest.mock('../../contracts/useBattleNadsClient');
 jest.mock('../../../mappers', () => ({
+  // Get the actual module first
+  ...jest.requireActual('../../../mappers'),
+  // Then override specific exports if needed (or just keep the actual ones)
   contractToWorldSnapshot: jest.fn().mockImplementation((data, owner) => ({
     characterID: data.characterID,
     character: data.character,
@@ -44,6 +47,9 @@ jest.mock('../../../mappers', () => ({
     eventLogs: [],
     chatLogs: [],
   })),
+  // Ensure mapCharacterLite is explicitly included if needed elsewhere in the test,
+  // but requireActual should handle it now.
+  // mapCharacterLite: jest.requireActual('../../../mappers').mapCharacterLite 
 }));
 
 // Mock localStorage
@@ -77,12 +83,13 @@ jest.mock('localforage', () => ({
 // Mock useCachedDataFeed (NAMED export)
 jest.mock('../useCachedDataFeed', () => ({
   __esModule: true, // Keep this for consistency with ES modules
-  // Mock the named export directly
+  // Mock the named exports
   useCachedDataFeed: jest.fn().mockReturnValue({ 
-    blocks: [],
-    latest: BigInt(100),
-    isLoading: false
-  })
+    // Ensure the return shape matches the hook's actual return
+    historicalBlocks: [], 
+    isHistoryLoading: false
+  }),
+  storeFeedData: jest.fn().mockResolvedValue(undefined) // Mock storeFeedData
 }));
 
 // Mock React Query for immediate query execution
@@ -126,11 +133,7 @@ describe('useUiSnapshot', () => {
           data.dataFeeds || [],                         // 9
           BigInt(data.balanceShortfall || '0'),         // 10
           BigInt(data.unallocatedAttributePoints || '0'),// 11
-          BigInt(mockPollData.endBlock || '0'),       // 12 (Use original mockPollData for endBlock)
-          data.movementOptions || {                     // 13 (Include even if hook mapping changed)
-            canMoveNorth: false, canMoveSouth: false, canMoveEast: false, 
-            canMoveWest: false, canMoveUp: false, canMoveDown: false 
-          }
+          BigInt(mockPollData.endBlock || '0')        // 12 (Correct length)
         ];
         return Promise.resolve(mockArrayData);
       }),
@@ -179,7 +182,9 @@ describe('useUiSnapshot', () => {
   it('handles fetch errors', async () => {
     // Mock client that throws
     const mockClient = {
-      getUiSnapshot: jest.fn().mockRejectedValue(new Error('Network error'))
+      getUiSnapshot: jest.fn().mockRejectedValue(new Error('Network error')),
+      // Add the missing mock for getLatestBlockNumber
+      getLatestBlockNumber: jest.fn().mockResolvedValue(BigInt(100)) 
     };
     
     (useBattleNadsClient as jest.Mock).mockReturnValue({
