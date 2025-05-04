@@ -32,6 +32,9 @@ export const useUiSnapshot = (owner: string | null) => {
       
       const rawArrayData = await client.getUiSnapshot(owner, startBlock);
       
+      // Capture the timestamp immediately after the fetch completes
+      const fetchTimestamp = Date.now();
+      
       if (!Array.isArray(rawArrayData)) {
           throw new Error("Invalid data structure received from getUiSnapshot");
       }
@@ -52,6 +55,7 @@ export const useUiSnapshot = (owner: string | null) => {
           balanceShortfall: rawArrayData[10],
           unallocatedAttributePoints: rawArrayData[11],
           endBlock: rawArrayData[12],
+          fetchTimestamp: fetchTimestamp,
         };
       } catch (mappingError) {
         console.error("[useUiSnapshot] Error during array mapping:", mappingError);
@@ -68,7 +72,14 @@ export const useUiSnapshot = (owner: string | null) => {
 
       if (liveFeeds && liveFeeds.length > 0) {
         // Call storeFeedData with mapped context but DO NOT await it
-        storeFeedData(owner, liveFeeds, domainCombatantsContext, domainNonCombatantsContext)
+        storeFeedData(
+          owner, 
+          liveFeeds, 
+          domainCombatantsContext, 
+          domainNonCombatantsContext, 
+          mappedData.endBlock, 
+          mappedData.fetchTimestamp
+        )
           .catch(storageError => {
             console.error("[useUiSnapshot] Background feed storage failed:", storageError);
           });

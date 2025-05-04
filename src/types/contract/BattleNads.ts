@@ -158,4 +158,5 @@ export interface PollFrontendDataReturn {
   balanceShortfall: bigint; // uint256
   unallocatedAttributePoints: bigint; // uint256 - NOTE: Contract seems to return uint256 here
   endBlock: bigint; // uint256
+  fetchTimestamp: number; // Timestamp (ms since epoch) when this data was fetched
 } 
