@@ -37,7 +37,7 @@ export default function CharacterPage() {
   }
 
   if (game.error) {
-    return <ErrorScreen error={game.error} retry={() => window.location.reload()} onGoToLogin={() => router.push('/')} />;
+    return <ErrorScreen error={game.error?.message || 'An unknown error occurred'} retry={() => window.location.reload()} onGoToLogin={() => router.push('/')} />;
   }
 
   if (game.hasWallet && isValidCharacterId(game.characterId) && !game.needsSessionKeyUpdate) {

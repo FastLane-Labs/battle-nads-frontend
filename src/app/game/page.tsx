@@ -30,7 +30,7 @@ export default function GameV2Page() {
   }, [game.isLoading, game.hasWallet, game.characterId, game.needsSessionKeyUpdate, router]);
 
   if (game.isLoading) return <LoadingScreen message="Loading Game..." />;
-  if (game.error) return <ErrorScreen error={game.error} retry={game.refetch} />;
+  if (game.error) return <ErrorScreen error={game.error?.message || 'An unknown error occurred'} retry={() => window.location.reload()} onGoToLogin={() => router.push('/')} />;
   if (!game.character || !game.worldSnapshot) {
     return <LoadingScreen message="Initializing Player..." />;
   }
@@ -81,6 +81,7 @@ export default function GameV2Page() {
             isAttacking={game.isAttacking}
             isSendingChat={game.isSendingChat}
             isInCombat={game.isInCombat}
+            isCacheLoading={game.isCacheLoading}
           />
         </Box>
       </>
