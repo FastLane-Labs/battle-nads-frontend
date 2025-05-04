@@ -39,7 +39,6 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
     gameState, // Use gameState for combatants etc.
     isLoading, 
     error,
-    refetch
   } = useBattleNads(ownerAddress || null); // Pass ownerAddress
 
   const { client } = useBattleNadsClient();
@@ -284,7 +283,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
         {error && (
           <Box p={2} bg="red.900" borderRadius="md">
             <Heading size="sm">Error</Heading>
-            <Text>{error}</Text>
+            <Text>{error ? error.message : 'No error'}</Text>
           </Box>
         )}
       </VStack>

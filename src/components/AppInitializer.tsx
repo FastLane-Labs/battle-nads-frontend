@@ -6,7 +6,6 @@ import LoadingScreen from './game/screens/LoadingScreen';
 import ErrorScreen from './game/screens/ErrorScreen';
 import SessionKeyPrompt from './game/screens/SessionKeyPrompt';
 import GameContainer from './game/GameContainer';
-import { safeStringify } from '../utils/bigintSerializer';
 import { isValidCharacterId } from '../utils/getCharacterLocalStorageKey';
 import NavBar from './NavBar';
 import { Box } from '@chakra-ui/react';
@@ -47,7 +46,7 @@ const AppInitializer: React.FC = () => {
   // 3. Error State
   if (game.error) {
     return renderWithNav(
-      <ErrorScreen error={game.error} retry={game.refetch} onGoToLogin={() => window.location.reload()} />,
+      <ErrorScreen error={game.error?.message || 'An unknown error occurred'} retry={() => window.location.reload()} onGoToLogin={() => window.location.reload()} />,
       "Error Screen"
     );
   }
@@ -63,7 +62,7 @@ const AppInitializer: React.FC = () => {
   if (game.hasWallet && 
       isValidChar && 
       game.needsSessionKeyUpdate && 
-      !game.isLoading && 
+      !game.isLoading &&
       game.character)   
   {
     return renderWithNav(
@@ -112,6 +111,7 @@ const AppInitializer: React.FC = () => {
            isAttacking={game.isAttacking}
            isSendingChat={game.isSendingChat}
            isInCombat={game.isInCombat}
+           isCacheLoading={game.isCacheLoading}
          />,
          "Game Container"
       );
