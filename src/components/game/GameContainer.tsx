@@ -35,6 +35,7 @@ interface GameContainerProps {
   isSendingChat: boolean;
   isInCombat: boolean;
   addOptimisticChatMessage: (message: string) => void;
+  isCacheLoading: boolean;
 }
 
 const GameContainer: React.FC<GameContainerProps> = (props) => {
@@ -50,7 +51,8 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
     isAttacking,
     isSendingChat,
     isInCombat,
-    addOptimisticChatMessage
+    addOptimisticChatMessage,
+    isCacheLoading
   } = props;
 
   const toast = useToast();
@@ -145,6 +147,7 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
           onSendChatMessage={handleSendChatMessage}
           addOptimisticChatMessage={addOptimisticChatMessage}
           isInCombat={isInCombat}
+          isCacheLoading={isCacheLoading}
         />
 
         {/* Wallet Balances */}
