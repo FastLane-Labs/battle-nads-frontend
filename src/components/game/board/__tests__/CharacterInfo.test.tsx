@@ -5,8 +5,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import CharacterInfo from '../CharacterInfo';
 import { domain } from '@/types'; // Assuming types are exported from domain
 import { useEquipment } from '@/hooks/game/useEquipment'; // Import the hook
+import { useBattleNads } from '@/hooks/game/useBattleNads'; // Import the hook
 
-// Mock the useEquipment hook
+// Mock the useBattleNads hook using Jest
+jest.mock('@/hooks/game/useBattleNads', () => ({
+  useBattleNads: jest.fn(),
+}));
+
+// Mock the useEquipment hook using Jest
 jest.mock('@/hooks/game/useEquipment', () => ({
   useEquipment: jest.fn(),
 }));
@@ -16,8 +22,8 @@ const setupMockUseEquipment = (character: domain.Character) => {
   (useEquipment as jest.Mock).mockReturnValue({
     currentWeapon: character.weapon,
     currentArmor: character.armor,
-    weaponOptions: [], // Mocking empty options for simplicity in this test
-    armorOptions: [],  // Mocking empty options for simplicity in this test
+    equipableWeapons: [],
+    equipableArmors: [],
     equipWeapon: jest.fn(),
     isEquippingWeapon: false,
     weaponError: null,
@@ -63,8 +69,43 @@ const mockMultipleCombatants: domain.CharacterLite[] = [
   { id: 'combatant2', index: 3, name: 'Skeleton', class: domain.CharacterClass.Basic, level: 4, health: 40, maxHealth: 40, buffs: [], debuffs: [], ability: { ability: domain.Ability.None, stage: 0, targetIndex: 0, taskAddress: '0x0', targetBlock: 0 }, weaponName: 'Rusty Sword', armorName: 'None', isDead: false },
 ];
 
-// Helper to render with ChakraProvider
-const renderWithProvider = (component: React.ReactElement) => {
+// Helper function to render with providers and mock setup
+const renderWithProvider = (component: React.ReactElement, mockGameState: Partial<ReturnType<typeof useBattleNads>> = {}, mockEquipmentState: Partial<ReturnType<typeof useEquipment>> = {}) => {
+  // Default mocks
+  const defaultGameState: ReturnType<typeof useBattleNads> = {
+    gameState: null,
+    addOptimisticChatMessage: jest.fn(),
+    rawSessionKeyData: undefined,
+    rawEndBlock: 0n,
+    rawBalanceShortfall: 0n,
+    isLoading: false,
+    isSnapshotLoading: false,
+    isHistoryLoading: false,
+    error: null,
+    // Provide default empty arrays for equipment to prevent crashes
+    rawEquipableWeaponIDs: [],
+    rawEquipableWeaponNames: [],
+    rawEquipableArmorIDs: [],
+    rawEquipableArmorNames: [],
+    ...mockGameState,
+  };
+
+  const defaultEquipmentState: ReturnType<typeof useEquipment> = {
+    currentWeapon: null,
+    currentArmor: null,
+    equipableWeapons: [],
+    equipableArmors: [],
+    equipWeapon: jest.fn(),
+    isEquippingWeapon: false,
+    weaponError: null,
+    equipArmor: jest.fn(),
+    isEquippingArmor: false,
+    armorError: null,
+    getWeaponName: jest.fn().mockResolvedValue('Mocked Weapon Name'),
+    getArmorName: jest.fn().mockResolvedValue('Mocked Armor Name'),
+    isInCombat: false,
+  };
+
   // Create a new QueryClient instance for each test to ensure isolation
   const queryClient = new QueryClient({
     defaultOptions: {

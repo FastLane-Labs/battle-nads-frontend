@@ -1,23 +1,48 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useGame } from '../useGame';
-import { useBattleNads } from '../useBattleNads';
-import { useSessionKey } from '../../session/useSessionKey';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
-import { isValidCharacterId } from '../../../utils/getCharacterLocalStorageKey';
-import { SessionKeyState } from '../../../machines/sessionKeyMachine';
+import { useGame } from '../useGame';
+import { useBattleNads } from '../useBattleNads';
+import { useSessionKey } from '@/hooks/session/useSessionKey';
+import { useWallet } from '@/providers/WalletProvider';
+import { usePrivy } from '@privy-io/react-auth';
+import { useBattleNadsClient } from '@/hooks/contracts/useBattleNadsClient';
+import { SessionKeyState } from '@/machines/sessionKeyMachine';
+import { mockCharacterData, mockSessionKeyData } from '@/test/helpers';
+import { domain } from '@/types';
+import { db } from '@/lib/db'; // Import db for mocking
+import { isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
+import { DEFAULT_SESSION_KEY_DATA } from '@/types/domain/session';
 
-// Mock dependencies
+// Mock dependencies using Jest
 jest.mock('../useBattleNads');
-jest.mock('../../session/useSessionKey');
-jest.mock('../../../providers/WalletProvider', () => ({
-  useWallet: jest.fn().mockReturnValue({
-    injectedWallet: { address: '0x0000000000000000000000000000000000000001' },
-    embeddedWallet: { address: '0x0000000000000000000000000000000000000002' },
-    connectMetamask: jest.fn(),
-    isInitialized: true
-  }),
+jest.mock('@/hooks/session/useSessionKey');
+jest.mock('@/providers/WalletProvider');
+jest.mock('@/hooks/contracts/useBattleNadsClient');
+jest.mock('@privy-io/react-auth');
+
+// Mock Dexie db operations used by useCachedDataFeed (indirect dependency)
+jest.mock('@/lib/db', () => ({
+  db: {
+    dataBlocks: {
+      where: jest.fn().mockReturnThis(),
+      equals: jest.fn().mockReturnThis(),
+      reverse: jest.fn().mockReturnThis(),
+      sortBy: jest.fn().mockResolvedValue([]),
+      below: jest.fn().mockReturnThis(),
+      delete: jest.fn().mockResolvedValue(0),
+      bulkPut: jest.fn().mockResolvedValue(undefined),
+    },
+    transaction: jest.fn((mode: any, tables: any, fn: any) => fn()),
+  }
 }));
+
+// Type safety for mocks
+const mockUseBattleNads = useBattleNads as jest.Mock;
+const mockUseSessionKey = useSessionKey as jest.Mock;
+const mockUseWallet = useWallet as jest.Mock;
+const mockUsePrivy = usePrivy as jest.Mock;
+const mockUseBattleNadsClient = useBattleNadsClient as jest.Mock; // Added type casting for client mock
 
 // Create a simple wrapper function manually instead of using the helper
 const createWrapper = () => {
@@ -39,7 +64,10 @@ describe('useGame', () => {
   const mockCharacterId = '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef';
   const zeroAddress = "0x0000000000000000000000000000000000000000000000000000000000000000";
   const mockSessionKeyAddress = '0x0000000000000000000000000000000000000002';
-  const mockCharacter = { id: mockCharacterId, name: 'TestCharacter', position: { x: 1, y: 1, depth: 1 } };
+  // const mockCharacter = { id: mockCharacterId, name: 'TestCharacter', position: { x: 1, y: 1, depth: 1 } };
+  // Use the helper function to create a typed mock
+  // Cast to domain.Character as the helper might return a partial type initially
+  const mockCharacter = mockCharacterData({ id: mockCharacterId }) as unknown as domain.Character;
   const mockBaseGameState = { 
     character: mockCharacter,
     combatants: [],
@@ -58,24 +86,16 @@ describe('useGame', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    (useBattleNads as jest.Mock).mockReturnValue({
+    mockUseBattleNads.mockReturnValue({
       gameState: mockBaseGameState,
       isLoading: false,
       error: null,
       refetch: jest.fn()
     });
     
-    (useSessionKey as jest.Mock).mockReturnValue({
+    mockUseSessionKey.mockReturnValue({
       sessionKeyState: SessionKeyState.VALID,
-      sessionKeyData: { 
-        key: mockSessionKeyAddress, 
-        expiration: 9999999n,
-        owner: mockOwner, 
-        balance: 10n**18n,
-        targetBalance: 10n**18n,
-        ownerCommittedAmount: 5n * 10n**18n,
-        ownerCommittedShares: 5n * 10n**18n
-      },
+      sessionKeyData: mockSessionKeyData(false),
       needsUpdate: false,
       isLoading: false,
       error: null,
@@ -83,11 +103,26 @@ describe('useGame', () => {
       refreshSessionKey: jest.fn()
     });
 
-    (jest.requireMock('../../../providers/WalletProvider').useWallet as jest.Mock).mockReturnValue({
+    mockUseWallet.mockReturnValue({
       injectedWallet: { address: mockOwner },
       embeddedWallet: { address: mockSessionKeyAddress },
       connectMetamask: jest.fn(),
       isInitialized: true
+    });
+    
+    // Add default mock for useBattleNadsClient
+    mockUseBattleNadsClient.mockReturnValue({
+       client: {
+          moveCharacter: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue({}) }),
+          attack: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue({}) }),
+          sendChatMessage: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue({}) }),
+          updateSessionKey: jest.fn().mockResolvedValue({ wait: jest.fn().mockResolvedValue({}) }),
+       }
+    });
+
+    mockUsePrivy.mockReturnValue({
+      authenticated: true,
+      user: { wallet: { address: mockOwner } },
     });
   });
   
@@ -110,7 +145,8 @@ describe('useGame', () => {
   
   it('detects missing character', async () => {
     (useBattleNads as jest.Mock).mockReturnValue({
-      gameState: { ...mockBaseGameState, character: { id: zeroAddress, name: '', position: {x:0, y:0, depth:0} } },
+      // Use mockCharacterData for the missing character state, ensuring type compatibility
+      gameState: { ...mockBaseGameState, character: { ...(mockCharacterData({ id: zeroAddress }) as unknown as domain.Character), id: zeroAddress, name: '' } },
       isLoading: false,
       error: null,
       refetch: jest.fn()
@@ -132,15 +168,7 @@ describe('useGame', () => {
   it('detects invalid session key', async () => {
     (useSessionKey as jest.Mock).mockReturnValue({
       sessionKeyState: SessionKeyState.EXPIRED,
-      sessionKeyData: {
-        key: mockSessionKeyAddress, 
-        expiration: 10n,
-        owner: mockOwner,
-        balance: 10n**18n,
-        targetBalance: 10n**18n,
-        ownerCommittedAmount: 5n * 10n**18n,
-        ownerCommittedShares: 5n * 10n**18n
-      },
+      sessionKeyData: mockSessionKeyData(true),
       needsUpdate: true,
       isLoading: false,
       error: null,
@@ -196,15 +224,7 @@ describe('useGame', () => {
     });
     (useSessionKey as jest.Mock).mockReturnValue({
       sessionKeyState: SessionKeyState.VALID,
-      sessionKeyData: {
-        key: mockSessionKeyAddress, 
-        expiration: 9999999n,
-        owner: mockOwner, 
-        balance: 10n**18n,
-        targetBalance: 10n**18n,
-        ownerCommittedAmount: 5n * 10n**18n,
-        ownerCommittedShares: 5n * 10n**18n
-      },
+      sessionKeyData: mockSessionKeyData(false),
       needsUpdate: false,
       isLoading: false,
       error: null,
