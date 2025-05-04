@@ -1,9 +1,9 @@
 import { useEffect, useState, useCallback } from 'react';
 import { contract } from '../../types';
-import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { db, StoredDataBlock } from '../../lib/db'; // Import Dexie db instance
 import { LogType } from '@/types/domain/enums'; // Import LogType
 import { CharacterLite } from '@/types/domain'; // Import CharacterLite
+import { estimateBlockTimestamp } from '@/utils/blockUtils'; // Import the new utility function
 
 // Define SerializedEventLog based on contract.Log, converting BigInts
 interface SerializedEventLog {
@@ -137,15 +137,21 @@ export const useCachedDataFeed = (owner: string | null) => {
   };
 };
 
-// --- Utility function to process raw DataFeed into CachedDataBlock format ---
 export const processDataFeedsToCachedBlocks = (
   dataFeeds: contract.DataFeed[],
   combatantsContext: CharacterLite[] | undefined,
-  nonCombatantsContext: CharacterLite[] | undefined
+  nonCombatantsContext: CharacterLite[] | undefined,
+  currentBlockNumber: bigint, // Add currentBlockNumber parameter
+  fetchTimestamp: number // Add fetchTimestamp parameter
 ): CachedDataBlock[] => {
   if (!dataFeeds || dataFeeds.length === 0) {
-    return []; 
+    return [];
   }
+
+  // Get the current timestamp once for the whole batch processing
+  // const currentTimestamp = Date.now();
+  // Use the provided fetchTimestamp as the reference point
+  const currentTimestamp = fetchTimestamp;
 
   // Create lookup maps from context (index -> {id, name})
   const characterLookup = new Map<number, { id: string; name: string }>();
@@ -158,11 +164,14 @@ export const processDataFeedsToCachedBlocks = (
     if (!feed.blockNumber) continue;
 
     const blockNumber = BigInt(feed.blockNumber);
-    // If not, we might need to adjust where the timestamp comes from.
-    // For now, let's assume feed.timestamp exists and is a number.
-    // If feed.timestamp is BigInt, it needs conversion: Number(feed.timestamp)
-    // const blockTimestamp = typeof feed.timestamp === 'bigint' ? Number(feed.timestamp) : feed.timestamp ?? Date.now(); // Fallback if undefined
-    const blockTimestamp = Date.now(); // Use current time for processing/cache TTL
+
+    // Use the utility function to estimate the timestamp
+    const estimatedBlockTimestamp = estimateBlockTimestamp(
+      currentBlockNumber, // lastBlock (reference block)
+      currentTimestamp,   // lastBlockTimestamp (reference time)
+      blockNumber         // lookupBlock (block to estimate for)
+    );
+    // -------------------------------------
 
 
     const serializedChatsForBlock: SerializedChatLog[] = [];
@@ -200,9 +209,12 @@ export const processDataFeedsToCachedBlocks = (
           serializedChatsForBlock.push({
             content: messageContent,
             // Use the blockTimestamp derived earlier
-            timestamp: blockTimestamp.toString(), // Store timestamp string matching interface
-            senderId: senderInfo?.id || 'unknown-id', 
-            senderName: senderInfo?.name || 'Unknown' 
+            // timestamp: blockTimestamp.toString(), // Store timestamp string matching interface
+            // Use the ESTIMATED timestamp for the chat message object itself
+            // Note: Consider if the ChatMessage domain type should store block number instead/as well
+            timestamp: estimatedBlockTimestamp.toString(),
+            senderId: senderInfo?.id || 'unknown-id',
+            senderName: senderInfo?.name || 'Unknown'
           });
         }
       }
@@ -212,7 +224,9 @@ export const processDataFeedsToCachedBlocks = (
     if (serializedChatsForBlock.length > 0 || serializedEventsForBlock.length > 0) {
       processedBlocks.push({ 
         blockNumber: blockNumber, 
-        timestamp: blockTimestamp, // Use the derived numeric timestamp
+        // timestamp: blockTimestamp, // Use the derived numeric timestamp
+        // Use the ESTIMATED timestamp for the CachedDataBlock (used for Dexie TTL)
+        timestamp: estimatedBlockTimestamp,
         chats: serializedChatsForBlock,
         events: serializedEventsForBlock 
       });
@@ -225,11 +239,12 @@ export const processDataFeedsToCachedBlocks = (
 
 // --- Utility function to store feed data (can be called from useUiSnapshot) ---
 export const storeFeedData = async (
-  owner: string, 
+  owner: string,
   dataFeeds: contract.DataFeed[],
-  // Add context parameters
   combatantsContext: CharacterLite[] | undefined,
-  nonCombatantsContext: CharacterLite[] | undefined
+  nonCombatantsContext: CharacterLite[] | undefined,
+  currentBlockNumber: bigint, // Add currentBlockNumber parameter
+  fetchTimestamp: number // Add fetchTimestamp parameter
 ) => {
   if (!owner || !dataFeeds || dataFeeds.length === 0) {
     return; // No owner or data to store
@@ -237,16 +252,18 @@ export const storeFeedData = async (
 
   // 1. Process the feeds using the new utility function
   const processedBlocks = processDataFeedsToCachedBlocks(
-    dataFeeds, 
-    combatantsContext, 
-    nonCombatantsContext
+    dataFeeds,
+    combatantsContext,
+    nonCombatantsContext,
+    currentBlockNumber, // Pass currentBlockNumber down
+    fetchTimestamp // Pass fetchTimestamp down
   );
 
   // 2. Transform processed blocks into the format needed for Dexie (StoredDataBlock)
   const blocksToStore: StoredDataBlock[] = processedBlocks.map(block => ({
     owner: owner,
     block: block.blockNumber.toString(), // Store block number as string
-    ts: block.timestamp, // Store numeric timestamp
+    ts: block.timestamp, // Store numeric timestamp // Store the estimated numeric timestamp
     chats: block.chats, // Already in correct format
     events: block.events // Already in correct format
   }));
