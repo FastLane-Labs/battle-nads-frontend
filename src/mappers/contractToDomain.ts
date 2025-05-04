@@ -4,11 +4,12 @@
  */
 
 import { contract, domain } from '@/types';
+import { LogType } from '@/types/domain/enums';
 
 /**
  * Converts raw bitmap status effects to domain StatusEffect arrays
  */
-function mapStatusEffects(bitmap: number): domain.StatusEffect[] {
+export function mapStatusEffects(bitmap: number): domain.StatusEffect[] {
   const effects: domain.StatusEffect[] = [];
   // Actual implementation would parse the bitmap
   // Example implementation:
@@ -118,8 +119,9 @@ export function mapCharacter(
  * Maps contract character lite to domain character lite
  */
 export function mapCharacterLite(
-  rawCharacter: contract.CharacterLite
+  rawCharacter: contract.CharacterLite // Revert: Only accept CharacterLite
 ): domain.CharacterLite {
+  // Revert to original implementation
   return {
     id: rawCharacter.id,
     index: Number(rawCharacter.index),
@@ -128,12 +130,13 @@ export function mapCharacterLite(
     level: Number(rawCharacter.level),
     health: Number(rawCharacter.health),
     maxHealth: Number(rawCharacter.maxHealth),
-    buffs: [], // Would parse from bitmap
-    debuffs: [], // Would parse from bitmap
+    // Map buffs/debuffs from bitmap (assuming mapStatusEffects exists and works)
+    buffs: mapStatusEffects(Number(rawCharacter.buffs)), 
+    debuffs: mapStatusEffects(Number(rawCharacter.debuffs)),
     ability: {
       ability: rawCharacter.ability as domain.Ability,
       stage: Number(rawCharacter.abilityStage),
-      targetIndex: 0, // Placeholder
+      targetIndex: 0, // Placeholder - Lite doesn't provide target index directly
       taskAddress: '', // Placeholder
       targetBlock: Number(rawCharacter.abilityTargetBlock)
     },
@@ -189,6 +192,54 @@ function findCharacterParticipantByIndex(
   }
   return null; // Or return a default participant like { id: 'unknown', name: `Index ${index}`, index: index }
 }
+
+/**
+ * Maps raw contract DataFeed arrays to domain ChatMessage arrays.
+ *
+ * @param dataFeeds Raw DataFeed array from the contract.
+ * @param characterLookup Pre-built map of index to domain.CharacterLite for sender info.
+ * @param referenceTimestamp Optional: Timestamp to use for messages (e.g., estimated block time).
+ * @returns An array of domain.ChatMessage.
+ */
+export const processChatFeedsToDomain = (
+    dataFeeds: contract.DataFeed[],
+    characterLookup: Map<number, domain.CharacterLite>,
+    referenceTimestamp?: number // Optional timestamp for estimation
+): domain.ChatMessage[] => {
+    const allChatMessages: domain.ChatMessage[] = [];
+
+    for (const feed of dataFeeds) {
+        if (!feed || !feed.logs || feed.chatLogs.length === 0) continue;
+
+        const blockNumber = BigInt(feed.blockNumber);
+        // Determine timestamp: use provided reference or default (though ideally reference is always passed)
+        const timestamp = referenceTimestamp ?? Date.now(); 
+
+        feed.logs.forEach((log: contract.Log) => {
+            if (Number(log.logType) === LogType.Chat) {
+                const senderIndex = Number(log.mainPlayerIndex);
+                const senderInfo = characterLookup.get(senderIndex);
+                const messageContent = feed.chatLogs?.[Number(log.index)];
+                const logIndex = Number(log.index); // Use the log's own index
+
+                if (messageContent && senderInfo) {
+                    allChatMessages.push({
+                        blocknumber: blockNumber,
+                        logIndex: logIndex,
+                        timestamp: timestamp, // Use the determined timestamp
+                        sender: senderInfo,
+                        message: messageContent,
+                        isOptimistic: false // These are confirmed logs
+                    });
+                } else {
+                     console.warn(`[processChatFeedsToDomain] Skipping chat log due to missing content or sender info. Block: ${blockNumber}, LogIndex: ${logIndex}, SenderIndex: ${senderIndex}`);
+                }
+            }
+        });
+    }
+    console.log(`[processChatFeedsToDomain] Processed ${allChatMessages.length} chat messages.`);
+    return allChatMessages;
+};
 
 /**
  * Maps contract data to domain world snapshot

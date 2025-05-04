@@ -77,7 +77,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             {chatLogs.map((message, index) => {
               const senderName = message.sender?.name || 'Unknown';
               const isOwnMessage = senderName === characterId;
-              const messageKey = `${message.timestamp}-${message.logIndex}-${message.isOptimistic ? 'opt' : 'conf'}`;
+              const messageKey = message.isOptimistic 
+                ? `opt-${message.timestamp}-${message.message.slice(0, 10)}` 
+                : `conf-${message.blocknumber}-${message.logIndex}`;
 
               return (
                 <Box 
