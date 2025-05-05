@@ -53,6 +53,8 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
     isCacheLoading
   } = props;
 
+  const isSpawned = !(position.x === 0 && position.y === 0 && position.z === 0);
+
   const toast = useToast();
   const { isOpen, onOpen, onClose } = useDisclosure();
 
@@ -102,10 +104,30 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
     }
   }, [sendChatMessage, isSendingChat, toast]);
 
+  //TODO: Add taskManager execute to allow character to spawn
   return (
     <Box height="calc(100vh - 60px)" position="relative">
-      {/* Combat State Banner - REMOVED */}
-      {/* <InCombatBanner isVisible={isInCombat} /> */}
+      {!isSpawned && (
+        <Box
+          position="absolute"
+          top="0"
+          left="0"
+          right="0"
+          bottom="0"
+          bg="rgba(0, 0, 0, 0.7)" // Semi-transparent black background
+          display="flex"
+          alignItems="center"
+          justifyContent="center"
+          zIndex={2000} // High z-index to cover everything else
+          color="white"
+          fontSize="2xl"
+          fontWeight="bold"
+          textAlign="center"
+          p={4}
+        >
+          Character has not spawned into the world yet.
+        </Box>
+      )}
 
       {/* Debug Button */}
       <Box position="fixed" right="20px" bottom="20px" zIndex={1000}>
@@ -129,6 +151,7 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
         </ModalContent>
       </Modal>
 
+      {/* Main content area - Overlay will prevent interaction if !isSpawned */}
       <Flex height="100%" flexDirection="column">
         {/* Main Game View */}
         <GameView
