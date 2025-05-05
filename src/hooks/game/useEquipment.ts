@@ -22,14 +22,14 @@ export const useEquipment = (characterId: string | null) => {
   
   // Get game state for character and equipment data
   const {
-    gameState, // Destructure the whole gameState (WorldSnapshot)
+    gameState,
     isLoading: isGameLoading, 
     error: gameError,
     rawEquipableWeaponIDs,
     rawEquipableWeaponNames,
     rawEquipableArmorIDs,
     rawEquipableArmorNames,
-  } = useBattleNads(owner); // Use the owner address directly
+  } = useBattleNads(owner); 
   
   // Character ID from state
   const currentCharacterIdFromState = gameState?.character?.id || null;

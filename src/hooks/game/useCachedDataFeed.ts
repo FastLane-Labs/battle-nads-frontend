@@ -52,17 +52,13 @@ const FEED_TTL = 1000 * 60 * 60; // 1 hour in ms
 /**
  * Hook to manage cached data feed blocks using Dexie.
  * Loads initial historical blocks from Dexie and handles purging.
- * Does NOT perform network fetches itself anymore.
  */
 export const useCachedDataFeed = (owner: string | null) => {
   const [cachedBlocks, setCachedBlocks] = useState<CachedDataBlock[]>([]);
-  // Removed: latestBlock state
   const [isHistoryLoading, setIsHistoryLoading] = useState(true); // Renamed from isLoading
-  // Removed: storageErrorOccurred state
 
   // --- Function to load recent blocks into state --- 
   const loadRecentBlocksIntoState = useCallback(async (owner: string) => {
-    // Removed: console.time
     setIsHistoryLoading(true); 
 
     try {
@@ -83,21 +79,19 @@ export const useCachedDataFeed = (owner: string | null) => {
       setCachedBlocks(deserializedBlocks);
     } catch (error) {
       console.error('[CachedDataFeed] Error loading recent blocks from Dexie:', error);
-      setCachedBlocks([]); // Clear cache on error
+      setCachedBlocks([]);
     } finally {
       setIsHistoryLoading(false); 
-      // Removed: console.timeEnd
     }
-  }, []); // No dependencies needed for this function itself
+  }, []);
   // ------------------------------------------------
 
   // Effect for initial load from Dexie and purging
   useEffect(() => {
     let isMounted = true;
-    if (!owner) { // Removed client check here, only owner needed for Dexie ops
+    if (!owner) {
       if (isMounted) {
         setCachedBlocks([]);
-        // Removed: setLatestBlock(BigInt(0));
         setIsHistoryLoading(false); // Ensure loading is false if no owner
       }
       return;
@@ -154,7 +148,6 @@ export const processDataFeedsToCachedBlocks = (
   }
 
   // Get the current timestamp once for the whole batch processing
-  // const currentTimestamp = Date.now();
   // Use the provided fetchTimestamp as the reference point
   const currentTimestamp = fetchTimestamp;
 
@@ -176,7 +169,6 @@ export const processDataFeedsToCachedBlocks = (
       currentTimestamp,   // lastBlockTimestamp (reference time)
       blockNumber         // lookupBlock (block to estimate for)
     );
-    // -------------------------------------
 
 
     const serializedChatsForBlock: SerializedChatLog[] = [];
@@ -245,10 +237,18 @@ export const processDataFeedsToCachedBlocks = (
   }
   return processedBlocks;
 };
-// --- End Utility Function ---
 
 
-// --- Utility function to store feed data (can be called from useUiSnapshot) ---
+/**
+ * Utility function to store feed data (can be called from useUiSnapshot)
+ * @param owner - owner wallet address
+ * @param dataFeeds - dataFeeds to store
+ * @param combatantsContext - combatantsContext to store
+ * @param nonCombatantsContext - nonCombatantsContext to store
+ * @param currentBlockNumber - currentBlockNumber to store
+ * @param fetchTimestamp - fetchTimestamp to store
+ * @returns 
+ */
 export const storeFeedData = async (
   owner: string,
   dataFeeds: contract.DataFeed[],
@@ -266,23 +266,22 @@ export const storeFeedData = async (
     dataFeeds,
     combatantsContext,
     nonCombatantsContext,
-    currentBlockNumber, // Pass currentBlockNumber down
-    fetchTimestamp // Pass fetchTimestamp down
+    currentBlockNumber, 
+    fetchTimestamp
   );
 
   // 2. Transform processed blocks into the format needed for Dexie (StoredDataBlock)
   const blocksToStore: StoredDataBlock[] = processedBlocks.map(block => ({
     owner: owner,
-    block: block.blockNumber.toString(), // Store block number as string
-    ts: block.timestamp, // Store numeric timestamp // Store the estimated numeric timestamp
-    chats: block.chats, // Already in correct format
-    events: block.events // Already in correct format
+    block: block.blockNumber.toString(),
+    ts: block.timestamp,
+    chats: block.chats,
+    events: block.events
   }));
 
 
   // 3. Store in Dexie
   if (blocksToStore.length > 0) {
-    console.log(`[storeFeedData] Storing ${blocksToStore.length} processed blocks to Dexie...`); // Updated log message
     try {
       await db.transaction('rw', db.dataBlocks, async () => {
         await db.dataBlocks.bulkPut(blocksToStore);
@@ -292,4 +291,3 @@ export const storeFeedData = async (
     }
   }
 };
-// --- End Store Utility Function ---

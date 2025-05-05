@@ -132,7 +132,7 @@ export const useGame = () => {
       // --- Call client with value --- 
       const tx = await client.updateSessionKey(
         embeddedWallet.address,
-        expirationBlock, // Pass BigInt directly
+        expirationBlock,
         valueToSend 
       );
       return tx;
@@ -205,9 +205,9 @@ export const useGame = () => {
             index: -1 // Historical logs don't have a reliable runtime index
           }, 
           message: chat.content,
-          blocknumber: BigInt(chat.timestamp), // Assuming timestamp is block number
-          timestamp: Number(chat.timestamp), // Assuming timestamp is block number
-          logIndex: index, // Use index within block as pseudo logIndex
+          blocknumber: BigInt(chat.timestamp),
+          timestamp: Number(chat.timestamp),
+          logIndex: index,
           isOptimistic: false
         });
       });
@@ -317,7 +317,7 @@ export const useGame = () => {
     
     // Logs (Extract from snapshot for convenience - will now include historical chat)
     chatLogs: worldSnapshot?.chatLogs || [],
-    eventLogs: worldSnapshot?.eventLogs || [], // Still only live events
+    eventLogs: worldSnapshot?.eventLogs || [],
     
     // Other characters
     others: worldSnapshot?.noncombatants || [] 
