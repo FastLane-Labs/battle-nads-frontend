@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { ui, domain, contract } from '../../types';
 import { useUiSnapshot } from './useUiSnapshot';
 import { contractToWorldSnapshot, mapCharacterLite, processChatFeedsToDomain, mapStatusEffects } from '../../mappers';
-import { useCachedDataFeed, SerializedChatLog, CachedDataBlock, SerializedEventLog } from './useCachedDataFeed';
+import { useCachedDataFeed, SerializedChatLog, CachedDataBlock, SerializedEventLog, processDataFeedsToCachedBlocks, storeFeedData } from './useCachedDataFeed';
 
 /**
  * Hook for managing game state and data
@@ -23,6 +23,7 @@ export const useBattleNads = (owner: string | null) => {
   const [optimisticChatMessages, setOptimisticChatMessages] = useState<domain.ChatMessage[]>([]);
   /* ---------- State for Confirmed Logs found during runtime ---------- */
   const [runtimeConfirmedLogs, setRuntimeConfirmedLogs] = useState<domain.ChatMessage[]>([]);
+  const [runtimeEventLogs, setRuntimeEventLogs] = useState<domain.EventMessage[]>([]);
 
   /* ---------- preserve previous data ---------- */
   const previousGameStateRef = useRef<domain.WorldSnapshot | null>(null);
@@ -38,59 +39,134 @@ export const useBattleNads = (owner: string | null) => {
     if (rawData) {
       (rawData.combatants || []).forEach(c => map.set(Number(c.index), mapCharacterLite(c)));
       (rawData.noncombatants || []).forEach(c => map.set(Number(c.index), mapCharacterLite(c)));
+      if (rawData.character) {
+        const playerCharData = rawData.character;
+        map.set(Number(playerCharData.stats.index), {
+          id: playerCharData.id,
+          index: Number(playerCharData.stats.index),
+          name: playerCharData.name,
+        } as domain.CharacterLite);
+      }
     }
     return map;
   }, [rawData]);
 
   // --- Process newly confirmed logs --- 
   useEffect(() => {
-    if (!rawData || !rawData.dataFeeds || optimisticChatMessages.length === 0) {
-      return; // No new data or no optimistic messages to check
+    if (!rawData || !rawData.dataFeeds || !owner) {
+      return;
     }
 
     // Process dataFeeds to get newly confirmed chat messages
-    // Pass the necessary arguments for timestamp estimation in the correct order
-    const newlyConfirmedLogs = processChatFeedsToDomain(
-      rawData.dataFeeds,          // 1. dataFeeds
-      characterLookup,            // 2. characterLookup
-      BigInt(rawData.endBlock || 0), // 3. referenceBlockNumber (endBlock)
-      rawData.fetchTimestamp      // 4. referenceTimestamp
+    const newlyConfirmedChatLogs = processChatFeedsToDomain(
+      rawData.dataFeeds,
+      characterLookup,
+      BigInt(rawData.endBlock || 0),
+      rawData.fetchTimestamp
     );
-    
-    if (newlyConfirmedLogs.length > 0) {
-      const confirmedLogKeys = new Set(newlyConfirmedLogs.map(log => `${log.blocknumber}-${log.logIndex}`));
-      
-      const messagesToRemove = optimisticChatMessages.filter(optMsg => 
-        newlyConfirmedLogs.some((confLog: domain.ChatMessage) => {
-          const isMatch = confLog.message === optMsg.message && confLog.sender.id === optMsg.sender.id;
-          return isMatch;
-        })
-      );
-      
-      if (messagesToRemove.length > 0) {
-        setOptimisticChatMessages(prevOptimistic => {
-          const nextOptimistic = prevOptimistic.filter(optMsg => 
-            !newlyConfirmedLogs.some((confLog: domain.ChatMessage) => confLog.message === optMsg.message && confLog.sender.id === optMsg.sender.id)
-          );
-          return nextOptimistic;
-        });
-      }
 
-      // Also add these newly confirmed logs to our runtime state, ensuring deduplication
-      if (newlyConfirmedLogs.length > 0) {
-        setRuntimeConfirmedLogs(prevConfirmed => {
-          // Use a map for efficient deduplication based on the confirmed key
-          const newMap = new Map(prevConfirmed.map(log => [`conf-${log.blocknumber}-${log.logIndex}`, log]));
-          newlyConfirmedLogs.forEach(log => {
-            newMap.set(`conf-${log.blocknumber}-${log.logIndex}`, log);
-          });
-          const updatedList = Array.from(newMap.values());
-          return updatedList;
-        });
+    // Process dataFeeds to get newly confirmed event logs
+    const newlyConfirmedEventLogs: domain.EventMessage[] = (rawData.dataFeeds || []).flatMap(feed =>
+      (feed.logs || []).map((log): domain.EventMessage => {
+        const attackerInfo = characterLookup.get(Number(log.mainPlayerIndex));
+        const defenderInfo = characterLookup.get(Number(log.otherPlayerIndex));
+        const estimatedTimestamp = estimateBlockTimestamp(
+          BigInt(rawData.endBlock || 0),
+          rawData.fetchTimestamp,
+          BigInt(feed.blockNumber)
+        );
+        const isPlayerInitiated = !!attackerInfo && attackerInfo.id === owner;
+        return {
+          logIndex: log.index,
+          blocknumber: BigInt(feed.blockNumber),
+          timestamp: estimatedTimestamp,
+          type: log.logType as domain.LogType,
+          attacker: attackerInfo ? { id: attackerInfo.id, name: attackerInfo.name, index: Number(log.mainPlayerIndex) } : undefined,
+          defender: defenderInfo ? { id: defenderInfo.id, name: defenderInfo.name, index: Number(log.otherPlayerIndex) } : undefined,
+          isPlayerInitiated: isPlayerInitiated,
+          details: {
+            hit: log.hit,
+            critical: log.critical,
+            damageDone: log.damageDone,
+            healthHealed: log.healthHealed,
+            targetDied: log.targetDied,
+            lootedWeaponID: log.lootedWeaponID,
+            lootedArmorID: log.lootedArmorID,
+            experience: log.experience,
+            value: BigInt(log.value || 0)
+          },
+          displayMessage: ''
+        };
+      })
+    );
+
+    // Update optimistic chat messages
+    if (newlyConfirmedChatLogs.length > 0 && optimisticChatMessages.length > 0) {
+      const messagesToRemove = optimisticChatMessages.filter(optMsg =>
+        newlyConfirmedChatLogs.some(confLog => confLog.message === optMsg.message && confLog.sender.id === optMsg.sender.id)
+      );
+      if (messagesToRemove.length > 0) {
+        setOptimisticChatMessages(prevOptimistic =>
+          prevOptimistic.filter(optMsg =>
+            !newlyConfirmedChatLogs.some(confLog => confLog.message === optMsg.message && confLog.sender.id === optMsg.sender.id)
+          )
+        );
       }
     }
-  }, [rawData, optimisticChatMessages, characterLookup]); 
-  // --- End Effect --- 
+
+    // Update runtime confirmed chat logs
+    if (newlyConfirmedChatLogs.length > 0) {
+      setRuntimeConfirmedLogs(prevConfirmed => {
+        const chatMap = new Map(prevConfirmed.map(log => [`conf-${log.blocknumber}-${log.logIndex}`, log]));
+        newlyConfirmedChatLogs.forEach(log => {
+          chatMap.set(`conf-${log.blocknumber}-${log.logIndex}`, log);
+        });
+        return Array.from(chatMap.values());
+      });
+    }
+
+    // Update runtime event logs
+    if (newlyConfirmedEventLogs.length > 0) {
+      setRuntimeEventLogs(prevRuntimeEvents => {
+        const eventMap = new Map(prevRuntimeEvents.map(log => [`conf-${log.blocknumber}-${log.logIndex}`, log]));
+        newlyConfirmedEventLogs.forEach(log => {
+          eventMap.set(`conf-${log.blocknumber}-${log.logIndex}`, log);
+        });
+        return Array.from(eventMap.values());
+      });
+    }
+
+    // --- Asynchronous Storage (Original Logic) --- 
+    const combatantsContextForStorage = rawData.combatants?.map(mapCharacterLite);
+    const nonCombatantsContextForStorage = rawData.noncombatants?.map(mapCharacterLite);
+     if (rawData.character) {
+        const playerCharLite = mapCharacterLite(rawData.character as any); 
+        if (nonCombatantsContextForStorage && !nonCombatantsContextForStorage.some(c => c.index === playerCharLite.index) &&
+            (!combatantsContextForStorage || !combatantsContextForStorage.some(c => c.index === playerCharLite.index))) {
+                nonCombatantsContextForStorage.push(playerCharLite);
+            }
+     }
+    // Process feeds specifically for storage format
+    const blocksToStore = processDataFeedsToCachedBlocks(
+        rawData.dataFeeds,
+        combatantsContextForStorage, 
+        nonCombatantsContextForStorage,
+        BigInt(rawData.endBlock || 0),
+        rawData.fetchTimestamp
+    );
+    if (blocksToStore.length > 0 && owner) { // Ensure owner exists before storing
+        // Call storeFeedData with the correct 6 arguments
+        storeFeedData(
+            owner, 
+            rawData.dataFeeds, // Pass raw feeds, as storeFeedData likely re-processes
+            combatantsContextForStorage, 
+            nonCombatantsContextForStorage, 
+            BigInt(rawData.endBlock || 0), 
+            rawData.fetchTimestamp
+        )
+            .catch((err: Error) => console.error("[useBattleNads] Failed to store new feeds in background:", err.message));
+    }
+  }, [rawData, owner, optimisticChatMessages, characterLookup]);
 
   // Map the raw data and cached data to a combined WorldSnapshot
   const worldSnapshot = useMemo<domain.WorldSnapshot | null>(() => {
@@ -273,7 +349,7 @@ export const useBattleNads = (owner: string | null) => {
 
     previousGameStateRef.current = finalSnapshot;
     return finalSnapshot;
-  }, [rawData, owner, optimisticChatMessages, historicalBlocks, runtimeConfirmedLogs]);
+  }, [rawData, owner, optimisticChatMessages, historicalBlocks, runtimeConfirmedLogs, runtimeEventLogs, characterLookup]);
 
   // Function to add an optimistic message
   const addOptimisticChatMessage = useCallback((message: string) => {
@@ -335,3 +411,11 @@ export const useBattleNads = (owner: string | null) => {
     rawEquipableArmorNames: rawData?.equipableArmorNames,
   };
 }; 
+
+// Helper function for timestamp estimation
+function estimateBlockTimestamp(referenceBlockNumber: bigint, referenceTimestamp: number, lookupBlockNumber: bigint): number {
+    const blockDifference = Number(referenceBlockNumber - lookupBlockNumber);
+    const AVG_BLOCK_TIME_MS = 12 * 1000; // TODO: Centralize config
+    const timeDifference = blockDifference * AVG_BLOCK_TIME_MS;
+    return referenceTimestamp - timeDifference;
+} 
