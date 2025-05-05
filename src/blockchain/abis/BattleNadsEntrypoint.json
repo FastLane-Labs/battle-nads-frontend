@@ -177,6 +177,19 @@
     },
     {
         "type": "function",
+        "name": "ascend",
+        "inputs": [
+            {
+                "name": "characterID",
+                "type": "bytes32",
+                "internalType": "bytes32"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "payable"
+    },
+    {
+        "type": "function",
         "name": "attack",
         "inputs": [
             {
@@ -2447,7 +2460,644 @@
                 ]
             }
         ],
-        "stateMutability": "view"
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "handleAscend",
+        "inputs": [
+            {
+                "name": "player",
+                "type": "tuple",
+                "internalType": "struct BattleNad",
+                "components": [
+                    {
+                        "name": "id",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                    },
+                    {
+                        "name": "stats",
+                        "type": "tuple",
+                        "internalType": "struct BattleNadStats",
+                        "components": [
+                            {
+                                "name": "class",
+                                "type": "uint8",
+                                "internalType": "enum CharacterClass"
+                            },
+                            {
+                                "name": "buffs",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "debuffs",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "level",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "unspentAttributePoints",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "experience",
+                                "type": "uint16",
+                                "internalType": "uint16"
+                            },
+                            {
+                                "name": "strength",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "vitality",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "dexterity",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "quickness",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "sturdiness",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "luck",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "depth",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "x",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "y",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "index",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "weaponID",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "armorID",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "health",
+                                "type": "uint16",
+                                "internalType": "uint16"
+                            },
+                            {
+                                "name": "sumOfCombatantLevels",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "combatants",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "nextTargetIndex",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "combatantBitMap",
+                                "type": "uint64",
+                                "internalType": "uint64"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "maxHealth",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                    },
+                    {
+                        "name": "weapon",
+                        "type": "tuple",
+                        "internalType": "struct Weapon",
+                        "components": [
+                            {
+                                "name": "name",
+                                "type": "string",
+                                "internalType": "string"
+                            },
+                            {
+                                "name": "baseDamage",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "bonusDamage",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "accuracy",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "speed",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "armor",
+                        "type": "tuple",
+                        "internalType": "struct Armor",
+                        "components": [
+                            {
+                                "name": "name",
+                                "type": "string",
+                                "internalType": "string"
+                            },
+                            {
+                                "name": "armorFactor",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "armorQuality",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "flexibility",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "weight",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "inventory",
+                        "type": "tuple",
+                        "internalType": "struct Inventory",
+                        "components": [
+                            {
+                                "name": "weaponBitmap",
+                                "type": "uint64",
+                                "internalType": "uint64"
+                            },
+                            {
+                                "name": "armorBitmap",
+                                "type": "uint64",
+                                "internalType": "uint64"
+                            },
+                            {
+                                "name": "balance",
+                                "type": "uint128",
+                                "internalType": "uint128"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "tracker",
+                        "type": "tuple",
+                        "internalType": "struct StorageTracker",
+                        "components": [
+                            {
+                                "name": "updateStats",
+                                "type": "bool",
+                                "internalType": "bool"
+                            },
+                            {
+                                "name": "updateInventory",
+                                "type": "bool",
+                                "internalType": "bool"
+                            },
+                            {
+                                "name": "updateActiveTask",
+                                "type": "bool",
+                                "internalType": "bool"
+                            },
+                            {
+                                "name": "updateActiveAbility",
+                                "type": "bool",
+                                "internalType": "bool"
+                            },
+                            {
+                                "name": "updateOwner",
+                                "type": "bool",
+                                "internalType": "bool"
+                            },
+                            {
+                                "name": "classStatsAdded",
+                                "type": "bool",
+                                "internalType": "bool"
+                            },
+                            {
+                                "name": "died",
+                                "type": "bool",
+                                "internalType": "bool"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "activeTask",
+                        "type": "address",
+                        "internalType": "address"
+                    },
+                    {
+                        "name": "activeAbility",
+                        "type": "tuple",
+                        "internalType": "struct AbilityTracker",
+                        "components": [
+                            {
+                                "name": "ability",
+                                "type": "uint8",
+                                "internalType": "enum Ability"
+                            },
+                            {
+                                "name": "stage",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "targetIndex",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "taskAddress",
+                                "type": "address",
+                                "internalType": "address"
+                            },
+                            {
+                                "name": "targetBlock",
+                                "type": "uint64",
+                                "internalType": "uint64"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "owner",
+                        "type": "address",
+                        "internalType": "address"
+                    },
+                    {
+                        "name": "name",
+                        "type": "string",
+                        "internalType": "string"
+                    }
+                ]
+            }
+        ],
+        "outputs": [
+            {
+                "name": "",
+                "type": "tuple",
+                "internalType": "struct BattleNad",
+                "components": [
+                    {
+                        "name": "id",
+                        "type": "bytes32",
+                        "internalType": "bytes32"
+                    },
+                    {
+                        "name": "stats",
+                        "type": "tuple",
+                        "internalType": "struct BattleNadStats",
+                        "components": [
+                            {
+                                "name": "class",
+                                "type": "uint8",
+                                "internalType": "enum CharacterClass"
+                            },
+                            {
+                                "name": "buffs",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "debuffs",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "level",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "unspentAttributePoints",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "experience",
+                                "type": "uint16",
+                                "internalType": "uint16"
+                            },
+                            {
+                                "name": "strength",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "vitality",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "dexterity",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "quickness",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "sturdiness",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "luck",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "depth",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "x",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "y",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "index",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "weaponID",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "armorID",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "health",
+                                "type": "uint16",
+                                "internalType": "uint16"
+                            },
+                            {
+                                "name": "sumOfCombatantLevels",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "combatants",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "nextTargetIndex",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "combatantBitMap",
+                                "type": "uint64",
+                                "internalType": "uint64"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "maxHealth",
+                        "type": "uint256",
+                        "internalType": "uint256"
+                    },
+                    {
+                        "name": "weapon",
+                        "type": "tuple",
+                        "internalType": "struct Weapon",
+                        "components": [
+                            {
+                                "name": "name",
+                                "type": "string",
+                                "internalType": "string"
+                            },
+                            {
+                                "name": "baseDamage",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "bonusDamage",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "accuracy",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "speed",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "armor",
+                        "type": "tuple",
+                        "internalType": "struct Armor",
+                        "components": [
+                            {
+                                "name": "name",
+                                "type": "string",
+                                "internalType": "string"
+                            },
+                            {
+                                "name": "armorFactor",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "armorQuality",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "flexibility",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            },
+                            {
+                                "name": "weight",
+                                "type": "uint256",
+                                "internalType": "uint256"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "inventory",
+                        "type": "tuple",
+                        "internalType": "struct Inventory",
+                        "components": [
+                            {
+                                "name": "weaponBitmap",
+                                "type": "uint64",
+                                "internalType": "uint64"
+                            },
+                            {
+                                "name": "armorBitmap",
+                                "type": "uint64",
+                                "internalType": "uint64"
+                            },
+                            {
+                                "name": "balance",
+                                "type": "uint128",
+                                "internalType": "uint128"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "tracker",
+                        "type": "tuple",
+                        "internalType": "struct StorageTracker",
+                        "components": [
+                            {
+                                "name": "updateStats",
+                                "type": "bool",
+                                "internalType": "bool"
+                            },
+                            {
+                                "name": "updateInventory",
+                                "type": "bool",
+                                "internalType": "bool"
+                            },
+                            {
+                                "name": "updateActiveTask",
+                                "type": "bool",
+                                "internalType": "bool"
+                            },
+                            {
+                                "name": "updateActiveAbility",
+                                "type": "bool",
+                                "internalType": "bool"
+                            },
+                            {
+                                "name": "updateOwner",
+                                "type": "bool",
+                                "internalType": "bool"
+                            },
+                            {
+                                "name": "classStatsAdded",
+                                "type": "bool",
+                                "internalType": "bool"
+                            },
+                            {
+                                "name": "died",
+                                "type": "bool",
+                                "internalType": "bool"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "activeTask",
+                        "type": "address",
+                        "internalType": "address"
+                    },
+                    {
+                        "name": "activeAbility",
+                        "type": "tuple",
+                        "internalType": "struct AbilityTracker",
+                        "components": [
+                            {
+                                "name": "ability",
+                                "type": "uint8",
+                                "internalType": "enum Ability"
+                            },
+                            {
+                                "name": "stage",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "targetIndex",
+                                "type": "uint8",
+                                "internalType": "uint8"
+                            },
+                            {
+                                "name": "taskAddress",
+                                "type": "address",
+                                "internalType": "address"
+                            },
+                            {
+                                "name": "targetBlock",
+                                "type": "uint64",
+                                "internalType": "uint64"
+                            }
+                        ]
+                    },
+                    {
+                        "name": "owner",
+                        "type": "address",
+                        "internalType": "address"
+                    },
+                    {
+                        "name": "name",
+                        "type": "string",
+                        "internalType": "string"
+                    }
+                ]
+            }
+        ],
+        "stateMutability": "nonpayable"
     },
     {
         "type": "function",
@@ -3731,7 +4381,7 @@
                 ]
             }
         ],
-        "stateMutability": "view"
+        "stateMutability": "nonpayable"
     },
     {
         "type": "function",
@@ -4373,7 +5023,7 @@
                 ]
             }
         ],
-        "stateMutability": "view"
+        "stateMutability": "nonpayable"
     },
     {
         "type": "function",
@@ -5719,643 +6369,6 @@
     },
     {
         "type": "function",
-        "name": "handleSepukku",
-        "inputs": [
-            {
-                "name": "player",
-                "type": "tuple",
-                "internalType": "struct BattleNad",
-                "components": [
-                    {
-                        "name": "id",
-                        "type": "bytes32",
-                        "internalType": "bytes32"
-                    },
-                    {
-                        "name": "stats",
-                        "type": "tuple",
-                        "internalType": "struct BattleNadStats",
-                        "components": [
-                            {
-                                "name": "class",
-                                "type": "uint8",
-                                "internalType": "enum CharacterClass"
-                            },
-                            {
-                                "name": "buffs",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "debuffs",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "level",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "unspentAttributePoints",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "experience",
-                                "type": "uint16",
-                                "internalType": "uint16"
-                            },
-                            {
-                                "name": "strength",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "vitality",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "dexterity",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "quickness",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "sturdiness",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "luck",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "depth",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "x",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "y",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "index",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "weaponID",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "armorID",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "health",
-                                "type": "uint16",
-                                "internalType": "uint16"
-                            },
-                            {
-                                "name": "sumOfCombatantLevels",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "combatants",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "nextTargetIndex",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "combatantBitMap",
-                                "type": "uint64",
-                                "internalType": "uint64"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "maxHealth",
-                        "type": "uint256",
-                        "internalType": "uint256"
-                    },
-                    {
-                        "name": "weapon",
-                        "type": "tuple",
-                        "internalType": "struct Weapon",
-                        "components": [
-                            {
-                                "name": "name",
-                                "type": "string",
-                                "internalType": "string"
-                            },
-                            {
-                                "name": "baseDamage",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            },
-                            {
-                                "name": "bonusDamage",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            },
-                            {
-                                "name": "accuracy",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            },
-                            {
-                                "name": "speed",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "armor",
-                        "type": "tuple",
-                        "internalType": "struct Armor",
-                        "components": [
-                            {
-                                "name": "name",
-                                "type": "string",
-                                "internalType": "string"
-                            },
-                            {
-                                "name": "armorFactor",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            },
-                            {
-                                "name": "armorQuality",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            },
-                            {
-                                "name": "flexibility",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            },
-                            {
-                                "name": "weight",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "inventory",
-                        "type": "tuple",
-                        "internalType": "struct Inventory",
-                        "components": [
-                            {
-                                "name": "weaponBitmap",
-                                "type": "uint64",
-                                "internalType": "uint64"
-                            },
-                            {
-                                "name": "armorBitmap",
-                                "type": "uint64",
-                                "internalType": "uint64"
-                            },
-                            {
-                                "name": "balance",
-                                "type": "uint128",
-                                "internalType": "uint128"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "tracker",
-                        "type": "tuple",
-                        "internalType": "struct StorageTracker",
-                        "components": [
-                            {
-                                "name": "updateStats",
-                                "type": "bool",
-                                "internalType": "bool"
-                            },
-                            {
-                                "name": "updateInventory",
-                                "type": "bool",
-                                "internalType": "bool"
-                            },
-                            {
-                                "name": "updateActiveTask",
-                                "type": "bool",
-                                "internalType": "bool"
-                            },
-                            {
-                                "name": "updateActiveAbility",
-                                "type": "bool",
-                                "internalType": "bool"
-                            },
-                            {
-                                "name": "updateOwner",
-                                "type": "bool",
-                                "internalType": "bool"
-                            },
-                            {
-                                "name": "classStatsAdded",
-                                "type": "bool",
-                                "internalType": "bool"
-                            },
-                            {
-                                "name": "died",
-                                "type": "bool",
-                                "internalType": "bool"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "activeTask",
-                        "type": "address",
-                        "internalType": "address"
-                    },
-                    {
-                        "name": "activeAbility",
-                        "type": "tuple",
-                        "internalType": "struct AbilityTracker",
-                        "components": [
-                            {
-                                "name": "ability",
-                                "type": "uint8",
-                                "internalType": "enum Ability"
-                            },
-                            {
-                                "name": "stage",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "targetIndex",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "taskAddress",
-                                "type": "address",
-                                "internalType": "address"
-                            },
-                            {
-                                "name": "targetBlock",
-                                "type": "uint64",
-                                "internalType": "uint64"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "owner",
-                        "type": "address",
-                        "internalType": "address"
-                    },
-                    {
-                        "name": "name",
-                        "type": "string",
-                        "internalType": "string"
-                    }
-                ]
-            }
-        ],
-        "outputs": [
-            {
-                "name": "",
-                "type": "tuple",
-                "internalType": "struct BattleNad",
-                "components": [
-                    {
-                        "name": "id",
-                        "type": "bytes32",
-                        "internalType": "bytes32"
-                    },
-                    {
-                        "name": "stats",
-                        "type": "tuple",
-                        "internalType": "struct BattleNadStats",
-                        "components": [
-                            {
-                                "name": "class",
-                                "type": "uint8",
-                                "internalType": "enum CharacterClass"
-                            },
-                            {
-                                "name": "buffs",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "debuffs",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "level",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "unspentAttributePoints",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "experience",
-                                "type": "uint16",
-                                "internalType": "uint16"
-                            },
-                            {
-                                "name": "strength",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "vitality",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "dexterity",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "quickness",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "sturdiness",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "luck",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "depth",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "x",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "y",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "index",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "weaponID",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "armorID",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "health",
-                                "type": "uint16",
-                                "internalType": "uint16"
-                            },
-                            {
-                                "name": "sumOfCombatantLevels",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "combatants",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "nextTargetIndex",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "combatantBitMap",
-                                "type": "uint64",
-                                "internalType": "uint64"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "maxHealth",
-                        "type": "uint256",
-                        "internalType": "uint256"
-                    },
-                    {
-                        "name": "weapon",
-                        "type": "tuple",
-                        "internalType": "struct Weapon",
-                        "components": [
-                            {
-                                "name": "name",
-                                "type": "string",
-                                "internalType": "string"
-                            },
-                            {
-                                "name": "baseDamage",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            },
-                            {
-                                "name": "bonusDamage",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            },
-                            {
-                                "name": "accuracy",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            },
-                            {
-                                "name": "speed",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "armor",
-                        "type": "tuple",
-                        "internalType": "struct Armor",
-                        "components": [
-                            {
-                                "name": "name",
-                                "type": "string",
-                                "internalType": "string"
-                            },
-                            {
-                                "name": "armorFactor",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            },
-                            {
-                                "name": "armorQuality",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            },
-                            {
-                                "name": "flexibility",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            },
-                            {
-                                "name": "weight",
-                                "type": "uint256",
-                                "internalType": "uint256"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "inventory",
-                        "type": "tuple",
-                        "internalType": "struct Inventory",
-                        "components": [
-                            {
-                                "name": "weaponBitmap",
-                                "type": "uint64",
-                                "internalType": "uint64"
-                            },
-                            {
-                                "name": "armorBitmap",
-                                "type": "uint64",
-                                "internalType": "uint64"
-                            },
-                            {
-                                "name": "balance",
-                                "type": "uint128",
-                                "internalType": "uint128"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "tracker",
-                        "type": "tuple",
-                        "internalType": "struct StorageTracker",
-                        "components": [
-                            {
-                                "name": "updateStats",
-                                "type": "bool",
-                                "internalType": "bool"
-                            },
-                            {
-                                "name": "updateInventory",
-                                "type": "bool",
-                                "internalType": "bool"
-                            },
-                            {
-                                "name": "updateActiveTask",
-                                "type": "bool",
-                                "internalType": "bool"
-                            },
-                            {
-                                "name": "updateActiveAbility",
-                                "type": "bool",
-                                "internalType": "bool"
-                            },
-                            {
-                                "name": "updateOwner",
-                                "type": "bool",
-                                "internalType": "bool"
-                            },
-                            {
-                                "name": "classStatsAdded",
-                                "type": "bool",
-                                "internalType": "bool"
-                            },
-                            {
-                                "name": "died",
-                                "type": "bool",
-                                "internalType": "bool"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "activeTask",
-                        "type": "address",
-                        "internalType": "address"
-                    },
-                    {
-                        "name": "activeAbility",
-                        "type": "tuple",
-                        "internalType": "struct AbilityTracker",
-                        "components": [
-                            {
-                                "name": "ability",
-                                "type": "uint8",
-                                "internalType": "enum Ability"
-                            },
-                            {
-                                "name": "stage",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "targetIndex",
-                                "type": "uint8",
-                                "internalType": "uint8"
-                            },
-                            {
-                                "name": "taskAddress",
-                                "type": "address",
-                                "internalType": "address"
-                            },
-                            {
-                                "name": "targetBlock",
-                                "type": "uint64",
-                                "internalType": "uint64"
-                            }
-                        ]
-                    },
-                    {
-                        "name": "owner",
-                        "type": "address",
-                        "internalType": "address"
-                    },
-                    {
-                        "name": "name",
-                        "type": "string",
-                        "internalType": "string"
-                    }
-                ]
-            }
-        ],
-        "stateMutability": "nonpayable"
-    },
-    {
-        "type": "function",
         "name": "instances",
         "inputs": [
             {
@@ -6654,6 +6667,24 @@
                 "name": "",
                 "type": "address",
                 "internalType": "address"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "payouts",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "boostYieldPayout",
+                "type": "uint128",
+                "internalType": "uint128"
+            },
+            {
+                "name": "ascendPayout",
+                "type": "uint128",
+                "internalType": "uint128"
             }
         ],
         "stateMutability": "view"
@@ -7380,6 +7411,24 @@
     },
     {
         "type": "function",
+        "name": "processAscend",
+        "inputs": [
+            {
+                "name": "characterID",
+                "type": "bytes32",
+                "internalType": "bytes32"
+            },
+            {
+                "name": "shares",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
         "name": "processSpawn",
         "inputs": [
             {
@@ -7440,19 +7489,6 @@
         "type": "function",
         "name": "replenishGasBalance",
         "inputs": [],
-        "outputs": [],
-        "stateMutability": "payable"
-    },
-    {
-        "type": "function",
-        "name": "sepukku",
-        "inputs": [
-            {
-                "name": "characterID",
-                "type": "bytes32",
-                "internalType": "bytes32"
-            }
-        ],
         "outputs": [],
         "stateMutability": "payable"
     },
@@ -8257,22 +8293,6 @@
     },
     {
         "type": "error",
-        "name": "InvalidTaskCostEstimate",
-        "inputs": [
-            {
-                "name": "amountEstimated",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "executionCost",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ]
-    },
-    {
-        "type": "error",
         "name": "MonstersDontHaveAbilities",
         "inputs": []
     },
@@ -8413,11 +8433,6 @@
                 "internalType": "uint256"
             }
         ]
-    },
-    {
-        "type": "error",
-        "name": "TaskNotScheduled",
-        "inputs": []
     },
     {
         "type": "error",
