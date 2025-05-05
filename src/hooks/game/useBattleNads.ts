@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { ui, domain, contract } from '../../types';
 import { useUiSnapshot } from './useUiSnapshot';
-import { worldSnapshotToGameState, contractToWorldSnapshot, mapCharacterLite, processChatFeedsToDomain, mapStatusEffects } from '../../mappers';
+import { contractToWorldSnapshot, mapCharacterLite, processChatFeedsToDomain, mapStatusEffects } from '../../mappers';
 import { useCachedDataFeed, SerializedChatLog, CachedDataBlock } from './useCachedDataFeed';
 
 /**

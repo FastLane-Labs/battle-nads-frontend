@@ -30,6 +30,7 @@ const mockChatMessage2: domain.ChatMessage = {
 // --- Mock Event Messages ---
 const mockEventInstigatedCombat: domain.EventMessage = {
   logIndex: 102,
+  blocknumber: BigInt(12345680),
   timestamp: Date.now() - 9500,
   type: domain.LogType.InstigatedCombat,
   attacker: mockPlayerAlice,
@@ -41,6 +42,7 @@ const mockEventInstigatedCombat: domain.EventMessage = {
 
 const mockEventCombatHit: domain.EventMessage = {
   logIndex: 103,
+  blocknumber: BigInt(12345682),
   timestamp: Date.now() - 9000,
   type: domain.LogType.Combat,
   attacker: mockPlayerAlice,
@@ -52,6 +54,7 @@ const mockEventCombatHit: domain.EventMessage = {
 
 const mockEventCombatCrit: domain.EventMessage = {
   logIndex: 104,
+  blocknumber: BigInt(12345685),
   timestamp: Date.now() - 8000,
   type: domain.LogType.Combat,
   attacker: mockPlayerBob,
@@ -63,6 +66,7 @@ const mockEventCombatCrit: domain.EventMessage = {
 
 const mockEventEnteredArea: domain.EventMessage = {
     logIndex: 106,
+    blocknumber: BigInt(12345692),
     timestamp: Date.now() - 6000,
     type: domain.LogType.EnteredArea,
     attacker: mockPlayerCharlie, // Use 'attacker' for the participant
@@ -74,6 +78,7 @@ const mockEventEnteredArea: domain.EventMessage = {
 
 const mockEventLeftArea: domain.EventMessage = {
     logIndex: 107,
+    blocknumber: BigInt(12345695),
     timestamp: Date.now() - 5000,
     type: domain.LogType.LeftArea,
     attacker: mockPlayerAlice, // Use 'attacker' for the participant
@@ -85,6 +90,7 @@ const mockEventLeftArea: domain.EventMessage = {
 
 const mockEventAbilityUsed: domain.EventMessage = {
     logIndex: 108,
+    blocknumber: BigInt(12345698),
     timestamp: Date.now() - 4000,
     type: domain.LogType.Ability,
     attacker: mockPlayerBob, // Caster
@@ -96,6 +102,7 @@ const mockEventAbilityUsed: domain.EventMessage = {
 
 const mockEventCombatMiss: domain.EventMessage = {
   logIndex: 109,
+  blocknumber: BigInt(12345700),
   timestamp: Date.now() - 3000,
   type: domain.LogType.Combat,
   attacker: mockPlayerAlice,
@@ -107,6 +114,7 @@ const mockEventCombatMiss: domain.EventMessage = {
 
 const mockEventAscend: domain.EventMessage = {
     logIndex: 110,
+    blocknumber: BigInt(12345705),
     timestamp: Date.now() - 2000,
     type: domain.LogType.Ascend,
     attacker: mockPlayerBob,
