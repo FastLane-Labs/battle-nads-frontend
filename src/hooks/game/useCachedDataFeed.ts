@@ -153,31 +153,31 @@ export const processDataFeedsToCachedBlocks = (
   const processedBlocks: CachedDataBlock[] = [];
 
   for (const feed of dataFeeds) {
-    if (!feed.blockNumber) continue;
+    const blockNumberBigInt = feed.blockNumber ? BigInt(feed.blockNumber) : undefined;
+    if (blockNumberBigInt === undefined) continue; 
 
-    const blockNumber = BigInt(feed.blockNumber);
-
-    // Use the utility function to estimate the timestamp
     const estimatedBlockTimestamp = estimateBlockTimestamp(
       currentBlockNumber, // lastBlock (reference block)
       currentTimestamp,   // lastBlockTimestamp (reference time)
-      blockNumber         // lookupBlock (block to estimate for)
+      blockNumberBigInt         // lookupBlock (block to estimate for)
     );
-
 
     const serializedChatsForBlock: SerializedChatLog[] = [];
     const serializedEventsForBlock: SerializedEventLog[] = []; 
 
-    // Process logs to find chat messages and map senders
-    (feed.logs || []).forEach((log: contract.Log) => { // Removed unused logIndexInArray
-      // Find participant names using the lookup map available NOW
+    let chatLogArrayIndex = 0; // Use separate counter for chatLogs array access
+
+    (feed.logs || []).forEach((log: contract.Log) => {
+      if (log.index === undefined || log.logType === undefined) return; 
+      const logIndexNum = typeof log.index === 'bigint' ? Number(log.index) : log.index;
+      const logTypeNum = Number(log.logType);
+
+      // Process Event Log (always)
       const attackerInfo = characterLookup.get(Number(log.mainPlayerIndex));
       const defenderInfo = characterLookup.get(Number(log.otherPlayerIndex));
-
-      // Map general event log data, including names
-      const eventLog: SerializedEventLog = {
+      serializedEventsForBlock.push({
         logType: log.logType,
-        index: log.index,
+        index: logIndexNum,
         mainPlayerIndex: log.mainPlayerIndex,
         otherPlayerIndex: log.otherPlayerIndex,
         attackerName: attackerInfo?.name,
@@ -191,20 +191,18 @@ export const processDataFeedsToCachedBlocks = (
         lootedArmorID: log.lootedArmorID,
         experience: log.experience,
         value: String(log.value || '0')
-      };
-      serializedEventsForBlock.push(eventLog);
+      });
 
-      // If it's a chat log, extract sender and find message
-      if (Number(log.logType) === LogType.Chat) { // Compare as numbers
-        const senderIndex = Number(log.mainPlayerIndex);
-        const senderInfo = characterLookup.get(senderIndex);
-        
-        // Find corresponding chat string - REVISIT THIS ASSUMPTION
-        const messageContent = feed.chatLogs?.[Number(log.index)]; 
+      // Process Chat Log specifically if type is Chat (4)
+      if (logTypeNum === 4) { 
+        const senderInfo = attackerInfo; // Assume attacker is sender for chat
+        // Access chatLogs array using separate counter, NOT log.index
+        const messageContent = feed.chatLogs?.[chatLogArrayIndex]; 
+        chatLogArrayIndex++; // Increment after potential access
         
         if (messageContent) { 
           serializedChatsForBlock.push({
-            logIndex: Number(log.index),
+            logIndex: logIndexNum,
             content: messageContent,
             timestamp: estimatedBlockTimestamp.toString(),
             senderId: senderInfo?.id || 'unknown-id',
@@ -217,7 +215,7 @@ export const processDataFeedsToCachedBlocks = (
     // Only add block if it has chats or events worth storing
     if (serializedChatsForBlock.length > 0 || serializedEventsForBlock.length > 0) {
       processedBlocks.push({ 
-        blockNumber: blockNumber, 
+        blockNumber: blockNumberBigInt, 
         timestamp: estimatedBlockTimestamp,
         chats: serializedChatsForBlock,
         events: serializedEventsForBlock 

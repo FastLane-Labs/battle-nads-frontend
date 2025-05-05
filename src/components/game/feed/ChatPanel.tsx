@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Box, Heading, VStack, Input, Button, HStack, Text, Flex, Spinner, Center } from '@chakra-ui/react';
 import { domain } from '@/types';
+import { useVirtualizer } from '@tanstack/react-virtual';
 
 interface ChatPanelProps {
   characterId: string;
@@ -22,12 +23,26 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
+  const parentRef = useRef<HTMLDivElement>(null);
+  
+  const rowVirtualizer = useVirtualizer({ 
+    count: chatLogs.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 50,
+    overscan: 5,
+  });
 
   useEffect(() => {
     if (!isCacheLoading) {
        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [chatLogs, isCacheLoading]);
+  
+  useEffect(() => {
+    if (chatLogs.length > 0) {
+      rowVirtualizer.scrollToIndex(chatLogs.length - 1, { align: 'end' });
+    }
+  }, [chatLogs.length, rowVirtualizer]);
   
   const handleSendMessage = async () => {
     const messageToSend = inputValue.trim();
@@ -57,15 +72,11 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     <Box h="100%" display="flex" flexDirection="column">
       <Heading size="md" mb={4}>Chat</Heading>
       
-      <VStack 
-        spacing={2} 
-        align="stretch" 
+      <Box 
+        ref={parentRef}
         flex="1" 
+        overflowY="auto" 
         mb={4}
-        overflowY="auto"
-        bg="gray.700" 
-        p={2} 
-        borderRadius="md"
         position="relative"
       >
         {isCacheLoading ? (
@@ -74,40 +85,46 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           </Center>
         ) : (
           <>
-            {chatLogs.map((message, index) => {
-              const senderName = message.sender?.name || 'Unknown';
-              const isOwnMessage = senderName === characterId;
-              const messageKey = message.isOptimistic 
-                ? `opt-${message.timestamp}-${message.message.slice(0, 10)}` 
-                : `conf-${message.blocknumber}-${message.logIndex}`;
+            <Box height={`${rowVirtualizer.getTotalSize()}px`} width="100%" position="relative">
+              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+                const chat = chatLogs[virtualRow.index];
+                if (!chat) return null;
+                
+                const isPlayerMessage = characterId !== null && chat.sender.id === characterId;
+                const senderDisplayName = isPlayerMessage ? "You" : chat.sender.name;
 
-              return (
-                <Box 
-                  key={messageKey} 
-                  p={2} 
-                  borderRadius="md"
-                  bg={isOwnMessage ? 'blue.800' : 'gray.800'}
-                  opacity={message.isOptimistic ? 0.6 : 1.0}
-                  alignSelf={isOwnMessage ? 'flex-end' : 'flex-start'}
-                  maxW="80%"
-                >
-                  <Flex justify="space-between" alignItems="flex-end" mb={1}>
-                    <Text fontWeight="bold" fontSize="sm" color="blue.300">
-                      {senderName}
-                    </Text>
-                    <Text fontSize="xs" color="gray.400" ml={2}>
-                      {message.isOptimistic ? '(sending...)' : new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </Text>
-                  </Flex>
+                if (!isPlayerMessage && chat.sender.name?.includes('NotMe')) {
+                    console.log(`[ChatPanel] POTENTIAL MISMATCH: characterId=${characterId}, sender.id=${chat.sender.id}, sender.index=${chat.sender.index}, sender.name=${chat.sender.name}`);
+                }
 
-                  <Text>{message.message}</Text>
-                </Box>
-              );
-            })}
+                return (
+                  <Box
+                    key={`${chat.timestamp}-${chat.logIndex}-${virtualRow.index}`}
+                    position="absolute"
+                    top={0}
+                    left={0}
+                    width="100%"
+                    height={`${virtualRow.size}px`}
+                    transform={`translateY(${virtualRow.start}px)`}
+                    p={1}
+                  >
+                    <Box bg="gray.700" p={2} borderRadius="md" fontSize="sm">
+                      <Text as="span" fontWeight="bold" color={isPlayerMessage ? "blue.300" : "yellow.300"}>
+                        {senderDisplayName}
+                      </Text>
+                      <Text as="span" fontSize="xs" color="gray.400" ml={2}>
+                        {new Date(chat.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                      <Text mt={1}>{chat.message}</Text>
+                    </Box>
+                  </Box>
+                );
+              })}
+            </Box>
             <div ref={messagesEndRef} />
           </>
         )}
-      </VStack>
+      </Box>
       
       <HStack spacing={2}>
         <Input

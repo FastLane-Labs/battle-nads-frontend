@@ -22,7 +22,6 @@ interface GameViewProps {
   addOptimisticChatMessage: (message: string) => void;
   isMoving: boolean;
   isAttacking: boolean;
-  characterId: string;
   isInCombat: boolean;
   isCacheLoading: boolean;
 }
@@ -39,13 +38,12 @@ const GameView: React.FC<GameViewProps> = ({
   addOptimisticChatMessage,
   isMoving,
   isAttacking,
-  characterId,
   isInCombat,
   isCacheLoading
 }) => {
 
   // --- Conditionally Use Mock Data --- 
-  const isDev = process.env.NODE_ENV === 'development';
+  const isDev = false//process.env.NODE_ENV === 'development';
   const finalChatLogs = isDev ? MOCK_CHAT_LOGS : chatLogs;
   const finalEventLogs = isDev ? MOCK_EVENT_LOGS : eventLogs;
   // -----------------------------------
@@ -107,7 +105,7 @@ const GameView: React.FC<GameViewProps> = ({
       <GridItem area="feed" overflow="auto" maxH={{ base: '200px', md: '100%' }}>
         <Box p={4} bg="gray.800" borderRadius="md" h="100%">
           <EventFeed 
-            characterId={characterId} 
+            playerIndex={character.index} 
             eventLogs={finalEventLogs}
             combatants={combatants}
             isCacheLoading={isCacheLoading}
@@ -119,7 +117,7 @@ const GameView: React.FC<GameViewProps> = ({
       <GridItem area="chat" overflow="auto" maxH={{ base: '200px', md: '100%' }}>
         <Box p={4} bg="gray.800" borderRadius="md" h="100%">
           <ChatPanel 
-            characterId={characterId} 
+            characterId={character.id} 
             chatLogs={finalChatLogs}
             onSendChatMessage={onSendChatMessage}
             addOptimisticChatMessage={addOptimisticChatMessage}

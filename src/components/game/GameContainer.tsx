@@ -24,7 +24,6 @@ import { domain } from '../../types';
 // Use the result from useGame as the props type
 interface GameContainerProps {
   character: domain.Character;
-  characterId: string;
   position: { x: number; y: number; z: number };
   gameState: domain.WorldSnapshot | null;
   moveCharacter: (direction: domain.Direction) => Promise<void>;
@@ -41,7 +40,6 @@ interface GameContainerProps {
 const GameContainer: React.FC<GameContainerProps> = (props) => {
   const {
     character,
-    characterId,
     position,
     gameState,
     moveCharacter,
@@ -143,7 +141,6 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
           onAttack={handleAttack}
           isMoving={isMoving}
           isAttacking={isAttacking}
-          characterId={characterId}
           onSendChatMessage={handleSendChatMessage}
           addOptimisticChatMessage={addOptimisticChatMessage}
           isInCombat={isInCombat}

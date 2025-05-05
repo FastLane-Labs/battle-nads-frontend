@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react';
-import { useRouter, redirect } from 'next/navigation';
+import React from 'react';
+import { useRouter } from 'next/navigation';
 import { useGame } from '../hooks/game/useGame';
 import Login from './auth/Login';
 import LoadingScreen from './game/screens/LoadingScreen';
@@ -96,11 +96,11 @@ const AppInitializer: React.FC = () => {
       const attack = async (targetIndex: number) => { await game.attack(targetIndex); };
       const sendChatMessage = async (message: string) => { await game.sendChatMessage(message); };
       const addOptimisticChatMessage = (message: string) => { game.addOptimisticChatMessage(message); };
+      const playerIndex = game.character?.index ?? null;
 
       return renderWithNav(
          <GameContainer
            character={game.character}
-           characterId={game.characterId as string}
            position={position}
            gameState={game.worldSnapshot}
            moveCharacter={moveCharacter}
