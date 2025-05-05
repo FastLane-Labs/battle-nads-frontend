@@ -4,6 +4,7 @@
  */
 
 import { contract, domain } from '@/types';
+import { safeStringify } from '@/utils/bigintSerializer';
 import { estimateBlockTimestamp } from '@/utils/blockUtils'; // Import the utility
 
 /**
@@ -281,9 +282,9 @@ export function contractToWorldSnapshot(
     const eventBlockNumber = BigInt(feed.blockNumber || 0);
     // Call estimateBlockTimestamp with correct BigInt types
     const estimatedTimestamp = estimateBlockTimestamp(
-        referenceBlockNumber,  // <<< Pass BigInt
-        referenceTimestamp,    // Pass number (Correct)
-        eventBlockNumber       // <<< Pass BigInt (already correct type)
+        referenceBlockNumber,  
+        referenceTimestamp,
+        eventBlockNumber    
     ); 
 
     let blockChatLogIndex = 0; 
@@ -302,9 +303,9 @@ export function contractToWorldSnapshot(
           if (sender) {
             const newChatMessage: domain.ChatMessage = {
               logIndex: logIndex,
-              blocknumber: eventBlockNumber, 
+              blocknumber: eventBlockNumber,
               timestamp: estimatedTimestamp,
-              sender: sender, 
+              sender: sender,
               message: messageContent
             };
             allChatMessages.push(newChatMessage);
@@ -312,10 +313,10 @@ export function contractToWorldSnapshot(
             const isPlayer = !!ownerCharacterId && sender.id === ownerCharacterId;
             const newEventMessageForChat: domain.EventMessage = {
               logIndex: logIndex,
-              blocknumber: eventBlockNumber, 
+              blocknumber: eventBlockNumber,
               timestamp: estimatedTimestamp,
               type: logTypeNum as domain.LogType,
-              attacker: sender, 
+              attacker: sender,
               defender: undefined,
               isPlayerInitiated: isPlayer,
               details: { value: messageContent }, 
@@ -465,8 +466,12 @@ export function contractToWorldSnapshot(
   };
 
   // Debugging logs (can be removed later)
-  console.log(`[contractToDomain] Processed ${allChatMessages.length} chat messages.`);
-  console.log(`[contractToDomain] Processed ${allEventLogs.length} event logs.`);
+  if (allChatMessages.length > 0) {
+    console.log(`[contractToDomain] Processed ${allChatMessages.length} chat messages.`);
+  }
+  if (allEventLogs.length > 0) {
+    console.log(`[contractToDomain] Processed ${allEventLogs.length} event logs.`);
+  }
   
   return partialWorldSnapshot;
 }

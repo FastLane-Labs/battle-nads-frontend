@@ -28,9 +28,9 @@ export interface SerializedEventLog {
 // Create a SerializedChatLog type to match what we store
 // Export needed types
 export interface SerializedChatLog {
-  // sender: string;       // Sender (wallet address or character name) - REMOVE
-  content: string;      // Raw Message content string
-  timestamp: string;    // Block timestamp as string
+  logIndex: number;
+  content: string;
+  timestamp: string;
   senderId: string;
   senderName: string;
 }
@@ -51,88 +51,82 @@ const FEED_TTL = 1000 * 60 * 60; // 1 hour in ms
 
 /**
  * Hook to manage cached data feed blocks using Dexie.
- * Loads initial historical blocks from Dexie and handles purging.
+ * Loads initial historical blocks from Dexie ON MOUNT and handles purging.
  */
 export const useCachedDataFeed = (owner: string | null) => {
-  const [cachedBlocks, setCachedBlocks] = useState<CachedDataBlock[]>([]);
-  const [isHistoryLoading, setIsHistoryLoading] = useState(true); // Renamed from isLoading
+  const [historicalBlocks, setHistoricalBlocks] = useState<CachedDataBlock[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
 
-  // --- Function to load recent blocks into state --- 
-  const loadRecentBlocksIntoState = useCallback(async (owner: string) => {
-    setIsHistoryLoading(true); 
-
-    try {
-      
-      // Query Dexie for ALL blocks for the owner, ordered descending by block
-      const recentStoredBlocks = await db.dataBlocks
-        .where('owner').equals(owner)
-        .reverse() // Get newest first (relative order)
-        .sortBy('blockNumber'); // Sort ascending by block number before mapping
-
-      const deserializedBlocks = recentStoredBlocks.map(stored => ({
-        blockNumber: BigInt(stored.block),
-        timestamp: stored.ts,
-        chats: stored.chats,
-        events: stored.events
-      }));
-      
-      setCachedBlocks(deserializedBlocks);
-    } catch (error) {
-      console.error('[CachedDataFeed] Error loading recent blocks from Dexie:', error);
-      setCachedBlocks([]);
-    } finally {
-      setIsHistoryLoading(false); 
-    }
-  }, []);
-  // ------------------------------------------------
-
-  // Effect for initial load from Dexie and purging
   useEffect(() => {
     let isMounted = true;
     if (!owner) {
       if (isMounted) {
-        setCachedBlocks([]);
-        setIsHistoryLoading(false); // Ensure loading is false if no owner
+        setHistoricalBlocks([]); 
+        setIsHistoryLoading(false);
       }
       return;
     }
 
-    const initialLoadAndPurge = async () => {
+    const loadInitialHistoryAndPurge = async () => {
       if (!isMounted) return;
-      
-      // 1. Load initial historical data from Dexie
-      await loadRecentBlocksIntoState(owner); // Await the initial load
+      setIsHistoryLoading(true);
+      try {
+        const recentStoredBlocks = await db.dataBlocks
+          .where('owner').equals(owner)
+          .toArray();
 
-      // 2. Purge expired blocks (can run async without blocking the main flow)
-      // This runs independently in the background
-      const now = Date.now();
-      const expirationTime = now - FEED_TTL;
-      db.dataBlocks
-        .where('ts').below(expirationTime)
-        .delete()
-        .then(deleteCount => {
-            // Removed: Purge count log
-        }).catch(err => {
-            // Removed: Purge error log 
-        });
+        recentStoredBlocks.sort((a, b) => parseInt(a.block, 10) - parseInt(b.block, 10));
 
-      // NOTE: No network fetch (getDataFeed) or storage (bulkPut) happens here anymore.
-      // The 'isLoading duration' timer was removed as it measured the removed network fetch.
+        const deserializedBlocks = recentStoredBlocks.map(stored => ({
+          blockNumber: BigInt(stored.block),
+          timestamp: stored.ts,
+          // Ensure loaded chats/events conform to interface
+          chats: (stored.chats || []) as SerializedChatLog[], 
+          events: (stored.events || []) as SerializedEventLog[] 
+        }));
+
+        if (isMounted) {
+            setHistoricalBlocks(deserializedBlocks);
+        }
+
+        // Purge expired blocks 
+        const now = Date.now();
+        const expirationTime = now - FEED_TTL;
+        db.dataBlocks
+            .where('owner').equals(owner) // Also scope purge to owner
+            .and(item => item.ts < expirationTime)
+            .delete()
+            .then(deleteCount => {
+                if (deleteCount > 0) {
+                    // console.log(`[CachedDataFeed] Purged ${deleteCount} expired blocks for owner.`);
+                }
+            }).catch(err => {
+                console.error("[CachedDataFeed] Error purging expired blocks:", err);
+            });
+
+      } catch (error) {
+        console.error('[CachedDataFeed] Error loading initial blocks from Dexie:', error);
+        if (isMounted) {
+            setHistoricalBlocks([]);
+        }
+      } finally {
+        if (isMounted) {
+            setIsHistoryLoading(false);
+        }
+      }
     };
 
-    initialLoadAndPurge();
+    loadInitialHistoryAndPurge();
 
-    // Cleanup function
     return () => {
       isMounted = false;
     };
-  // Dependencies: owner. Rerun when owner changes. loadRecentBlocksIntoState is stable.
-  }, [owner, loadRecentBlocksIntoState]); 
+  }, [owner]); 
 
-  // Return only the historical blocks and the loading state for that history
+  // Return the historical blocks and loading state.
   return {
-    historicalBlocks: cachedBlocks, // Renamed blocks to historicalBlocks for clarity
-    isHistoryLoading // Expose the loading state related to Dexie history read
+    historicalBlocks, // Return the state variable
+    isHistoryLoading,
   };
 };
 
@@ -210,11 +204,8 @@ export const processDataFeedsToCachedBlocks = (
         
         if (messageContent) { 
           serializedChatsForBlock.push({
+            logIndex: Number(log.index),
             content: messageContent,
-            // Use the blockTimestamp derived earlier
-            // timestamp: blockTimestamp.toString(), // Store timestamp string matching interface
-            // Use the ESTIMATED timestamp for the chat message object itself
-            // Note: Consider if the ChatMessage domain type should store block number instead/as well
             timestamp: estimatedBlockTimestamp.toString(),
             senderId: senderInfo?.id || 'unknown-id',
             senderName: senderInfo?.name || 'Unknown'
@@ -227,8 +218,6 @@ export const processDataFeedsToCachedBlocks = (
     if (serializedChatsForBlock.length > 0 || serializedEventsForBlock.length > 0) {
       processedBlocks.push({ 
         blockNumber: blockNumber, 
-        // timestamp: blockTimestamp, // Use the derived numeric timestamp
-        // Use the ESTIMATED timestamp for the CachedDataBlock (used for Dexie TTL)
         timestamp: estimatedBlockTimestamp,
         chats: serializedChatsForBlock,
         events: serializedEventsForBlock 

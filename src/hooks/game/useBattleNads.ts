@@ -51,56 +51,73 @@ export const useBattleNads = (owner: string | null) => {
     return map;
   }, [rawData]);
 
-  // --- Process newly confirmed logs --- 
+  // --- Effect to process newly fetched data & update runtime states --- 
   useEffect(() => {
     if (!rawData || !rawData.dataFeeds || !owner) {
-      return;
+      return; 
     }
 
-    // Process dataFeeds to get newly confirmed chat messages
+    // --- Process CHAT logs from current rawData --- 
     const newlyConfirmedChatLogs = processChatFeedsToDomain(
       rawData.dataFeeds,
-      characterLookup,
+      characterLookup, 
       BigInt(rawData.endBlock || 0),
       rawData.fetchTimestamp
     );
 
-    // Process dataFeeds to get newly confirmed event logs
-    const newlyConfirmedEventLogs: domain.EventMessage[] = (rawData.dataFeeds || []).flatMap(feed =>
-      (feed.logs || []).map((log): domain.EventMessage => {
-        const attackerInfo = characterLookup.get(Number(log.mainPlayerIndex));
-        const defenderInfo = characterLookup.get(Number(log.otherPlayerIndex));
-        const estimatedTimestamp = estimateBlockTimestamp(
-          BigInt(rawData.endBlock || 0),
-          rawData.fetchTimestamp,
-          BigInt(feed.blockNumber)
-        );
-        const isPlayerInitiated = !!attackerInfo && attackerInfo.id === owner;
-        return {
-          logIndex: log.index,
-          blocknumber: BigInt(feed.blockNumber),
-          timestamp: estimatedTimestamp,
-          type: log.logType as domain.LogType,
-          attacker: attackerInfo ? { id: attackerInfo.id, name: attackerInfo.name, index: Number(log.mainPlayerIndex) } : undefined,
-          defender: defenderInfo ? { id: defenderInfo.id, name: defenderInfo.name, index: Number(log.otherPlayerIndex) } : undefined,
-          isPlayerInitiated: isPlayerInitiated,
-          details: {
-            hit: log.hit,
-            critical: log.critical,
-            damageDone: log.damageDone,
-            healthHealed: log.healthHealed,
-            targetDied: log.targetDied,
-            lootedWeaponID: log.lootedWeaponID,
-            lootedArmorID: log.lootedArmorID,
-            experience: log.experience,
-            value: BigInt(log.value || 0)
-          },
-          displayMessage: ''
-        };
-      })
-    );
+    // --- Process EVENT logs from current rawData with VALIDATION --- 
+    const newlyConfirmedEventLogs: domain.EventMessage[] = [];
+    (rawData.dataFeeds || []).forEach((feed, feedIndex) => {
+        // Validate feed structure
+        const blockNumberBigInt = feed.blockNumber ? BigInt(feed.blockNumber) : undefined;
+        if (blockNumberBigInt === undefined) {
+            return; // Skip this feed
+        }
 
-    // Update optimistic chat messages
+        (feed.logs || []).forEach((log, logIndexInFeed) => {
+            // Validate log structure (check index and logType from log, blockNumber from feed)
+            if (log.index === undefined || feed.blockNumber === undefined || log.logType === undefined) {
+                return; // Skip this log
+            }
+            // Check for BigInt conversion issues (logIndex is sometimes BigInt, sometimes number?)
+            const logIndexNum = typeof log.index === 'bigint' ? Number(log.index) : log.index;
+
+            const attackerInfo = characterLookup.get(Number(log.mainPlayerIndex));
+            const defenderInfo = characterLookup.get(Number(log.otherPlayerIndex));
+            const estimatedTimestamp = estimateBlockTimestamp(
+                BigInt(rawData.endBlock || 0),
+                rawData.fetchTimestamp,
+                blockNumberBigInt // Use validated BigInt
+            );
+            const isPlayerInitiated = !!attackerInfo && attackerInfo.id === owner; 
+            
+            // Construct the valid event
+            const event: domain.EventMessage = {
+                logIndex: logIndexNum, // Use validated number
+                blocknumber: blockNumberBigInt, // Use validated BigInt
+                timestamp: estimatedTimestamp,
+                type: log.logType as domain.LogType,
+                attacker: attackerInfo ? { id: attackerInfo.id, name: attackerInfo.name, index: Number(log.mainPlayerIndex) } : undefined,
+                defender: defenderInfo ? { id: defenderInfo.id, name: defenderInfo.name, index: Number(log.otherPlayerIndex) } : undefined,
+                isPlayerInitiated: isPlayerInitiated,
+                details: {
+                    hit: log.hit,
+                    critical: log.critical,
+                    damageDone: log.damageDone,
+                    healthHealed: log.healthHealed,
+                    targetDied: log.targetDied,
+                    lootedWeaponID: log.lootedWeaponID,
+                    lootedArmorID: log.lootedArmorID,
+                    experience: log.experience,
+                    value: BigInt(log.value || 0)
+                },
+                displayMessage: '' 
+            };
+            newlyConfirmedEventLogs.push(event);
+        });
+    });
+
+    // --- Update Optimistic Chat --- 
     if (newlyConfirmedChatLogs.length > 0 && optimisticChatMessages.length > 0) {
       const messagesToRemove = optimisticChatMessages.filter(optMsg =>
         newlyConfirmedChatLogs.some(confLog => confLog.message === optMsg.message && confLog.sender.id === optMsg.sender.id)
@@ -114,25 +131,67 @@ export const useBattleNads = (owner: string | null) => {
       }
     }
 
-    // Update runtime confirmed chat logs
+    // --- Update Runtime Confirmed CHAT Logs --- 
     if (newlyConfirmedChatLogs.length > 0) {
+      // Create a set of keys from historical blocks for quick lookup
+      const historicalLogKeys = new Set(
+          historicalBlocks.flatMap(block => 
+              (block.events || []) // Check events array as chat logs might be stored there historically?
+                  .filter(event => event.logType === domain.LogType.Chat || Number(event.logType) === 4) // Consider both potential chat types
+                  .map(event => `conf-${block.blockNumber}-${event.index}`) // Use blockNumber and event index
+          )
+      );
+      // Alternative/Safer: If historicalBlocks.chats is reliable:
+      // const historicalLogKeys = new Set(
+      //     historicalBlocks.flatMap(block => 
+      //         (block.chats || []).map(chat => `conf-${block.blockNumber}-${chat.logIndex}`) // Assuming historical chats have a valid logIndex
+      //     )
+      // );
+
       setRuntimeConfirmedLogs(prevConfirmed => {
         const chatMap = new Map(prevConfirmed.map(log => [`conf-${log.blocknumber}-${log.logIndex}`, log]));
         newlyConfirmedChatLogs.forEach(log => {
-          chatMap.set(`conf-${log.blocknumber}-${log.logIndex}`, log);
+          const key = `conf-${log.blocknumber}-${log.logIndex}`;
+          // Only add to runtime state if it wasn't loaded from history
+          if (!historicalLogKeys.has(key)) { 
+            chatMap.set(key, log);
+          } else {
+            // Optional: Log if skipping due to history
+            // console.log(`[useBattleNads EFFECT] Skipping runtime add for historical chat: ${key}`);
+          }
         });
         return Array.from(chatMap.values());
       });
     }
 
-    // Update runtime event logs
-    if (newlyConfirmedEventLogs.length > 0) {
+    // --- Update Runtime EVENT Logs --- 
+    // Filter invalid events before setting state
+    const validNewlyConfirmedEventLogs = newlyConfirmedEventLogs.filter(
+        event => event.blocknumber !== undefined && event.logIndex !== undefined && event.type !== undefined
+    );
+
+    if (validNewlyConfirmedEventLogs.length > 0) {
+       // Create a set of keys from historical blocks for quick lookup
+      const historicalEventLogKeys = new Set(
+          historicalBlocks.flatMap(block => 
+              (block.events || []).map(event => `conf-${block.blockNumber}-${event.index}`) 
+          )
+      );
+
       setRuntimeEventLogs(prevRuntimeEvents => {
-        const eventMap = new Map(prevRuntimeEvents.map(log => [`conf-${log.blocknumber}-${log.logIndex}`, log]));
-        newlyConfirmedEventLogs.forEach(log => {
-          eventMap.set(`conf-${log.blocknumber}-${log.logIndex}`, log);
-        });
-        return Array.from(eventMap.values());
+          const eventMap = new Map(prevRuntimeEvents.map(log => [`conf-${log.blocknumber}-${log.logIndex}`, log]));
+          // Add only the valid new events if they weren't in history
+          validNewlyConfirmedEventLogs.forEach(log => {
+              const key = `conf-${log.blocknumber}-${log.logIndex}`;
+              if (!historicalEventLogKeys.has(key)) {
+                eventMap.set(key, log);
+              } else {
+                 // Optional: Log if skipping due to history
+                 // console.log(`[useBattleNads EFFECT] Skipping runtime add for historical event: ${key}`);
+              }
+          });
+          const newState = Array.from(eventMap.values());
+          return newState;
       });
     }
 
@@ -146,147 +205,80 @@ export const useBattleNads = (owner: string | null) => {
                 nonCombatantsContextForStorage.push(playerCharLite);
             }
      }
-    // Process feeds specifically for storage format
-    const blocksToStore = processDataFeedsToCachedBlocks(
-        rawData.dataFeeds,
-        combatantsContextForStorage, 
-        nonCombatantsContextForStorage,
-        BigInt(rawData.endBlock || 0),
-        rawData.fetchTimestamp
-    );
-    if (blocksToStore.length > 0 && owner) { // Ensure owner exists before storing
-        // Call storeFeedData with the correct 6 arguments
+    // Pass raw feeds and context to storeFeedData (CORRECT 6 arguments)
+    if (rawData.dataFeeds.length > 0 && owner) { 
         storeFeedData(
             owner, 
-            rawData.dataFeeds, // Pass raw feeds, as storeFeedData likely re-processes
+            rawData.dataFeeds, // Pass raw feeds
             combatantsContextForStorage, 
-            nonCombatantsContextForStorage, 
-            BigInt(rawData.endBlock || 0), 
-            rawData.fetchTimestamp
+            nonCombatantsContextForStorage,
+            BigInt(rawData.endBlock || 0),
+            rawData.fetchTimestamp 
         )
             .catch((err: Error) => console.error("[useBattleNads] Failed to store new feeds in background:", err.message));
     }
+
   }, [rawData, owner, optimisticChatMessages, characterLookup]);
 
-  // Map the raw data and cached data to a combined WorldSnapshot
+
+  // --- Memoize the final WorldSnapshot --- 
   const worldSnapshot = useMemo<domain.WorldSnapshot | null>(() => {
     if (!rawData) {
       return previousGameStateRef.current; 
     }
-         
+           
     let snapshotBase: domain.WorldSnapshot | null = null;
     try {
-      snapshotBase = contractToWorldSnapshot(rawData, owner);
+      snapshotBase = contractToWorldSnapshot(rawData, owner); 
     } catch (e) {
-      console.error('Error mapping contract data to world snapshot base:', e);
       return previousGameStateRef.current;
     }
-
     if (!snapshotBase) {
       return previousGameStateRef.current;
     }
-    
-    // Map historical blocks from Dexie cache
+     
+    // --- Map Historical Data --- 
     const historicalChatLogs: domain.ChatMessage[] = historicalBlocks.flatMap((block: CachedDataBlock) => 
-      block.chats.map((chat: SerializedChatLog) => ({
-          logIndex: -1, 
-          blocknumber: block.blockNumber,
-          timestamp: block.timestamp, 
-          sender: { id: chat.senderId, name: chat.senderName, index: -1 }, 
-          message: chat.content,
-          isOptimistic: false
+      block.chats.map((chat: SerializedChatLog): domain.ChatMessage => ({ 
+        logIndex: -1, blocknumber: block.blockNumber, timestamp: block.timestamp,
+        sender: { id: chat.senderId, name: chat.senderName, index: -1 }, message: chat.content, isOptimistic: false
       }))
-    );
-
-    // Process newly fetched feeds from rawData for confirmed messages from this fetch
-    // Build the lookup map needed for processing
-    const currentCombatantsMap = new Map((rawData.combatants || []).map(c => [Number(c.index), mapCharacterLite(c)]));
-    const currentNonCombatantsMap = new Map((rawData.noncombatants || []).map(c => [Number(c.index), mapCharacterLite(c)]));
-    const currentCharacterLookup = new Map<number, domain.CharacterLite>([...currentCombatantsMap, ...currentNonCombatantsMap]);
-    if (rawData.character) {
-        const playerCharLite: domain.CharacterLite = {
-            id: rawData.character.id,
-            index: Number(rawData.character.stats.index),
-            name: rawData.character.name,
-            class: rawData.character.stats.class as domain.CharacterClass,
-            level: Number(rawData.character.stats.level),
-            health: Number(rawData.character.stats.health),
-            maxHealth: Number(rawData.character.maxHealth),
-            buffs: mapStatusEffects(Number(rawData.character.stats.buffs)),
-            debuffs: mapStatusEffects(Number(rawData.character.stats.debuffs)),
-            ability: { 
-                ability: rawData.character.activeAbility.ability as domain.Ability,
-                stage: Number(rawData.character.activeAbility.stage),
-                targetIndex: Number(rawData.character.activeAbility.targetIndex),
-                taskAddress: rawData.character.activeAbility.taskAddress,
-                targetBlock: Number(rawData.character.activeAbility.targetBlock)
-             },
-            weaponName: rawData.character.weapon.name,
-            armorName: rawData.character.armor.name,
-            isDead: rawData.character.tracker?.died || false
-        };
-        currentCharacterLookup.set(playerCharLite.index, playerCharLite); 
-    }
-    const newlyConfirmedLogs = rawData.dataFeeds 
-      ? processChatFeedsToDomain(
-          rawData.dataFeeds, 
-          currentCharacterLookup, 
-          BigInt(rawData.endBlock || 0),
-          rawData.fetchTimestamp
-        )
-      : [];
+    ).filter(chat => chat.blocknumber !== undefined && chat.logIndex !== undefined);
     
-    // TODO: Process historical event logs similarly if needed from historicalBlocks
-    // --- Process Historical Event Logs --- 
     const historicalEventLogs: domain.EventMessage[] = historicalBlocks.flatMap((block: CachedDataBlock) => 
-      block.events.map((event: SerializedEventLog): domain.EventMessage => {
-          // Use stored names if available, otherwise fallback might be complex/not needed
-          const attacker: domain.EventParticipant | undefined = 
-            event.mainPlayerIndex > 0 ? { 
-              // ID lookup might still be needed if we need the ID for other logic, 
-              // but using stored name is primary for display
-              id: currentCharacterLookup.get(event.mainPlayerIndex)?.id || `index_${event.mainPlayerIndex}`,
-              name: event.attackerName || `Index ${event.mainPlayerIndex}`, // Prioritize stored name
+      block.events.map((event: SerializedEventLog): domain.EventMessage => { 
+          const attacker: domain.EventParticipant | undefined = event.mainPlayerIndex > 0 ? { 
+              id: characterLookup.get(event.mainPlayerIndex)?.id || `index_${event.mainPlayerIndex}`,
+              name: event.attackerName || `Index ${event.mainPlayerIndex}`, 
               index: event.mainPlayerIndex 
-            } : undefined;
-            
-          const defender: domain.EventParticipant | undefined = 
-            event.otherPlayerIndex > 0 ? { 
-              id: currentCharacterLookup.get(event.otherPlayerIndex)?.id || `index_${event.otherPlayerIndex}`,
-              name: event.defenderName || `Index ${event.otherPlayerIndex}`, // Prioritize stored name
+          } : undefined;
+          const defender: domain.EventParticipant | undefined = event.otherPlayerIndex > 0 ? { 
+              id: characterLookup.get(event.otherPlayerIndex)?.id || `index_${event.otherPlayerIndex}`,
+              name: event.defenderName || `Index ${event.otherPlayerIndex}`, 
               index: event.otherPlayerIndex 
-            } : undefined;
-
-          // Determine if player initiated based on current snapshot owner and attacker ID
+          } : undefined;
           const isPlayerInitiated = !!snapshotBase?.character && !!attacker && attacker.id === snapshotBase.character.id;
-
           return {
               logIndex: event.index,
               blocknumber: block.blockNumber, 
               timestamp: block.timestamp, 
               type: event.logType as domain.LogType,
-              attacker: attacker, // Use the participant object created above
-              defender: defender, // Use the participant object created above
+              attacker: attacker, 
+              defender: defender, 
               isPlayerInitiated: isPlayerInitiated,
-              details: {
-                  hit: event.hit,
-                  critical: event.critical,
-                  damageDone: event.damageDone,
-                  healthHealed: event.healthHealed,
-                  targetDied: event.targetDied,
-                  lootedWeaponID: event.lootedWeaponID,
-                  lootedArmorID: event.lootedArmorID,
-                  experience: event.experience,
-                  value: event.value 
-              },
+              details: { hit: event.hit, critical: event.critical, damageDone: event.damageDone,
+                         healthHealed: event.healthHealed, targetDied: event.targetDied, 
+                         lootedWeaponID: event.lootedWeaponID, lootedArmorID: event.lootedArmorID,
+                         experience: event.experience, value: BigInt(event.value || 0) },
               displayMessage: '' 
           };
       })
-    );
-
-    // --- Combine Event Logs --- 
+    ).filter(event => event.blocknumber !== undefined && event.logIndex !== undefined); 
+ 
+    // --- Combine ALL Event Logs (Simplified: Historical + Runtime Only) --- 
     const combinedEventLogsMap = new Map<string, domain.EventMessage>();
-
+    const validRuntimeEventLogs = runtimeEventLogs.filter(event => event.blocknumber !== undefined && event.logIndex !== undefined);
+    
     // 1. Add historical logs
     historicalEventLogs.forEach(log => {
         const key = `conf-${log.blocknumber}-${log.logIndex}`;
@@ -294,78 +286,72 @@ export const useBattleNads = (owner: string | null) => {
             combinedEventLogsMap.set(key, log);
         }
     });
-
-    // 2. Add logs from the current snapshot base (overwrites historical if same key)
-    (snapshotBase?.eventLogs || []).forEach(log => {
+    // 2. Add VALID RUNTIME logs (overwrites historical)
+    validRuntimeEventLogs.forEach(log => {
         const key = `conf-${log.blocknumber}-${log.logIndex}`;
-        combinedEventLogsMap.set(key, log); 
+        combinedEventLogsMap.set(key, log);
     });
 
     // 3. Convert map back to array and sort
-    const combinedEventLogs = Array.from(combinedEventLogsMap.values())
+    const finalEventLogs = Array.from(combinedEventLogsMap.values())
                                   .sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
+    
+    // --- Combine ALL Chat logs (Using Alternative Key Strategy) --- 
+    const combinedChatLogsMap = new Map<string, domain.ChatMessage>();
+    const validRuntimeChatLogs = runtimeConfirmedLogs.filter(chat => chat.blocknumber !== undefined && chat.logIndex !== undefined);
 
-    // Combine ALL Chat logs (logic remains the same)
-    const combinedLogsMap = new Map<string, domain.ChatMessage>();
-
-    // Add historical logs first
+    // 1. Add historical logs with a timestamp/sender based key
     historicalChatLogs.forEach(log => {
-        // Use a unique key for confirmed messages from history
-        const key = `conf-${log.blocknumber}-${log.logIndex}`;
-        if (!combinedLogsMap.has(key)) { 
-            combinedLogsMap.set(key, log);
+        // Use a key that doesn't rely on the potentially incorrect historical logIndex (-1)
+        const key = `hist-${log.blocknumber}-${log.sender.id}-${log.timestamp}`;
+        if (!combinedChatLogsMap.has(key)) { 
+            combinedChatLogsMap.set(key, log);
         }
     });
-
-    // Add runtime confirmed logs, potentially overwriting historical if same key
-    runtimeConfirmedLogs.forEach(log => {
+    // 2. Add VALID runtime confirmed logs (will overwrite historical if block/sender/ts match, 
+    //    or add separately if timestamp differs slightly)
+    //    Using the standard conf- key here ensures optimistic reconciliation works.
+    validRuntimeChatLogs.forEach(log => {
         const key = `conf-${log.blocknumber}-${log.logIndex}`;
-        combinedLogsMap.set(key, log); // Overwrite if exists
+        // Also check if a similar historical entry exists and potentially remove it before adding runtime?
+        // For simplicity, let runtime overwrite based on its more specific key.
+        combinedChatLogsMap.set(key, log); 
     });
-
-    // Add newly confirmed logs from the *current* fetch (ensures latest data, overwrites runtime state version if somehow different)
-    // This might be redundant if runtimeConfirmedLogs is updated correctly, but ensures freshness from rawData
-    newlyConfirmedLogs.forEach(log => {
-        const key = `conf-${log.blocknumber}-${log.logIndex}`;
-        combinedLogsMap.set(key, log); 
-    });
-
-    // Add optimistic logs (use a different key pattern)
+    // 3. Add optimistic logs
     optimisticChatMessages.forEach(log => {
         const key = `opt-${log.timestamp}-${log.sender.id}-${log.message.slice(0,10)}`;
-        combinedLogsMap.set(key, log);
+        // Ensure optimistic overwrites any potential historical placeholder if timestamps align closely,
+        // but usually runtime confirmation handles the final state.
+        combinedChatLogsMap.set(key, log);
     });
+    // 4. Convert map values back to array and sort
+    const finalChatLogs = Array.from(combinedChatLogsMap.values())
+                              .sort((a, b) => a.timestamp - b.timestamp);
 
-    // Convert map values back to array and sort
-    const finalChatLogs = Array.from(combinedLogsMap.values())
-                             .sort((a, b) => a.timestamp - b.timestamp);
-
-    // Construct the final WorldSnapshot
+    // --- Construct the final WorldSnapshot --- 
     const finalSnapshot: domain.WorldSnapshot = {
        ...snapshotBase,
-       eventLogs: combinedEventLogs,
+       eventLogs: finalEventLogs, 
        chatLogs: finalChatLogs
     };
 
     previousGameStateRef.current = finalSnapshot;
     return finalSnapshot;
-  }, [rawData, owner, optimisticChatMessages, historicalBlocks, runtimeConfirmedLogs, runtimeEventLogs, characterLookup]);
+
+  }, [rawData, owner, optimisticChatMessages, historicalBlocks, runtimeConfirmedLogs, runtimeEventLogs, characterLookup]); 
 
   // Function to add an optimistic message
   const addOptimisticChatMessage = useCallback((message: string) => {
     const currentSnapshot = worldSnapshot;
-    // Manually create CharacterLite from rawData if needed
     const characterInfo = currentSnapshot?.character 
         ? { id: currentSnapshot.character.id, name: currentSnapshot.character.name, index: currentSnapshot.character.index } 
         : (rawData?.character ? {
             id: rawData.character.id,
             name: rawData.character.name,
             index: Number(rawData.character.stats.index)
-            // Add other minimal fields if needed by sender type, but likely just id/name/index
           } : null);
 
     if (!characterInfo?.id) {
-        console.warn("Cannot add optimistic chat message: No character ID available.");
         return;
     }
     
@@ -379,15 +365,12 @@ export const useBattleNads = (owner: string | null) => {
     };
 
     setOptimisticChatMessages(prev => {
-        // Prevent adding duplicates: Check only sender and content for optimistic messages.
         const alreadyExists = prev.some(
             msg => msg.isOptimistic && 
                    msg.sender.id === optimisticMsg.sender.id && 
                    msg.message === optimisticMsg.message
-                   // && msg.timestamp === optimisticMsg.timestamp // Remove fragile timestamp check
         );
         if (alreadyExists) {
-            console.log("[OptimisticAdd] Skipping duplicate optimistic message add based on sender and content.")
             return prev; 
         }
         return [...prev, optimisticMsg];
