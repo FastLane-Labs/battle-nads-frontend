@@ -5,14 +5,14 @@ import { EventLogItemRenderer } from './EventLogItemRenderer';
 import { useVirtualizer } from '@tanstack/react-virtual';
 
 interface EventFeedProps {
-  characterId: string;
+  playerIndex: number | null;
   eventLogs: domain.EventMessage[];
   combatants: domain.CharacterLite[];
   isCacheLoading: boolean;
 }
 
 const EventFeed: React.FC<EventFeedProps> = ({ 
-  characterId, 
+  playerIndex,
   eventLogs,
   combatants, 
   isCacheLoading 
@@ -61,7 +61,7 @@ const EventFeed: React.FC<EventFeedProps> = ({
                   const involvesCombatant = 
                     (event.attacker && combatantIds.has(event.attacker.id)) || 
                     (event.defender && combatantIds.has(event.defender.id));
-                  const isPlayerAction = event.isPlayerInitiated;
+                  const isPlayerAction = !!playerIndex && event.attacker?.index === playerIndex;
                   
                   if (involvesCombatant) bgColor = "red.900"; 
                   if (isPlayerAction) bgColor = "blue.900";
@@ -83,7 +83,7 @@ const EventFeed: React.FC<EventFeedProps> = ({
                         borderRadius="md" 
                         h="100%"
                       >
-                        <EventLogItemRenderer event={event} />
+                        <EventLogItemRenderer event={event} playerIndex={playerIndex} />
                       </Box>
                     </Box>
                   );

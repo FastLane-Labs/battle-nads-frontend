@@ -239,9 +239,13 @@ export const useBattleNads = (owner: string | null) => {
      
     // --- Map Historical Data --- 
     const historicalChatLogs: domain.ChatMessage[] = historicalBlocks.flatMap((block: CachedDataBlock) => 
-      block.chats.map((chat: SerializedChatLog): domain.ChatMessage => ({ 
-        logIndex: -1, blocknumber: block.blockNumber, timestamp: block.timestamp,
-        sender: { id: chat.senderId, name: chat.senderName, index: -1 }, message: chat.content, isOptimistic: false
+      block.chats.map((chat: SerializedChatLog): domain.ChatMessage => ({
+        logIndex: chat.logIndex,
+        blocknumber: block.blockNumber, 
+        timestamp: block.timestamp,
+        sender: { id: chat.senderId, name: chat.senderName, index: -1 },
+        message: chat.content, 
+        isOptimistic: false
       }))
     ).filter(chat => chat.blocknumber !== undefined && chat.logIndex !== undefined);
     
@@ -296,32 +300,25 @@ export const useBattleNads = (owner: string | null) => {
     const finalEventLogs = Array.from(combinedEventLogsMap.values())
                                   .sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
     
-    // --- Combine ALL Chat logs (Using Alternative Key Strategy) --- 
+    // --- Combine ALL Chat logs (Using Consistent Key) --- 
     const combinedChatLogsMap = new Map<string, domain.ChatMessage>();
     const validRuntimeChatLogs = runtimeConfirmedLogs.filter(chat => chat.blocknumber !== undefined && chat.logIndex !== undefined);
 
-    // 1. Add historical logs with a timestamp/sender based key
+    // 1. Add historical logs using the conf- key with the CORRECT index
     historicalChatLogs.forEach(log => {
-        // Use a key that doesn't rely on the potentially incorrect historical logIndex (-1)
-        const key = `hist-${log.blocknumber}-${log.sender.id}-${log.timestamp}`;
+        const key = `conf-${log.blocknumber}-${log.logIndex}`;
         if (!combinedChatLogsMap.has(key)) { 
             combinedChatLogsMap.set(key, log);
         }
     });
-    // 2. Add VALID runtime confirmed logs (will overwrite historical if block/sender/ts match, 
-    //    or add separately if timestamp differs slightly)
-    //    Using the standard conf- key here ensures optimistic reconciliation works.
+    // 2. Add VALID runtime confirmed logs (overwrites historical IF keys match)
     validRuntimeChatLogs.forEach(log => {
-        const key = `conf-${log.blocknumber}-${log.logIndex}`;
-        // Also check if a similar historical entry exists and potentially remove it before adding runtime?
-        // For simplicity, let runtime overwrite based on its more specific key.
-        combinedChatLogsMap.set(key, log); 
+        const key = `conf-${log.blocknumber}-${log.logIndex}`; 
+        combinedChatLogsMap.set(key, log); // Overwrite based on the same key
     });
     // 3. Add optimistic logs
     optimisticChatMessages.forEach(log => {
         const key = `opt-${log.timestamp}-${log.sender.id}-${log.message.slice(0,10)}`;
-        // Ensure optimistic overwrites any potential historical placeholder if timestamps align closely,
-        // but usually runtime confirmation handles the final state.
         combinedChatLogsMap.set(key, log);
     });
     // 4. Convert map values back to array and sort

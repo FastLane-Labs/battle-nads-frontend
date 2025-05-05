@@ -70,7 +70,6 @@ export default function GameV2Page() {
         <Box pt="64px">
           <GameContainer 
             character={game.character}
-            characterId={game.characterId as string}
             position={position}
             gameState={game.worldSnapshot}
             moveCharacter={moveCharacter}

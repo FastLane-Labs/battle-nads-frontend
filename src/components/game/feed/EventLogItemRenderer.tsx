@@ -7,6 +7,8 @@ import { domain } from '@/types';
 // Original props interface
 interface EventLogItemRendererProps { 
   event: domain.EventMessage; // Use the specific EventMessage type
+  // Change prop to playerIndex
+  playerIndex: number | null; 
 }
 
 // Helper to get color based on type
@@ -50,30 +52,43 @@ const getEventTypeName = (type: domain.LogType | number): string => {
     }
 };
 
-export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({ event }) => {
+export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({ event, playerIndex }) => {
 
   // Use the helper function for the event type name
   const eventTypeName = getEventTypeName(event.type);
 
+  // Determine display names, comparing participant index with playerIndex
+  const getDisplayName = (participant: domain.EventParticipant | undefined): string | undefined => {
+    if (!participant) return undefined;
+    // Check if participant index matches the player's index
+    if (playerIndex !== null && participant.index === playerIndex) {
+      return "You";
+    }
+    // Otherwise, return the participant's name
+    return participant.name;
+  };
+
+  const attackerName = getDisplayName(event.attacker);
+  const defenderName = getDisplayName(event.defender);
+
   return (
     <Box fontSize="sm">
       <Text color={getEventColor(event.type)} fontWeight="bold" display="inline">
-        {event.attacker?.name && `${event.attacker.name} `} 
-        {/* Use the resolved event type name */} 
+        {/* Use the resolved attacker name */} 
+        {attackerName && `${attackerName} `} 
         {eventTypeName} 
         {event.type !== domain.LogType.EnteredArea && 
          event.type !== domain.LogType.LeftArea && 
          event.type !== domain.LogType.Ascend && 
-         // Also exclude Chat (type 4) from showing 'on defender'
          Number(event.type) !== 4 && 
-         event.defender?.name && 
-         ` on ${event.defender.name}`}
+         // Use the resolved defender name
+         defenderName && 
+         ` on ${defenderName}`}
       </Text>
       
       <Text display="inline">:
         {event.type === domain.LogType.Ability && event.details.value != null && (
           <chakra.span color="purple.300" mx={1}> 
-            {/* Assuming Ability enum maps directly from details.value */} 
             [{domain.Ability[Number(event.details.value)] || `Ability ${event.details.value}`}]
           </chakra.span>
         )}
