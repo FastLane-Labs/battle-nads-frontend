@@ -2,7 +2,6 @@
 
 const nextConfig = {
   reactStrictMode: true,
-  output: 'standalone',
   webpack: (config, { isServer, webpack }) => {
     // Fix for Ably Buffer dependency issue
     config.plugins.push(
