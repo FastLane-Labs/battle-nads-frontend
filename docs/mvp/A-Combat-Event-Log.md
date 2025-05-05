@@ -1,5 +1,7 @@
 # A – Combat & Event Log
 
+**Status: ✅ COMPLETE**
+
 |  |  |
 |---|---|
 | **Goal** | Provide clear, chronological feed of combat, XP, loot, movement, system notes for **game transparency** |

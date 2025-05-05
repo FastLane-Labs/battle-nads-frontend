@@ -23,7 +23,7 @@ Based on the conversation logs, I've updated the roadmap to reflect the current 
 
 | # | Feature Group                   | Impact                               | Key User Story                                                                 |
 |:--|:--------------------------------|:-------------------------------------|:-------------------------------------------------------------------------------|
-| A | Combat & Event Log Rendering    | 🔥 Critical—explains what just happened | "After I attack, I want to see hits, crits, XP gained, and loot messages."       |
+| A | Combat & Event Log Rendering    | 🔥 Critical—explains what just happened -> ✅ Implemented | "After I attack, I want to see hits, crits, XP gained, and loot messages."       |
 | B | Ability Use & Cooldown Indicators | 🔥 Core combat mechanic                | "I can pick an ability, see if it's on cooldown, and know when it's ready."    |
 | C | Session Key Management UI       | 🔥 Blocks every transaction -> ✅ Implemented | "I can create, view expiry/balance, and deactivate my session key."          |
 | D | Gas / shMON Funding Prompts     | 🔥 Prevents soft-locks                 | "If my balances are low, I'm warned and can top-up in-app."                   |
@@ -92,7 +92,7 @@ Based on the conversation logs, I've updated the roadmap to reflect the current 
 
 | Milestone             | Feature Completion          |
 |:----------------------|:----------------------------|
-| M0 – Internal Alpha   | A, B, E, F, G               |
+| M0 – Internal Alpha   | ✅ A, B, E, F, G               |
 | M1 – Testnet Beta     | A–G fully functional        |
 | M2 – Feature-Complete Beta | + H, I, J, M           |
 | M3 – Public Mainnet   | + K, L, selected N-V        |

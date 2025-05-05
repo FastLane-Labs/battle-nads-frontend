@@ -1,5 +1,7 @@
 # G – Equipment Inventory
 
+**Status: ✅ COMPLETE**
+
 |  |  |
 |---|---|
 | **Goal** | Allow players to equip starting gear and found items via **one-click dropdowns** |
