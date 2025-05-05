@@ -4,7 +4,7 @@
  */
 
 import { contract, domain } from '@/types';
-import { LogType } from '@/types/domain/enums';
+import { estimateBlockTimestamp } from '@/utils/blockUtils'; // Import the utility
 
 /**
  * Converts raw bitmap status effects to domain StatusEffect arrays
@@ -195,49 +195,60 @@ function findCharacterParticipantByIndex(
 
 /**
  * Maps raw contract DataFeed arrays to domain ChatMessage arrays.
- *
- * @param dataFeeds Raw DataFeed array from the contract.
- * @param characterLookup Pre-built map of index to domain.CharacterLite for sender info.
- * @param referenceTimestamp Optional: Timestamp to use for messages (e.g., estimated block time).
- * @returns An array of domain.ChatMessage.
+ * @deprecated Logic moved into contractToWorldSnapshot for unified processing.
  */
 export const processChatFeedsToDomain = (
     dataFeeds: contract.DataFeed[],
     characterLookup: Map<number, domain.CharacterLite>,
-    referenceTimestamp?: number // Optional timestamp for estimation
+    referenceBlockNumber: bigint, 
+    referenceTimestamp: number
 ): domain.ChatMessage[] => {
     const allChatMessages: domain.ChatMessage[] = [];
 
     for (const feed of dataFeeds) {
         if (!feed || !feed.logs || feed.chatLogs.length === 0) continue;
 
-        const blockNumber = BigInt(feed.blockNumber);
-        // Determine timestamp: use provided reference or default (though ideally reference is always passed)
-        const timestamp = referenceTimestamp ?? Date.now(); 
+        const eventBlockNumber = BigInt(feed.blockNumber || 0);
+        // Estimate timestamp for this feed's block
+        const estimatedTimestamp = estimateBlockTimestamp(
+            referenceBlockNumber, // Reference block (e.g., latest known)
+            referenceTimestamp,   // Timestamp for reference block
+            eventBlockNumber      // Block number for this feed
+        );
 
+        // Keep track of chat log index for mapping
+        let blockChatLogIndex = 0;
         feed.logs.forEach((log: contract.Log) => {
-            if (Number(log.logType) === LogType.Chat) {
+            if (Number(log.logType) === domain.LogType.Chat) { // Use domain.LogType
                 const senderIndex = Number(log.mainPlayerIndex);
                 const senderInfo = characterLookup.get(senderIndex);
-                const messageContent = feed.chatLogs?.[Number(log.index)];
-                const logIndex = Number(log.index); // Use the log's own index
+                // Map message content using blockChatLogIndex, NOT log.index
+                const messageContent = feed.chatLogs?.[blockChatLogIndex];
+                const logIndex = Number(log.index); // Use log's own index
+                blockChatLogIndex++; // Increment after accessing chatLogs
 
                 if (messageContent && senderInfo) {
                     allChatMessages.push({
-                        blocknumber: blockNumber,
+                        blocknumber: eventBlockNumber,
                         logIndex: logIndex,
-                        timestamp: timestamp, // Use the determined timestamp
-                        sender: senderInfo,
+                        timestamp: estimatedTimestamp, // Use estimated timestamp
+                        sender: {
+                            id: senderInfo.id,
+                            name: senderInfo.name,
+                            index: senderIndex // Use the index we looked up by
+                        },
                         message: messageContent,
                         isOptimistic: false // These are confirmed logs
                     });
                 } else {
-                     console.warn(`[processChatFeedsToDomain] Skipping chat log due to missing content or sender info. Block: ${blockNumber}, LogIndex: ${logIndex}, SenderIndex: ${senderIndex}`);
+                     console.warn(`[processChatFeedsToDomain] Skipping chat log due to missing content or sender info. Block: ${eventBlockNumber}, LogIndex: ${logIndex}, SenderIndex: ${senderIndex}`);
                 }
             }
         });
     }
     console.log(`[processChatFeedsToDomain] Processed ${allChatMessages.length} chat messages.`);
+    // Sort by estimated timestamp, then log index
+    allChatMessages.sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
     return allChatMessages;
 };
 
@@ -260,19 +271,26 @@ export function contractToWorldSnapshot(
   const allChatMessages: domain.ChatMessage[] = [];
   const allEventLogs: domain.EventMessage[] = [];
   
-  // Pre-extract character lists for efficient lookup
   const combatants = raw.combatants || [];
   const noncombatants = raw.noncombatants || [];
 
-  (raw.dataFeeds || []).forEach(feed => {
-    const blockTimestamp = Number(feed.blockNumber || 0); // Use feed's block number
+  // Reference point for timestamp estimation - Use BigInt for block number
+  const referenceBlockNumber = BigInt(raw.endBlock || 0);
+  const referenceTimestamp = Date.now(); 
 
-    // Map Event Logs (including Chat type) for this feed
-    // Keep track of chat log index within the current block
+  (raw.dataFeeds || []).forEach(feed => {
+    const eventBlockNumber = BigInt(feed.blockNumber || 0);
+    // Call estimateBlockTimestamp with correct BigInt types
+    const estimatedTimestamp = estimateBlockTimestamp(
+        referenceBlockNumber,  // <<< Pass BigInt
+        referenceTimestamp,    // Pass number (Correct)
+        eventBlockNumber       // <<< Pass BigInt (already correct type)
+    ); 
+
     let blockChatLogIndex = 0; 
     (feed.logs || []).forEach(log => {
       const logTypeNum = Number(log.logType);
-      const logIndex = Number(log.index); // Overall index within block logs
+      const logIndex = Number(log.index); 
       const mainPlayerIdx = Number(log.mainPlayerIndex);
       const otherPlayerIdx = Number(log.otherPlayerIndex);
       
@@ -283,133 +301,118 @@ export function contractToWorldSnapshot(
           blockChatLogIndex++;
           
           if (sender) {
-            allChatMessages.push({
+            const newChatMessage: domain.ChatMessage = {
               logIndex: logIndex,
-              blocknumber: feed.blockNumber,
-              timestamp: blockTimestamp,
+              blocknumber: eventBlockNumber, 
+              timestamp: estimatedTimestamp,
               sender: sender, 
               message: messageContent
-              // isOptimistic flag is added later by the state management hook
-            });
+            };
+            allChatMessages.push(newChatMessage);
             
-            // --- ADDED: Also push a corresponding EventMessage for the Event Feed ---
             const isPlayer = !!ownerCharacterId && sender.id === ownerCharacterId;
-            allEventLogs.push({
+            const newEventMessageForChat: domain.EventMessage = {
               logIndex: logIndex,
-              timestamp: blockTimestamp,
-              type: logTypeNum as domain.LogType.Chat,
-              attacker: sender, // Use sender as the primary participant ('attacker')
+              blocknumber: eventBlockNumber, 
+              timestamp: estimatedTimestamp,
+              type: logTypeNum as domain.LogType,
+              attacker: sender, 
               defender: undefined,
               isPlayerInitiated: isPlayer,
-              details: { value: messageContent }, // Store message in details.value for potential use?
+              details: { value: messageContent }, 
               displayMessage: `Chat: ${sender.name}: ${messageContent}`
-            });
-            // ---------------------------------------------------------------------
+            };
+            allEventLogs.push(newEventMessageForChat);
             
           } else {
-             // Log potentially? Or handle system messages differently if they use LogType.Chat
              console.warn(`[Mapper] Chat log found but sender index ${mainPlayerIdx} not resolved.`);
           }
           break;
         }
-        // Add specific cases for other LogTypes if distinct details are needed
         case domain.LogType.EnteredArea:
         case domain.LogType.LeftArea: { 
           const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
           const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
-          // --- Enhanced displayMessage ---
           const displayMessage = `${participant?.name || `Index ${mainPlayerIdx}`} ${logTypeNum === domain.LogType.EnteredArea ? 'entered' : 'left'} the area.`;
-          allEventLogs.push({
+          const newEventMessage: domain.EventMessage = {
             logIndex: logIndex,
-            timestamp: blockTimestamp,
+            blocknumber: eventBlockNumber, 
+            timestamp: estimatedTimestamp,
             type: logTypeNum as domain.LogType,
             attacker: participant || undefined,
-            // No defender for movement
-            isPlayerInitiated: isPlayer, // Movement is initiated by the participant
-            details: { value: log.value }, // Any relevant value?
-            displayMessage: displayMessage // Use enhanced message
-          });
+            isPlayerInitiated: isPlayer, 
+            details: { value: log.value }, 
+            displayMessage: displayMessage 
+          };
+          allEventLogs.push(newEventMessage);
           break;
-        } 
+        }
         case domain.LogType.Ability: { 
           const caster = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
           const target = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants);
           const isPlayer = !!ownerCharacterId && !!caster && caster.id === ownerCharacterId;
-          // --- Enhanced displayMessage ---
           const abilityName = domain.Ability[Number(log.value)] || `Ability ${log.value}`;
           let displayMessage = `${caster?.name || `Index ${mainPlayerIdx}`} used ${abilityName}`;
           if (target) displayMessage += ` on ${target.name}`;
           displayMessage += `.`; 
-          allEventLogs.push({
+          const newEventMessage: domain.EventMessage = {
             logIndex: logIndex,
-            timestamp: blockTimestamp,
+            blocknumber: eventBlockNumber, 
+            timestamp: estimatedTimestamp,
             type: logTypeNum as domain.LogType,
             attacker: caster || undefined,
             defender: target || undefined, 
             isPlayerInitiated: isPlayer, 
-            details: { value: log.value }, // Ability details might be packed here
-            displayMessage: displayMessage // Use enhanced message
-          });
+            details: { value: log.value }, 
+            displayMessage: displayMessage 
+          };
+          allEventLogs.push(newEventMessage);
           break;
-        } 
+        }
         case domain.LogType.Ascend: {
            const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
            const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
-           // --- Enhanced displayMessage ---
            const displayMessage = `${participant?.name || `Index ${mainPlayerIdx}`} died.`; 
-            allEventLogs.push({
+           const newEventMessage: domain.EventMessage = {
               logIndex: logIndex,
-              timestamp: blockTimestamp,
+              blocknumber: eventBlockNumber, 
+              timestamp: estimatedTimestamp,
               type: logTypeNum as domain.LogType,
-              attacker: participant || undefined, // The one who died is the primary participant here
-              isPlayerInitiated: isPlayer, // Action initiated by the participant
+              attacker: participant || undefined, 
+              isPlayerInitiated: isPlayer, 
               details: { targetDied: true, value: log.value },
-              displayMessage: displayMessage // Use enhanced message
-            });
+              displayMessage: displayMessage 
+            };
+           allEventLogs.push(newEventMessage);
           break;
         }
         case domain.LogType.Combat:
-        case domain.LogType.InstigatedCombat: // Treat InstigatedCombat similarly for event structure
-        default: { // Handle combat and any other unknown types
+        case domain.LogType.InstigatedCombat:
+        default: { 
           const attacker = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
           const defender = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants);
           const isPlayerInitiated = !!ownerCharacterId && !!attacker && attacker.id === ownerCharacterId;
-          
-          // --- Enhanced displayMessage ---
           let messageParts: string[] = [];
-          // Start with Attacker vs Defender (or just Attacker if no defender)
           let title = `${attacker?.name || `Index ${mainPlayerIdx}`}`;
           if (defender) title += ` vs ${defender.name}`;
           messageParts.push(title + ':');
-          
-          // Hit/Miss/Crit
           if (log.hit) {
             messageParts.push('Hit');
             if (log.critical) messageParts.push('(CRIT!)');
           } else if (logTypeNum === domain.LogType.Combat) {
             messageParts.push('Miss');
           }
-          
-          // Damage/Heal
           if (log.damageDone > 0) messageParts.push(`[${log.damageDone} dmg]`);
           if (log.healthHealed > 0) messageParts.push(`[${log.healthHealed} heal]`);
-          
-          // XP
           if (log.experience > 0) messageParts.push(`[+${log.experience} XP]`);
-          
-          // Loot (TODO: map IDs to names later if needed)
           if (log.lootedWeaponID > 0) messageParts.push(`[Looted Wpn ${log.lootedWeaponID}]`);
           if (log.lootedArmorID > 0) messageParts.push(`[Looted Arm ${log.lootedArmorID}]`);
-          
-          // Target Died
           if (log.targetDied) messageParts.push('Target Died!');
-          
-          // Join parts for final message
-          const displayMessage = messageParts.join(' ') + '.'; // Add trailing period
-
-          allEventLogs.push({
+          const displayMessage = messageParts.join(' ') + '.';
+          const newEventMessage: domain.EventMessage = {
             logIndex: logIndex,
-            timestamp: blockTimestamp,
+            blocknumber: eventBlockNumber, 
+            timestamp: estimatedTimestamp,
             type: logTypeNum as domain.LogType,
             attacker: attacker || undefined,
             defender: defender || undefined,
@@ -425,18 +428,18 @@ export function contractToWorldSnapshot(
               experience: log.experience,
               value: log.value
             },
-            displayMessage: displayMessage // Use enhanced message
-          });
+            displayMessage: displayMessage 
+          };
+          allEventLogs.push(newEventMessage);
           break;
         }
       }
     });
   });
 
-  // Sort combined logs by timestamp (block number) then log index
+  // Sort combined logs by timestamp (using estimatedTimestamp now) then log index
   allChatMessages.sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
   allEventLogs.sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
-  // -----------------------------------------------------------
 
   // Map session key data (assuming this doesn't depend on dataFeeds structure)
   const mappedSessionKeyData = mapSessionKeyData(raw.sessionKeyData, owner);

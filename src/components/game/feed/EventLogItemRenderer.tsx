@@ -29,11 +29,8 @@ const getEventColor = (type: domain.LogType) => {
   }
 };
 
-// Original component name
 export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({ event }) => {
-  // Remove conditional rendering for 'chat' type
 
-  // Directly render Event Message (original logic)
   return (
     <Box fontSize="sm">
       <Text color={getEventColor(event.type)} fontWeight="bold" display="inline">
@@ -81,10 +78,9 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({ even
         )}
       </Text>
       
-      <Tooltip label={`Block: ${event.timestamp}, Idx: ${event.logIndex}`} fontSize="xs" hasArrow>
-        {/* Add ml={2} for spacing */}
-        <Text fontSize="xs" color="gray.400" mt={1} display="inline-block" ml={2}> 
-          {new Date(event.timestamp * 1000).toLocaleTimeString()} 
+      <Tooltip label={`Block: ${event.blocknumber}, Idx: ${event.logIndex}`} fontSize="xs" hasArrow>
+        <Text fontSize="xs" color="gray.400" mt={1} display="inline-block" ml={1}> 
+          {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
         </Text>
       </Tooltip>
     </Box>

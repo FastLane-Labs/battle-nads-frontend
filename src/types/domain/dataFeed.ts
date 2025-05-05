@@ -15,6 +15,7 @@ export interface EventParticipant {
 // Represents a structured event log entry for UI/domain logic
 export interface EventMessage {
   logIndex: number; // uint16 - Original index from contract Log
+  blocknumber: bigint; // Add blocknumber field
   timestamp: number; // blockNumber
   type: LogType;
   attacker?: EventParticipant;
