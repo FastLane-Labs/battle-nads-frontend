@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGame } from '../hooks/game/useGame';
 import Login from './auth/Login';
@@ -23,6 +23,15 @@ const AppInitializer: React.FC = () => {
       </>
     );
   };
+
+  // Effect for redirection when no character exists
+  useEffect(() => {
+    // Only redirect if wallet is connected, initialized, not loading, no error, and character ID is zero
+    if (game.isInitialized && game.hasWallet && !game.isLoading && !game.error && game.characterId === zeroCharacterId) {
+      router.push('/create');
+    }
+    // Dependencies: Watch for changes in these state variables to trigger the effect
+  }, [game.isInitialized, game.hasWallet, game.isLoading, game.error, game.characterId, zeroCharacterId, router]);
 
   // --- State Rendering Logic (Corrected Order) --- 
 
@@ -53,8 +62,7 @@ const AppInitializer: React.FC = () => {
 
   // 4. PRIORITY: No Character Found State (Wallet connected, not loading, no error)
   if (game.hasWallet && game.characterId === zeroCharacterId) { 
-    router.push('/create'); 
-    return renderWithNav(<LoadingScreen message="Redirecting..." />, "Redirecting"); 
+    return renderWithNav(<LoadingScreen message="Redirecting to character creation..." />, "Redirecting");
   }
 
   // 5. Session Key Needs Update State (Only checked if a valid character exists AND data is loaded)
