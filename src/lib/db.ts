@@ -21,7 +21,7 @@ interface SerializedEventLog {
 
 interface SerializedChatLog {
   content: string;
-  timestamp: string; // Storing block number as string
+  timestamp: string;
   senderId: string;   // Added
   senderName: string; // Added
 }
