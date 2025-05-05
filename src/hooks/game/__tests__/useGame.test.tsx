@@ -27,8 +27,10 @@ jest.mock('@/lib/db', () => ({
     dataBlocks: {
       where: jest.fn().mockReturnThis(),
       equals: jest.fn().mockReturnThis(),
+      and: jest.fn().mockReturnThis(),
       reverse: jest.fn().mockReturnThis(),
       sortBy: jest.fn().mockResolvedValue([]),
+      toArray: jest.fn().mockResolvedValue([]),
       below: jest.fn().mockReturnThis(),
       delete: jest.fn().mockResolvedValue(0),
       bulkPut: jest.fn().mockResolvedValue(undefined),
