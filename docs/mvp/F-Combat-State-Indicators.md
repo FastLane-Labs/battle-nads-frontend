@@ -1,9 +1,6 @@
----
-title: MVP Feature - Combat State Indicators
-status: Implemented ✅
----
-
 # F - Combat State Indicators
+
+**Status: ✅ COMPLETE**
 
 *(Implementation details below)*
 
