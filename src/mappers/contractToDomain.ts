@@ -291,6 +291,21 @@ export function contractToWorldSnapshot(
               message: messageContent
               // isOptimistic flag is added later by the state management hook
             });
+            
+            // --- ADDED: Also push a corresponding EventMessage for the Event Feed ---
+            const isPlayer = !!ownerCharacterId && sender.id === ownerCharacterId;
+            allEventLogs.push({
+              logIndex: logIndex,
+              timestamp: blockTimestamp,
+              type: logTypeNum as domain.LogType.Chat,
+              attacker: sender, // Use sender as the primary participant ('attacker')
+              defender: undefined,
+              isPlayerInitiated: isPlayer,
+              details: { value: messageContent }, // Store message in details.value for potential use?
+              displayMessage: `Chat: ${sender.name}: ${messageContent}`
+            });
+            // ---------------------------------------------------------------------
+            
           } else {
              // Log potentially? Or handle system messages differently if they use LogType.Chat
              console.warn(`[Mapper] Chat log found but sender index ${mainPlayerIdx} not resolved.`);
@@ -302,7 +317,8 @@ export function contractToWorldSnapshot(
         case domain.LogType.LeftArea: { 
           const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
           const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
-          const displayMessage = `Movement: ${participant?.name || `Index ${mainPlayerIdx}`} ${logTypeNum === domain.LogType.EnteredArea ? 'entered' : 'left'} area.`;
+          // --- Enhanced displayMessage ---
+          const displayMessage = `${participant?.name || `Index ${mainPlayerIdx}`} ${logTypeNum === domain.LogType.EnteredArea ? 'entered' : 'left'} the area.`;
           allEventLogs.push({
             logIndex: logIndex,
             timestamp: blockTimestamp,
@@ -311,21 +327,19 @@ export function contractToWorldSnapshot(
             // No defender for movement
             isPlayerInitiated: isPlayer, // Movement is initiated by the participant
             details: { value: log.value }, // Any relevant value?
-            displayMessage: displayMessage
+            displayMessage: displayMessage // Use enhanced message
           });
           break;
         } 
         case domain.LogType.Ability: { 
           const caster = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
-          // Target might be in otherPlayerIndex or derived from log.value?
-          // For now, assume otherPlayerIndex holds target if applicable
           const target = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants);
           const isPlayer = !!ownerCharacterId && !!caster && caster.id === ownerCharacterId;
-          let displayMessage = `Ability: ${caster?.name || `Index ${mainPlayerIdx}`} used ability`;
+          // --- Enhanced displayMessage ---
+          const abilityName = domain.Ability[Number(log.value)] || `Ability ${log.value}`;
+          let displayMessage = `${caster?.name || `Index ${mainPlayerIdx}`} used ${abilityName}`;
           if (target) displayMessage += ` on ${target.name}`;
-          // TODO: Add more ability-specific details if available in log.value or other fields
           displayMessage += `.`; 
-
           allEventLogs.push({
             logIndex: logIndex,
             timestamp: blockTimestamp,
@@ -334,14 +348,15 @@ export function contractToWorldSnapshot(
             defender: target || undefined, 
             isPlayerInitiated: isPlayer, 
             details: { value: log.value }, // Ability details might be packed here
-            displayMessage: displayMessage
+            displayMessage: displayMessage // Use enhanced message
           });
           break;
         } 
-        case domain.LogType.Sepukku: { 
+        case domain.LogType.Ascend: {
            const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
            const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
-           const displayMessage = `Death: ${participant?.name || `Index ${mainPlayerIdx}`} died.`; 
+           // --- Enhanced displayMessage ---
+           const displayMessage = `${participant?.name || `Index ${mainPlayerIdx}`} died.`; 
             allEventLogs.push({
               logIndex: logIndex,
               timestamp: blockTimestamp,
@@ -349,7 +364,7 @@ export function contractToWorldSnapshot(
               attacker: participant || undefined, // The one who died is the primary participant here
               isPlayerInitiated: isPlayer, // Action initiated by the participant
               details: { targetDied: true, value: log.value },
-              displayMessage: displayMessage
+              displayMessage: displayMessage // Use enhanced message
             });
           break;
         }
@@ -360,16 +375,37 @@ export function contractToWorldSnapshot(
           const defender = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants);
           const isPlayerInitiated = !!ownerCharacterId && !!attacker && attacker.id === ownerCharacterId;
           
-          // Refined display message for combat/default
-          let displayMessage = `${domain.LogType[logTypeNum] || `Event ${logTypeNum}`}:`;
-          if (attacker) displayMessage += ` ${attacker.name}`; else displayMessage += ` P${mainPlayerIdx}`;
-          if (defender) displayMessage += ` vs ${defender.name}`; else if (otherPlayerIdx > 0) displayMessage += ` vs P${otherPlayerIdx}`;
-          if (log.hit) displayMessage += ` Hit${log.critical ? ' (Crit!)' : ''}.`;
-          else if (logTypeNum === domain.LogType.Combat) displayMessage += ` Miss.`; // Indicate miss only for standard combat
-          if (log.damageDone > 0) displayMessage += ` [${log.damageDone} dmg].`;
-          if (log.healthHealed > 0) displayMessage += ` [${log.healthHealed} heal].`;
-          if (log.experience > 0) displayMessage += ` [+${log.experience} XP].`;
-          if (log.targetDied) displayMessage += ` Target Died!`;
+          // --- Enhanced displayMessage ---
+          let messageParts: string[] = [];
+          // Start with Attacker vs Defender (or just Attacker if no defender)
+          let title = `${attacker?.name || `Index ${mainPlayerIdx}`}`;
+          if (defender) title += ` vs ${defender.name}`;
+          messageParts.push(title + ':');
+          
+          // Hit/Miss/Crit
+          if (log.hit) {
+            messageParts.push('Hit');
+            if (log.critical) messageParts.push('(CRIT!)');
+          } else if (logTypeNum === domain.LogType.Combat) {
+            messageParts.push('Miss');
+          }
+          
+          // Damage/Heal
+          if (log.damageDone > 0) messageParts.push(`[${log.damageDone} dmg]`);
+          if (log.healthHealed > 0) messageParts.push(`[${log.healthHealed} heal]`);
+          
+          // XP
+          if (log.experience > 0) messageParts.push(`[+${log.experience} XP]`);
+          
+          // Loot (TODO: map IDs to names later if needed)
+          if (log.lootedWeaponID > 0) messageParts.push(`[Looted Wpn ${log.lootedWeaponID}]`);
+          if (log.lootedArmorID > 0) messageParts.push(`[Looted Arm ${log.lootedArmorID}]`);
+          
+          // Target Died
+          if (log.targetDied) messageParts.push('Target Died!');
+          
+          // Join parts for final message
+          const displayMessage = messageParts.join(' ') + '.'; // Add trailing period
 
           allEventLogs.push({
             logIndex: logIndex,
@@ -384,10 +420,12 @@ export function contractToWorldSnapshot(
               damageDone: log.damageDone,
               healthHealed: log.healthHealed,
               targetDied: log.targetDied,
+              lootedWeaponID: log.lootedWeaponID,
+              lootedArmorID: log.lootedArmorID,
               experience: log.experience,
               value: log.value
             },
-            displayMessage: displayMessage
+            displayMessage: displayMessage // Use enhanced message
           });
           break;
         }

@@ -126,7 +126,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           isLoading={isSubmitting}
           loadingText="Sending"
           colorScheme="blue"
-          disabled={isCacheLoading}
+          disabled={isCacheLoading || isSubmitting || !inputValue.trim()}
         >
           Send
         </Button>
