@@ -124,6 +124,20 @@ const mockEventAscend: domain.EventMessage = {
     displayMessage: 'DEV: Mock Event - Bob ascended.'
 };
 
+// --- Mock Chat Event (Type 4) --- 
+const mockEventChat: domain.EventMessage = {
+    logIndex: 111, // Ensure unique logIndex
+    blocknumber: BigInt(12345710),
+    timestamp: Date.now() - 1000, // Make it recent
+    type: 4, // Explicitly use 4 as emitted by contract for chat
+    attacker: mockPlayerAlice, // Sender of the chat
+    defender: undefined, 
+    isPlayerInitiated: true, // Assuming Alice is player
+    // Simulate value holding the index of the corresponding chat log if applicable
+    details: { value: BigInt(101) }, 
+    displayMessage: 'DEV: Mock Event - Alice sent a chat message.' // Display message can be simple
+};
+
 // --- Exported Arrays ---
 export const MOCK_CHAT_LOGS: domain.ChatMessage[] = [
     mockChatMessage1,
@@ -138,7 +152,8 @@ export const MOCK_EVENT_LOGS: domain.EventMessage[] = [
     mockEventLeftArea,
     mockEventAbilityUsed,
     mockEventCombatMiss,
-    mockEventAscend
+    mockEventAscend,
+    mockEventChat
 ].sort((a, b) => a.timestamp - b.timestamp); // Sort by timestamp
 
 // --- End Development Only --- 
