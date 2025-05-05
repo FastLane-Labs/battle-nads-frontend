@@ -16,6 +16,10 @@ const nextConfig = {
       config.optimization.minimize = true;
     }
 
+    if (process.env.NODE_ENV === 'production') {
+      nextConfig.distDir = 'out';
+      nextConfig.output = 'export';
+    }
     return config;
   },
 };
