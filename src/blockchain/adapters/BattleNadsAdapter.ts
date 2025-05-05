@@ -261,8 +261,8 @@ export class BattleNadsAdapter {
   /**
    * Permanently deletes a character
    */
-  async sepukku(characterId: string): Promise<TransactionResponse> {
-    return this.contract.sepukku(characterId, { gasLimit: GAS_LIMITS.action });
+  async ascend(characterId: string): Promise<TransactionResponse> {
+    return this.contract.ascend(characterId, { gasLimit: GAS_LIMITS.action });
   }
 
   // SESSION KEY OPERATIONS
