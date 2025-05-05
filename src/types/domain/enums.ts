@@ -54,7 +54,7 @@ export enum LogType {
   LeftArea = 3,
   Chat = 4,
   Ability = 5,
-  Sepukku = 6,
+  Ascend = 6,
   Unknown = 99 // Added for handling undefined or unknown log types
 }
 

@@ -1,12 +1,14 @@
 import React from 'react';
 import { Box, Grid, GridItem } from '@chakra-ui/react';
-import { domain } from '../../../types';
+import { domain } from '@/types';
 import Minimap from '@/components/game/board/Minimap';
 import CharacterInfo from '@/components/game/board/CharacterInfo';
 import MovementControls from '@/components/game/controls/MovementControls';
 import CombatTargets from '@/components/game/controls/CombatTargets';
 import EventFeed from '@/components/game/feed/EventFeed';
 import ChatPanel from '@/components/game/feed/ChatPanel';
+// --- Import Mock Data ---
+import { MOCK_CHAT_LOGS, MOCK_EVENT_LOGS } from '@/hooks/dev/mockFeedData';
 
 interface GameViewProps {
   character: domain.Character;
@@ -41,6 +43,13 @@ const GameView: React.FC<GameViewProps> = ({
   isInCombat,
   isCacheLoading
 }) => {
+
+  // --- Conditionally Use Mock Data --- 
+  const isDev = process.env.NODE_ENV === 'development';
+  const finalChatLogs = isDev ? MOCK_CHAT_LOGS : chatLogs;
+  const finalEventLogs = isDev ? MOCK_EVENT_LOGS : eventLogs;
+  // -----------------------------------
+
   return (
     <Grid
       templateAreas={{
@@ -99,7 +108,7 @@ const GameView: React.FC<GameViewProps> = ({
         <Box p={4} bg="gray.800" borderRadius="md" h="100%">
           <EventFeed 
             characterId={characterId} 
-            eventLogs={eventLogs}
+            eventLogs={finalEventLogs}
             combatants={combatants}
             isCacheLoading={isCacheLoading}
           />
@@ -111,7 +120,7 @@ const GameView: React.FC<GameViewProps> = ({
         <Box p={4} bg="gray.800" borderRadius="md" h="100%">
           <ChatPanel 
             characterId={characterId} 
-            chatLogs={chatLogs}
+            chatLogs={finalChatLogs}
             onSendChatMessage={onSendChatMessage}
             addOptimisticChatMessage={addOptimisticChatMessage}
             isCacheLoading={isCacheLoading}

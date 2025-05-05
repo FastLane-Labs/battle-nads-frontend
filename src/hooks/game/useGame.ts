@@ -289,7 +289,7 @@ export const useGame = () => {
     updateSessionKey: updateSessionKeyMutation.mutate,
     isUpdatingSessionKey: updateSessionKeyMutation.isPending,
     
-    // Character (Extract from snapshot for convenience, ensure null check)
+    // Character 
     character: worldSnapshot?.character, 
     characterId: worldSnapshot?.character?.id || null,
     position: worldSnapshot?.character?.position ? 
@@ -319,7 +319,7 @@ export const useGame = () => {
     chatLogs: worldSnapshot?.chatLogs || [],
     eventLogs: worldSnapshot?.eventLogs || [], // Still only live events
     
-    // Other characters (Extract from snapshot - adjust property name if needed)
-    others: worldSnapshot?.noncombatants || [] // Assuming noncombatants are the 'others'
+    // Other characters
+    others: worldSnapshot?.noncombatants || [] 
   };
 }; 
