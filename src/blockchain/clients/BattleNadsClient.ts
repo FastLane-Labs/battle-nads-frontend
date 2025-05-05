@@ -347,9 +347,9 @@ export class BattleNadsClient {
    * Permanently deletes a character
    * Requires session wallet
    */
-  async sepukku(characterId: string): Promise<TransactionResponse> {
+  async ascend(characterId: string): Promise<TransactionResponse> {
     try {
-      return await this.ensureSessionAdapter().sepukku(characterId);
+      return await this.ensureSessionAdapter().ascend(characterId);
     } catch (error) {
       if (error instanceof SessionWalletMissingError) {
         throw error;
