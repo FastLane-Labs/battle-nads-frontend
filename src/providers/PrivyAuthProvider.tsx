@@ -51,42 +51,6 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
     console.warn("Using fallback Privy App ID - preferably set NEXT_PUBLIC_PRIVY_APP_ID in your environment variables.");
   }
   
-  /*
-  // Create a fake token price API endpoint by overriding fetch
-  React.useEffect(() => {
-    // Store the original fetch
-    const originalFetch = window.fetch;
-    
-    // Override fetch to intercept Privy token price API calls
-    window.fetch = async function(input, init) {
-      const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : '';
-      
-      // Check if this is a request to the Privy token price API for MON on Monad Testnet
-      if (url.includes('token_price') && url.includes('chainId=10143') && url.includes('tokenSymbol=MON')) {
-        console.log('[PrivyAuthProvider] Intercepted token price request for MON on Monad Testnet');
-        
-        // Return a mock successful response with price data
-        return Promise.resolve({
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve({ 
-            price: 1.00, 
-            currency: 'USD'
-          })
-        } as Response);
-      }
-      
-      // Pass through all other requests to the original fetch
-      return originalFetch.apply(window, [input, init].filter(Boolean) as [RequestInfo, RequestInit?]);
-    };
-    
-    // Restore original fetch on cleanup
-    return () => {
-      window.fetch = originalFetch;
-    };
-  }, []);
-  */
-  
   // Comprehensive configuration to bypass transaction approvals
   const privyConfig: any = {
     appId,

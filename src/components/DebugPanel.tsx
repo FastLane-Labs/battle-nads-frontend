@@ -16,35 +16,33 @@ import {
   Input,
   useToast
 } from '@chakra-ui/react';
-import { useBattleNads } from '../hooks/useBattleNads';
+import { useBattleNads } from '../hooks/game/useBattleNads';
 import { useWallet } from '../providers/WalletProvider';
 import { calculateMaxHealth } from '../utils/gameDataConverters';
-import { useGameData } from '../providers/GameDataProvider';
+import { useBattleNadsClient } from '../hooks/contracts/useBattleNadsClient';
+import { CharacterLite } from '@/types/domain';
 
 interface DebugPanelProps {
   isVisible?: boolean;
 }
 
 const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
-  const { 
-    getFullFrontendData, 
-    getPlayerCharacterID,
-    getEstimatedBuyInAmount,
-    characterId,
-    loading, 
-    error,
-  } = useBattleNads();
-  
-  const { injectedWallet, embeddedWallet } = useWallet();
-  
-  const { gameData } = useGameData();
-  
+  // Declare state before using it in hooks
+  const [ownerAddress, setOwnerAddress] = useState<string>(''); 
   const [logs, setLogs] = useState<Array<{message: string, timestamp: Date}>>([]);
-  const [ownerAddress, setOwnerAddress] = useState<string>('');
   const [startBlock, setStartBlock] = useState<number>(0);
   const [fetchedCharacterId, setFetchedCharacterId] = useState<string | null>(null);
   const [buyInAmount, setBuyInAmount] = useState<string>('');
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const { 
+    gameState, // Use gameState for combatants etc.
+    isLoading, 
+    error,
+  } = useBattleNads(ownerAddress || null); // Pass ownerAddress
+
+  const { client } = useBattleNadsClient();
+  const { injectedWallet, embeddedWallet } = useWallet();
   
   const toast = useToast();
   
@@ -63,23 +61,23 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
   
   // Update character ID from hook when it changes
   useEffect(() => {
-    if (characterId) {
-      setFetchedCharacterId(characterId);
-      addLog(`Character ID from hook updated to ${characterId}`);
+    if (gameState?.characterID) {
+      setFetchedCharacterId(gameState.characterID);
+      addLog(`Character ID from hook updated to ${gameState.characterID}`);
     }
-  }, [characterId]);
+  }, [gameState?.characterID]);
   
   // Fetch character ID directly from chain
   const fetchCharacterId = async () => {
     try {
       addLog(`Fetching character ID for address ${ownerAddress}`);
       
-      if (!ownerAddress) {
-        addLog('ERROR: No owner address provided');
+      if (!ownerAddress || !client) {
+        addLog('ERROR: No owner address or client provided');
         return;
       }
       
-      const id = await getPlayerCharacterID(ownerAddress);
+      const id = await client.getPlayerCharacterID(ownerAddress);
       
       if (id) {
         setFetchedCharacterId(id);
@@ -96,16 +94,17 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
   // Fetch full frontend data
   const fetchFullFrontendData = async () => {
     try {
-      addLog(`Fetching full frontend data for address ${ownerAddress} from block ${startBlock}`);
+      addLog(`Fetching UI snapshot for address ${ownerAddress}`);
       
-      if (!ownerAddress) {
-        addLog('ERROR: No owner address provided');
+      if (!ownerAddress || !client) {
+        addLog('ERROR: No owner address or client provided');
         return;
       }
       
-      const result = await getFullFrontendData(ownerAddress, startBlock);
+      const result = await client.getUiSnapshot(ownerAddress, BigInt(startBlock));
       
       if (result) {
+        // Access properties directly on result
         addLog(`Data fetched successfully. Character ID: ${result.characterID || 'null'}`);
         
         if (result.characterID) {
@@ -113,15 +112,14 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
         }
         
         // Pretty print some key parts of the result
-        addLog(`Session key: ${result.sessionKey || 'null'}`);
-        addLog(`Session key balance: ${result.sessionKeyBalance ? result.sessionKeyBalance.toString() : 'null'}`);
+        addLog(`Session key: ${result.sessionKeyData?.key || 'null'}`);
         addLog(`Data feeds count: ${result.dataFeeds ? result.dataFeeds.length : 0}`);
       } else {
-        addLog('No data returned from getFullFrontendData');
+        addLog('No data returned from UI snapshot');
       }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
-      addLog(`Error fetching frontend data: ${errorMsg}`);
+      addLog(`Error fetching UI snapshot: ${errorMsg}`);
     }
   };
   
@@ -129,7 +127,11 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
   const fetchBuyInAmount = async () => {
     try {
       addLog('Fetching estimated buy-in amount...');
-      const amount = await getEstimatedBuyInAmount();
+      if (!client) {
+        addLog('ERROR: No client provided');
+        return;
+      }
+      const amount = await client.estimateBuyInAmountInMON();
       setBuyInAmount(amount.toString());
       addLog(`Buy-in amount: ${amount.toString()}`);
     } catch (err) {
@@ -152,16 +154,16 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
   
   // Add a section for monster health details
   const renderMonsterHealthDebug = () => {
-    if (!gameData?.combatants || gameData.combatants.length === 0) {
+    if (!gameState?.combatants || gameState.combatants.length === 0) {
       return <Text>No monsters present</Text>;
     }
 
     return (
       <VStack align="start" spacing={2}>
         <Text fontWeight="bold">Monster Health Details:</Text>
-        {gameData.combatants.map((combatant: any, index: number) => {
-          const calculatedMaxHealth = calculateMaxHealth(combatant.stats);
-          const actualHealth = Number(combatant.stats.health || 0);
+        {gameState.combatants.map((combatant: CharacterLite, index: number) => {
+          const calculatedMaxHealth = combatant.maxHealth;
+          const actualHealth = Number(combatant.health || 0);
           
           return (
             <Box key={index} p={2} bg="gray.700" borderRadius="md" w="100%">
@@ -169,11 +171,6 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
               <Text fontSize="xs">Current Health: {actualHealth}</Text>
               <Text fontSize="xs">Calculated Max Health: {calculatedMaxHealth}</Text>
               <Text fontSize="xs">Health Ratio: {(actualHealth / calculatedMaxHealth).toFixed(2)}</Text>
-              <Text fontSize="xs">
-                isMonster: {combatant.stats.isMonster ? 'Yes' : 'No'},
-                Vitality: {combatant.stats.vitality},
-                Sturdiness: {combatant.stats.sturdiness}
-              </Text>
             </Box>
           );
         })}
@@ -220,7 +217,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
               value={ownerAddress} 
               onChange={(e) => setOwnerAddress(e.target.value)} 
             />
-            <Button onClick={fetchCharacterId} isLoading={loading}>
+            <Button onClick={fetchCharacterId} isLoading={isLoading}>
               Fetch ID
             </Button>
           </HStack>
@@ -241,7 +238,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
               onChange={(e) => setStartBlock(parseInt(e.target.value) || 0)}
               w="150px"
             />
-            <Button onClick={fetchFullFrontendData} isLoading={loading}>
+            <Button onClick={fetchFullFrontendData} isLoading={isLoading}>
               Fetch Data
             </Button>
           </HStack>
@@ -251,7 +248,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
           <Heading size="sm" mb={2}>Buy-In Amount</Heading>
           <HStack>
             <Text>Amount: {buyInAmount || 'Not fetched'}</Text>
-            <Button onClick={fetchBuyInAmount} isLoading={loading} size="sm">
+            <Button onClick={fetchBuyInAmount} isLoading={isLoading} size="sm">
               Fetch Amount
             </Button>
           </HStack>
@@ -286,7 +283,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
         {error && (
           <Box p={2} bg="red.900" borderRadius="md">
             <Heading size="sm">Error</Heading>
-            <Text>{error}</Text>
+            <Text>{error ? error.message : 'No error'}</Text>
           </Box>
         )}
       </VStack>

@@ -1,153 +1,67 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip, Spinner, Image } from '@chakra-ui/react';
-import { MoonIcon, SunIcon } from '@chakra-ui/icons';
+import React from 'react';
+import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip, Spinner, Image, useClipboard, IconButton } from '@chakra-ui/react';
+import { MoonIcon, SunIcon, CopyIcon, CheckIcon } from '@chakra-ui/icons';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
-import { useWallet } from '../providers/WalletProvider';
-import { useBattleNads } from '../hooks/useBattleNads';
-import { useGameData } from '../providers/GameDataProvider';
-import { isValidCharacterId } from '../utils/getCharacterLocalStorageKey';
+import { useWallet } from '@/providers/WalletProvider';
+import { useGame } from '@/hooks/game/useGame';
+import { isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
+import { useSessionFunding } from '@/hooks/session/useSessionFunding';
 
 const NavBar: React.FC = () => {
   const { colorMode, toggleColorMode } = useColorMode();
   const { login } = usePrivy();
-  const { 
-    address, 
+  const {
     logout,
     injectedWallet,
     embeddedWallet
   } = useWallet();
-  const { characterId, loading: battlenadsLoading } = useBattleNads();
-  const { gameData, isLoading: gameDataLoading } = useGameData();
+  
+  const { 
+    isLoading,
+    characterId,
+    hasWallet,
+    sessionKeyData
+  } = useGame();
+  
+  const { 
+    deactivateKey, 
+    isDeactivating 
+  } = useSessionFunding(characterId);
+  
   const pathname = usePathname();
   const router = useRouter();
-  
-  // Compute loading state combining both sources
-  const characterLoading = battlenadsLoading || gameDataLoading;
-  
-  // State to track if user has a character
-  const [hasCharacter, setHasCharacter] = useState<boolean>(false);
-  
-  // Use both the characterId from useBattleNads and the characterID from gameData
-  useEffect(() => {
-    // First check the characterId from useBattleNads
-    let isValid = isValidCharacterId(characterId);
-    
-    // Then check the characterID from gameData (may have more up-to-date info)
-    if (!isValid && gameData) {
-      // Make sure gameData has a characterID property that's a string
-      const gameDataCharacterId = gameData.characterID || null;
-      
-      // If gameData has a characterID, check if it's valid
-      if (gameDataCharacterId) {
-        isValid = isValidCharacterId(gameDataCharacterId);
-        // Only log on initial valid character detection, not on every check
-        if (isValid && !hasCharacter) {
-          console.log(`NavBar: Valid character ID detected from gameData: ${gameDataCharacterId}`);
-        }
-      }
-    }
-    
-    // Add debug logging to help identify issues - but only when hasCharacter changes
-    if (isValid !== hasCharacter) {
-      console.log(`NavBar: Character check summary:`, {
-        "useBattleNads.characterId": characterId,
-        "gameData.characterID": gameData?.characterID,
-        "isValidCharacter": isValid
-      });
-    }
-    
-    setHasCharacter(isValid);
-  }, [characterId, gameData]);
 
-  // Add an effect to listen for character creation events
-  useEffect(() => {
-    const handleCharacterCreated = (event: CustomEvent) => {
-      console.log("NavBar received characterCreated event:", event.detail);
-      
-      // Force a check to see if the user has a character now
-      if (event.detail && event.detail.characterId && isValidCharacterId(event.detail.characterId)) {
-        console.log("NavBar: Setting hasCharacter to true from event");
-        setHasCharacter(true);
-      }
-    };
+  const hasCharacter = characterId ? isValidCharacterId(characterId) : false;
+  const sessionKeyAddress = sessionKeyData?.key;
+  const canDeactivate = !!sessionKeyAddress && sessionKeyAddress !== '0x0000000000000000000000000000000000000000';
 
-    // Add event listener
-    window.addEventListener('characterCreated', handleCharacterCreated as EventListener);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('characterCreated', handleCharacterCreated as EventListener);
-    };
-  }, []);
-  
-  // Add an effect to listen for character ID changes from GameDataProvider
-  useEffect(() => {
-    const handleCharacterIDChanged = (event: CustomEvent) => {
-      console.log("NavBar received characterIDChanged event:", event.detail);
-      
-      // Update hasCharacter based on new character ID
-      if (event.detail && event.detail.characterId && isValidCharacterId(event.detail.characterId)) {
-        console.log("NavBar: Setting hasCharacter to true from characterIDChanged event");
-        setHasCharacter(true);
-      }
-    };
-
-    // Add event listener
-    window.addEventListener('characterIDChanged', handleCharacterIDChanged as EventListener);
-    
-    // Also listen for gameDataUpdated events to check character ID
-    const handleGameDataUpdated = (event: CustomEvent) => {
-      console.log("NavBar received gameDataUpdated event");
-      
-      // Check if the event detail has a characterID
-      if (event.detail && event.detail.characterID && isValidCharacterId(event.detail.characterID)) {
-        console.log(`NavBar: Character ID from gameDataUpdated event: ${event.detail.characterID}`);
-        setHasCharacter(true);
-      }
-    };
-    
-    window.addEventListener('gameDataUpdated', handleGameDataUpdated as EventListener);
-    
-    // Clean up
-    return () => {
-      window.removeEventListener('characterIDChanged', handleCharacterIDChanged as EventListener);
-      window.removeEventListener('gameDataUpdated', handleGameDataUpdated as EventListener);
-    };
-  }, []);
+  const { onCopy: onCopyEmbedded, hasCopied: hasCopiedEmbedded } = useClipboard(embeddedWallet?.address ?? '');
+  const { onCopy: onCopyInjected, hasCopied: hasCopiedInjected } = useClipboard(injectedWallet?.address ?? '');
 
   const isActive = (path: string) => pathname === path;
   
-  // Format wallet client type for display
   const formatWalletType = (type?: string): string => {
     if (!type) return '';
     
-    // Convert snake_case to Title Case
     return type
       .split('_')
       .map(word => word.charAt(0).toUpperCase() + word.slice(1))
       .join(' ');
   };
   
-  // Handle logout and redirect to home
   const handleLogout = async () => {
     try {
-      // Wait for the logout process to complete
       await logout();
-      
-      // Add a small delay to ensure all state changes have propagated
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Only navigate after logout is complete
       router.push('/');
     } catch (error) {
       console.error("Logout failed:", error);
     }
   };
-  
+
   return (
     <Box
       position="fixed"
@@ -164,15 +78,14 @@ const NavBar: React.FC = () => {
         mx="auto"
         px={6}
       >
-        {/* Left side with logo and navigation */}
         <Flex alignItems="center" flex="1">
           <Box mr={6}>
-            {hasCharacter && address && pathname !== '/game' ? (
+            {hasCharacter && hasWallet && pathname !== '/game' && pathname !== '/game-v2' ? (
               <Link href="/game">
                 <Image src="/BattleNadsLogo.png" alt="Battle-Nads Logo" height="40px" />
               </Link>
-            ) : !hasCharacter || !address || pathname === '/game' ? (
-              pathname === '/game' ? (
+            ) : (!hasCharacter && hasWallet) || pathname === '/game' || pathname === '/game-v2' ? (
+              pathname === '/game' || pathname === '/game-v2' ? (
                 <Image src="/BattleNadsLogo.png" alt="Battle-Nads Logo" height="40px" />
               ) : (
                 <Link href="/">
@@ -186,7 +99,7 @@ const NavBar: React.FC = () => {
             )}
           </Box>
 
-          {address && (
+          {hasWallet && (
             <HStack as="nav" spacing={4} display={{ base: 'none', md: 'flex' }}>
               <Link href="/game">
                 <Text
@@ -204,21 +117,20 @@ const NavBar: React.FC = () => {
                   Game
                 </Text>
               </Link>
-              {/* Show loading spinner while checking character - use characterLoading from hook */}
-              {characterLoading ? (
+              
+              {isLoading ? (
                 <Box px={3} py={2}>
                   <Spinner size="sm" color="blue.500" />
-                  <Text fontSize="xs" color="gray.500" ml={1}>Loading character...</Text>
+                  <Text fontSize="xs" color="gray.500" ml={1}>Loading...</Text>
                 </Box>
               ) : (
-                /* Show Create link if user doesn't have a character AND we're done loading */
                 !hasCharacter && (
                   <Link href="/create">
                     <Text
                       px={3}
                       py={2}
                       rounded="md"
-                      fontWeight="bold" // Always bold to make it prominent
+                      fontWeight="bold"
                       bg={isActive('/create') ? 'blue.500' : 'transparent'}
                       color={isActive('/create') ? 'white' : undefined}
                       _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
@@ -234,49 +146,91 @@ const NavBar: React.FC = () => {
           )}
         </Flex>
 
-        {/* Right side with wallet info and buttons */}
         <Flex justifyContent="flex-end" alignItems="center">
-          {!address ? (
+          {!hasWallet ? (
             <Button colorScheme="blue" size="sm" onClick={() => login()}>
               Connect Wallet
             </Button>
           ) : (
             <HStack spacing={4}>
-              {/* Wallet Display Section - Horizontal layout */}
-              <HStack spacing={3}>
-                {/* Display Session Key (with the embedded wallet address) */}
-                {embeddedWallet && (
-                  <Tooltip label="Session Key for Account Abstraction" placement="bottom">
-                    <HStack>
-                      <Badge colorScheme="green" fontSize="xs">SESSION KEY</Badge>
-                      <Text fontSize="sm" fontFamily="monospace">
-                        {`${embeddedWallet.address?.slice(0, 6)}...${embeddedWallet.address?.slice(-4)}`}
-                      </Text>
-                    </HStack>
-                  </Tooltip>
+              <HStack spacing={3}> 
+                {embeddedWallet?.address && (
+                   <Tooltip 
+                     label={
+                       <HStack spacing={1}>
+                         <Text>{hasCopiedEmbedded ? 'Copied!' : 'Copy Session Key'}</Text>
+                         {hasCopiedEmbedded ? <CheckIcon color="green.500" /> : <CopyIcon />}
+                       </HStack>
+                     } 
+                     closeOnClick={false}
+                     placement="bottom"
+                   >
+                     <Button 
+                       variant="ghost" 
+                       size="sm" 
+                       onClick={onCopyEmbedded} 
+                       height="auto" 
+                       p={1}
+                     >
+                        <HStack spacing={1}> 
+                          <Badge colorScheme="green" fontSize="xs">SESSION KEY</Badge>
+                          <Text fontSize="sm" fontFamily="monospace">
+                            {`${embeddedWallet.address.slice(0, 6)}...${embeddedWallet.address.slice(-4)}`}
+                          </Text>
+                        </HStack>
+                      </Button>
+                   </Tooltip>
                 )}
-
-                {/* Display Injected Wallet (e.g. MetaMask) */}
-                {injectedWallet && (
-                  <Tooltip label={`${formatWalletType(injectedWallet.walletClientType)} Wallet`} placement="bottom">
-                    <HStack>
-                      <Badge colorScheme="blue" fontSize="xs">{formatWalletType(injectedWallet.walletClientType).toUpperCase()}</Badge>
-                      <Text fontSize="sm" fontFamily="monospace">
-                        {`${injectedWallet.address?.slice(0, 6)}...${injectedWallet.address?.slice(-4)}`}
-                      </Text>
-                    </HStack>
-                  </Tooltip>
+                {injectedWallet?.address && (
+                  <Tooltip 
+                     label={
+                       <HStack spacing={1}>
+                         <Text>{hasCopiedInjected ? 'Copied!' : `Copy ${formatWalletType(injectedWallet.walletClientType)}`}</Text>
+                         {hasCopiedInjected ? <CheckIcon color="green.500" /> : <CopyIcon />}
+                       </HStack>
+                     }
+                     closeOnClick={false} 
+                     placement="bottom"
+                   >
+                     <Button 
+                       variant="ghost" 
+                       size="sm" 
+                       onClick={onCopyInjected} 
+                       height="auto" 
+                       p={1}
+                      >
+                        <HStack spacing={1}>
+                          <Badge colorScheme="blue" fontSize="xs">{formatWalletType(injectedWallet.walletClientType).toUpperCase()}</Badge>
+                          <Text fontSize="sm" fontFamily="monospace">
+                            {`${injectedWallet.address.slice(0, 6)}...${injectedWallet.address.slice(-4)}`}
+                          </Text>
+                        </HStack>
+                      </Button>
+                   </Tooltip>
                 )}
               </HStack>
               
-              {/* Logout Button - Next to toggle */}
+              <Tooltip label="Disable session key for game actions" placement="bottom">
+                <span>
+                  <Button 
+                    colorScheme="orange" 
+                    size="sm" 
+                    onClick={() => deactivateKey()} 
+                    isLoading={isDeactivating}
+                    isDisabled={!canDeactivate || isDeactivating}
+                    ml={2}
+                  >
+                    Deactivate Session
+                  </Button>
+                </span>
+              </Tooltip>
+
               <Button colorScheme="red" size="sm" onClick={handleLogout}>
                 Disconnect
               </Button>
             </HStack>
           )}
           
-          {/* Darkmode Toggle - All the way to the right */}
           <Button onClick={toggleColorMode} size="sm" ml={4}>
             {colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
           </Button>

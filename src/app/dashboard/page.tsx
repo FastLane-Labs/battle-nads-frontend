@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Box, Center, Spinner } from '@chakra-ui/react';
+import { Box, Center, Spinner, Text } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import NavBar from '../../components/NavBar';
-import Game from '../../components/gameboard/game';
 import { useWallet } from '../../providers/WalletProvider';
 
 export default function DashboardPage() {
@@ -63,7 +62,7 @@ export default function DashboardPage() {
         <Box className="min-h-screen bg-gray-900">
           <NavBar />
           <Box pt="60px">
-            <Game />
+            <Center h="calc(100vh - 60px)"><Text color="white">Dashboard Content Placeholder</Text></Center>
           </Box>
         </Box>
       )}

@@ -1,0 +1,183 @@
+---
+description: These rules provide guidance for implementing UI components in the Battle-Nads frontend, ensuring consistency, performance, and proper integration with the game's architecture.
+globs: **/*.ts,**/*tsx
+alwaysApply: false
+---
+# Battle-Nads UI Component Patterns
+
+## Purpose
+
+These rules provide guidance for implementing UI components in the Battle-Nads frontend, ensuring consistency, performance, and proper integration with the game's architecture.
+
+## UI Component Structure
+
+1. **Component Hierarchy**
+   - The main game interface is orchestrated by `GameView`:
+     ```
+     GameContainer (contains DebugPanel toggle)
+     └── GameView (arranges panels using Grid)
+         ├── Minimap          (Area: map)
+         ├── CharacterInfo    (Area: character)
+         ├── MovementControls (Area: controls)
+         ├── CombatTargets    (Area: controls)
+         ├── EventFeed        (Area: feed)
+         └── ChatPanel        (Area: chat)
+     ```
+   - Other key UI components like `AppInitializer`, `CharacterCreation`, `WalletBalances`, `NavBar`, `DebugPanel` exist outside this core game view structure.
+
+2. **Component Responsibilities**
+   - `AppInitializer`: Handles pre-game state routing (loading, auth, character check, session key check).
+   - `GameContainer`: Wraps the active game screen, passes props from `useGame` to `GameView`, includes DebugPanel toggle.
+   - `GameView`: Responsible **only** for laying out the main game panels using Chakra UI Grid.
+   - `Minimap`: Renders the character's position and immediate surroundings.
+   - `CharacterInfo`: Displays the player character's stats, equipment, etc., within the game view.
+   - `MovementControls`: Renders directional buttons, handles move actions.
+   - `CombatTargets`: Lists targets, handles attack actions.
+   - `EventFeed`: Displays formatted game event logs.
+   - `ChatPanel`: Displays chat history and handles message input/sending.
+   - `CharacterCard`: (Potentially used outside `GameView`, e.g., dashboard) Displays a summary of character stats/equipment.
+   - `WalletBalances`: Displays owner/session/bonded balances and funding actions.
+   - `DebugPanel`: Provides debugging tools and information display.
+
+## State Management Patterns
+
+1. **XState for Game Flow**
+   - Use the `useGameMachine` hook for overall game state
+   - Render different UI based on machine state:
+     ```tsx
+     const [state, send] = useGameMachine();
+
+     if (state.matches('checkingWallet')) return <WalletCheck />;
+     if (state.matches('checkingCharacter')) return <CharacterCheck />;
+     if (state.matches('noCharacter')) return <CharacterCreation />;
+     if (state.matches('ready')) return <GameInterface />;
+     ```
+
+2. **React-Query for Game Data**
+   - Core game state is fetched by `useUiSnapshot` and cached.
+   - Hooks like `useBattleNads` consume this cache and provide mapped data (`gameState`).
+   - Components receive data as props, typically flowing from `useGame` → `AppInitializer` → `GameContainer` → `GameView` → specific panels.
+   - Implement proper loading and error states in all components
+
+3. **Action Implementation**
+   - Wrap blockchain actions in mutation hooks:
+     ```tsx
+     const { mutate: moveNorth, isLoading } = useMoveNorth(characterId);
+     ```
+   - Provide proper loading indicators during action execution
+
+## UI Component Implementation
+
+1. **Game Layout (`GameView`)**
+   - Implement using Chakra UI `Grid` with `templateAreas` for responsiveness.
+   - Place child components (`Minimap`, `CharacterInfo`, etc.) into their designated `GridItem` areas.
+   - Pass required data and callbacks down as props.
+
+2. **Minimap Rendering (`Minimap`)**
+   - Render a visual representation of the character's position and surroundings based on data provided (e.g., `character`, `position`).
+   - Style appropriately to fit the allocated grid area.
+
+3. **Character Info Display (`CharacterInfo`)**
+   - Display relevant character details (name, health, stats, equipment) passed via props.
+   - Ensure clear presentation within its grid area.
+
+4. **Movement Controls (`MovementControls`)**
+   - Render directional buttons.
+   - Use `onMove` prop callback to trigger movement actions.
+   - Disable buttons based on `isMoving` prop or potentially movement possibility data.
+
+5. **Combat Interface (`CombatTargets`)**
+   - Display list of `combatants` passed as props.
+   - Allow selection and trigger attacks using `onAttack` prop callback.
+   - Indicate loading state using `isAttacking` prop.
+
+6. **Chat Implementation (`ChatPanel`)**
+   - Display `chatLogs` passed as props.
+   - Include an input field and button to trigger `onSendChatMessage` prop callback.
+   - Handle scrolling within its designated area.
+
+7. **Event Feed (`EventFeed`)**
+   - Display `eventLogs` passed as props.
+   - Format logs appropriately.
+   - Handle scrolling.
+
+8. **Character Display (`CharacterCard`)**
+   - (If used outside main GameView) Display summary stats/equipment.
+   - Provide visual indicators for changes in stats or equipment
+
+## Loading & Error States
+
+1. **Skeleton Loading**
+   - Implement skeleton loaders for initial data loading:
+     ```tsx
+     {isLoading ? (
+       <div className="skeleton-loader">
+         <div className="skeleton-name"></div>
+         <div className="skeleton-stats"></div>
+       </div>
+     ) : (
+       <CharacterCard character={character} />
+     )}
+     ```
+   - Maintain UI structure during loading to prevent layout shifts
+
+2. **Error Handling**
+   - Display user-friendly error messages:
+     ```tsx
+     {error && (
+       <div className="error-container">
+         <p className="error-message">{getErrorMessage(error)}</p>
+         <button onClick={retry}>Retry</button>
+       </div>
+     )}
+     ```
+   - Provide recovery options for common errors
+
+3. **Transaction States**
+   - Show transaction status for blockchain operations:
+     ```tsx
+     <button
+       onClick={moveNorth}
+       disabled={isMutating}
+       className={isMutating ? 'processing' : ''}
+     >
+       {isMutating ? 'Moving...' : 'Move North'}
+     </button>
+     ```
+   - Implement optimistic UI updates where appropriate
+
+## Styling Guidelines
+
+1. **Chakra UI + Tailwind**
+   - Use Chakra UI components for complex UI elements:
+     ```tsx
+     <Tabs variant="enclosed">
+       <TabList>
+         <Tab>Inventory</Tab>
+         <Tab>Stats</Tab>
+       </TabList>
+       <TabPanels>
+         <TabPanel><InventoryDisplay /></TabPanel>
+         <TabPanel><StatsDisplay /></TabPanel>
+       </TabPanels>
+     </Tabs>
+     ```
+   - Use Tailwind for custom styling and layout
+
+2. **Responsive Design**
+   - Implement mobile-friendly UI for all game components
+   - Use Chakra UI's responsive props for breakpoint-specific styling
+   - Test on multiple viewport sizes
+
+3. **Animation & Feedback**
+   - Add subtle animations for game actions:
+     ```tsx
+     <motion.div
+       animate={{ opacity: 1 }}
+       initial={{ opacity: 0 }}
+       exit={{ opacity: 0 }}
+     >
+       {/* Component content */}
+     </motion.div>
+     ```
+   - Provide visual feedback for successful/failed actions

@@ -3,9 +3,10 @@
 import { ReactNode } from 'react';
 import { PrivyAuthProvider } from '../providers/PrivyAuthProvider';
 import { WalletProvider } from '../providers/WalletProvider';
-import { GameDataProvider } from '../providers/GameDataProvider';
+import { ReactQueryProvider } from '../providers/ReactQueryProvider';
 import { ChakraProvider, ColorModeScript } from '@chakra-ui/react';
 import { RecoilRoot } from 'recoil';
+import ErrorBoundary from './ErrorBoundary';
 import theme from './theme';
 import './globals.css';
 import React, { useEffect } from 'react';
@@ -36,19 +37,26 @@ export default function RootLayout({
 
   return (
     <html lang="en" style={{ colorScheme: 'dark' }} data-theme="dark">
-      <body className="chakra-ui-dark">
+      <head>
         <ColorModeScript initialColorMode={theme.config.initialColorMode} />
-        <PrivyAuthProvider>
-          <WalletProvider>
-            <RecoilRoot>
-              <ChakraProvider theme={theme}>
-                <GameDataProvider pollInterval={5000}>
-                  {children}
-                </GameDataProvider>
-              </ChakraProvider>
-            </RecoilRoot>
-          </WalletProvider>
-        </PrivyAuthProvider>
+      </head>
+      <body  
+      className="bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: "url('/assets/bg/dark-smoky-bg.webp')" }}
+      >
+          <ErrorBoundary>
+            <ReactQueryProvider>
+              <PrivyAuthProvider>
+                <WalletProvider>
+                  <RecoilRoot>
+                    <ChakraProvider theme={theme}>
+                      {children}
+                    </ChakraProvider>
+                  </RecoilRoot>
+                </WalletProvider>
+              </PrivyAuthProvider>
+            </ReactQueryProvider>
+        </ErrorBoundary>
       </body>
     </html>
   );

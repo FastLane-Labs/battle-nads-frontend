@@ -1,127 +1,67 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { Box, Button, Center, VStack, Spinner, Icon, Text } from '@chakra-ui/react';
-import { usePrivy, useWallets } from '@privy-io/react-auth';
-import { useRouter } from 'next/navigation';
-import { useBattleNads } from '../../hooks/useBattleNads';
-import { FaEthereum } from 'react-icons/fa';
-import { useWallet } from '../../providers/WalletProvider';
+import React from 'react';
+import { usePrivy } from '@privy-io/react-auth';
 
 const Login: React.FC = () => {
-  const { login, authenticated, ready, user } = usePrivy();
-  const { wallets, ready: walletsReady } = useWallets();
-  const router = useRouter();
-  const { getPlayerCharacterID, characterId } = useBattleNads();
-  // Get wallet state from our WalletProvider
-  const { address, isInitialized } = useWallet();
-  const [checkingCharacter, setCheckingCharacter] = useState(false);
-  const [initialCheckComplete, setInitialCheckComplete] = useState(false);
-
-  // Debug loading states
-  useEffect(() => {
-    console.log("Loading states:", { 
-      privyReady: ready, 
-      authenticated, 
-      checkingCharacter,
-      initialCheckComplete,
-      walletInitialized: isInitialized
-    });
-  }, [ready, authenticated, checkingCharacter, initialCheckComplete, isInitialized]);
-
-  // Use the Privy wallets information to set up our wallet provider
-  useEffect(() => {
-    if (ready && authenticated && walletsReady && wallets.length > 0 && !address) {
-      // Instead of manually connecting, let the WalletProvider sync with Privy's state
-      console.log("Wallet is connected via Privy:", wallets[0].address);
-    }
-  }, [ready, authenticated, walletsReady, wallets, address]);
-
-  // Consolidated authentication and redirect flow
-  useEffect(() => {
-    // Don't proceed until both Privy is ready and wallet provider is initialized
-    if (!ready || !isInitialized) return;
-
-    if (authenticated && user?.wallet?.address) {
-      setCheckingCharacter(true);
-      console.log("Authenticated, redirecting to dashboard:", user.wallet.address);
-      router.push('/dashboard');
-      setCheckingCharacter(false);
-      setInitialCheckComplete(true);
-    } else if (ready && !authenticated) {
-      console.log("Not authenticated, staying on login page");
-      setCheckingCharacter(false);
-      setInitialCheckComplete(true);
-    }
-  }, [ready, authenticated, user, router, isInitialized]);
-
-  // Make sure initial check is completed even if not authenticated
-  useEffect(() => {
-    if (ready && isInitialized && !initialCheckComplete) {
-      setInitialCheckComplete(true);
-    }
-  }, [ready, initialCheckComplete, isInitialized]);
-
+  const { login, ready, authenticated } = usePrivy();
+  
   const handleLogin = () => {
-    // Only attempt login if not already authenticated
-    if (!authenticated) {
-      login({
-        loginMethods: ['wallet'],
-        walletChainType: 'ethereum-only'
-      });
+    if (ready && !authenticated) {
+      login();
     }
-    // Redirect will happen in the useEffect above
   };
 
-  // Show loading spinner only for active operations, not for wallet initialization
-  // This prevents infinite loading screens when wallet provider fails to initialize
-  if (checkingCharacter || !ready) {
-    return (
-      <Center height="100vh" bg="gray.900">
-        <Spinner size="xl" color="purple.500" thickness="4px" />
-      </Center>
-    );
-  }
-
   return (
-    <Center height="100vh" bg="gray.900">
-      <Box 
-        p={8} 
-        maxWidth="500px" 
-        borderWidth={1} 
-        borderRadius="lg" 
-        boxShadow="dark-lg"
-        bg="gray.800"
-        borderColor="gray.700"
-      >
-        <VStack align="center" spacing={6}>
-          <Button 
-            colorScheme="purple" 
-            size="lg" 
-            onClick={handleLogin}
-            width="full"
-            borderRadius="md"
-            py={6}
-            fontWeight="bold"
-            bgGradient="linear(to-r, blue.400, purple.500)"
-            _hover={{
-              bgGradient: "linear(to-r, blue.500, purple.600)",
-              transform: "translateY(-2px)",
-              boxShadow: "lg"
-            }}
-            _active={{
-              bgGradient: "linear(to-r, blue.600, purple.700)",
-              transform: "translateY(0)",
-            }}
-            leftIcon={<Icon as={FaEthereum} boxSize={5} />}
-            isLoading={!ready}
-            loadingText="Loading..."
-          >
-            Connect Evm Wallet
-          </Button>
-        </VStack>
-      </Box>
-    </Center>
+    <div 
+      className="min-h-screen w-full bg-cover bg-center bg-no-repeat flex items-center justify-center py-10"
+      style={{ backgroundImage: "url('/assets/bg/dark-smoky-bg.webp')" }}
+    >
+      <div className="max-w-[600px] w-full mx-auto px-4">
+        <div className="flex flex-col items-center space-y-8">
+          <img 
+            src="/BattleNadsLogo.webp" 
+            alt="Battle Nads Logo"
+            className="max-w-[300px] md:max-w-[335px] mx-auto"
+          />
+          
+          <h2 className="text-center text-2xl md:text-3xl font-semibold uppercase mb-4 gold-text tracking-wider leading-10 text-nowrap">
+            Adventure Awaits
+          </h2>
+          
+          <div className="relative mt-4 group">
+            {/* Animated glow effect */}
+            <div className="absolute inset-0 -m-1 bg-yellow-500/10 rounded-md blur-md z-0 animate-pulse-slow"></div>
+            
+            {/* Button */}
+            <div className="relative animate-float">
+              <img 
+                src="/assets/buttons/primary-button.webp" 
+                alt="" 
+                className="w-full h-[60px] object-fill transition-all duration-200 
+                  group-hover:brightness-125 group-hover:scale-[1.02] group-active:brightness-90 group-active:scale-[0.98]" 
+              />
+              
+              <button 
+                className={`absolute inset-0 h-[60px] w-full text-xl font-bold uppercase bg-transparent border-0 px-8
+                  transition-transform duration-200 group-hover:scale-105 group-active:scale-95 flex items-center justify-center
+                  ${(!ready || authenticated) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                onClick={handleLogin}
+                disabled={!ready || authenticated}
+              >
+                <p className='gold-text animate-pulse-text'>
+                  {!ready ? 'Connecting...' : authenticated ? 'Connected' : 'Connect Wallet'}
+                </p>
+              </button>
+            </div>
+          </div>
+          
+          <p className="text-gray-300/95 text-center mt-3 max-w-md">
+            Connect your wallet to enter the world of Battle Nads and begin your adventure
+          </p>
+        </div>
+      </div>
+    </div>
   );
 };
 

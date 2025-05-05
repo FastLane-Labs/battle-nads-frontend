@@ -1,340 +1,46 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Box, Heading, Text, Button, VStack, HStack, Input, FormControl, FormLabel, Grid, GridItem, IconButton, NumberInput, NumberInputField, Flex, Stat, StatLabel, StatNumber, StatHelpText, Image, Center } from '@chakra-ui/react';
+import React, { useState, useEffect } from 'react';
+import { Box, Heading, Flex, Spinner, Text } from '@chakra-ui/react';
 import { useWallet } from '../../providers/WalletProvider';
-import { useBattleNads } from '../../hooks/useBattleNads';
-import { useGame } from '../../hooks/useGame';
-import { CharacterCard } from '../CharacterCard';
-import { CharacterList } from '../CharacterList';
-import { AddIcon, MinusIcon } from '@chakra-ui/icons';
-
-// Constants from the smart contract
-const STARTING_STAT_SUM = 32;
-const MIN_STAT_VALUE = 3;
-const STARTING_UNALLOCATED_POINTS = STARTING_STAT_SUM - (6 * MIN_STAT_VALUE); // 14
+import { CharacterCard } from './CharacterCard';
+import { CharacterList } from './CharacterList';
+import { domain } from '../../types'; // Import domain namespace
 
 const CharacterDashboard = () => {
-  const { address, injectedWallet, embeddedWallet } = useWallet();
-  const { loading: battleNadsLoading, error: battleNadsError } = useBattleNads();
-  const { 
-    moveCharacter, 
-    initializeGame, 
-    loadGameState,
-    error: gameError,
-    status
-  } = useGame();
-  
-  const [characterName, setCharacterName] = useState('');
-  
-  // Initialize all stats to MIN_STAT_VALUE
-  const [strength, setStrength] = useState(MIN_STAT_VALUE);
-  const [vitality, setVitality] = useState(MIN_STAT_VALUE);
-  const [dexterity, setDexterity] = useState(MIN_STAT_VALUE);
-  const [quickness, setQuickness] = useState(MIN_STAT_VALUE);
-  const [sturdiness, setSturdiness] = useState(MIN_STAT_VALUE);
-  const [luck, setLuck] = useState(MIN_STAT_VALUE);
-  
-  // Unallocated points counter
-  const [unspentAttributePoints, setunspentAttributePoints] = useState(STARTING_UNALLOCATED_POINTS);
-  
-  const [selectedCharacter, setSelectedCharacter] = useState<any>(null);
-  const [areaCharacters, setAreaCharacters] = useState<any[]>([]);
-  const [characterId, setCharacterId] = useState<string>('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(battleNadsError || gameError);
+  const { address } = useWallet();
+  // State to hold the selected character (domain.Character)
+  const [selectedCharacter, setSelectedCharacter] = useState<domain.Character | null>(null);
 
-  // Function to increase a stat
-  const increaseStat = (statSetter: React.Dispatch<React.SetStateAction<number>>, currentValue: number) => {
-    if (unspentAttributePoints > 0) {
-      statSetter(currentValue + 1);
-      setunspentAttributePoints(unspentAttributePoints - 1);
-    }
-  };
-
-  // Function to decrease a stat
-  const decreaseStat = (statSetter: React.Dispatch<React.SetStateAction<number>>, currentValue: number) => {
-    if (currentValue > MIN_STAT_VALUE) {
-      statSetter(currentValue - 1);
-      setunspentAttributePoints(unspentAttributePoints + 1);
-    }
-  };
-
-  // Handle character creation
-  const handleCreateCharacter = async () => {
-    if (!characterName) return;
-    
-    // Validate total points
-    const totalPoints = strength + vitality + dexterity + quickness + sturdiness + luck;
-    if (totalPoints !== STARTING_STAT_SUM) {
-      alert(`Total stats must equal ${STARTING_STAT_SUM}. Currently: ${totalPoints}`);
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Navigate to character creation page since we don't have direct access to createCharacter here
-      window.location.href = `/create?name=${encodeURIComponent(characterName)}&strength=${strength}&vitality=${vitality}&dexterity=${dexterity}&quickness=${quickness}&sturdiness=${sturdiness}&luck=${luck}`;
-    } catch (err) {
-      console.error("Error starting character creation:", err);
-      setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Load character data
-  const handleLoadCharacter = async (id: string) => {
-    try {
-      setLoading(true);
-      setError(null);
-      setCharacterId(id);
-      
-      // Load game state using the selected character ID
-      await loadGameState(id);
-      
-      // After loading game state, initialize the game
-      const result = await initializeGame();
-      
-      if (result.success) {
-        console.log("Game initialized successfully with character:", id);
-      } else {
-        console.warn("Game initialization warning:", result.status);
-      }
-      
-      setSelectedCharacter({ id });
-    } catch (err) {
-      console.error("Error loading character:", err);
-      setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle character movement
-  const handleMove = async (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
-    if (!selectedCharacter?.id) return;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      
-      await moveCharacter(selectedCharacter.id, direction);
-    } catch (err) {
-      console.error(`Error moving ${direction}:`, err);
-      setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Handle attack
-  const handleAttack = async (targetIndex: number) => {
-    if (!selectedCharacter?.id) return;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Since attackTarget is no longer available directly, 
-      // we'll need to provide a UI message
-      setError("Combat functionality is not available in this view. Please use the main game view for combat.");
-    } catch (err) {
-      console.error("Error attacking:", err);
-      setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setLoading(false);
-    }
-  };
+  console.log('CharacterDashboard rendering. Selected Character:', selectedCharacter?.id);
 
   return (
-    <Box padding="2rem" maxW="1200px" mx="auto">
-      {/* Logo at the top */}
-      <Center mb={6}>
-        <Image 
-          src="/BattleNadsLogo.png" 
-          alt="Battle Nads Logo" 
-          maxHeight="150px"
-          objectFit="contain"
-        />
-      </Center>
-      
-      <Heading as="h1" mb={6} textAlign="center">Character Dashboard</Heading>
-      
-
-        <VStack spacing={8} align="stretch">
-          <Box borderWidth="1px" borderRadius="lg" p={4}>
-            <Heading as="h2" size="md" mb={4}>Welcome, {address?.slice(0, 6)}...{address?.slice(-4)}</Heading>
-            <Text>You are connected with your wallet. Now you can play Battle-Nads!</Text>
+    <Box p={5}>
+      <Heading mb={4}>Character Dashboard</Heading>
+      {!address ? (
+        <Text>Please connect your wallet.</Text>
+      ) : (
+        <Flex direction={{ base: 'column', md: 'row' }} gap={4}>
+          {/* Left Panel: Character List */}
+          <Box flex={{ base: 'none', md: 1 }} maxW={{ md: '350px' }}>
+            <CharacterList 
+              onSelectCharacter={setSelectedCharacter} 
+              selectedCharacterId={selectedCharacter?.id}
+            />
           </Box>
 
-          {/* Character Creation Form */}
-          <Box borderWidth="1px" borderRadius="lg" p={4}>
-            <Heading as="h2" size="md" mb={4}>Create Your Character</Heading>
-            <VStack spacing={4}>
-              <FormControl>
-                <FormLabel>Character Name</FormLabel>
-                <Input 
-                  value={characterName}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setCharacterName(e.target.value)}
-                  placeholder="Enter character name"
-                />
-              </FormControl>
-              
-              {/* Points Counter */}
-              <Stat textAlign="center" p={2} bg="blue.50" borderRadius="md">
-                <StatLabel>Unallocated Points</StatLabel>
-                <StatNumber>{unspentAttributePoints}</StatNumber>
-                <StatHelpText>All stats must sum to {STARTING_STAT_SUM}</StatHelpText>
-              </Stat>
-              
-              <Grid templateColumns="repeat(2, 1fr)" gap={4}>
-                {/* Strength */}
-                <FormControl>
-                  <FormLabel>Strength</FormLabel>
-                  <Flex>
-                    <IconButton
-                      aria-label="Decrease strength"
-                      icon={<MinusIcon />}
-                      onClick={() => decreaseStat(setStrength, strength)}
-                      isDisabled={strength <= MIN_STAT_VALUE}
-                      size="sm"
-                      mr={2}
-                    />
-                    <NumberInput 
-                      value={strength} 
-                      isReadOnly 
-                      min={MIN_STAT_VALUE} 
-                      max={20}
-                      flex={1}
-                    >
-                      <NumberInputField textAlign="center" />
-                    </NumberInput>
-                    <IconButton
-                      aria-label="Increase strength"
-                      icon={<AddIcon />}
-                      onClick={() => increaseStat(setStrength, strength)}
-                      isDisabled={unspentAttributePoints <= 0}
-                      size="sm"
-                      ml={2}
-                    />
-                  </Flex>
-                </FormControl>
-                
-                {/* Vitality */}
-                <FormControl>
-                  <FormLabel>Vitality</FormLabel>
-                  <Flex>
-                    <IconButton
-                      aria-label="Decrease vitality"
-                      icon={<MinusIcon />}
-                      onClick={() => decreaseStat(setVitality, vitality)}
-                      isDisabled={vitality <= MIN_STAT_VALUE}
-                      size="sm"
-                      mr={2}
-                    />
-                    <NumberInput 
-                      value={vitality} 
-                      isReadOnly 
-                      min={MIN_STAT_VALUE} 
-                      max={20}
-                      flex={1}
-                    >
-                      <NumberInputField textAlign="center" />
-                    </NumberInput>
-                    <IconButton
-                      aria-label="Increase vitality"
-                      icon={<AddIcon />}
-                      onClick={() => increaseStat(setVitality, vitality)}
-                      isDisabled={unspentAttributePoints <= 0}
-                      size="sm"
-                      ml={2}
-                    />
-                  </Flex>
-                </FormControl>
-                
-                {/* More attributes follow... */}
-              </Grid>
-              
-              <Button 
-                colorScheme="blue" 
-                width="full" 
-                onClick={handleCreateCharacter}
-                isDisabled={!characterName || unspentAttributePoints !== 0}
-              >
-                Create Character
-              </Button>
-            </VStack>
-          </Box>
-
-          {/* Character List */}
-          <Box borderWidth="1px" borderRadius="lg" p={4}>
-            <Heading as="h2" size="md" mb={4}>Your Characters</Heading>
-            <CharacterList onSelectCharacter={handleLoadCharacter} />
-          </Box>
-
-          {/* Selected Character Details */}
-          {selectedCharacter && (
-            <Box borderWidth="1px" borderRadius="lg" p={4}>
-              <Heading as="h2" size="md" mb={4}>Selected Character</Heading>
+          {/* Right Panel: Selected Character Details */}
+          <Box flex={{ base: 'none', md: 2 }}>
+            {selectedCharacter ? (
               <CharacterCard character={selectedCharacter} />
-              
-              {/* Movement Controls */}
-              <Box mt={4}>
-                <Heading as="h3" size="sm" mb={2}>Move Character</Heading>
-                <Grid templateColumns="repeat(3, 1fr)" gap={2}>
-                  <GridItem colStart={2}>
-                    <Button onClick={() => handleMove('north')} width="full">North</Button>
-                  </GridItem>
-                  <GridItem colStart={1} rowStart={2}>
-                    <Button onClick={() => handleMove('west')} width="full">West</Button>
-                  </GridItem>
-                  <GridItem colStart={3} rowStart={2}>
-                    <Button onClick={() => handleMove('east')} width="full">East</Button>
-                  </GridItem>
-                  <GridItem colStart={2} rowStart={3}>
-                    <Button onClick={() => handleMove('south')} width="full">South</Button>
-                  </GridItem>
-                  <GridItem colStart={1} rowStart={4}>
-                    <Button onClick={() => handleMove('down')} width="full">Down</Button>
-                  </GridItem>
-                  <GridItem colStart={3} rowStart={4}>
-                    <Button onClick={() => handleMove('up')} width="full">Up</Button>
-                  </GridItem>
-                </Grid>
+            ) : (
+              <Box p={4} borderWidth="1px" borderRadius="lg" bg="gray.800" minH="200px" display="flex" alignItems="center" justifyContent="center">
+                 <Text color="gray.400">Select a character from the list</Text>
               </Box>
-              
-              {/* Nearby Characters */}
-              <Box mt={4}>
-                <Heading as="h3" size="sm" mb={2}>Characters in Area</Heading>
-                {areaCharacters.length > 0 ? (
-                  <VStack align="stretch" spacing={2}>
-                    {areaCharacters.map((char, idx) => (
-                      <HStack key={char.id} borderWidth="1px" p={2} borderRadius="md" justifyContent="space-between">
-                        <Text>
-                          {char.id.slice(0, 6)}... - Level {char.stats?.level || 1}
-                          {char.stats?.isMonster ? ' (Monster)' : ''}
-                        </Text>
-                        <Button 
-                          colorScheme="red" 
-                          size="sm" 
-                          onClick={() => handleAttack(char.stats.index)}
-                          isDisabled={char.id === selectedCharacter.id}
-                        >
-                          Attack
-                        </Button>
-                      </HStack>
-                    ))}
-                  </VStack>
-                ) : (
-                  <Text>No other characters in this area.</Text>
-                )}
-              </Box>
-            </Box>
-          )}
-        </VStack>
+            )}
+          </Box>
+        </Flex>
+      )}
     </Box>
   );
 };

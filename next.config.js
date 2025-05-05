@@ -1,13 +1,20 @@
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
-  /* config options here */
-  // Remove webpack cache files that exceed Cloudflare's 25MB limit
-  webpack: (config) => {
-    // Don't include large cache files in the output
-    config.optimization.providedExports = false;
-    config.optimization.usedExports = false;
-    
+  reactStrictMode: true,
+  webpack: (config, { isServer, webpack }) => {
+    // Fix for Ably Buffer dependency issue
+    config.plugins.push(
+      new webpack.NormalModuleReplacementPlugin(/node:buffer/, (resource) => {
+        resource.request = 'buffer';
+      }),
+    );
+    config.externals.push('node-fetch');
+
+    // Added server-side optimization
+    if (isServer) {
+      config.optimization.minimize = true;
+    }
     return config;
   },
 };
