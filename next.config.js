@@ -12,9 +12,4 @@ const nextConfig = {
   },
 };
 
-if (process.env.NODE_ENV === 'production') {
-  nextConfig.distDir = 'out';
-  nextConfig.output = 'export';
-}
-
 module.exports = nextConfig;
