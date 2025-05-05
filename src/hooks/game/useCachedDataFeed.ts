@@ -12,6 +12,8 @@ export interface SerializedEventLog {
   index: number;
   mainPlayerIndex: number;
   otherPlayerIndex: number;
+  attackerName?: string;
+  defenderName?: string;
   hit: boolean;
   critical: boolean;
   damageDone: number;
@@ -182,12 +184,18 @@ export const processDataFeedsToCachedBlocks = (
 
     // Process logs to find chat messages and map senders
     (feed.logs || []).forEach((log: contract.Log) => { // Removed unused logIndexInArray
-      // Map general event log data
+      // Find participant names using the lookup map available NOW
+      const attackerInfo = characterLookup.get(Number(log.mainPlayerIndex));
+      const defenderInfo = characterLookup.get(Number(log.otherPlayerIndex));
+
+      // Map general event log data, including names
       const eventLog: SerializedEventLog = {
         logType: log.logType,
         index: log.index,
         mainPlayerIndex: log.mainPlayerIndex,
         otherPlayerIndex: log.otherPlayerIndex,
+        attackerName: attackerInfo?.name,
+        defenderName: defenderInfo?.name,
         hit: log.hit,
         critical: log.critical,
         damageDone: log.damageDone,

@@ -195,7 +195,6 @@ function findCharacterParticipantByIndex(
 
 /**
  * Maps raw contract DataFeed arrays to domain ChatMessage arrays.
- * @deprecated Logic moved into contractToWorldSnapshot for unified processing.
  */
 export const processChatFeedsToDomain = (
     dataFeeds: contract.DataFeed[],
@@ -261,7 +260,7 @@ export function contractToWorldSnapshot(
   raw: contract.PollFrontendDataReturn | null,
   owner: string | null = null,
   ownerCharacterId?: string // Optional: Pass player's character ID for isPlayerInitiated flag
-): Omit<domain.WorldSnapshot, 'movementOptions'> | null {
+): domain.WorldSnapshot | null {
   
   if (!raw) {
     return null;
@@ -441,18 +440,17 @@ export function contractToWorldSnapshot(
   allChatMessages.sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
   allEventLogs.sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
 
-  // Map session key data (assuming this doesn't depend on dataFeeds structure)
   const mappedSessionKeyData = mapSessionKeyData(raw.sessionKeyData, owner);
 
-  // Create the domain world snapshot using the processed logs (excluding movementOptions)
-  const partialWorldSnapshot: Omit<domain.WorldSnapshot, 'movementOptions'> = {
+  // Create the domain world snapshot (Now includes eventLogs and chatLogs)
+  const partialWorldSnapshot: domain.WorldSnapshot = {
     characterID: raw.characterID || '',
     sessionKeyData: mappedSessionKeyData,
     character: mapCharacter(raw.character),
     combatants: raw.combatants?.map(mapCharacterLite) || [],
     noncombatants: raw.noncombatants?.map(mapCharacterLite) || [],
-    eventLogs: allEventLogs,       // Use processed event logs
-    chatLogs: allChatMessages,      // Use processed chat logs
+    eventLogs: allEventLogs,       // Include processed event logs
+    chatLogs: allChatMessages,      // Include processed chat logs
     balanceShortfall: Number(raw.balanceShortfall || 0),
     unallocatedAttributePoints: Number(raw.unallocatedAttributePoints || 0),
     lastBlock: Number(raw.endBlock || 0)
