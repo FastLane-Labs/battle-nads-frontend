@@ -4,4 +4,6 @@ export const GAS_LIMITS = {
   action: BigInt(950_000),
   sessionKey: BigInt(1_200_000),
   chat: BigInt(1_000_000)
-}; 
+};
+// Average block time in seconds (for cooldown estimation)
+export const AVG_BLOCK_TIME = 2; 

@@ -6,18 +6,20 @@ interface CombatTargetsProps {
   combatants: domain.CharacterLite[];
   onAttack: (targetIndex: number) => Promise<void>;
   isAttacking: boolean;
+  selectedTargetIndex: number | null;
+  onSelectTarget: (index: number | null) => void;
 }
 
 const CombatTargets: React.FC<CombatTargetsProps> = ({ 
   combatants, 
   onAttack, 
-  isAttacking 
+  isAttacking, 
+  selectedTargetIndex,
+  onSelectTarget
 }) => {
-  const [selectedTarget, setSelectedTarget] = useState<number | null>(null);
-  
   const handleAttack = () => {
-    if (selectedTarget !== null && !isAttacking) {
-      onAttack(selectedTarget);
+    if (selectedTargetIndex !== null && !isAttacking) {
+      onAttack(selectedTargetIndex);
     }
   };
   
@@ -37,12 +39,12 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
               <Button
                 key={index}
                 size="sm"
-                variant={selectedTarget === index ? "solid" : "ghost"}
-                colorScheme={selectedTarget === index ? "red" : "gray"}
+                variant={selectedTargetIndex === index ? "solid" : "ghost"}
+                colorScheme={selectedTargetIndex === index ? "red" : "gray"}
                 justifyContent="flex-start"
                 width="100%"
                 mb={1}
-                onClick={() => setSelectedTarget(index)}
+                onClick={() => onSelectTarget(selectedTargetIndex === index ? null : index)}
                 disabled={isAttacking}
               >
                 <Text fontSize="sm" mr={2}>
@@ -60,7 +62,7 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
             colorScheme="red"
             size="md"
             onClick={handleAttack}
-            isDisabled={selectedTarget === null || isAttacking}
+            isDisabled={selectedTargetIndex === null || isAttacking}
             isLoading={isAttacking}
             loadingText="Attacking..."
           >

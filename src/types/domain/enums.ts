@@ -71,4 +71,12 @@ export enum Direction {
 export enum EquipmentSlot {
   WEAPON = 0,
   ARMOR = 1,
-} 
+}
+
+// Ability stage constants reflecting contract states
+export enum AbilityStage {
+  READY = 0,
+  CHARGING = 1, // e.g., Monk\'s Pray, Sorcerer\'s ChargeUp
+  ACTION = 2,   // e.g., Multi-turn effects
+  COOLDOWN = 3, // Standard cooldown period after use
+}

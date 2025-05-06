@@ -4,3 +4,4 @@ export * from './useGame';
 export * from './useEquipment';
 export * from './useUiSnapshot';
 export * from './useCachedDataFeed';
+export * from './useAbilityCooldowns';
