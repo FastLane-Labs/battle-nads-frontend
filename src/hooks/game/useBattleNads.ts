@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
-import { ui, domain, contract } from '../../types';
+import { domain } from '@/types';
 import { useUiSnapshot } from './useUiSnapshot';
-import { contractToWorldSnapshot, mapCharacterLite, processChatFeedsToDomain, mapStatusEffects } from '../../mappers';
-import { useCachedDataFeed, SerializedChatLog, CachedDataBlock, SerializedEventLog, processDataFeedsToCachedBlocks, storeFeedData } from './useCachedDataFeed';
+import { contractToWorldSnapshot, mapCharacterLite, processChatFeedsToDomain, mapCharacterToCharacterLite } from '@/mappers';
+import { useCachedDataFeed, SerializedChatLog, CachedDataBlock, SerializedEventLog, storeFeedData } from './useCachedDataFeed';
 
 /**
  * Hook for managing game state and data
@@ -181,8 +181,8 @@ export const useBattleNads = (owner: string | null) => {
     const combatantsContextForStorage = rawData.combatants?.map(mapCharacterLite);
     const nonCombatantsContextForStorage = rawData.noncombatants?.map(mapCharacterLite);
      if (rawData.character) {
-        const playerCharLite = mapCharacterLite(rawData.character as any); 
-        if (nonCombatantsContextForStorage && !nonCombatantsContextForStorage.some(c => c.index === playerCharLite.index) &&
+        const playerCharLite = mapCharacterToCharacterLite(rawData.character);
+        if (playerCharLite && nonCombatantsContextForStorage && !nonCombatantsContextForStorage.some(c => c.index === playerCharLite.index) &&
             (!combatantsContextForStorage || !combatantsContextForStorage.some(c => c.index === playerCharLite.index))) {
                 nonCombatantsContextForStorage.push(playerCharLite);
             }

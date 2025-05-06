@@ -31,30 +31,33 @@ export const useUiSnapshot = (owner: string | null) => {
         : (await client.getLatestBlockNumber()) - BigInt(INITIAL_SNAPSHOT_LOOKBACK_BLOCKS);
       
       const rawArrayData = await client.getUiSnapshot(owner, startBlock);
-      
+
       // Capture the timestamp immediately after the fetch completes
       const fetchTimestamp = Date.now();
       
-      if (!Array.isArray(rawArrayData)) {
+      // Check if it *looks* like the array-like Result object
+      if (!rawArrayData || typeof (rawArrayData as any)[0] === 'undefined' || typeof (rawArrayData as any)[12] === 'undefined') {
+          console.error("[useUiSnapshot] Invalid array-like data structure received:", rawArrayData);
           throw new Error("Invalid data structure received from getUiSnapshot");
       }
       
       let mappedData: contract.PollFrontendDataReturn;
       try {
+        const dataAsAny = rawArrayData as any; 
         mappedData = {
-          characterID: rawArrayData[0],
-          sessionKeyData: rawArrayData[1],
-          character: rawArrayData[2],
-          combatants: rawArrayData[3],
-          noncombatants: rawArrayData[4],
-          equipableWeaponIDs: rawArrayData[5],
-          equipableWeaponNames: rawArrayData[6],
-          equipableArmorIDs: rawArrayData[7],
-          equipableArmorNames: rawArrayData[8],
-          dataFeeds: rawArrayData[9] || [],
-          balanceShortfall: rawArrayData[10],
-          unallocatedAttributePoints: rawArrayData[11],
-          endBlock: rawArrayData[12],
+          characterID: dataAsAny[0],
+          sessionKeyData: dataAsAny[1],
+          character: dataAsAny[2],
+          combatants: dataAsAny[3],
+          noncombatants: dataAsAny[4],
+          equipableWeaponIDs: dataAsAny[5],
+          equipableWeaponNames: dataAsAny[6],
+          equipableArmorIDs: dataAsAny[7],
+          equipableArmorNames: dataAsAny[8],
+          dataFeeds: dataAsAny[9] || [],
+          balanceShortfall: dataAsAny[10],
+          unallocatedAttributePoints: dataAsAny[11],
+          endBlock: dataAsAny[12],
           fetchTimestamp: fetchTimestamp,
         };
       } catch (mappingError) {
@@ -62,11 +65,10 @@ export const useUiSnapshot = (owner: string | null) => {
         const errorMessage = mappingError instanceof Error ? mappingError.message : String(mappingError);
         throw new Error(`Failed to map snapshot array: ${errorMessage}`);
       }
-      
+
       // Asynchronously store the newly fetched feeds
       const liveFeeds = mappedData.dataFeeds;
       // Pass combatants/noncombatants context needed for sender mapping
-      // Map contract types to domain types using the mapper
       const domainCombatantsContext = (mappedData.combatants || []).map(mapCharacterLite);
       const domainNonCombatantsContext = (mappedData.noncombatants || []).map(mapCharacterLite);
 

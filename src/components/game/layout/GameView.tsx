@@ -1,5 +1,5 @@
-import React from 'react';
-import { Box, Grid, GridItem } from '@chakra-ui/react';
+import React, { useState } from 'react';
+import { Box, Grid, GridItem, Heading } from '@chakra-ui/react';
 import { domain } from '@/types';
 import Minimap from '@/components/game/board/Minimap';
 import CharacterInfo from '@/components/game/board/CharacterInfo';
@@ -7,6 +7,7 @@ import MovementControls from '@/components/game/controls/MovementControls';
 import CombatTargets from '@/components/game/controls/CombatTargets';
 import EventFeed from '@/components/game/feed/EventFeed';
 import ChatPanel from '@/components/game/feed/ChatPanel';
+import { AbilityControls } from '@/components/game/controls/AbilityControls';
 // --- Import Mock Data ---
 import { MOCK_CHAT_LOGS, MOCK_EVENT_LOGS } from '@/hooks/dev/mockFeedData';
 
@@ -41,6 +42,7 @@ const GameView: React.FC<GameViewProps> = ({
   isInCombat,
   isCacheLoading
 }) => {
+  const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(null);
 
   // --- Conditionally Use Mock Data --- 
   const isDev = false//process.env.NODE_ENV === 'development';
@@ -96,7 +98,17 @@ const GameView: React.FC<GameViewProps> = ({
               combatants={combatants} 
               onAttack={onAttack} 
               isAttacking={isAttacking} 
+              selectedTargetIndex={selectedTargetIndex}
+              onSelectTarget={setSelectedTargetIndex}
             />
+            {/* Render Ability Controls below Combat Targets */}
+            <Box mt={4}> 
+              <Heading size="md" mb={2}>Abilities</Heading> 
+              <AbilityControls 
+                characterId={character?.id ?? null} 
+                selectedTargetIndex={selectedTargetIndex}
+              />
+            </Box>
           </Box>
         </Grid>
       </GridItem>

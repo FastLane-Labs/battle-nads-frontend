@@ -8,6 +8,28 @@ import { safeStringify } from '@/utils/bigintSerializer';
 import { estimateBlockTimestamp } from '@/utils/blockUtils'; // Import the utility
 
 /**
+ * Safely maps a raw numeric or bigint class value from the contract to the domain enum.
+ * Returns Bard (0) as a fallback for unknown values.
+ */
+function mapContractClassToDomain(rawClassValue: number | bigint | undefined | null): domain.CharacterClass {
+
+  if (rawClassValue === undefined || rawClassValue === null) {
+    return domain.CharacterClass.Bard; // Default fallback
+  }
+
+  // Convert bigint to number for the check
+  const numericValue = Number(rawClassValue);
+
+  // Check if the numeric value corresponds to a valid enum member name (TypeScript enums map number to string)
+  if (numericValue in domain.CharacterClass) {
+    return numericValue as domain.CharacterClass;
+  } else {
+    // You might want a specific 'Unknown' or handle monster classes differently if needed
+    return domain.CharacterClass.Bard; // Default fallback for now
+  }
+}
+
+/**
  * Converts raw bitmap status effects to domain StatusEffect arrays
  */
 export function mapStatusEffects(bitmap: number): domain.StatusEffect[] {
@@ -87,7 +109,7 @@ export function mapCharacter(
     id: rawCharacter.id,
     index: rawCharacter.stats.index,
     name: rawCharacter.name,
-    class: rawCharacter.stats.class as domain.CharacterClass,
+    class: mapContractClassToDomain(rawCharacter.stats.class),
     level: rawCharacter.stats.level,
     health: Number(rawCharacter.stats.health),
     maxHealth: Number(rawCharacter.maxHealth),
@@ -118,32 +140,46 @@ export function mapCharacter(
 
 /**
  * Maps contract character lite to domain character lite
+ * Handles input that might be an object or an array-like Result.
  */
 export function mapCharacterLite(
-  rawCharacter: contract.CharacterLite // Revert: Only accept CharacterLite
+  rawCharacterInput: contract.CharacterLite // Expect the contract object type
 ): domain.CharacterLite {
-  // Revert to original implementation
+  // Cast the input to the expected contract type for easier access
+  // We assume ethers has decoded it correctly now into an object/proxy
+  const raw = rawCharacterInput as contract.CharacterLite;
+ 
+  // Basic validation
+  if (!raw || typeof raw !== 'object' || typeof raw.id === 'undefined') {
+    return { 
+        id: 'error-invalid-input', index: 0, name: 'Mapping Error',
+        class: domain.CharacterClass.Bard, level: 0, health: 0, maxHealth: 0,
+        buffs: [], debuffs: [], weaponName: '', armorName: '', isDead: true,
+        ability: { ability: domain.Ability.None, stage: 0, targetIndex: 0, taskAddress: '', targetBlock: 0 }
+     } as domain.CharacterLite;
+  }
+ 
+  // Map properties directly, applying necessary conversions
   return {
-    id: rawCharacter.id,
-    index: Number(rawCharacter.index),
-    name: rawCharacter.name,
-    class: rawCharacter.class as domain.CharacterClass,
-    level: Number(rawCharacter.level),
-    health: Number(rawCharacter.health),
-    maxHealth: Number(rawCharacter.maxHealth),
-    // Map buffs/debuffs from bitmap (assuming mapStatusEffects exists and works)
-    buffs: mapStatusEffects(Number(rawCharacter.buffs)), 
-    debuffs: mapStatusEffects(Number(rawCharacter.debuffs)),
+    id: raw.id,
+    index: Number(raw.index || 0),
+    name: raw.name || 'Unknown',
+    class: mapContractClassToDomain(raw.class), // Use the class directly now
+    level: Number(raw.level || 0),
+    health: Number(raw.health || 0),
+    maxHealth: Number(raw.maxHealth || 0), 
+    buffs: mapStatusEffects(Number(raw.buffs || 0)), 
+    debuffs: mapStatusEffects(Number(raw.debuffs || 0)),
     ability: {
-      ability: rawCharacter.ability as domain.Ability,
-      stage: Number(rawCharacter.abilityStage),
-      targetIndex: 0, // Placeholder - Lite doesn't provide target index directly
+      ability: (raw.ability !== undefined && raw.ability !== null ? Number(raw.ability) : domain.Ability.None) as domain.Ability,
+      stage: Number(raw.abilityStage || 0),
+      targetIndex: 0, // Placeholder
       taskAddress: '', // Placeholder
-      targetBlock: Number(rawCharacter.abilityTargetBlock)
+      targetBlock: Number(raw.abilityTargetBlock || 0)
     },
-    weaponName: rawCharacter.weaponName,
-    armorName: rawCharacter.armorName,
-    isDead: rawCharacter.isDead
+    weaponName: raw.weaponName || '',
+    armorName: raw.armorName || '',
+    isDead: Boolean(raw.isDead)
   };
 }
 
@@ -374,72 +410,29 @@ export function contractToWorldSnapshot(
         case domain.LogType.Ascend: {
            const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
            const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
-           const displayMessage = `${participant?.name || `Index ${mainPlayerIdx}`} died.`; 
+           const displayMessage = `${participant?.name || `Index ${mainPlayerIdx}`} died.`;
            const newEventMessage: domain.EventMessage = {
               logIndex: logIndex,
               blocknumber: eventBlockNumber, 
               timestamp: estimatedTimestamp,
               type: logTypeNum as domain.LogType,
-              attacker: participant || undefined, 
+              attacker: participant || undefined,
               isPlayerInitiated: isPlayer, 
-              details: { targetDied: true, value: log.value },
+              details: { value: log.value }, 
               displayMessage: displayMessage 
-            };
+           };
            allEventLogs.push(newEventMessage);
-          break;
-        }
-        case domain.LogType.Combat:
-        case domain.LogType.InstigatedCombat:
-        default: { 
-          const attacker = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
-          const defender = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants);
-          const isPlayerInitiated = !!ownerCharacterId && !!attacker && attacker.id === ownerCharacterId;
-          let messageParts: string[] = [];
-          let title = `${attacker?.name || `Index ${mainPlayerIdx}`}`;
-          if (defender) title += ` vs ${defender.name}`;
-          messageParts.push(title + ':');
-          if (log.hit) {
-            messageParts.push('Hit');
-            if (log.critical) messageParts.push('(CRIT!)');
-          } else if (logTypeNum === domain.LogType.Combat) {
-            messageParts.push('Miss');
-          }
-          if (log.damageDone > 0) messageParts.push(`[${log.damageDone} dmg]`);
-          if (log.healthHealed > 0) messageParts.push(`[${log.healthHealed} heal]`);
-          if (log.experience > 0) messageParts.push(`[+${log.experience} XP]`);
-          if (log.lootedWeaponID > 0) messageParts.push(`[Looted Wpn ${log.lootedWeaponID}]`);
-          if (log.lootedArmorID > 0) messageParts.push(`[Looted Arm ${log.lootedArmorID}]`);
-          if (log.targetDied) messageParts.push('Target Died!');
-          const displayMessage = messageParts.join(' ') + '.';
-          const newEventMessage: domain.EventMessage = {
-            logIndex: logIndex,
-            blocknumber: eventBlockNumber, 
-            timestamp: estimatedTimestamp,
-            type: logTypeNum as domain.LogType,
-            attacker: attacker || undefined,
-            defender: defender || undefined,
-            isPlayerInitiated: isPlayerInitiated,
-            details: { 
-              hit: log.hit,
-              critical: log.critical,
-              damageDone: log.damageDone,
-              healthHealed: log.healthHealed,
-              targetDied: log.targetDied,
-              lootedWeaponID: log.lootedWeaponID,
-              lootedArmorID: log.lootedArmorID,
-              experience: log.experience,
-              value: log.value
-            },
-            displayMessage: displayMessage 
-          };
-          allEventLogs.push(newEventMessage);
-          break;
+           break;
         }
       }
     });
   });
 
-  // Sort combined logs by timestamp (using estimatedTimestamp now) then log index
+  if (allChatMessages.length > 0) {
+    console.log(`[contractToWorldSnapshot] Processed ${allChatMessages.length} chat messages and ${allEventLogs.length} event logs.`);
+  }
+
+  // Sort by estimated timestamp, then log index
   allChatMessages.sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
   allEventLogs.sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
 
@@ -450,30 +443,52 @@ export function contractToWorldSnapshot(
     characterID: raw.characterID || '',
     sessionKeyData: mappedSessionKeyData,
     character: mapCharacter(raw.character),
-    combatants: raw.combatants?.map(mapCharacterLite) || [],
-    noncombatants: raw.noncombatants?.map(mapCharacterLite) || [],
-    eventLogs: allEventLogs,       // Include processed event logs
-    chatLogs: allChatMessages,      // Include processed chat logs
+    combatants: (raw.combatants || []).map(mapCharacterLite),
+    noncombatants: (raw.noncombatants || []).map(mapCharacterLite),
+    eventLogs: allEventLogs,      // Correct field names 
+    chatLogs: allChatMessages,     // Correct field names 
     balanceShortfall: Number(raw.balanceShortfall || 0),
     unallocatedAttributePoints: Number(raw.unallocatedAttributePoints || 0),
     lastBlock: Number(raw.endBlock || 0)
   };
-  
-  // Store equipment data separately (as before)
-  const equipmentData = {
-    equipableWeaponIDs: raw.equipableWeaponIDs,
-    equipableWeaponNames: raw.equipableWeaponNames,
-    equipableArmorIDs: raw.equipableArmorIDs,
-    equipableArmorNames: raw.equipableArmorNames,
-  };
 
-  // Debugging logs (can be removed later)
-  if (allChatMessages.length > 0) {
-    console.log(`[contractToDomain] Processed ${allChatMessages.length} chat messages.`);
-  }
-  if (allEventLogs.length > 0) {
-    console.log(`[contractToDomain] Processed ${allEventLogs.length} event logs.`);
-  }
-  
   return partialWorldSnapshot;
 }
+
+// --- NEW MAPPER --- 
+/**
+ * Maps a full contract Character object to a domain CharacterLite object.
+ */
+export function mapCharacterToCharacterLite(
+  rawCharacter: contract.Character | null
+): domain.CharacterLite | null {
+  if (!rawCharacter) return null;
+
+  // Reuse existing logic where possible
+  const mappedClass = mapContractClassToDomain(rawCharacter.stats.class);
+  const mappedBuffs = mapStatusEffects(Number(rawCharacter.stats.buffs));
+  const mappedDebuffs = mapStatusEffects(Number(rawCharacter.stats.debuffs));
+
+  return {
+    id: rawCharacter.id,
+    index: Number(rawCharacter.stats.index || 0),
+    name: rawCharacter.name || 'Unknown',
+    class: mappedClass,
+    level: Number(rawCharacter.stats.level || 0),
+    health: Number(rawCharacter.stats.health || 0),
+    maxHealth: Number(rawCharacter.maxHealth || 0),
+    buffs: mappedBuffs,
+    debuffs: mappedDebuffs,
+    ability: { // Use active ability details from full character
+      ability: (rawCharacter.activeAbility.ability !== undefined && rawCharacter.activeAbility.ability !== null ? Number(rawCharacter.activeAbility.ability) : domain.Ability.None) as domain.Ability,
+      stage: Number(rawCharacter.activeAbility.stage || 0),
+      targetIndex: 0, // Placeholder
+      taskAddress: '', // Placeholder
+      targetBlock: Number(rawCharacter.activeAbility.targetBlock || 0)
+    },
+    weaponName: rawCharacter.weapon?.name || '',
+    armorName: rawCharacter.armor?.name || '',
+    isDead: rawCharacter.tracker?.died || false
+  };
+}
+// --- END NEW MAPPER ---
