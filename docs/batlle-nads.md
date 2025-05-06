@@ -187,7 +187,7 @@ These functions modify the contract state and are typically called to perform ga
     *   **Modifier:** `GasAbstracted`.
     *   **Reverts:** Ability on cooldown, invalid target (missing for offensive, present for non-target), ability index invalid for class, character is monster.
 
-*   `sepukku(bytes32 characterID) external payable`
+*   `ascend(bytes32 characterID) external payable`
     *   **Purpose:** Permanently deletes the character. Cleans up state, transfers inventory balance (shMON) to owner's bonded balance.
     *   **Caller:** Active Session Key.
     *   **Parameters:** `characterID` (`bytes32`).
