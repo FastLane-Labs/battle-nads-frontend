@@ -13,7 +13,7 @@ export const metadata: Metadata = {
     siteName: 'BattleNads',
     images: [
       {
-        url: '/og/battlenads-og-image.png', 
+        url: 'https://battlenads.com/og/battlenads-og-image.png', 
         width: 1200,
         height: 630,
         alt: 'BattleNads Game Preview',
@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'BattleNads | Web3 RPG on Monad',
     description: 'A web3 RPG where you create characters, explore an rpg world, battle other players and monsters, and manage equipment - all on the Monad blockchain.',
-    images: ['/og/battlenads-og-image.png'],
+    images: ['https://battlenads.com/og/battlenads-og-image.png'],
     creator: '@0xFastLaneLabs',
   },
   authors: [{ name: 'FastLane Labs' }],
