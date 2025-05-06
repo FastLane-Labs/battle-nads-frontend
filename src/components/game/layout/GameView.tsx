@@ -107,6 +107,7 @@ const GameView: React.FC<GameViewProps> = ({
               <AbilityControls 
                 characterId={character?.id ?? null} 
                 selectedTargetIndex={selectedTargetIndex}
+                isInCombat={isInCombat}
               />
             </Box>
           </Box>

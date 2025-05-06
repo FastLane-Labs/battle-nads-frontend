@@ -17,7 +17,8 @@ import { domain } from '@/types';
 interface AbilityButtonProps {
   status: AbilityStatus;
   onClick: () => void;
-  isLoading: boolean;
+  isMutationLoading: boolean;
+  isActionDisabled: boolean;
 }
 
 // Function to get a simple icon or text for each ability
@@ -51,11 +52,13 @@ const ABILITY_COOLDOWN_DURATIONS: { [key in domain.Ability]?: number } = {
   [domain.Ability.DoDance]: 22,
 };
 
-export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, isLoading }) => {
+export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, isMutationLoading, isActionDisabled }) => {
   const isCoolingDown = !status.isReady && status.stage === AbilityStage.COOLDOWN && status.secondsLeft > 0;
   const isCharging = !status.isReady && status.stage === AbilityStage.CHARGING && status.secondsLeft > 0;
   const isActive = !status.isReady && status.stage === AbilityStage.ACTION;
-  const isDisabled = !status.isReady || isLoading;
+
+  // Overall disabled state: action disabled OR mutation is loading
+  const isDisabled = isActionDisabled || isMutationLoading;
 
   // Calculate cooldown progress percentage (0-100)
   const totalCooldownDuration = ABILITY_COOLDOWN_DURATIONS[status.ability] || 60; // Use mapped duration or fallback
@@ -63,13 +66,21 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
     ? ((totalCooldownDuration - status.secondsLeft) / totalCooldownDuration) * 100
     : 0;
 
+  // Tooltip message refinement
+  let tooltipLabel = status.description;
+  if (isActionDisabled && !status.isReady) {
+      // Already handled by status.description potentially
+  } else if (isActionDisabled && status.isReady) {
+      tooltipLabel = `${domain.Ability[status.ability].replace(/([A-Z])/g, ' $1').trim()} (Cannot use outside combat)`;
+  }
+
   return (
-    <Tooltip label={status.description} placement="top" hasArrow>
+    <Tooltip label={tooltipLabel} placement="top" hasArrow>
       <Box position="relative" display="inline-block">
         <Button
           onClick={onClick}
           isDisabled={isDisabled}
-          isLoading={isLoading}
+          isLoading={isMutationLoading}
           size="md"
           minWidth="60px" // Ensure minimum width
           height="60px" // Ensure square shape
@@ -97,53 +108,69 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
               left="0"
               width="100%"
               height="100%"
+              bg="rgba(0, 0, 0, 0.6)" // Dark overlay
               display="flex"
               alignItems="center"
               justifyContent="center"
               zIndex={1}
-              // Add a subtle background overlay to dim the icon
-              bg={isDisabled ? "rgba(0, 0, 0, 0.5)" : "transparent"}
-              borderRadius="md" // Match button border radius
             >
               <CircularProgress
-                value={Math.min(100, Math.max(0, progress))} // Clamp progress value
-                size="100%" // Fill the button
-                thickness="6px" // Adjust thickness
-                color={isCharging ? 'yellow.400' : 'blue.400'}
-                trackColor="transparent" // Make track invisible
-                capIsRound // Nicer edges
+                value={progress}
+                size="50px"
+                thickness="6px"
+                color="teal.300"
+                trackColor="transparent"
               >
-                <CircularProgressLabel 
-                  fontSize="sm" 
-                  fontWeight="bold" 
-                  color="white"
-                  style={{ textShadow: '1px 1px 2px black' }} // Improve readability
-                >
-                  {status.secondsLeft.toFixed(1)}s
+                <CircularProgressLabel fontSize="xs" color="white">
+                  {status.secondsLeft.toFixed(0)}s
                 </CircularProgressLabel>
               </CircularProgress>
             </Box>
           )}
-        </Button>
 
-        {/* Gas Shortfall Warning */}
-        {status.gasShortfall && (
-          <Badge 
-            position="absolute" 
-            top="-5px" 
-            right="-5px" 
-            colorScheme="red" 
-            borderRadius="full" 
-            zIndex={2} 
-            p={0} 
-            boxSize="18px" // Make badge smaller
-            display="flex" 
-            alignItems="center" 
-            justifyContent="center"
-          >
-            <Icon as={WarningIcon} color="white" boxSize="10px" />
-          </Badge>
-        )}
+          {/* Gas Shortfall Indicator */}
+          {status.gasShortfall && !status.isReady && (
+             <Badge
+                position="absolute"
+                top="-1"
+                right="-1"
+                colorScheme="orange"
+                variant="solid"
+                borderRadius="full"
+                p={0}
+                zIndex={2}
+                boxSize="18px"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+              >
+               <Tooltip label="Cooldown paused - Gas needed" placement="top">
+                  <WarningIcon color="white" boxSize="10px" />
+                </Tooltip>
+             </Badge>
+          )}
+          {/* Out of Combat Indicator (if ability is ready but combat required) */}
+          {isActionDisabled && status.isReady && !isMutationLoading && (
+             <Badge
+                position="absolute"
+                bottom="-1"
+                right="-1"
+                colorScheme="gray"
+                variant="solid"
+                borderRadius="full"
+                p={0}
+                zIndex={2}
+                boxSize="18px"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+              >
+               <Tooltip label="Combat required" placement="top">
+                  <Text fontSize="xs" fontWeight="bold">⚔</Text> {/* Simple combat icon */}
+               </Tooltip>
+             </Badge>
+          )}
+        </Button>
       </Box>
     </Tooltip>
   );
