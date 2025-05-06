@@ -2,75 +2,81 @@
 
 ## Project Architecture Overview
 
-This document records significant architectural decisions and structural changes.
-
-```
-/src
-├── app                         # Next.js app directory
-│   ├── (auth)                   # Auth-related pages grouped
-│   │   └── login/page.tsx       # Login page
-│   ├── (game)                   # Game-related pages
-│   │   ├── dashboard/page.tsx   # Player dashboard
-│   │   ├── character/page.tsx   # Character details
-│   │   ├── create/page.tsx      # Character creation
-│   │   └── game/page.tsx        # Main game interface
-│   ├── layout.tsx               # Root layout
-│   ├── page.tsx                 # Home page
-│   └── theme.ts                 # Chakra UI theme
-├── blockchain                  # Chain–specific plumbing
-│   ├── adapters/…              # ↔ on-chain ABI bridges
-│   └── clients/…               # Facade with "read / owner / session" adapters
-├── components
-│   ├── auth
-│   │   └── Login.tsx            # Auth component
-│   ├── characters
-│   │   ├── Character.tsx        # Character details
-│   │   └── CharacterCreation.tsx # Character creation form
-│   ├── common
-│   │   ├── NavBar.tsx           # Navigation bar
-│   │   ├── CharacterCard.tsx    # Character stats display
-│   │   ├── CharacterList.tsx    # Character selection
-│   │   ├── WalletBalances.tsx   # Wallet balance display
-│   │   └── DebugPanel.tsx       # Developer debug tools
-│   ├── game
-│   │   ├── board
-│   │   │   └── GameBoard.tsx    # Game grid display
-│   │   ├── ui
-│   │   │   ├── ChatInterface.tsx # In-game chat
-│   │   │   ├── ControlPanel.tsx  # Game controls
-│   │   │   ├── EventFeed.tsx     # Game events
-│   │   │   └── DataFeed.tsx      # Combined events and chat
-│   │   └── controls
-│   │       └── MovementControls.tsx # Movement UI
-├── hooks
-│   ├── contracts               # Wallet-aware client hook
-│   │   └── useBattleNadsClient.ts
-│   ├── game                    # Gameplay hooks (React-Query + XState helpers)
-│   │   ├── useCachedDataFeed.ts
-│   │   ├── useUiSnapshot.ts    # **single polling source of truth**
-│   │   ├── useBattleNads.ts    # Core game data and actions
-│   │   ├── useCharacter.ts     # Character management
-│   │   ├── useCombat.ts        # Combat interactions
-│   │   ├── useEquipment.ts     # Equipment handling
-│   │   ├── useChat.ts          # Chat functionality
-│   │   ├── useGame.ts          # High-level orchestration (wallet→key→play)
-│   │   └── useGameMachine.ts   # XState bridge
-│   ├── session                 # AA key hooks
-│   │   ├── useSessionKey.ts    # Session key management
-│   │   └── useSessionFunding.ts # Session funding functionality
-│   └── index.ts                # Barrel exports
-├── machines
-│   └── gameStateMachine.ts     # Wallet / character / key FSM
-├── mappers                     # Contract→Domain→UI transforms
-│   ├── contractToDomain.ts     # Transform contract data to domain
-│   ├── domainToUi.ts           # Transform domain to UI
-│   └── index.ts                # Barrel exports
-├── providers
-│   ├── AuthProvider.tsx         # Authentication
-│   ├── WalletProvider.tsx       # Wallet connections
-│   └── PrivyAuthProvider.tsx    # Privy Auth configuration
-├── types                       # contract / domain / ui namespaces
-└── utils                       # misc helpers
+```text
+/src/app                     # Next.js App Router directory
+├── globals.css              # Global CSS styles
+├── layout.tsx               # Root layout component
+├── metadata.ts              # Page metadata configuration
+├── favicon.ico              # Favicon
+├── theme.ts                 # Chakra UI theme
+├── ErrorBoundary.tsx        # Global error boundary
+├── page.tsx                 # Home page
+├── character                # Character details page
+│   └── page.tsx
+├── create                   # Character creation page
+│   └── page.tsx
+├── dashboard                # Player dashboard page
+│   └── page.tsx
+└── game                     # Main game interface page
+    └── page.tsx
+/src/blockchain              # Chain-specific plumbing
+├── adapters/…               # On-chain ABI bridges
+└── clients/…                # Facade with 'read', 'owner', 'session' adapters
+/src/components              # Reusable UI components
+├── AppInitializer.tsx       # Top-level app initialization and routing
+├── DebugPanel.tsx           # Developer debug tools
+├── NavBar.tsx               # Navigation bar
+├── WalletBalances.tsx       # Wallet balance display
+├── auth
+│   └── Login.tsx            # Authentication component
+├── characters
+│   ├── Character.tsx        # Character detail component
+│   ├── CharacterCreation.tsx# Character creation form
+│   ├── CharacterList.tsx    # Character selection component
+│   └── CharacterCard.tsx    # Character summary card
+└── game                     # Game-related UI components
+    ├── GameContainer.tsx    # Container for active game UI
+    ├── board                # Game board display
+    │   ├── CharacterInfo.tsx
+    │   └── Minimap.tsx
+    ├── controls             # Movement and combat controls
+    │   └── MovementControls.tsx
+    ├── feed                 # Event and chat feed
+    │   ├── ChatPanel.tsx
+    │   ├── EventFeed.tsx
+    │   └── EventLogItemRenderer.tsx
+    ├── indicators           # Game status indicators
+    ├── layout               # Game layout components
+    └── equipment            # Equipment management UI
+/src/hooks                    # Core data and game hooks
+├── contracts
+│   └── useBattleNadsClient.ts
+├── game                      # Gameplay hooks (React Query, XState)
+│   ├── useAbilityCooldowns.ts
+│   ├── useBattleNads.ts
+│   ├── useCachedDataFeed.ts
+│   ├── useEquipment.ts
+│   ├── useGame.ts
+│   └── useUiSnapshot.ts
+├── session                   # Account abstraction key hooks
+│   ├── useSessionKey.ts
+│   └── useSessionFunding.ts
+├── useGameMachine.ts         # XState bridge for game flow state
+├── useWalletBalances.ts      # Wallet balance management hook
+├── utils.ts                  # Miscellaneous hook utilities
+└── index.ts                  # Barrel exports
+/src/machines                 # XState finite state machine definitions
+└── gameStateMachine.ts
+/src/mappers                  # Data transformation layers
+├── contractToDomain.ts
+├── domainToUi.ts
+└── index.ts
+/src/providers                # Context and provider components
+├── AuthProvider.tsx
+├── WalletProvider.tsx
+└── PrivyAuthProvider.tsx
+/src/types                    # TypeScript type definitions and namespaces
+/src/utils                    # Miscellaneous utility functions
 ```
 
 ## Core Technologies
@@ -109,6 +115,25 @@ This document records significant architectural decisions and structural changes
 
 ### Core Hooks
 
+#### `useAbilityCooldowns`
+- **Purpose**: Manage character ability cooldowns and execution.
+- **Responsibilities**:
+  - Tracks ability status (ready, charging, active, cooldown)
+  - Calculates remaining cooldown time based on current and target blocks
+  - Provides ability-use functionality with proper validation
+  - Handles success/failure notifications for ability activation
+  - Maintains character-class-specific ability lists
+  - Shows gas shortfall warnings when abilities appear stuck
+
+#### `useBattleNads`
+- **Purpose**: Maps raw snapshot data to UI-friendly game state.
+- **Responsibilities**:
+  - Consumes the cached data from `useUiSnapshot`.
+  - Maps the `contract.PollFrontendDataReturn` structure through `contractToDomain` and `domainToUi` mappers.
+  - Provides the final `ui.GameState` object.
+  - Handles loading/error states from the underlying query.
+  - Preserves the last valid state during refetches to prevent UI flickering.
+
 #### `useBattleNadsClient`
 - **Purpose**: Client facade with adapters for different access levels
 - **Responsibilities**:
@@ -128,14 +153,15 @@ This document records significant architectural decisions and structural changes
   - Purges expired blocks from the cache.
   - Provides the cached blocks and the latest block number covered by the cache to `useUiSnapshot`.
 
-#### `useUiSnapshot`
-- **Purpose**: Central polling mechanism for live game state data, integrating cached historical data.
+#### `useEquipment`
+- **Purpose**: Handle character equipment changes and item management.
 - **Responsibilities**:
-  - Primary interaction point with `client.getUiSnapshot()` for live data.
-  - Uses `useCachedDataFeed` to determine the `startBlock` for polling, enabling incremental fetches.
-  - Receives raw data from the client (currently array-based, mapped internally to an object structure - *potential fragility*).
-  - Merges live `DataFeed` results with historical data from `useCachedDataFeed`.
-  - Caches the combined, mapped response via TanStack Query tagged by [`'uiSnapshot'`, owner].
+  - Provides functions to equip weapons and armor
+  - Tracks available equipment for the character
+  - Enforces equipment rules (e.g., no changes during combat)
+  - Shows current equipped items and available alternatives
+  - Handles blockchain transaction processing for equipment changes
+  - Provides name resolution for equipment IDs
 
 #### `useGame`
 - **Purpose**: Game initialization and orchestration
@@ -148,22 +174,16 @@ This document records significant architectural decisions and structural changes
   - Surfaces flags (isReady, needsSessionKeyUpdate, etc.)
   - Wraps movement/chat/attack mutations
 
-#### `useBattleNads`
-- **Purpose**: Maps raw snapshot data to UI-friendly game state.
+#### `useGameMachine`
+- **Purpose**: XState bridge for pre-game flow state management
 - **Responsibilities**:
-  - Consumes the cached data from `useUiSnapshot`.
-  - Maps the `contract.PollFrontendDataReturn` structure through `contractToDomain` and `domainToUi` mappers.
-  - Provides the final `ui.GameState` object.
-  - Handles loading/error states from the underlying query.
-  - Preserves the last valid state during refetches to prevent UI flickering.
-
-#### `useSessionKey`
-- **Purpose**: Account Abstraction key management and validation.
-- **Responsibilities**:
-  - **Currently fetches `sessionKeyData` and `currentBlock` independently via separate client calls.** (*Note: This is redundant; data is available in `useUiSnapshot` cache*).
-  - Uses `sessionKeyMachine` and fetched data to determine the validation state (`VALID`, `EXPIRED`, `MISMATCH`, `MISSING`).
-  - Provides the session key state and a `needsUpdate` flag.
-  - Manages React Query caching for its independent fetches.
+  - Wires XState to React components
+  - Manages wallet connection verification
+  - Checks for character existence from local storage
+  - Verifies session key status using client validation
+  - Handles character creation flow
+  - Provides session key update functionality with funding
+  - Manages error states and recovery paths
 
 #### `useSessionFunding`
 - **Purpose**: Handles funding actions for the session key.
@@ -173,19 +193,32 @@ This document records significant architectural decisions and structural changes
   - Updates session keys
   - Abstracts blockchain complexity
 
-#### `useGameMachine`
-- **Purpose**: XState bridge for game state management
+#### `useSessionKey`
+- **Purpose**: Account Abstraction key management and validation.
 - **Responsibilities**:
-  - Wires XState to React components
-  - Provides state transitions and guards
-  - Manages game flow based on wallet, character, and session key state
+  - **Currently fetches `sessionKeyData` and `currentBlock` independently via separate client calls.** (*Note: This is redundant; data is available in `useUiSnapshot` cache*).
+  - Uses `sessionKeyMachine` and fetched data to determine the validation state (`VALID`, `EXPIRED`, `MISMATCH`, `MISSING`).
+  - Provides the session key state and a `needsUpdate` flag.
+  - Manages React Query caching for its independent fetches.
+
+#### `useUiSnapshot`
+- **Purpose**: Central polling mechanism for live game state data, integrating cached historical data.
+- **Responsibilities**:
+  - Primary interaction point with `client.getUiSnapshot()` for live data.
+  - Uses `useCachedDataFeed` to determine the `startBlock` for polling, enabling incremental fetches.
+  - Receives raw data from the client (currently array-based, mapped internally to an object structure - *potential fragility*).
+  - Merges live `DataFeed` results with historical data from `useCachedDataFeed`.
+  - Caches the combined, mapped response via TanStack Query tagged by [`'uiSnapshot'`, owner].
 
 #### `useWalletBalances`
 - **Purpose**: Fetch and manage wallet balance information
 - **Responsibilities**:
-  - Fetches owner, session key, and bonded balances
-  - Calculates balance shortfall for replenishment warnings
-  - Provides data for the `WalletBalances` component
+  - Fetches owner wallet balance via direct RPC provider
+  - Extracts session key and bonded balance from game state
+  - Calculates balance shortfall from session key data
+  - Formats balances for display
+  - Determines if balance is below threshold for warnings
+  - Refreshes balances at configured intervals
 
 ### UI Components
 
@@ -315,16 +348,62 @@ This document records significant architectural decisions and structural changes
 
 ## Data Flow
 
-1. Authentication Flow:
-   - `PrivyAuthProvider` → `WalletProvider` → `useGame` → UI Components
+1. **Authentication Flow**:
+   - `PrivyAuthProvider` → `WalletProvider` → `useGameMachine` → `AppInitializer` → UI Components
+   - Wallet connections are managed through Privy's integration, with persistent reconnection handling
+   - Session validation uses XState via gameStateMachine to coordinate wallet, character, and session key statuses
 
-2. Game Data Flow:
-   - Historical Logs: `localforage` → `useCachedDataFeed`
-   - Live Data: Smart Contract → `useBattleNadsClient` → `useUiSnapshot` (informed by `useCachedDataFeed`) → React-Query Cache (`['uiSnapshot', owner]`) → `useBattleNads` (mapping) → `useGame` (orchestration) → UI Components
-   - Session Key Validation: Smart Contract → `useBattleNadsClient` → `useSessionKey` → `useGame` → UI Components (*Note: Independent fetch path*)
+2. **Game Data Flow**:
+   - **Historical Logs**: 
+     - Dexie IndexedDB (`src/lib/db.ts`) ← → `useCachedDataFeed` 
+     - Cached blocks include events and chat logs with timestamps
+     - Cached data has TTL-based expiry with automatic purging
+   
+   - **Live Game State**:
+     - Smart Contract → `useBattleNadsClient` → `useUiSnapshot` → React-Query Cache (`['uiSnapshot', owner]`) 
+     - `useUiSnapshot` decides fetch parameters based on `lastBlock` from previous query
+     - Newly fetched data feeds asynchronously stored to Dexie via `storeFeedData`
+     - `useBattleNads` transforms contract data → domain model → UI model
+     - Specialized hooks consume data from `useBattleNads`:
+       - `useEquipment` for available items and equipment changes
+       - `useAbilityCooldowns` for character abilities and cooldown management
+       - `useGame` for general game orchestration
+     - UI Components receive transformed data and action handlers
+   
+   - **Session Key Management**:
+     - Smart Contract → `useBattleNadsClient` → `useSessionKey` → `useGameMachine` → Game Ready State
+     - `useSessionFunding` provides MON balance replenishment
+     - `useWalletBalances` tracks balances across owner and session keys with periodic refreshes
 
-3. Action Flow:
-   - UI Components → Gameplay Hooks → `useBattleNadsClient` → Smart Contract → Invalidate Cache ['uiSnapshot', owner]
+3. **Action Flow**:
+   - **Movement Actions**:
+     - UI Components → `useGame.moveCharacter` → `useBattleNadsClient.move` → Smart Contract 
+     - Cache invalidation: `['uiSnapshot', owner]`
+   
+   - **Combat Actions**:
+     - UI Components → `useGame.attack` → `useBattleNadsClient.attack` → Smart Contract
+     - Cache invalidation: `['uiSnapshot', owner]`
+   
+   - **Ability Usage**:
+     - UI Components → `useAbilityCooldowns.useAbility` → `useBattleNadsClient.useAbility` → Smart Contract
+     - Cache invalidation: `['uiSnapshot', owner]`
+   
+   - **Equipment Changes**:
+     - UI Components → `useEquipment.equipWeapon/equipArmor` → `useBattleNadsClient.equipWeapon/equipArmor` → Smart Contract
+     - Cache invalidation: `['uiSnapshot', owner]`
+   
+   - **Chat Messages**:
+     - UI Components → `useGame.sendChatMessage` → `useBattleNadsClient.sendChatMessage` → Smart Contract
+     - Cache invalidation: `['uiSnapshot', owner]`
+
+4. **Wallet & Session Flow**:
+   - **Session Key Updates**:
+     - UI → `useGameMachine.updateSessionKey` → Generate new key → `useBattleNadsClient.updateSessionKey` → Smart Contract
+     - Calculates expiration blocks based on current block + `MAX_SESSION_KEY_VALIDITY_BLOCKS`
+   
+   - **Balance Management**:
+     - UI → `useSessionFunding.fundSessionKey` → `useBattleNadsClient` → Smart Contract
+     - `useWalletBalances` detects low balance conditions and formats for display
 
 ## State Management
 
