@@ -21,8 +21,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  
   const parentRef = useRef<HTMLDivElement>(null);
   
   const rowVirtualizer = useVirtualizer({ 
@@ -32,17 +30,14 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
     overscan: 5,
   });
 
+  // scroll to the bottom when new messages are added
   useEffect(() => {
-    if (!isCacheLoading) {
-       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    console.log('ChatPanel: chatLogs.length', chatLogs.length);
+    console.log('ChatPanel: isCacheLoading', isCacheLoading);
+    if (chatLogs.length > 0 ||  !isCacheLoading) {
+      rowVirtualizer.scrollToIndex(chatLogs.length - 1, { align: 'start' });
     }
-  }, [chatLogs, isCacheLoading]);
-  
-  useEffect(() => {
-    if (chatLogs.length > 0) {
-      rowVirtualizer.scrollToIndex(chatLogs.length - 1, { align: 'end' });
-    }
-  }, [chatLogs.length, rowVirtualizer]);
+  }, [chatLogs.length, rowVirtualizer, isCacheLoading]);
   
   const handleSendMessage = async () => {
     const messageToSend = inputValue.trim();
@@ -84,45 +79,42 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             <Spinner size="xl" color="blue.500" />
           </Center>
         ) : (
-          <>
-            <Box height={`${rowVirtualizer.getTotalSize()}px`} width="100%" position="relative">
-              {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                const chat = chatLogs[virtualRow.index];
-                if (!chat) return null;
-                
-                const isPlayerMessage = characterId !== null && chat.sender.id === characterId;
-                const senderDisplayName = isPlayerMessage ? "You" : chat.sender.name;
+          <Box height={`${rowVirtualizer.getTotalSize()}px`} width="100%" position="relative">
+            {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+              const chat = chatLogs[virtualRow.index];
+              if (!chat) return null;
+              
+              const isPlayerMessage = characterId !== null && chat.sender.id === characterId;
+              const senderDisplayName = isPlayerMessage ? "You" : chat.sender.name;
 
-                if (!isPlayerMessage && chat.sender.name?.includes('NotMe')) {
-                    console.log(`[ChatPanel] POTENTIAL MISMATCH: characterId=${characterId}, sender.id=${chat.sender.id}, sender.index=${chat.sender.index}, sender.name=${chat.sender.name}`);
-                }
+              if (!isPlayerMessage && chat.sender.name?.includes('NotMe')) {
+                  console.log(`[ChatPanel] POTENTIAL MISMATCH: characterId=${characterId}, sender.id=${chat.sender.id}, sender.index=${chat.sender.index}, sender.name=${chat.sender.name}`);
+              }
 
-                return (
-                  <Box
-                    key={`${chat.timestamp}-${chat.logIndex}-${virtualRow.index}`}
-                    position="absolute"
-                    top={0}
-                    left={0}
-                    width="100%"
-                    height={`${virtualRow.size}px`}
-                    transform={`translateY(${virtualRow.start}px)`}
-                    p={1}
-                  >
-                    <Box bg="gray.700" p={2} borderRadius="md" fontSize="sm">
-                      <Text as="span" fontWeight="bold" color={isPlayerMessage ? "blue.300" : "yellow.300"}>
-                        {senderDisplayName}
-                      </Text>
-                      <Text as="span" fontSize="xs" color="gray.400" ml={2}>
-                        {new Date(chat.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </Text>
-                      <Text mt={1}>{chat.message}</Text>
-                    </Box>
+              return (
+                <Box
+                  key={`${chat.timestamp}-${chat.logIndex}-${virtualRow.index}`}
+                  position="absolute"
+                  top={0}
+                  left={0}
+                  width="100%"
+                  height={`${virtualRow.size}px`}
+                  transform={`translateY(${virtualRow.start}px)`}
+                  p={1}
+                >
+                  <Box bg="gray.700" p={2} borderRadius="md" fontSize="sm">
+                    <Text as="span" fontWeight="bold" color={isPlayerMessage ? "blue.300" : "yellow.300"}>
+                      {senderDisplayName}
+                    </Text>
+                    <Text as="span" fontSize="xs" color="gray.400" ml={2}>
+                      {new Date(chat.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </Text>
+                    <Text mt={1}>{chat.message}</Text>
                   </Box>
-                );
-              })}
-            </Box>
-            <div ref={messagesEndRef} />
-          </>
+                </Box>
+              );
+            })}
+          </Box>
         )}
       </Box>
       
