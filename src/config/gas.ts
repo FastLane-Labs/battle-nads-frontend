@@ -7,3 +7,4 @@ export const GAS_LIMITS = {
 };
 // Average block time in seconds (for cooldown estimation)
 export const AVG_BLOCK_TIME = 2; 
+export const AVG_BLOCK_TIME_MS = AVG_BLOCK_TIME * 1000; 

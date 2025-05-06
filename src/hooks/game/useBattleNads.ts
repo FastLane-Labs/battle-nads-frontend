@@ -3,6 +3,7 @@ import { domain } from '@/types';
 import { useUiSnapshot } from './useUiSnapshot';
 import { contractToWorldSnapshot, mapCharacterLite, processChatFeedsToDomain, mapCharacterToCharacterLite } from '@/mappers';
 import { useCachedDataFeed, SerializedChatLog, CachedDataBlock, SerializedEventLog, storeFeedData } from './useCachedDataFeed';
+import { AVG_BLOCK_TIME_MS } from '@/config/gas';
 
 /**
  * Hook for managing game state and data
@@ -376,7 +377,6 @@ export const useBattleNads = (owner: string | null) => {
 // Helper function for timestamp estimation
 function estimateBlockTimestamp(referenceBlockNumber: bigint, referenceTimestamp: number, lookupBlockNumber: bigint): number {
     const blockDifference = Number(referenceBlockNumber - lookupBlockNumber);
-    const AVG_BLOCK_TIME_MS = 12 * 1000; // TODO: Centralize config
     const timeDifference = blockDifference * AVG_BLOCK_TIME_MS;
     return referenceTimestamp - timeDifference;
 } 
