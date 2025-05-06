@@ -16,12 +16,9 @@ export const useBattleNads = (owner: string | null) => {
     error: snapshotError, 
   } = useUiSnapshot(owner);
 
-  /* ---------- Hook for historical cached feed data ---------- */
   const { historicalBlocks, isHistoryLoading: isCacheHistoryLoading } = useCachedDataFeed(owner);
 
-  /* ---------- Optimistic Chat State ---------- */
   const [optimisticChatMessages, setOptimisticChatMessages] = useState<domain.ChatMessage[]>([]);
-  /* ---------- State for Confirmed Logs found during runtime ---------- */
   const [runtimeConfirmedLogs, setRuntimeConfirmedLogs] = useState<domain.ChatMessage[]>([]);
   const [runtimeEventLogs, setRuntimeEventLogs] = useState<domain.EventMessage[]>([]);
 
@@ -33,7 +30,6 @@ export const useBattleNads = (owner: string | null) => {
   const endBlock = useMemo(() => rawData?.endBlock, [rawData]);
   const balanceShortfall = useMemo(() => rawData?.balanceShortfall, [rawData]);
 
-  // --- Character Lookup Map ---
   const characterLookup = useMemo<Map<number, domain.CharacterLite>>(() => {
     const map = new Map<number, domain.CharacterLite>();
     if (rawData) {
@@ -57,15 +53,13 @@ export const useBattleNads = (owner: string | null) => {
       return; 
     }
 
-    // --- Process CHAT logs from current rawData --- 
     const newlyConfirmedChatLogs = processChatFeedsToDomain(
       rawData.dataFeeds,
       characterLookup, 
       BigInt(rawData.endBlock || 0),
       rawData.fetchTimestamp
     );
-
-    // --- Process EVENT logs from current rawData with VALIDATION --- 
+ 
     const newlyConfirmedEventLogs: domain.EventMessage[] = [];
     (rawData.dataFeeds || []).forEach((feed, feedIndex) => {
         // Validate feed structure
@@ -93,8 +87,8 @@ export const useBattleNads = (owner: string | null) => {
             
             // Construct the valid event
             const event: domain.EventMessage = {
-                logIndex: logIndexNum, // Use validated number
-                blocknumber: blockNumberBigInt, // Use validated BigInt
+                logIndex: logIndexNum,
+                blocknumber: blockNumberBigInt,
                 timestamp: estimatedTimestamp,
                 type: log.logType as domain.LogType,
                 attacker: attackerInfo ? { id: attackerInfo.id, name: attackerInfo.name, index: Number(log.mainPlayerIndex) } : undefined,
@@ -111,7 +105,7 @@ export const useBattleNads = (owner: string | null) => {
                     experience: log.experience,
                     value: BigInt(log.value || 0)
                 },
-                displayMessage: '' 
+                displayMessage: ''
             };
             newlyConfirmedEventLogs.push(event);
         });
@@ -141,12 +135,6 @@ export const useBattleNads = (owner: string | null) => {
                   .map(event => `conf-${block.blockNumber}-${event.index}`) // Use blockNumber and event index
           )
       );
-      // Alternative/Safer: If historicalBlocks.chats is reliable:
-      // const historicalLogKeys = new Set(
-      //     historicalBlocks.flatMap(block => 
-      //         (block.chats || []).map(chat => `conf-${block.blockNumber}-${chat.logIndex}`) // Assuming historical chats have a valid logIndex
-      //     )
-      // );
 
       setRuntimeConfirmedLogs(prevConfirmed => {
         const chatMap = new Map(prevConfirmed.map(log => [`conf-${log.blocknumber}-${log.logIndex}`, log]));
@@ -155,9 +143,6 @@ export const useBattleNads = (owner: string | null) => {
           // Only add to runtime state if it wasn't loaded from history
           if (!historicalLogKeys.has(key)) { 
             chatMap.set(key, log);
-          } else {
-            // Optional: Log if skipping due to history
-            // console.log(`[useBattleNads EFFECT] Skipping runtime add for historical chat: ${key}`);
           }
         });
         return Array.from(chatMap.values());
@@ -185,9 +170,6 @@ export const useBattleNads = (owner: string | null) => {
               const key = `conf-${log.blocknumber}-${log.logIndex}`;
               if (!historicalEventLogKeys.has(key)) {
                 eventMap.set(key, log);
-              } else {
-                 // Optional: Log if skipping due to history
-                 // console.log(`[useBattleNads EFFECT] Skipping runtime add for historical event: ${key}`);
               }
           });
           const newState = Array.from(eventMap.values());
@@ -214,8 +196,7 @@ export const useBattleNads = (owner: string | null) => {
             nonCombatantsContextForStorage,
             BigInt(rawData.endBlock || 0),
             rawData.fetchTimestamp 
-        )
-            .catch((err: Error) => console.error("[useBattleNads] Failed to store new feeds in background:", err.message));
+        ).catch((err: Error) => console.error("[useBattleNads] Failed to store new feeds in background:", err.message));
     }
 
   }, [rawData, owner, optimisticChatMessages, characterLookup]);
