@@ -24,7 +24,7 @@ Based on the conversation logs, I've updated the roadmap to reflect the current 
 | # | Feature Group                   | Impact                               | Key User Story                                                                 |
 |:--|:--------------------------------|:-------------------------------------|:-------------------------------------------------------------------------------|
 | A | Combat & Event Log Rendering    | 🔥 Critical—explains what just happened -> ✅ Implemented | "After I attack, I want to see hits, crits, XP gained, and loot messages."       |
-| B | Ability Use & Cooldown Indicators | 🔥 Core combat mechanic                | "I can pick an ability, see if it's on cooldown, and know when it's ready."    |
+| B | Ability Use & Cooldown Indicators | 🔥 Core combat mechanic -> ✅ COMPLETE | "I can pick an ability, see if it's on cooldown, and know when it's ready."    |
 | C | Session Key Management UI       | 🔥 Blocks every transaction -> ✅ Implemented | "I can create, view expiry/balance, and deactivate my session key."          |
 | D | Gas / shMON Funding Prompts     | 🔥 Prevents soft-locks                 | "If my balances are low, I'm warned and can top-up in-app."                   |
 | E | Async Feedback & Loading States | 🧭 Aligns expectations                 | "Whenever an action is pending (task queued), I see a spinner/progress badge." |
