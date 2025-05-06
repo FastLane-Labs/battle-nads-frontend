@@ -39,11 +39,11 @@ Based on the conversation logs, I've updated the roadmap to reflect the current 
 
 | # | Feature Group                        | Benefit                            | Notes                                                                       |
 |:--|:-------------------------------------|:-----------------------------------|:----------------------------------------------------------------------------|
-| H | Area View (Other Entities)           | Situational awareness & targeting  | "I can see nearby monsters/players with health bars & select a target."      |
+| H | Area View (Other Entities)           | Situational awareness & targeting  | "I can see nearby monsters/players with health bars & select a target."     |
 | I | Stat Allocation UI                   | Player progression                 | Spend level-up points; small contract write (`allocatePoints`).             |
-| J | Chat Functionality                   | Basic social interaction           | "I can send and receive messages in my current zone."                       |
-| K | Monster & Boss Visual Differentiation | Immersion & clarity                | Icons/colors for elites, bosses, dead entities.                            |
-| L | Task & Ability Timers                | Transparency                       | Real-time countdown (block→seconds). Builds on cooldown meta from MVP.        |
+| J | Chat Functionality (history)         | Basic social interaction           | "I can send and receive messages in my current zone."                       |
+| K | Monster & Boss Visual Differentiation| Immersion & clarity                | Icons/colors for elites, bosses, dead entities.                             |
+| L | Task & Ability Timers                | Transparency                       | Real-time countdown (block→seconds). Builds on cooldown meta from MVP.      |
 | M | Error Boundary & Typed Errors        | Stability                          | Central wrapper around game routes using existing custom errors.            |
 
 ---
