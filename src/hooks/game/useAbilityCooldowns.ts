@@ -60,14 +60,15 @@ export const useAbilityCooldowns = (characterId: string | null) => {
   }, [rawBalanceShortfall]);
 
   // Get ability details from character and class
+  const character = gameState?.character;
+  const characterClass = character?.class ?? domain.CharacterClass.Warrior;
+  const characterName = character?.name || 'Character';
+
   const abilities = useMemo(() => {
-    if (!gameState?.character) return [];
-    
-    const character = gameState.character;
-    const characterClass = character.class;
+    if (!character || typeof character.class === 'undefined') return [];
     
     // Get available abilities based on character class
-    const availableAbilities = getAbilitiesForClass(characterClass);
+    const availableAbilities = getAbilitiesForClass(character.class);
     
     // Map abilities to their status
     return availableAbilities.map(ability => {
@@ -115,12 +116,12 @@ export const useAbilityCooldowns = (characterId: string | null) => {
         currentBlock,
         secondsLeft,
         isReady,
-        description: getAbilityDescription(ability, stage),
+        description: getAbilityDescription(ability, stage, characterName),
         // Gas shortfall might prevent progression only if the ability is *supposed* to be cooling down/charging
         gasShortfall: hasGasShortfall && !isReady && stage !== AbilityStage.READY
       };
     });
-  }, [gameState?.character, currentBlock, hasGasShortfall]);
+  }, [gameState?.character, currentBlock, hasGasShortfall, characterName]);
 
   // Mutation for using an ability
   const abilityMutation = useMutation({
@@ -239,60 +240,23 @@ function getStageDescription(stage: AbilityStage): string {
 }
 
 /**
- * Get ability description based on ability type and stage
+ * Get ability description based on ability type, stage, and character name
  */
-function getAbilityDescription(ability: domain.Ability, stage: AbilityStage): string {
-  // Base description from Ability enum name (fallback)
-  let baseDescription = domain.Ability[ability] || 'Unknown Ability';
-  // Make it more readable
-  baseDescription = baseDescription.replace(/([A-Z])/g, ' $1').trim(); 
+function getAbilityDescription(ability: domain.Ability, stage: AbilityStage, characterName: string): string {
+  // Base ability name (more readable)
+  const abilityName = (domain.Ability[ability] || 'Unknown Ability').replace(/([A-Z])/g, ' $1').trim();
 
-  // Ability-specific descriptions (override fallback if needed)
-  switch (ability) {
-    case domain.Ability.ShieldBash:
-      baseDescription = 'Bash target with shield, dealing damage and stunning';
-      break;
-    case domain.Ability.ShieldWall:
-      baseDescription = 'Defensive stance reducing incoming damage';
-      break;
-    case domain.Ability.EvasiveManeuvers:
-      baseDescription = 'Dodge attacks with increased chance';
-      break;
-    case domain.Ability.ApplyPoison:
-      baseDescription = 'Apply poison to weapon, causing damage over time';
-      break;
-    case domain.Ability.Pray:
-      baseDescription = 'Pray for divine healing';
-      break;
-    case domain.Ability.Smite:
-      baseDescription = 'Channel divine energy to smite enemies';
-      break;
-    case domain.Ability.Fireball:
-      baseDescription = 'Cast a fireball at target';
-      break;
-    case domain.Ability.ChargeUp:
-      baseDescription = 'Charge magical energy for increased damage';
-      break;
-    case domain.Ability.SingSong:
-      baseDescription = 'Sing to boost morale or heal'; // Generic description
-      break;
-    case domain.Ability.DoDance:
-      baseDescription = 'Perform a distracting or inspiring dance'; // Generic description
-      break;
-    // No default needed as we use the enum name fallback
-  }
-  
-  // Add stage-specific suffix
-  let suffix = '';
+  // Stage-specific descriptions
   if (stage === AbilityStage.CHARGING) {
-    suffix = ' (Charging)';
+    return `${characterName} is charging ${abilityName}`;
   } else if (stage === AbilityStage.ACTION) {
-    suffix = ' (Active)';
+    return `${characterName} is using ${abilityName}`; // Or `${abilityName} (Active)` if preferred
   } else if (stage === AbilityStage.COOLDOWN) {
-    suffix = ' (Cooldown)';
+    return `${characterName} is recovering from ${abilityName}`; // Or `${abilityName} (Cooldown)`
   } else if (stage === AbilityStage.READY) {
-     suffix = ' (Ready)'; // Explicitly state ready
+     return `${abilityName} (Ready)`;
   }
-  
-  return baseDescription + suffix;
+
+  // Fallback for unknown stages
+  return `${abilityName} (${getStageDescription(stage)})`;
 } 

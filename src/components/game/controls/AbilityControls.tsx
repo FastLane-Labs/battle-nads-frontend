@@ -6,10 +6,11 @@ import { domain } from '@/types';
 
 interface AbilityControlsProps {
   characterId: string | null;
+  isInCombat: boolean;
   selectedTargetIndex?: number | null; // Optional: passed down if needed
 }
 
-export const AbilityControls: React.FC<AbilityControlsProps> = ({ characterId, selectedTargetIndex }) => {
+export const AbilityControls: React.FC<AbilityControlsProps> = ({ characterId, isInCombat, selectedTargetIndex }) => {
   const {
     abilities,
     useAbility,
@@ -46,7 +47,8 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({ characterId, s
     return <Spinner size="md" />; 
   }
 
-  if (hookError || abilityError) {
+  // Only show loading error if the initial query failed
+  if (hookError) { 
     return <Text color="red.500">Error loading abilities.</Text>;
   }
 
@@ -56,14 +58,19 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({ characterId, s
 
   return (
     <HStack spacing={4} align="center" justify="center" width="100%">
-      {abilities.map((status) => (
-        <AbilityButton
-          key={status.ability}
-          status={status}
-          onClick={() => handleAbilityClick(status.ability)}
-          isLoading={isUsingAbility} // Pass down mutation loading state
-        />
-      ))}
+      {abilities.map((status) => {
+        // Determine if the button action should be disabled
+        const isActionDisabled = !isInCombat || !status.isReady;
+        return (
+          <AbilityButton
+            key={status.ability}
+            status={status}
+            onClick={() => handleAbilityClick(status.ability)}
+            isMutationLoading={isUsingAbility && abilities.some(a => a.ability === status.ability)}
+            isActionDisabled={isActionDisabled}
+          />
+        );
+      })}
     </HStack>
   );
 };
