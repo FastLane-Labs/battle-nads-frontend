@@ -2,11 +2,11 @@ import { useMemo, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { domain } from '@/types';
 import { AbilityStage } from '@/types/domain/enums';
-import { AVG_BLOCK_TIME } from '@/config/gas';
 import { useBattleNads } from './useBattleNads';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '@/providers/WalletProvider';
 import { useToast } from '@chakra-ui/react';
+import { AVG_BLOCK_TIME } from '@/config/gas';
 
 export interface AbilityStatus {
   ability: domain.Ability;
