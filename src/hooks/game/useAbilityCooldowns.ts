@@ -6,16 +6,25 @@ import { useBattleNads } from './useBattleNads';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '@/providers/WalletProvider';
 import { useToast } from '@chakra-ui/react';
-import { AVG_BLOCK_TIME } from '@/config/gas';
+import { AVG_BLOCK_TIME_MS } from '@/config/gas';
+
+// Define the cooldown timeout period in blocks
+const ABILITY_TIMEOUT_BLOCKS = 200;
 
 export interface AbilityStatus {
   ability: domain.Ability;
   stage: AbilityStage;
-  targetBlock: number;
+  /** The block number when the ability's action/charge completes (from contract) */
+  targetBlock: number; 
+  /** The current latest block number from the snapshot */
   currentBlock: number;
+  /** Estimated seconds until the ability is ready again */
   secondsLeft: number;
+  /** Whether the ability can be used now */
   isReady: boolean;
+  /** User-friendly description of the ability and its current state */
   description: string;
+  /** Indicates if a gas shortfall might be preventing cooldown progression */
   gasShortfall: boolean;
 }
 
@@ -57,45 +66,59 @@ export const useAbilityCooldowns = (characterId: string | null) => {
     const character = gameState.character;
     const characterClass = character.class;
     
-    // Default ability status
-    const getDefaultStatus = (ability: domain.Ability): AbilityStatus => ({
-      ability,
-      stage: AbilityStage.READY,
-      targetBlock: 0,
-      currentBlock,
-      secondsLeft: 0,
-      isReady: true,
-      description: getAbilityDescription(ability, AbilityStage.READY),
-      gasShortfall: hasGasShortfall // Gas shortfall affects readiness implicitly if ability is not ready
-    });
-
     // Get available abilities based on character class
     const availableAbilities = getAbilitiesForClass(characterClass);
     
     // Map abilities to their status
     return availableAbilities.map(ability => {
-      // If this is the active ability for the character
-      if (character.ability.ability === ability) {
-        const stage = character.ability.stage as AbilityStage;
-        const targetBlock = character.ability.targetBlock;
-        const secondsLeft = stage === AbilityStage.READY ? 0 : Math.max(0, targetBlock - currentBlock) * AVG_BLOCK_TIME;
-        const isReady = stage === AbilityStage.READY || (stage > AbilityStage.READY && secondsLeft <= 0);
+      let stage = AbilityStage.READY;
+      let originalTargetBlock = 0;
+      let readyAgainBlock = 0;
+      let secondsLeft = 0;
+      let isReady = true;
+
+      // Check if this is the currently active ability on the character
+      if (character.ability.ability === ability && character.ability.stage !== AbilityStage.READY) {
+        stage = character.ability.stage as AbilityStage;
+        originalTargetBlock = character.ability.targetBlock;
+
+        // Determine when the ability will be ready based on its stage
+        if (stage === AbilityStage.CHARGING) {
+          // Ready when charging completes
+          readyAgainBlock = originalTargetBlock;
+        } else if (stage === AbilityStage.ACTION || stage === AbilityStage.COOLDOWN) {
+          // Ready after the 200 block timeout period post-targetBlock
+          readyAgainBlock = originalTargetBlock + ABILITY_TIMEOUT_BLOCKS;
+        }
         
-        return {
-          ability,
-          stage,
-          targetBlock,
-          currentBlock,
-          secondsLeft,
-          isReady,
-          description: getAbilityDescription(ability, stage),
-          // Gas shortfall is relevant only if the ability is *supposed* to be cooling down/charging but might be stuck
-          gasShortfall: hasGasShortfall && !isReady
-        };
+        // Calculate seconds left until ready
+        if (readyAgainBlock > 0) {
+           secondsLeft = Math.max(0, readyAgainBlock - currentBlock) * (AVG_BLOCK_TIME_MS / 1000);
+        }
+
+        // Determine readiness based on current block vs readyAgainBlock
+        isReady = currentBlock >= readyAgainBlock;
+
+      } else {
+        // If it's not the active ability, or the active ability is READY, it's ready.
+        stage = AbilityStage.READY;
+        originalTargetBlock = 0;
+        readyAgainBlock = 0;
+        secondsLeft = 0;
+        isReady = true;
       }
       
-      // For non-active abilities or if no ability is active, it's ready
-      return getDefaultStatus(ability);
+      return {
+        ability,
+        stage,
+        targetBlock: originalTargetBlock, // Keep original target block for reference
+        currentBlock,
+        secondsLeft,
+        isReady,
+        description: getAbilityDescription(ability, stage),
+        // Gas shortfall might prevent progression only if the ability is *supposed* to be cooling down/charging
+        gasShortfall: hasGasShortfall && !isReady && stage !== AbilityStage.READY
+      };
     });
   }, [gameState?.character, currentBlock, hasGasShortfall]);
 
@@ -141,14 +164,16 @@ export const useAbilityCooldowns = (characterId: string | null) => {
     
     if (!abilityStatus) {
        console.error(`[useAbilityCooldowns] Status not found for ability ${abilityIndex}`);
+       toast({ title: 'Error', description: `Could not find status for ability ${domain.Ability[abilityIndex]}.`, status: 'error' });
        return;
     }
 
-    if (!abilityStatus.isReady) {
+    // Use the calculated isReady flag
+    if (!abilityStatus.isReady) { 
       console.warn(`[useAbilityCooldowns] Ability ${abilityIndex} is not ready.`);
       toast({
         title: 'Ability Not Ready',
-        description: `This ability is currently ${getStageDescription(abilityStatus.stage)}. ${abilityStatus.secondsLeft.toFixed(1)}s remaining.`,
+        description: `This ability is currently ${getStageDescription(abilityStatus.stage)}. ${abilityStatus.secondsLeft.toFixed(0)}s remaining.`,
         status: 'warning',
         duration: 3000,
       });
@@ -157,7 +182,7 @@ export const useAbilityCooldowns = (characterId: string | null) => {
     
     // Execute the mutation
     abilityMutation.mutate({ abilityIndex, targetIndex });
-  }, [characterId, abilities, abilityMutation, toast, client, owner, queryClient]); // Added missing dependencies
+  }, [characterId, abilities, abilityMutation, toast]); // Removed client, owner, queryClient as they are stable refs from parent hooks or context
 
   return {
     abilities,
@@ -209,7 +234,7 @@ function getStageDescription(stage: AbilityStage): string {
     default:
       // Should not happen with valid stage numbers, but handle defensively
       console.warn(`[useAbilityCooldowns] Unknown ability stage: ${stage}`);
-      return 'unavailable';
+      return 'in an unknown state'; // More descriptive default
   }
 }
 
@@ -265,6 +290,8 @@ function getAbilityDescription(ability: domain.Ability, stage: AbilityStage): st
     suffix = ' (Active)';
   } else if (stage === AbilityStage.COOLDOWN) {
     suffix = ' (Cooldown)';
+  } else if (stage === AbilityStage.READY) {
+     suffix = ' (Ready)'; // Explicitly state ready
   }
   
   return baseDescription + suffix;
