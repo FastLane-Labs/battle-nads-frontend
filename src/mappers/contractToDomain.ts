@@ -246,7 +246,9 @@ export const processChatFeedsToDomain = (
             }
         });
     }
-    console.log(`[processChatFeedsToDomain] Processed ${allChatMessages.length} chat messages.`);
+    if (allChatMessages.length > 0) {
+        console.log(`[processChatFeedsToDomain] Processed ${allChatMessages.length} chat messages.`);
+    }
     // Sort by estimated timestamp, then log index
     allChatMessages.sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
     return allChatMessages;
