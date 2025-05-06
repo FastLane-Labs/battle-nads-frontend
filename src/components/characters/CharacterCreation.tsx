@@ -41,6 +41,7 @@ import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { domain } from '@/types';
 import { ethers } from 'ethers';
 import { formatEther } from 'ethers';
+import { MAX_SESSION_KEY_VALIDITY_BLOCKS } from '@/config/env';
 
 // --- Constants for Stat Allocation ---
 const MIN_STAT_VALUE = 3;
@@ -153,6 +154,30 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
     enabled: !!client, // Only fetch when client is ready
     staleTime: Infinity, // This value rarely changes
     refetchOnWindowFocus: false, // No need to refetch on focus
+  });
+  // -------------------------------------
+
+  // --- Fetch current block number for session key deadline ---
+  const { data: currentBlock, isLoading: isLoadingBlock } = useQuery({
+    queryKey: ['currentBlock'],
+    queryFn: async () => {
+      if (!client) return BigInt(0);
+      try {
+        const blockNumber = await client.getLatestBlockNumber();
+        console.log("[CharacterCreation] Current block number:", blockNumber);
+        return blockNumber;
+      } catch (err) {
+        console.error("[CharacterCreation] Error fetching current block:", err);
+        toast({
+          title: 'Block Fetch Error',
+          description: 'Could not retrieve current block number.',
+          status: 'error'
+        });
+        return BigInt(0);
+      }
+    },
+    enabled: !!client,
+    staleTime: 600000, // Refresh at most once per 10 minutes
   });
   // -------------------------------------
 
@@ -330,6 +355,22 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
     }
     // --------------------------------------------------
     
+    // --- Check if current block is loaded --- 
+    if (isLoadingBlock || !currentBlock) {
+        toast({ 
+            title: 'Error', 
+            description: 'Waiting for current block number.', 
+            status: 'warning' 
+        });
+        return;
+    }
+    // --------------------------------------------------
+    
+    // --- Calculate session key deadline ---
+    const sessionKeyDeadline = currentBlock + BigInt(MAX_SESSION_KEY_VALIDITY_BLOCKS);
+    console.log(`[CharacterCreation] Setting session key deadline: current(${currentBlock}) + validity(${MAX_SESSION_KEY_VALIDITY_BLOCKS}) = ${sessionKeyDeadline}`);
+    // ---------------------------------
+    
     // --- Calculate value with buffer ---
     const valueWithBuffer = buyInAmount + (buyInAmount / BigInt(10)); // Add 10% buffer
     // ---------------------------------
@@ -343,9 +384,13 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
       sturdiness: BigInt(sturdiness),
       luck: BigInt(luck),
       sessionKey: embeddedWallet.address,
-      sessionKeyDeadline: BigInt(0), // Keep BigInt version for clarity
+      sessionKeyDeadline, // Use calculated deadline
       value: valueWithBuffer // Use value with buffer
     });
+    
+    console.log('Stats totals check:', strength, vitality, dexterity, quickness, sturdiness, luck);
+    console.log('Total points used:', usedPoints, 'Required:', TOTAL_POINTS);
+    console.log('Validation check:', unspentAttributePoints !== 0);
     
     createCharacterMutation.mutate({
       name,
@@ -356,13 +401,13 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
       sturdiness: BigInt(sturdiness),
       luck: BigInt(luck),
       sessionKey: embeddedWallet.address,
-      sessionKeyDeadline: BigInt(0), 
+      sessionKeyDeadline, // Use calculated deadline
       value: valueWithBuffer // Pass the value with buffer
     });
   };
   
   // Combine loading states
-  const isPageLoading = createCharacterMutation.isPending || isLoadingBuyIn;
+  const isPageLoading = createCharacterMutation.isPending || isLoadingBuyIn || isLoadingBlock;
 
   if (isPageLoading) {
     return (
@@ -370,7 +415,9 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
         <div className="flex flex-col items-center space-y-4">
           <Spinner size="xl" color="gold" />
           <p className="text-yellow-500">
-            {createCharacterMutation.isPending ? 'Creating character...' : 'Fetching creation cost...'}
+            {createCharacterMutation.isPending ? 'Creating character...' : 
+             isLoadingBlock ? 'Getting current block...' : 
+             'Fetching creation cost...'}
           </p>
         </div>
       </div>
@@ -496,11 +543,11 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             
             <button 
               className={`relative h-[75px] sm:h-[85px] w-full text-2xl sm:text-4xl font-bold uppercase z-[2] bg-transparent border-0
-                ${(unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0)) 
+                ${(unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0) || isLoadingBlock || !currentBlock) 
                   ? 'opacity-50 cursor-not-allowed' 
                   : ''}`}
               onClick={handleCreateCharacter}
-              disabled={unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0)}
+              disabled={unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0) || isLoadingBlock || !currentBlock}
             >
               <p className='gold-text transition-transform duration-200 group-hover:scale-105 group-active:scale-95'>
                 {createCharacterMutation.isPending ? 'Creating...' : 'Create Character'}
