@@ -174,48 +174,42 @@ const WalletBalances: React.FC = () => {
   const sessionKeyAddress = gameState?.sessionKeyData?.key;
   
   return (
-    <Box p={3} borderWidth="1px" borderRadius="lg" bg="gray.800" color="white">
+    <Box borderWidth="1px" borderRadius="lg" bg="gray.800" color="white" className='px-3 pt-1 pb-2 flex gap-4'>
       <Text fontSize="md" fontWeight="bold" mb={2}>Gas Balances</Text>
 
-      <Flex direction="column" gap={3}>
+      <Flex direction="column" gap={1} className='w-72'>
         {/* Session Key Wallet */}
-        <Stat size="sm">
-          <StatLabel>
-            <Flex align="center" gap={1}>
-              <Text fontSize="sm">Session Key</Text>
-              <Badge colorScheme="purple" size="sm">MON</Badge>
-            </Flex>
-          </StatLabel>
-          <StatNumber fontSize="lg">
+        <div className='flex w-full justify-between gap-2'>
+          <Flex align="center" gap={1}>
+            <h2 className='text-sm font-medium'>Session Key</h2>
+            <Badge colorScheme="purple" size="sm">MON</Badge>
+          </Flex>
+          <div className='text-lg font-medium'>
             {parseFloat(sessionKeyBalance).toFixed(4)} MON
-          </StatNumber>
-        </Stat>
-        
-        {/* Bonded MONAD Balance (Using ownerCommittedAmount) */}
-        <Stat size="sm">
-          <StatLabel>
-            <Flex align="center" gap={1}>
-              <Text fontSize="sm">Committed Balance</Text> 
-              <Badge colorScheme="orange" size="sm">MON</Badge>
-            </Flex>
-          </StatLabel>
-          <StatNumber fontSize="lg">
-            {parseFloat(bondedBalance).toFixed(4)} MON
-          </StatNumber>
-        </Stat>
+          </div>
+        </div>
 
-        {/* Owner Wallet Balance */}
-        <Stat size="sm">
-          <StatLabel>
-            <Flex align="center" gap={1}>
-              <Text fontSize="sm">Owner Wallet</Text>
-               <Badge colorScheme="blue" size="sm">MON</Badge>
+        {/* Bonded MONAD Balance (Using ownerCommittedAmount) */}
+        <div className='flex w-full justify-between gap-2'>
+          <Flex align="center" gap={1}>
+            <h2 className='text-sm font-medium'>Committed</h2>
+            <Badge colorScheme="orange" size="sm">MON</Badge>
             </Flex>
-          </StatLabel>
-          <StatNumber fontSize="md">
-            {parseFloat(ownerBalance).toFixed(4)} MON
-          </StatNumber>
-        </Stat>
+          <div className='text-lg font-medium'>
+          {parseFloat(bondedBalance).toFixed(4)} MON
+          </div>
+        </div>
+        
+        {/* Owner Wallet Balance */}
+        <div className='flex w-full justify-between gap-2'>
+          <Flex align="center" gap={1}>
+            <h2 className='text-sm font-medium'>Owner Wallet</h2>
+            <Badge colorScheme="blue" size="sm">MON</Badge>
+            </Flex>
+          <div className='text-lg font-medium'>
+          {parseFloat(ownerBalance).toFixed(4)} MON
+          </div>
+        </div>
 
         {/* Direct Session Key Funding Button */}
         {sessionKeyAddress && showDirectFunding && (
