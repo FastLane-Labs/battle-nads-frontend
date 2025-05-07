@@ -106,7 +106,7 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
 
   //TODO: Add taskManager execute to allow character to spawn
   return (
-    <Box height="calc(100vh - 60px)" position="relative">
+    <Box height="calc(100vh)" position="relative">
       {!isSpawned && (
         <Box
           position="absolute"
@@ -152,7 +152,7 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
       </Modal>
 
       {/* Main content area - Overlay will prevent interaction if !isSpawned */}
-      <Flex height="100%" flexDirection="column">
+      <Flex flexDirection="column">
         {/* Main Game View */}
         <GameView
           character={character}
