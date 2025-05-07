@@ -21,12 +21,12 @@ const Minimap: React.FC<MinimapProps> = ({ character, position }) => {
   const clampedGridY = Math.min(GRID_SIZE - 1, zoneY);
 
   return (
-    <Box bg="gray.800" p={4} borderRadius="md" h="100%">
-      <Heading size="md" mb={4}>Game Map</Heading>
-      
-      <Center mb={4}>
+    <Box borderRadius="md" h="100%" bg="gray.800" className='px-4 pt-4 pb-0'>
+      <div className='flex justify-between w-full mb-3'>
+        <Heading size="md">Game Map</Heading>
         <Text>Level: {Number(position.z)}</Text>
-      </Center>
+      </div>
+      
       
       <Grid 
         templateColumns="repeat(7, 1fr)" // Use 7x7 grid
@@ -56,7 +56,7 @@ const Minimap: React.FC<MinimapProps> = ({ character, position }) => {
         })}
       </Grid>
       
-      <Center mt={4}>
+      <Center mt={3} className='leading-none'>
         <Text fontSize="md" fontWeight="semibold">Position: ({Number(position.x)}, {Number(position.y)}, {Number(position.z)})</Text>
       </Center>
     </Box>
