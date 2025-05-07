@@ -49,7 +49,7 @@ export default function RootLayout({
               <PrivyAuthProvider>
                 <WalletProvider>
                   <RecoilRoot>
-                    <ChakraProvider theme={theme}>
+                    <ChakraProvider theme={theme} toastOptions={{ defaultOptions: { position: 'bottom-right' } }} >
                       {children}
                     </ChakraProvider>
                   </RecoilRoot>
