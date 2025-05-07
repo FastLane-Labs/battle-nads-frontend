@@ -184,7 +184,7 @@ const WalletBalances: React.FC = () => {
             <h2 className='text-sm font-medium'>Session Key</h2>
             <Badge colorScheme="purple" size="sm">MON</Badge>
           </Flex>
-          <div className='text-lg font-medium'>
+          <div className='text-lg font-semibold'>
             {parseFloat(sessionKeyBalance).toFixed(4)} MON
           </div>
         </div>
@@ -195,8 +195,8 @@ const WalletBalances: React.FC = () => {
             <h2 className='text-sm font-medium'>Committed</h2>
             <Badge colorScheme="orange" size="sm">MON</Badge>
             </Flex>
-          <div className='text-lg font-medium'>
-          {parseFloat(bondedBalance).toFixed(4)} MON
+          <div className='text-lg font-semibold'>
+            {parseFloat(bondedBalance).toFixed(4)} MON
           </div>
         </div>
         
@@ -206,8 +206,8 @@ const WalletBalances: React.FC = () => {
             <h2 className='text-sm font-medium'>Owner Wallet</h2>
             <Badge colorScheme="blue" size="sm">MON</Badge>
             </Flex>
-          <div className='text-lg font-medium'>
-          {parseFloat(ownerBalance).toFixed(4)} MON
+          <div className='text-lg font-semibold'>
+            {parseFloat(ownerBalance).toFixed(4)} MON
           </div>
         </div>
 
