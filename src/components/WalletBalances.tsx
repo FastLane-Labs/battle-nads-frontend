@@ -174,10 +174,10 @@ const WalletBalances: React.FC = () => {
   const sessionKeyAddress = gameState?.sessionKeyData?.key;
   
   return (
-    <Box borderWidth="1px" borderRadius="lg" bg="gray.800" color="white" className='px-3 pt-1 pb-2 flex gap-4'>
-      <Text fontSize="md" fontWeight="bold" mb={2}>Gas Balances</Text>
+    <Box borderWidth="1px" borderRadius="lg" bg="gray.800" color="white" className='px-3 pt-1 pb-2 flex flex-col gap-2 w-72 z-10'>
+      <Text fontSize="md" fontWeight="bold">Gas Balances</Text>
 
-      <Flex direction="column" gap={1} className='w-72'>
+      <Flex direction="column" gap={1} className='w-auto'>
         {/* Session Key Wallet */}
         <div className='flex w-full justify-between gap-2'>
           <Flex align="center" gap={1}>

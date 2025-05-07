@@ -171,9 +171,7 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
         />
 
         {/* Wallet Balances */}
-        <Box borderTop="1px" borderColor="gray.700">
           <WalletBalances />
-        </Box>
       </Flex>
     </Box>
   );
