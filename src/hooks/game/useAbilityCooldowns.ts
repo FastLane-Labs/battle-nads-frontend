@@ -11,13 +11,6 @@ import { AVG_BLOCK_TIME_MS } from '@/config/gas';
 // Define the cooldown timeout period in blocks
 const ABILITY_TIMEOUT_BLOCKS = 200;
 
-// Utility function to check if an error is due to insufficient balance
-const isInsufficientBalanceError = (error: Error): boolean => {
-  const errorMessage = error.message.toLowerCase();
-  return errorMessage.includes('insufficient balance') || 
-         errorMessage.includes('signer had insufficient balance');
-};
-
 export interface AbilityStatus {
   ability: domain.Ability;
   stage: AbilityStage;
@@ -47,10 +40,6 @@ export const useAbilityCooldowns = (characterId: string | null) => {
   const { client } = useBattleNadsClient();
   const queryClient = useQueryClient();
   const toast = useToast();
-  
-  // State to track if we need to show the funding prompt
-  const [showFundingPrompt, setShowFundingPrompt] = useState(false);
-  const [fundingErrorReason, setFundingErrorReason] = useState<string>('');
   
   // Owner address
   const owner = injectedWallet?.address || null;
@@ -225,61 +214,17 @@ export const useAbilityCooldowns = (characterId: string | null) => {
       });
       // Invalidate queries to refetch game state after success
       queryClient.invalidateQueries({ queryKey: ['uiSnapshot', owner] });
-      
-      // Clear any previous funding errors
-      setShowFundingPrompt(false);
-      setFundingErrorReason('');
     },
     onError: (error: Error, variables) => {
       console.error(`[useAbilityCooldowns] Error using ability ${variables.abilityIndex}:`, error);
-      
-      // Check if error is due to insufficient session key balance
-      if (isInsufficientBalanceError(error)) {
-        // Show standard toast
-        toast({
-          title: 'Session Key Underfunded',
-          description: 'Your session key needs more funds to use abilities. Please add funds to continue playing.',
-          status: 'warning',
-          duration: 5000,
-          isClosable: true,
-        });
-        
-        // Set state to show funding prompt component
-        setFundingErrorReason(
-          `Your session key has insufficient funds to use ${domain.Ability[variables.abilityIndex].replace(/([A-Z])/g, ' $1').trim()}.`
-        );
-        setShowFundingPrompt(true);
-      } else {
-        // Default error toast for other errors
-        toast({
-          title: 'Ability Failed',
-          description: error.message || 'Failed to use ability',
-          status: 'error',
-          duration: 5000,
-        });
-        
-        // Clear any previous funding errors
-        setShowFundingPrompt(false);
-        setFundingErrorReason('');
-      }
+      toast({
+        title: 'Ability Failed',
+        description: error.message || 'Failed to use ability',
+        status: 'error',
+        duration: 5000,
+      });
     }
   });
-
-  // Function to handle successful funding
-  const handleFundingSuccess = useCallback(() => {
-    // Refetch game state after funding
-    queryClient.invalidateQueries({ queryKey: ['uiSnapshot', owner] });
-    // Clear funding prompt
-    setShowFundingPrompt(false);
-    setFundingErrorReason('');
-    // Show success message
-    toast({
-      title: 'Funding Complete',
-      description: 'Session key has been funded. You can now use abilities!',
-      status: 'success',
-      duration: 3000,
-    });
-  }, [queryClient, owner, toast]);
 
   // Function to use an ability
   const useAbility = useCallback((abilityIndex: domain.Ability, targetIndex: number = 0) => {
@@ -312,24 +257,13 @@ export const useAbilityCooldowns = (characterId: string | null) => {
     abilityMutation.mutate({ abilityIndex, targetIndex });
   }, [characterId, finalAbilities, abilityMutation, toast]);
 
-  // Function to close funding prompt
-  const closeFundingPrompt = useCallback(() => {
-    setShowFundingPrompt(false);
-    setFundingErrorReason('');
-  }, []);
-
   return {
     abilities: finalAbilities,
     useAbility,
     isUsingAbility: abilityMutation.isPending,
     abilityError: abilityMutation.error,
     isLoading: isGameLoading,
-    error: gameError,
-    // Funding prompt related props
-    showFundingPrompt,
-    fundingErrorReason,
-    onFundingSuccess: handleFundingSuccess,
-    closeFundingPrompt,
+    error: gameError
   };
 };
 
