@@ -1,8 +1,9 @@
-import React from 'react';
-import { Box, HStack, Text, Spinner, useToast } from '@chakra-ui/react';
+import React, { useEffect } from 'react';
+import { Box, HStack, Text, Spinner, useToast, Flex, CloseButton } from '@chakra-ui/react';
 import { useAbilityCooldowns, AbilityStatus } from '@/hooks/game/useAbilityCooldowns';
 import { AbilityButton } from './AbilityButton';
 import { domain } from '@/types';
+import SessionKeyFundingPrompt from '@/components/SessionKeyFundingPrompt';
 
 interface AbilityControlsProps {
   characterId: string | null;
@@ -18,9 +19,81 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({ characterId, i
     abilityError,
     isLoading: isLoadingAbilities, // Rename to avoid conflict
     error: hookError,
+    // New props for handling session key funding
+    showFundingPrompt,
+    fundingErrorReason,
+    onFundingSuccess,
+    closeFundingPrompt,
   } = useAbilityCooldowns(characterId);
 
   const toast = useToast(); // Initialize toast
+
+  // Show the funding prompt as a toast when the flag changes
+  useEffect(() => {
+    if (showFundingPrompt && characterId) {
+      // Create a unique toast ID to reference later
+      const toastId = `funding-toast-${Date.now()}`;
+      
+      // Function to close the toast
+      const closeToast = () => {
+        toast.close(toastId);
+        closeFundingPrompt();
+      };
+      
+      // Show toast with the SessionKeyFundingPrompt component
+      toast({
+        id: toastId,
+        position: 'bottom', // Different position than the warning toast
+        duration: 10000,
+        isClosable: true,
+        containerStyle: {
+          width: '320px', // Fixed width to prevent layout shifts
+          maxWidth: '320px',
+          margin: '0 auto',
+        },
+        render: () => (
+          <Box 
+            width="100%" 
+            position="relative"
+            borderRadius="md" 
+            bg="blue.50"
+            p="4"
+          >
+            {/* Custom Close Button */}
+            <CloseButton 
+              position="absolute"
+              top="2"
+              right="2"
+              size="sm"
+              onClick={closeToast} 
+              color="gray.700"
+              bg="transparent"
+              _hover={{ bg: "blue.100" }}
+              aria-label="Close"
+            />
+            
+            {/* Session funding prompt with toast styling */}
+            <SessionKeyFundingPrompt
+              isOpen={true}
+              onClose={closeToast}
+              characterId={characterId}
+              reason={fundingErrorReason}
+              onSuccess={() => {
+                toast.close(toastId);
+                onFundingSuccess();
+              }}
+              inToast={true}
+            />
+          </Box>
+        ),
+      });
+      
+      // Cleanup function to close toast if component unmounts
+      return () => {
+        toast.close(toastId);
+      };
+    }
+  }, [showFundingPrompt, characterId, fundingErrorReason, toast, closeFundingPrompt, onFundingSuccess]);
 
   const handleAbilityClick = (abilityIndex: domain.Ability) => {
     // Determine if ability requires a target
