@@ -20,7 +20,7 @@ export const RPC = process.env.NEXT_PUBLIC_DEFAULT_RPC_URL || RPC_URLS.PRIMARY;
 export const POLL_INTERVAL = 3000; // 3 seconds
 
 // Chain settings
-export const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '125', 10);
+export const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '10143', 10143);
 
 // Game constants
 export const MAX_PLAYER_LEVEL = 100;
