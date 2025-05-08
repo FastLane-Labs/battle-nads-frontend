@@ -61,9 +61,9 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
   const isDisabled = isActionDisabled || isMutationLoading;
 
   // Calculate cooldown progress percentage (0-100)
-  const totalCooldownDuration = ABILITY_COOLDOWN_DURATIONS[status.ability] || 60; // Use mapped duration or fallback
+  const totalCooldownDuration = status.currentCooldownInitialTotalSeconds ?? ABILITY_COOLDOWN_DURATIONS[status.ability] ?? 60;
   const progress = (isCoolingDown || isCharging) && totalCooldownDuration > 0
-    ? ((totalCooldownDuration - status.secondsLeft) / totalCooldownDuration) * 100
+    ? Math.min(100, Math.max(0, ((totalCooldownDuration - status.secondsLeft) / totalCooldownDuration) * 100)) // Ensure progress is 0-100
     : 0;
 
   // Tooltip message refinement
