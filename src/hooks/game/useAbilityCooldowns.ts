@@ -11,6 +11,13 @@ import { AVG_BLOCK_TIME_MS } from '@/config/gas';
 // Define the cooldown timeout period in blocks
 const ABILITY_TIMEOUT_BLOCKS = 200;
 
+// Utility function to check if an error is due to insufficient balance
+const isInsufficientBalanceError = (error: Error): boolean => {
+  const errorMessage = error.message.toLowerCase();
+  return errorMessage.includes('insufficient balance') || 
+         errorMessage.includes('signer had insufficient balance');
+};
+
 export interface AbilityStatus {
   ability: domain.Ability;
   stage: AbilityStage;
@@ -217,12 +224,25 @@ export const useAbilityCooldowns = (characterId: string | null) => {
     },
     onError: (error: Error, variables) => {
       console.error(`[useAbilityCooldowns] Error using ability ${variables.abilityIndex}:`, error);
-      toast({
-        title: 'Ability Failed',
-        description: error.message || 'Failed to use ability',
-        status: 'error',
-        duration: 5000,
-      });
+      
+      // Check if error is due to insufficient session key balance
+      if (isInsufficientBalanceError(error)) {
+        toast({
+          title: 'Session Key Underfunded',
+          description: 'Your session key needs more funds to use abilities. Please add funds to continue playing.',
+          status: 'warning',
+          duration: 5000,
+          isClosable: true,
+        });
+      } else {
+        // Default error toast for other errors
+        toast({
+          title: 'Ability Failed',
+          description: error.message || 'Failed to use ability',
+          status: 'error',
+          duration: 5000,
+        });
+      }
     }
   });
 
