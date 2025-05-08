@@ -121,9 +121,6 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
                 color="teal.300"
                 trackColor="transparent"
               >
-                <CircularProgressLabel fontSize="xs" color="white">
-                  {status.secondsLeft.toFixed(0)}s
-                </CircularProgressLabel>
               </CircularProgress>
             </Box>
           )}
