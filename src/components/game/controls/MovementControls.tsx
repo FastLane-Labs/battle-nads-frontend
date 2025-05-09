@@ -1,25 +1,17 @@
 import React from 'react';
 import {
   Box, 
-  Button, 
   Grid,
   GridItem,
   Heading, 
-  VStack, 
-  HStack, 
-  Spacer, 
   Tooltip,
-  IconButton
+  IconButton,
+  Image
 } from '@chakra-ui/react';
 import { 
   ChevronUpIcon, 
-  ChevronDownIcon, 
-  ArrowBackIcon,
-  ArrowForwardIcon,
-  ArrowUpIcon,
-  ArrowDownIcon
+  ChevronDownIcon
 } from '@chakra-ui/icons';
-import { domain } from '../../../types';
 
 interface MovementControlsProps {
   onMove: (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => Promise<void>;
@@ -52,99 +44,160 @@ const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, p
 
   return (
     <Box>
-      <Heading size="md" mb={4} textAlign="center">Movement</Heading>
-      
+      <h1 className='gold-text text-center mb-2 text-3xl font-semibold'>Movement</h1>
+      <div
+        className='border border-yellow-800/80 rounded-md w-max px-10 py-3 mx-auto'
+
+      >
       <Grid
         templateAreas={`
-          ". north ."
-          "west  .  east"
-          ". south ."
-          "up    .  down"
-        `}
-        gridTemplateColumns={'auto 1fr auto'}
-        gridTemplateRows={'auto auto auto auto'}
-        gap={2}
-        alignItems="center"
-        justifyItems="center"
-      >
-        <GridItem area="north">
+          ".    north   ."
+          "west  .      east"
+          ".    south   ."
+          "up    .      down"
+          `}
+          gridTemplateColumns={'auto 62px auto'}
+          gridTemplateRows={'auto auto auto auto'}
+          gap={0}
+          alignItems="center"
+          justifyItems="center"
+          mx="auto"
+          maxW="224px"
+          >
+        <GridItem area="north" mb="-12px">
           <Tooltip label={getTooltipLabel('north')} placement="top" hasArrow>
-            <IconButton
-              aria-label="Move North"
-              icon={<ChevronUpIcon boxSize={6} />}
-              size="md"
+            <Box
+              as="button"
               onClick={() => onMove('north')}
-              isDisabled={isMoving || isInCombat}
-              colorScheme="blue"
-            />
+              disabled={isMoving || isInCombat}
+              opacity={isMoving || isInCombat ? 0.5 : 1}
+              cursor={isMoving || isInCombat ? 'not-allowed' : 'pointer'}
+              width="75px"
+              height="75px"
+              className={`transition-all duration-300 ${!isMoving && !isInCombat ? 'hover:!-translate-y-1 hover:!scale-105' : ''}`}
+              >
+              <Image 
+                src="/assets/buttons/north.png" 
+                alt="Move North" 
+                width="100%" 
+                height="100%"
+                />
+            </Box>
           </Tooltip>
         </GridItem>
 
         <GridItem area="west">
           <Tooltip label={getTooltipLabel('west')} placement="left" hasArrow>
-            <IconButton
-              aria-label="Move West"
-              icon={<ArrowBackIcon boxSize={6} />}
-              size="md"
+            <Box
+              as="button"
               onClick={() => onMove('west')}
-              isDisabled={isMoving || isInCombat}
-              colorScheme="blue"
-            />
+              disabled={isMoving || isInCombat}
+              opacity={isMoving || isInCombat ? 0.5 : 1}
+              cursor={isMoving || isInCombat ? 'not-allowed' : 'pointer'}
+              width="75px"
+              height="75px"
+              className={`transition-all duration-300 ${!isMoving && !isInCombat ? 'hover:!-translate-x-1 hover:!scale-105' : ''}`}
+              >
+              <Image 
+                src="/assets/buttons/west.png" 
+                alt="Move West" 
+                width="100%" 
+                height="100%"
+                />
+            </Box>
           </Tooltip>
         </GridItem>
 
         <GridItem area="east">
           <Tooltip label={getTooltipLabel('east')} placement="right" hasArrow>
-            <IconButton
-              aria-label="Move East"
-              icon={<ArrowForwardIcon boxSize={6} />}
-              size="md"
+            <Box
+              as="button"
               onClick={() => onMove('east')}
-              isDisabled={isMoving || isInCombat}
-              colorScheme="blue"
-            />
+              disabled={isMoving || isInCombat}
+              opacity={isMoving || isInCombat ? 0.5 : 1}
+              cursor={isMoving || isInCombat ? 'not-allowed' : 'pointer'}
+              width="75px"
+              height="75px"
+              className={`transition-all duration-300 ${!isMoving && !isInCombat ? 'hover:!translate-x-1 hover:!scale-105' : ''}`}
+              >
+              <Image 
+                src="/assets/buttons/east.png" 
+                alt="Move East" 
+                width="100%" 
+                height="100%"
+                />
+            </Box>
           </Tooltip>
         </GridItem>
 
-        <GridItem area="south">
+        <GridItem area="south" mt="-13px">
           <Tooltip label={getTooltipLabel('south')} placement="bottom" hasArrow>
-            <IconButton
-              aria-label="Move South"
-              icon={<ChevronDownIcon boxSize={6} />}
-              size="md"
+            <Box
+              as="button"
               onClick={() => onMove('south')}
-              isDisabled={isMoving || isInCombat}
-              colorScheme="blue"
-            />
+              disabled={isMoving || isInCombat}
+              opacity={isMoving || isInCombat ? 0.5 : 1}
+              cursor={isMoving || isInCombat ? 'not-allowed' : 'pointer'}
+              width="75px"
+              height="75px"
+              className={`transition-all duration-300 ${!isMoving && !isInCombat ? 'hover:!translate-y-1 hover:!scale-105' : ''}`}
+              >
+              <Image 
+                src="/assets/buttons/south.png" 
+                alt="Move South" 
+                width="100%" 
+                height="100%"
+                />
+            </Box>
           </Tooltip>
         </GridItem>
 
-        <GridItem area="up">
-          <Tooltip label={getTooltipLabel('up')} placement="bottom" hasArrow>
-            <IconButton 
-              aria-label="Move Up"
-              icon={<ChevronUpIcon boxSize={5} />}
-              size="md" 
+        <GridItem area="up" mt="-8px" mr="10px">
+        <Tooltip label={getTooltipLabel('up')} placement="bottom" hasArrow>
+          <Box
+              as="button"
               onClick={() => onMove('up')} 
-              isDisabled={isMoving || isInCombat}
-              colorScheme="purple"
-            />
+              disabled={isMoving || isInCombat}
+              opacity={isMoving || isInCombat ? 0.5 : 1}
+              cursor={isMoving || isInCombat ? 'not-allowed' : 'pointer'}
+              width="60px"
+              height="60px"
+              className={`transition-all duration-300 ${!isMoving && !isInCombat ? 'hover:!-translate-y-1 hover:!scale-105' : ''}`}
+              >
+              <Image 
+                src="/assets/buttons/up.png" 
+                alt="Move South" 
+                width="100%" 
+                height="100%"
+                />
+            </Box>
+          </Tooltip>
+        </GridItem>
+        
+        <GridItem area="down" mt="-8px" ml="10px">
+        <Tooltip label={getTooltipLabel('down')} placement="bottom" hasArrow>
+        <Box
+              as="button"
+              onClick={() => onMove('down')} 
+              disabled={isMoving || isInCombat}
+              opacity={isMoving || isInCombat ? 0.5 : 1}
+              cursor={isMoving || isInCombat ? 'not-allowed' : 'pointer'}
+              width="60px"
+              height="60px"
+              className={`transition-all duration-300 ${!isMoving && !isInCombat ? 'hover:!translate-y-1 hover:!scale-105' : ''}`}
+              >
+              <Image 
+                src="/assets/buttons/down.png" 
+                alt="Move South" 
+                width="100%" 
+                height="100%"
+                />
+            </Box>
           </Tooltip>
         </GridItem>
 
-        <GridItem area="down">
-          <Tooltip label={getTooltipLabel('down')} placement="bottom" hasArrow>
-            <IconButton
-              aria-label="Move Down"
-              icon={<ChevronDownIcon boxSize={5} />}
-              size="md" 
-              onClick={() => onMove('down')} 
-              isDisabled={isMoving || isInCombat}
-              colorScheme="purple"
-            />
-          </Tooltip>
-        </GridItem>
       </Grid>
+     </div>
     </Box>
   );
 };
