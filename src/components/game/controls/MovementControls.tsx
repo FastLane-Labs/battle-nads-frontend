@@ -74,6 +74,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, p
               cursor={isMoving || isInCombat ? 'not-allowed' : 'pointer'}
               width="75px"
               height="75px"
+              aria-label="Move North"
               className={`transition-all duration-300 ${!isMoving && !isInCombat ? 'hover:!-translate-y-1 hover:!scale-105' : ''}`}
               >
               <Image 
@@ -96,6 +97,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, p
               cursor={isMoving || isInCombat ? 'not-allowed' : 'pointer'}
               width="75px"
               height="75px"
+              aria-label="Move West"
               className={`transition-all duration-300 ${!isMoving && !isInCombat ? 'hover:!-translate-x-1 hover:!scale-105' : ''}`}
               >
               <Image 
@@ -118,6 +120,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, p
               cursor={isMoving || isInCombat ? 'not-allowed' : 'pointer'}
               width="75px"
               height="75px"
+              aria-label="Move East"
               className={`transition-all duration-300 ${!isMoving && !isInCombat ? 'hover:!translate-x-1 hover:!scale-105' : ''}`}
               >
               <Image 
@@ -140,6 +143,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, p
               cursor={isMoving || isInCombat ? 'not-allowed' : 'pointer'}
               width="75px"
               height="75px"
+              aria-label="Move South"
               className={`transition-all duration-300 ${!isMoving && !isInCombat ? 'hover:!translate-y-1 hover:!scale-105' : ''}`}
               >
               <Image 
@@ -162,11 +166,12 @@ const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, p
               cursor={isMoving || isInCombat ? 'not-allowed' : 'pointer'}
               width="60px"
               height="60px"
+              aria-label="Move Up"
               className={`transition-all duration-300 ${!isMoving && !isInCombat ? 'hover:!-translate-y-1 hover:!scale-105' : ''}`}
               >
               <Image 
                 src="/assets/buttons/up.png" 
-                alt="Move South" 
+                alt="Move Up" 
                 width="100%" 
                 height="100%"
                 />
@@ -184,11 +189,12 @@ const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, p
               cursor={isMoving || isInCombat ? 'not-allowed' : 'pointer'}
               width="60px"
               height="60px"
+              aria-label="Move Down"
               className={`transition-all duration-300 ${!isMoving && !isInCombat ? 'hover:!translate-y-1 hover:!scale-105' : ''}`}
               >
               <Image 
                 src="/assets/buttons/down.png" 
-                alt="Move South" 
+                alt="Move Down" 
                 width="100%" 
                 height="100%"
                 />
