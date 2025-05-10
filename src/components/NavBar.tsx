@@ -1,8 +1,8 @@
 'use client';
 
-import React from 'react';
-import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip, Spinner, Image, useClipboard, IconButton } from '@chakra-ui/react';
-import { MoonIcon, SunIcon, CopyIcon, CheckIcon } from '@chakra-ui/icons';
+import React, { useRef } from 'react';
+import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip, Spinner, Image, useClipboard, IconButton, Menu, MenuButton, MenuList, MenuItem, MenuDivider, useDisclosure } from '@chakra-ui/react';
+import { CopyIcon, CheckIcon, ChevronDownIcon } from '@chakra-ui/icons';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
@@ -12,7 +12,7 @@ import { isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
 import { useSessionFunding } from '@/hooks/session/useSessionFunding';
 
 const NavBar: React.FC = () => {
-  const { colorMode, toggleColorMode } = useColorMode();
+  const { colorMode } = useColorMode();
   const { login } = usePrivy();
   const {
     logout,
@@ -62,6 +62,24 @@ const NavBar: React.FC = () => {
     }
   };
 
+  const menuTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { isOpen, onClose, onOpen } = useDisclosure();
+
+  const handleCopyWithDelay = (copyFn: () => void) => {
+    // Clear any existing timeout
+    if (menuTimeoutRef.current) {
+      clearTimeout(menuTimeoutRef.current);
+    }
+    
+    // Execute the copy
+    copyFn();
+    
+    // Set a timeout to close the menu after delay
+    menuTimeoutRef.current = setTimeout(() => {
+      onClose();
+    }, 450); // 1 second delay
+  };
+
   return (
     <Box
       position="fixed"
@@ -101,22 +119,6 @@ const NavBar: React.FC = () => {
 
           {hasWallet && (
             <HStack as="nav" spacing={4} display={{ base: 'none', md: 'flex' }}>
-              <Link href="/game">
-                <Text
-                  px={3}
-                  py={2}
-                  rounded="md"
-                  fontWeight={isActive('/game') ? 'bold' : 'normal'}
-                  bg={isActive('/game') ? 'blue.500' : 'transparent'}
-                  color={isActive('/game') ? 'white' : undefined}
-                  _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
-                  cursor="pointer"
-                  fontSize="md"
-                  data-active={isActive('/game')}
-                >
-                  Game
-                </Text>
-              </Link>
               
               {isLoading ? (
                 <Box px={3} py={2}>
@@ -152,88 +154,111 @@ const NavBar: React.FC = () => {
               Connect Wallet
             </Button>
           ) : (
-            <HStack spacing={4}>
-              <HStack spacing={3}> 
-                {embeddedWallet?.address && (
-                   <Tooltip 
-                     label={
-                       <HStack spacing={1}>
-                         <Text>{hasCopiedEmbedded ? 'Copied!' : 'Copy Session Key'}</Text>
-                         {hasCopiedEmbedded ? <CheckIcon color="green.500" /> : <CopyIcon />}
-                       </HStack>
-                     } 
-                     closeOnClick={false}
-                     placement="bottom"
-                   >
-                     <Button 
-                       variant="ghost" 
-                       size="sm" 
-                       onClick={onCopyEmbedded} 
-                       height="auto" 
-                       p={1}
-                     >
-                        <HStack spacing={1}> 
-                          <Badge colorScheme="green" fontSize="xs">SESSION KEY</Badge>
-                          <Text fontSize="sm" fontFamily="monospace">
-                            {`${embeddedWallet.address.slice(0, 6)}...${embeddedWallet.address.slice(-4)}`}
-                          </Text>
-                        </HStack>
-                      </Button>
-                   </Tooltip>
+            <Menu isOpen={isOpen} onClose={onClose} onOpen={onOpen}>
+              <MenuButton as={Button} rightIcon={<ChevronDownIcon />} variant="outline" size="md">
+                {injectedWallet?.address && (
+                  <HStack spacing={1}>
+                    <Badge colorScheme="blue" fontSize="xs">{formatWalletType(injectedWallet.walletClientType).toUpperCase()}</Badge>
+                    <Text fontSize="sm" fontFamily="monospace">
+                      {`${injectedWallet.address.slice(0, 6)}...${injectedWallet.address.slice(-4)}`}
+                    </Text>
+                  </HStack>
                 )}
+              </MenuButton>
+              <MenuList>
                 {injectedWallet?.address && (
                   <Tooltip 
-                     label={
-                       <HStack spacing={1}>
-                         <Text>{hasCopiedInjected ? 'Copied!' : `Copy ${formatWalletType(injectedWallet.walletClientType)}`}</Text>
-                         {hasCopiedInjected ? <CheckIcon color="green.500" /> : <CopyIcon />}
-                       </HStack>
-                     }
-                     closeOnClick={false} 
-                     placement="bottom"
-                   >
-                     <Button 
-                       variant="ghost" 
-                       size="sm" 
-                       onClick={onCopyInjected} 
-                       height="auto" 
-                       p={1}
-                      >
-                        <HStack spacing={1}>
-                          <Badge colorScheme="blue" fontSize="xs">{formatWalletType(injectedWallet.walletClientType).toUpperCase()}</Badge>
-                          <Text fontSize="sm" fontFamily="monospace">
-                            {`${injectedWallet.address.slice(0, 6)}...${injectedWallet.address.slice(-4)}`}
-                          </Text>
-                        </HStack>
-                      </Button>
-                   </Tooltip>
-                )}
-              </HStack>
-              
-              <Tooltip label="Disable session key for game actions" placement="bottom">
-                <span>
-                  <Button 
-                    colorScheme="orange" 
-                    size="sm" 
-                    onClick={() => deactivateKey()} 
-                    isLoading={isDeactivating}
-                    isDisabled={!canDeactivate || isDeactivating}
-                    ml={2}
+                    label={
+                      <HStack spacing={1}>
+                        <Text>{hasCopiedInjected ? 'Copied!' : `Copy ${formatWalletType(injectedWallet.walletClientType)}`}</Text>
+                        {hasCopiedInjected ? <CheckIcon color="green.500" /> : <CopyIcon />}
+                      </HStack>
+                    }
+                    closeOnClick={false}
+                    placement="right"
+                    hasArrow
                   >
-                    Deactivate Session
-                  </Button>
-                </span>
-              </Tooltip>
-
-              <Button colorScheme="red" size="sm" onClick={handleLogout}>
-                Disconnect
-              </Button>
-            </HStack>
+                    <MenuItem 
+                      onClick={() => handleCopyWithDelay(onCopyInjected)}
+                      closeOnSelect={false}
+                    >
+                      <HStack spacing={1}>
+                        <Badge colorScheme="blue" fontSize="xs">{formatWalletType(injectedWallet.walletClientType).toUpperCase()}</Badge>
+                        <Text fontSize="sm" fontFamily="monospace">
+                          {`${injectedWallet.address.slice(0, 6)}...${injectedWallet.address.slice(-4)}`}
+                        </Text>
+                        {hasCopiedInjected ? (
+                          <CheckIcon color="green.500" ml={1} transition="all 0.2s ease-in-out" />
+                        ) : (
+                          <CopyIcon ml={1} transition="all 0.2s ease-in-out" />
+                        )}
+                      </HStack>
+                    </MenuItem>
+                  </Tooltip>
+                )}
+                
+                {embeddedWallet?.address && (
+                  <Tooltip 
+                    label={
+                      <HStack spacing={1}>
+                        <Text>{hasCopiedEmbedded ? 'Copied!' : 'Copy Session Key'}</Text>
+                        {hasCopiedEmbedded ? <CheckIcon color="green.500" /> : <CopyIcon />}
+                      </HStack>
+                    }
+                    closeOnClick={false}
+                    placement="right"
+                    hasArrow
+                  >
+                    <MenuItem 
+                      onClick={() => handleCopyWithDelay(onCopyEmbedded)}
+                      closeOnSelect={false}
+                    >
+                      <HStack spacing={1}>
+                        <Badge colorScheme="green" fontSize="xs">SESSION KEY</Badge>
+                        <Text fontSize="sm" fontFamily="monospace">
+                          {`${embeddedWallet.address.slice(0, 6)}...${embeddedWallet.address.slice(-4)}`}
+                        </Text>
+                        {hasCopiedEmbedded ? (
+                          <CheckIcon color="green.500" ml={1} transition="all 0.2s ease-in-out" />
+                        ) : (
+                          <CopyIcon ml={1} transition="all 0.2s ease-in-out" />
+                        )}
+                      </HStack>
+                    </MenuItem>
+                  </Tooltip>
+                )}
+                
+                <MenuDivider />
+                
+                <Tooltip 
+                  label="Disable session key for game actions"
+                  placement="right"
+                  hasArrow
+                >
+                  <MenuItem 
+                    onClick={() => deactivateKey()} 
+                    isDisabled={!canDeactivate || isDeactivating}
+                    closeOnSelect={false}
+                  >
+                    <HStack>
+                      <Text>Deactivate Session</Text>
+                      {isDeactivating && <Spinner size="sm" ml={2} />}
+                    </HStack>
+                  </MenuItem>
+                </Tooltip>
+                
+                <Tooltip 
+                  label="Disconnect your wallet"
+                  placement="right"
+                  hasArrow
+                >
+                  <MenuItem onClick={handleLogout}>
+                    Disconnect
+                  </MenuItem>
+                </Tooltip>
+              </MenuList>
+            </Menu>
           )}
-          
-          <Button onClick={toggleColorMode} size="sm" ml={4}>
-            {colorMode === 'light' ? <MoonIcon /> : <SunIcon />}
-          </Button>
         </Flex>
       </Flex>
     </Box>
