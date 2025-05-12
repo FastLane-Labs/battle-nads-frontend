@@ -26,6 +26,8 @@ interface DebugPanelProps {
   isVisible?: boolean;
 }
 
+type CharacterArray = any[];
+
 const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
   // Declare state before using it in hooks
   const [ownerAddress, setOwnerAddress] = useState<string>(''); 
@@ -177,6 +179,160 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       </VStack>
     );
   };
+
+   // Add this new function to handle the getBattleNad call
+   const handleGetBattleNad = async () => {
+    if (!fetchedCharacterId || !client) {
+      addLog('ERROR: No character ID or client available');
+      return;
+    }
+    
+    try {
+      addLog(`Fetching full character data for ID: ${fetchedCharacterId}`);
+      const character = await client.getBattleNad(fetchedCharacterId);
+      
+      // Add type assertion here
+      const characterArray = character as unknown as CharacterArray;
+      
+      // Log the raw data
+      console.log('[DebugPanel] Character data (raw):', character);
+      
+      // Create a labeled object from the array data
+      const labeledData = {
+        id: characterArray[0],
+        stats: {
+          class: Number(characterArray[1]?.[0] || 0),
+          buffs: Number(characterArray[1]?.[1] || 0),
+          debuffs: Number(characterArray[1]?.[2] || 0),
+          level: Number(characterArray[1]?.[3] || 0),
+          unspentAttributePoints: Number(characterArray[1]?.[4] || 0),
+          experience: Number(characterArray[1]?.[5] || 0),
+          strength: Number(characterArray[1]?.[6] || 0),
+          vitality: Number(characterArray[1]?.[7] || 0),
+          dexterity: Number(characterArray[1]?.[8] || 0),
+          quickness: Number(characterArray[1]?.[9] || 0),
+          sturdiness: Number(characterArray[1]?.[10] || 0),
+          luck: Number(characterArray[1]?.[11] || 0),
+          depth: Number(characterArray[1]?.[12] || 0),
+          x: Number(characterArray[1]?.[13] || 0),
+          y: Number(characterArray[1]?.[14] || 0),
+          index: Number(characterArray[1]?.[15] || 0),
+          weaponID: Number(characterArray[1]?.[16] || 0),
+          armorID: Number(characterArray[1]?.[17] || 0),
+          health: Number(characterArray[1]?.[18] || 0),
+          sumOfCombatantLevels: Number(characterArray[1]?.[19] || 0),
+          combatants: Number(characterArray[1]?.[20] || 0),
+          nextTargetIndex: Number(characterArray[1]?.[21] || 0),
+          combatantBitMap: characterArray[1]?.[22] || 0
+        },
+        maxHealth: Number(characterArray[2] || 0),
+        weapon: {
+          name: characterArray[3]?.[0] || '',
+          baseDamage: Number(characterArray[3]?.[1] || 0),
+          bonusDamage: Number(characterArray[3]?.[2] || 0),
+          accuracy: Number(characterArray[3]?.[3] || 0),
+          speed: Number(characterArray[3]?.[4] || 0)
+        },
+        armor: {
+          name: characterArray[4]?.[0] || '',
+          armorFactor: Number(characterArray[4]?.[1] || 0),
+          armorQuality: Number(characterArray[4]?.[2] || 0),
+          flexibility: Number(characterArray[4]?.[3] || 0),
+          weight: Number(characterArray[4]?.[4] || 0)
+        },
+        inventory: {
+          weaponBitmap: Number(characterArray[5]?.[0] || 0),
+          armorBitmap: Number(characterArray[5]?.[1] || 0),
+          balance: characterArray[5]?.[2] || 0
+        },
+        tracker: {
+          updateStats: Boolean(characterArray[6]?.[0] || false),
+          updateInventory: Boolean(characterArray[6]?.[1] || false),
+          updateActiveTask: Boolean(characterArray[6]?.[2] || false),
+          updateActiveAbility: Boolean(characterArray[6]?.[3] || false),
+          updateOwner: Boolean(characterArray[6]?.[4] || false),
+          classStatsAdded: Boolean(characterArray[6]?.[5] || false),
+          died: Boolean(characterArray[6]?.[6] || false)
+        },
+        activeTask: characterArray[7],
+        activeAbility: {
+          ability: Number(characterArray[8]?.[0] || 0),
+          stage: Number(characterArray[8]?.[1] || 0),
+          targetIndex: Number(characterArray[8]?.[2] || 0),
+          taskAddress: characterArray[8]?.[3] || '',
+          targetBlock: Number(characterArray[8]?.[4] || 0)
+        },
+        owner: characterArray[9],
+        name: characterArray[10]
+      };
+      
+      // Convert to JSON string with proper formatting
+      const jsonString = JSON.stringify(labeledData, null, 2);
+      
+      console.log('[DebugPanel] Character data (labeled):', labeledData);
+      console.log('[DebugPanel] Character data (JSON):', jsonString);
+      
+      addLog('Character data logged to console');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      addLog(`Error fetching character data: ${errorMsg}`);
+      console.error('[DebugPanel] Error:', err);
+    }
+  };
+  
+  // Add this new function to handle the getBattleNadLite call
+  const handleGetBattleNadLite = async () => {
+    if (!fetchedCharacterId || !client) {
+      addLog('ERROR: No character ID or client available');
+      return;
+    }
+    
+    try {
+      addLog(`Fetching lite character data for ID: ${fetchedCharacterId}`);
+      const character = await client.getBattleNadLite(fetchedCharacterId);
+      
+      // Add type assertion here
+      const characterArray = character as unknown as CharacterArray;
+      
+      // Log the raw data
+      console.log('[DebugPanel] Character Lite data (raw):', character);
+      
+      // Create a labeled object from the array data based on the shared structure
+      const labeledData = {
+        characterLite: {
+          id: characterArray[0],
+          class: Number(characterArray[1] || 0),
+          health: Number(characterArray[2] || 0),
+          maxHealth: Number(characterArray[3] || 0),
+          buffs: Number(characterArray[4] || 0),
+          debuffs: Number(characterArray[5] || 0),
+          level: Number(characterArray[6] || 0),
+          index: Number(characterArray[7] || 0),
+          combatantBitMap: characterArray[8] || 0,
+          ability: Number(characterArray[9] || 0),
+          abilityStage: Number(characterArray[10] || 0),
+          abilityTargetBlock: Number(characterArray[11] || 0),
+          name: characterArray[12] || '',
+          weaponName: characterArray[13] || '',
+          armorName: characterArray[14] || '',
+          isDead: Boolean(characterArray[15] || false)
+        }
+      };
+      
+      // Convert to JSON string with proper formatting
+      const jsonString = JSON.stringify(labeledData, null, 2);
+      
+      console.log('[DebugPanel] Character Lite data (labeled):', labeledData);
+      console.log('[DebugPanel] Character Lite data (JSON):', jsonString);
+      
+      addLog('Character Lite data logged to console');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      addLog(`Error fetching character lite data: ${errorMsg}`);
+      console.error('[DebugPanel] Error:', err);
+    }
+  };
+  
   
   if (!isVisible) return null;
   
@@ -279,6 +435,33 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
         </Accordion>
         
         {renderMonsterHealthDebug()}
+
+        <Box p={2} bg="gray.800" borderRadius="md">
+          <Heading size="sm" mb={2}>Character Data</Heading>
+          <VStack spacing={2}>
+            <Button 
+              onClick={handleGetBattleNad} 
+              isDisabled={!fetchedCharacterId || !client}
+              colorScheme="purple"
+              size="sm"
+              width="100%"
+            >
+              Get Full Character Data
+            </Button>
+            <Button 
+              onClick={handleGetBattleNadLite} 
+              isDisabled={!fetchedCharacterId || !client}
+              colorScheme="blue"
+              size="sm"
+              width="100%"
+            >
+              Get Lite Character Data
+            </Button>
+          </VStack>
+          <Text fontSize="xs" mt={1}>
+            Results will be logged to the console
+          </Text>
+        </Box>
         
         {error && (
           <Box p={2} bg="red.900" borderRadius="md">
