@@ -87,7 +87,7 @@ const NavBar: React.FC = () => {
       w="100%"
       boxShadow="md"
       zIndex={10}
-      className='bg-gray-950'
+      className='bg-gray-950/50 border-b border-gray-600/30'
     >
       <Flex
         h={16}
