@@ -85,9 +85,9 @@ const NavBar: React.FC = () => {
       position="fixed"
       as="nav"
       w="100%"
-      bg={colorMode === 'dark' ? 'gray.800' : 'white'}
       boxShadow="md"
       zIndex={10}
+      className='bg-gray-950'
     >
       <Flex
         h={16}
@@ -158,8 +158,14 @@ const NavBar: React.FC = () => {
               <MenuButton as={Button} rightIcon={<ChevronDownIcon />} variant="outline" size="md">
                 {injectedWallet?.address && (
                   <HStack spacing={1}>
-                    <Badge colorScheme="blue" fontSize="xs">{formatWalletType(injectedWallet.walletClientType).toUpperCase()}</Badge>
-                    <Text fontSize="sm" fontFamily="monospace">
+                    <Image 
+                      src="/assets/icons/avatar.png" 
+                      alt="User Avatar" 
+                      boxSize="20px" 
+                      borderRadius="full"
+                      mr={1}
+                    />
+                    <Text fontSize="sm" fontFamily="monospace" className='gold-text'>
                       {`${injectedWallet.address.slice(0, 6)}...${injectedWallet.address.slice(-4)}`}
                     </Text>
                   </HStack>
