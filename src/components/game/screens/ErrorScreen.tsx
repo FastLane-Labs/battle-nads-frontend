@@ -21,7 +21,7 @@ const ErrorScreen: React.FC<ErrorScreenProps> = ({
   onGoToLogin
 }) => {
   return (
-    <Center height="100vh" className="bg-gray-900" color="white">
+    <Center height="100%" className="bg-gray-900" color="white">
       <VStack spacing={6} maxWidth="600px" p={6}>
         <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
         <Heading size="md" color="red.400">Error Loading Game</Heading>

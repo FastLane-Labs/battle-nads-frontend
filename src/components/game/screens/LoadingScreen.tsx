@@ -16,7 +16,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
   showRefresh = false
 }) => {
   return (
-    <Center height="100vh" color="white">
+    <Center height="100%" color="white">
       <div
     className="bg-cover bg-center bg-no-repeat w-full h-full flex items-center justify-center"  
     style={{ backgroundImage: "url('/assets/bg/battlenads-og-bg.webp')" }}>

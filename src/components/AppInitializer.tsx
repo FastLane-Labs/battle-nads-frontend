@@ -17,10 +17,10 @@ const AppInitializer: React.FC = () => {
 
   const renderWithNav = (content: React.ReactNode, label?: string) => {
     return (
-      <>
+      <div className='h-screen'>
         <NavBar />
-        <Box pt="64px">{content}</Box>
-      </>
+        <Box pt="64px" className='h-full'>{content}</Box>
+      </div>
     );
   };
 

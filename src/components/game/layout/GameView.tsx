@@ -10,6 +10,7 @@ import ChatPanel from '@/components/game/feed/ChatPanel';
 import { AbilityControls } from '@/components/game/controls/AbilityControls';
 // --- Import Mock Data ---
 import { MOCK_CHAT_LOGS, MOCK_EVENT_LOGS } from '@/hooks/dev/mockFeedData';
+import WalletBalances from '@/components/WalletBalances';
 
 interface GameViewProps {
   character: domain.Character;
@@ -56,8 +57,9 @@ const GameView: React.FC<GameViewProps> = ({
         base: `"map character"
                "controls controls"
                "feed chat"`,
-        md: `"map character feed"
-             "controls controls chat"`
+        md: `"character combat chat"
+             "character combat chat"
+             "character feed balances"`
       }}
       gridTemplateRows={{ base: 'auto auto 1fr', md: '1fr auto' }}
       gridTemplateColumns={{ base: '1fr 1fr', md: '1.5fr 1.5fr 1fr' }}
@@ -67,9 +69,9 @@ const GameView: React.FC<GameViewProps> = ({
       color="white"
     >
       {/* Game Map */}
-      <GridItem area="map">
+      {/* <GridItem area="map">
         <Minimap character={character} position={position} />
-      </GridItem>
+      </GridItem> */}
 
       {/* Character Info */}
       <GridItem area="character">
@@ -79,10 +81,9 @@ const GameView: React.FC<GameViewProps> = ({
         />
       </GridItem>
 
-      {/* Game Controls */}
-      <GridItem area="controls">
+      {/* Movement Panel */}
+      {/* <GridItem area="controls">
         <Grid templateColumns="1fr 1fr" gap={4}>
-          {/* Movement Panel */}
           <Box p={4} bg="gray.800" borderRadius="md">
             <MovementControls 
               onMove={onMove} 
@@ -91,9 +92,13 @@ const GameView: React.FC<GameViewProps> = ({
               isInCombat={isInCombat}
             />
           </Box>
+        </Grid>
+      </GridItem> */}
 
+      {/* Combat Controls */}
+      <GridItem area="combat" display={{ base: 'none', md: 'block' }}>
           {/* Combat Panel */}
-          <Box p={4} bg="gray.800" borderRadius="md">
+            <Box p={4} bg="gray.800" borderRadius="md" className='h-full'>
             <CombatTargets 
               combatants={combatants} 
               onAttack={onAttack} 
@@ -101,7 +106,7 @@ const GameView: React.FC<GameViewProps> = ({
               selectedTargetIndex={selectedTargetIndex}
               onSelectTarget={setSelectedTargetIndex}
             />
-            {/* Render Ability Controls below Combat Targets */}
+            {/* Abilities */}
             <Box mt={4}> 
               <Heading size="md" mb={2}>Abilities</Heading> 
               <AbilityControls 
@@ -111,7 +116,6 @@ const GameView: React.FC<GameViewProps> = ({
               />
             </Box>
           </Box>
-        </Grid>
       </GridItem>
 
       {/* Event Feed */}
@@ -138,6 +142,12 @@ const GameView: React.FC<GameViewProps> = ({
           />
         </Box>
       </GridItem>
+
+      {/* Wallet Balances */}
+      <GridItem area="balances" overflow="auto" maxH={{ base: '200px', md: '100%' }}>
+      <WalletBalances />
+    </GridItem>
+
     </Grid>
   );
 };

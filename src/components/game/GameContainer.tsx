@@ -106,7 +106,7 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
 
   //TODO: Add taskManager execute to allow character to spawn
   return (
-    <Box height="calc(100vh)" position="relative">
+    <Box height="100%" position="relative">
       {!isSpawned && (
         <Box
           position="absolute"
@@ -152,7 +152,7 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
       </Modal>
 
       {/* Main content area - Overlay will prevent interaction if !isSpawned */}
-      <Flex flexDirection="column">
+      <Flex flexDirection="column" className='h-full'>
         {/* Main Game View */}
         <GameView
           character={character}
@@ -169,9 +169,6 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
           isInCombat={isInCombat}
           isCacheLoading={isCacheLoading}
         />
-
-        {/* Wallet Balances */}
-          <WalletBalances />
       </Flex>
     </Box>
   );
