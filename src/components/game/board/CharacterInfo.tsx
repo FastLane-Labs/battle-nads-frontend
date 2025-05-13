@@ -88,39 +88,60 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   return (
     <Box bg="gray.800" p={4} borderRadius="md" h="100%" overflowY="auto">
       <VStack spacing={3} align="stretch">
-        {/* Character Name and Level */}
-        <Flex justify="space-between" align="center">
-          <Heading size="md">{name || 'Unnamed Character'}</Heading>
-          {level && (
-            <Badge colorScheme="purple" fontSize="sm" p={1}>
-              Level {level}
+        
+        <div className='grid gap-1.5 p-2 bg-[#1d1005] rounded-lg border border-black/40'>
+          {/* Character Name and Level */}
+          <Flex justify="space-between" align="center">
+            <h1 className='gold-text text-2xl font-bold tracking-tight'>{name || 'Unnamed Character'}</h1>
+            {level && (
+              <Box 
+              backgroundImage="/assets/bg/level.png"
+              backgroundSize="contain"
+              backgroundRepeat="no-repeat"
+              backgroundPosition="center"
+              px={3}
+              py={1}
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              minWidth="120px"
+              height="40px"
+              className='text-yellow-400/90 font-bold text-center font-serif text-xl'
+              >
+                Level {level} 12
+              </Box>
+            )}
+          </Flex>
+        
+          {/* Combat Indicator - NEW */}
+          {/* TODO: Style this badge */}
+          {isInCombat && (
+            <Badge colorScheme="red" variant="solid" p={1} textAlign="center" w="100%">
+              ⚔️ {combatIndicatorText} ⚔️
             </Badge>
           )}
-        </Flex>
         
-        {/* Combat Indicator - NEW */}
-        {isInCombat && (
-          <Badge colorScheme="red" variant="solid" p={1} textAlign="center" w="100%">
-            ⚔️ {combatIndicatorText} ⚔️
-          </Badge>
-        )}
         
-        <Divider />
-        
-        {/* Health Bar */}
-        <Box mb={2}>
-          <Flex justify="space-between" mb={1}>
-            <Text fontSize="sm">Health</Text>
-            {/* Display health / maxHealth directly from props */}
-            <Text fontSize="sm">{currentHealth} / {currentMaxHealth}</Text> 
-          </Flex>
-          <Progress 
-            value={healthPercentage} 
-            colorScheme={healthPercentage > 60 ? "green" : healthPercentage > 30 ? "yellow" : "red"}
-            size="sm" 
-            borderRadius="md"
-          />
-        </Box>
+          {/* Health Bar */}
+          <Box>
+            <div className="relative w-full bg-black/70 rounded border border-amber-900/35 h-9 overflow-hidden">
+              <div 
+                className={`h-full ${
+                  healthPercentage > 55 
+                  ? 'bg-gradient-to-r from-red-800 via-red-700 to-red-800' 
+                  : healthPercentage > 30 
+                  ? 'bg-gradient-to-r from-yellow-800 via-yellow-700 to-yellow-800' 
+                  : 'bg-red-900/95'
+                }`}
+                style={{ width: `${healthPercentage}%` }}
+                />
+              <div className="absolute inset-0 flex justify-between items-center px-2">
+                <span className="text-amber-300 font-black font-serif text-xl">HP</span>
+                <span className="text-amber-300 font-black font-serif text-xl">{currentHealth}/{currentMaxHealth}</span>
+              </div>
+            </div>
+          </Box>
+        </div>
         
         {/* Character Stats - Use stats directly from props */}
         <Box>

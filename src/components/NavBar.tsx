@@ -165,7 +165,7 @@ const NavBar: React.FC = () => {
                       borderRadius="full"
                       mr={1}
                     />
-                    <Text fontSize="sm" fontFamily="monospace" className='gold-text'>
+                    <Text fontSize="sm" className='gold-text tracking-tight'>
                       {`${injectedWallet.address.slice(0, 6)}...${injectedWallet.address.slice(-4)}`}
                     </Text>
                   </HStack>
