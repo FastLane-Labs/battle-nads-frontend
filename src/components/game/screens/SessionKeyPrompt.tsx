@@ -13,7 +13,7 @@ const SessionKeyPrompt: React.FC<SessionKeyPromptProps> = ({
 }) => {
   return (
     <div 
-      className="min-h-screen w-full bg-cover bg-center bg-no-repeat flex items-center justify-center py-10"
+      className="h-full w-full bg-cover bg-center bg-no-repeat flex items-center justify-center py-10"
       style={{ backgroundImage: "url('/assets/bg/dark-smoky-bg.webp')" }}
     >
       <div className="max-w-[600px] w-full mx-auto px-4">

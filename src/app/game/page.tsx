@@ -1,3 +1,5 @@
+// I dont think this page is used anymore, but keeping it for now
+
 'use client';
 
 import { useRouter, redirect } from 'next/navigation';
