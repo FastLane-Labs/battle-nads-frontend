@@ -14,6 +14,8 @@ module.exports = {
         danger: '#DC2626', // red-600
         background: '#1F2937', // gray-800
         surface: '#374151', // gray-700, added for game-tile background
+        brown: '#261703', // dark brown for game UI components
+        'dark-brown': '#1d1005', // darker brown for nested UI elements
       },
     },
   },

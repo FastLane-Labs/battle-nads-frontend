@@ -81,10 +81,10 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   }, [combatants, isInCombat]);
 
   return (
-    <Box p={4} borderRadius="md" h="100%" overflowY="auto" className='bg-[#261703] rounded-lg border border-black/40'>
+    <Box p={4} borderRadius="md" h="100%" overflowY="auto" className='bg-brown rounded-lg border border-black/40'>
       <VStack spacing={3} align="stretch">
         
-        <div className='grid gap-1.5 p-2 bg-[#1d1005] rounded-lg border border-black/40'>
+        <div className='grid gap-1.5 p-2 bg-dark-brown rounded-lg border border-black/40'>
           {/* Character Name and Level */}
           <Flex justify="space-between" align="center">
             <h1 className='gold-text-light text-2xl font-bold tracking-tight'>{name || 'Unnamed Character'}</h1>
@@ -140,7 +140,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
         
         {/* Character Stats - Use stats directly from props */}
         <Box>
-          <div className="bg-[#1d1005] rounded-lg border border-black/40 p-3">
+          <div className="bg-dark-brown rounded-lg border border-black/40 p-3">
             <h2 className="gold-text text-2xl font-serif mb-2 font-semibold">Stats</h2>
             <div className="grid grid-cols-2 gap-2 text-xl">
               <div className="flex justify-between gold-text-light">

@@ -582,6 +582,16 @@ button:hover:not(:disabled) {
   filter: drop-shadow(0px 1px 1px rgba(0, 0, 0, 0.3));
 }
 
+.copper-text {
+  @apply font-serif ;
+  background-image: linear-gradient(to bottom, #F9B795 0%, #CF6A3C 50%, #913A20 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0px 2px 1px rgba(0, 0, 0, 0.6));
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 /* RPG Button Animations */
 @keyframes float {
   0%, 100% {

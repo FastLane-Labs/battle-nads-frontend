@@ -122,7 +122,7 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({ even
       </Text>
       
       <Tooltip label={`Block: ${event.blocknumber}, Idx: ${event.logIndex}`} fontSize="xs" hasArrow>
-        <Text fontSize="xs" color="gray.400" mt={1} display="inline-block" ml={1}> 
+        <Text fontSize="xs" color="gray.400" display="inline-block" ml={1}> 
           {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
         </Text>
       </Tooltip>
