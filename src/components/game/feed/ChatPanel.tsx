@@ -94,15 +94,15 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
               return (
                 <Box
                   key={`${chat.timestamp}-${chat.logIndex}-${virtualRow.index}`}
-                  position="absolute"
+                  // position="absolute"
                   top={0}
                   left={0}
                   width="100%"
                   // height={`${virtualRow.size}px`}
-                  transform={`translateY(${virtualRow.start}px)`}
+                  // transform={`translateY(${virtualRow.start}px)`}
                 >
-                  <Box borderRadius="md" fontSize="sm" className='flex'>
-                    <Text as="span" fontSize="xs" color="gray.400" className='tracking-tighter whitespace-nowrap'>
+                  <Box borderRadius="md" fontSize="sm" className='flex py-[3px]'>
+                    <Text as="span" fontSize="sm" color="gray.400" className='tracking-tighter whitespace-nowrap my-auto'>
                       {new Date(chat.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                     <Text as="span" fontWeight="bold" ml={1} color={isPlayerMessage ? "blue.300" : "yellow.300"}>
