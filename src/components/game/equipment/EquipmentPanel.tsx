@@ -16,7 +16,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
 
   return (
     <Box>
-      <Text fontWeight="bold" mb={2}>Equipment</Text>
+      <Text className="gold-text text-2xl font-serif mb-2 font-semibold">Equipment</Text>
 
       {/* Display combined error centrally if needed, or rely on card errors */}
       {/* 
