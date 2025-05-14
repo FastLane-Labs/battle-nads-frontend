@@ -128,7 +128,7 @@ const GameView: React.FC<GameViewProps> = ({
 
       {/* Event Feed */}
       <GridItem area="feed" overflow="auto" maxH={{ base: '200px', md: '100%' }}>
-        <Box p={4} borderRadius="md" h="100%" className='bg-brown'>
+        <Box p={4} borderRadius="md" h="100%" className='card-bg'>
           <EventFeed 
             playerIndex={character.index} 
             eventLogs={finalEventLogs}
@@ -140,7 +140,7 @@ const GameView: React.FC<GameViewProps> = ({
 
       {/* Chat Panel */}
       <GridItem area="chat" overflow="auto" maxH={{ base: '200px', md: '100%' }}>
-        <Box p={4} borderRadius="md" h="100%" className='bg-dark-brown'>
+        <Box p={4} borderRadius="md" h="100%" className='card-bg !bg-dark-brown'>
           <ChatPanel 
             characterId={character.id} 
             chatLogs={finalChatLogs}

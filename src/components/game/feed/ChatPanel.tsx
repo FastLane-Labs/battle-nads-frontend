@@ -65,7 +65,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   
   return (
     <Box h="100%" display="flex" flexDirection="column">
-      <Heading size="md" mb={4}>Chat</Heading>
+      <h2 className='gold-text-light text-2xl font-bold tracking-tight mb-2'>Chat</h2>
       
       <Box 
         ref={parentRef}
@@ -98,18 +98,20 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                   top={0}
                   left={0}
                   width="100%"
-                  height={`${virtualRow.size}px`}
+                  // height={`${virtualRow.size}px`}
                   transform={`translateY(${virtualRow.start}px)`}
-                  p={1}
                 >
-                  <Box bg="gray.700" p={2} borderRadius="md" fontSize="sm">
-                    <Text as="span" fontWeight="bold" color={isPlayerMessage ? "blue.300" : "yellow.300"}>
-                      {senderDisplayName}
-                    </Text>
-                    <Text as="span" fontSize="xs" color="gray.400" ml={2}>
+                  <Box borderRadius="md" fontSize="sm" className='flex'>
+                    <Text as="span" fontSize="xs" color="gray.400" className='tracking-tighter whitespace-nowrap'>
                       {new Date(chat.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Text>
-                    <Text mt={1}>{chat.message}</Text>
+                    <Text as="span" fontWeight="bold" ml={1} color={isPlayerMessage ? "blue.300" : "yellow.300"}>
+                      {senderDisplayName}
+                    </Text>
+                    <Text as="span" className='font-semibold'>
+                      :
+                    </Text>
+                    <Text className='ml-1'>{chat.message}jasnfjasnfkjnsjkfnasjk fnasjk fnaskjfnasjk nfkjas n fkjsanjkfas nksfajns jka</Text>
                   </Box>
                 </Box>
               );
