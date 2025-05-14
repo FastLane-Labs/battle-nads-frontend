@@ -592,6 +592,10 @@ button:hover:not(:disabled) {
   letter-spacing: 0.05em;
 }
 
+.card-bg{
+  @apply bg-brown rounded-lg border border-black/40
+}
+
 /* RPG Button Animations */
 @keyframes float {
   0%, 100% {

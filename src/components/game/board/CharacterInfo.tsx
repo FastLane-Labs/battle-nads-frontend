@@ -81,7 +81,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   }, [combatants, isInCombat]);
 
   return (
-    <Box p={4} borderRadius="md" h="100%" overflowY="auto" className='bg-brown rounded-lg border border-black/40'>
+    <Box p={4} borderRadius="md" h="100%" overflowY="auto" className='card-bg'>
       <VStack spacing={3} align="stretch">
         
         <div className='grid gap-1.5 p-2 bg-dark-brown rounded-lg border border-black/40'>
