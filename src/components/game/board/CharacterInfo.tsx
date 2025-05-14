@@ -1,7 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { 
   Box, 
-  Heading, 
   Text, 
   Progress, 
   SimpleGrid, 
@@ -92,7 +91,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
         <div className='grid gap-1.5 p-2 bg-[#1d1005] rounded-lg border border-black/40'>
           {/* Character Name and Level */}
           <Flex justify="space-between" align="center">
-            <h1 className='gold-text text-2xl font-bold tracking-tight'>{name || 'Unnamed Character'}</h1>
+            <h1 className='gold-text-light text-2xl font-bold tracking-tight'>{name || 'Unnamed Character'}</h1>
             {level && (
               <Box 
               backgroundImage="/assets/bg/level.png"
@@ -108,7 +107,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
               height="40px"
               className='text-yellow-400/90 font-bold text-center font-serif text-xl'
               >
-                Level {level} 12
+                Level {level}
               </Box>
             )}
           </Flex>
@@ -145,33 +144,35 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
         
         {/* Character Stats - Use stats directly from props */}
         <Box>
-          <Text fontWeight="bold" mb={2}>Stats</Text>
-          <SimpleGrid columns={3} spacing={2}>
-            <Stat size="sm">
-              <StatLabel fontSize="xs">STR</StatLabel>
-              <StatNumber fontSize="md" data-testid="character-strength">{Number(stats?.strength)}</StatNumber>
-            </Stat>
-            <Stat size="sm">
-              <StatLabel fontSize="xs">VIT</StatLabel>
-              <StatNumber fontSize="md">{Number(stats?.vitality)}</StatNumber>
-            </Stat>
-            <Stat size="sm">
-              <StatLabel fontSize="xs">DEX</StatLabel>
-              <StatNumber fontSize="md">{Number(stats?.dexterity)}</StatNumber>
-            </Stat>
-            <Stat size="sm">
-              <StatLabel fontSize="xs">QCK</StatLabel>
-              <StatNumber fontSize="md">{Number(stats?.quickness)}</StatNumber>
-            </Stat>
-            <Stat size="sm">
-              <StatLabel fontSize="xs">STD</StatLabel>
-              <StatNumber fontSize="md">{Number(stats?.sturdiness)}</StatNumber>
-            </Stat>
-            <Stat size="sm">
-              <StatLabel fontSize="xs">LCK</StatLabel>
-              <StatNumber fontSize="md">{Number(stats?.luck)}</StatNumber>
-            </Stat>
-          </SimpleGrid>
+          <div className="bg-[#1d1005] rounded-lg border border-black/40 p-3">
+            <h2 className="gold-text text-2xl font-serif mb-2">Stats</h2>
+            <div className="grid grid-cols-2 gap-2 text-xl">
+              <div className="flex justify-between gold-text-light">
+                <span>STR</span>
+                <span>{Number(stats?.strength)}</span>
+              </div>
+              <div className="flex justify-between gold-text-light">
+                <span>DEX</span>
+                <span>{Number(stats?.dexterity)}</span>
+              </div>
+              <div className="flex justify-between gold-text-light">
+                <span>VIT</span>
+                <span>{Number(stats?.vitality)}</span>
+              </div>
+              <div className="flex justify-between gold-text-light">
+                <span>STD</span>
+                <span>{Number(stats?.sturdiness)}</span>
+              </div>
+              <div className="flex justify-between gold-text-light">
+                <span>QCK</span>
+                <span>{Number(stats?.quickness)}</span>
+              </div>
+              <div className="flex justify-between gold-text-light">
+                <span>LCK</span>
+                <span>{Number(stats?.luck)}</span>
+              </div>
+            </div>
+          </div>
         </Box>
         
         <Divider />
