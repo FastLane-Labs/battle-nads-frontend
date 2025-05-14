@@ -111,7 +111,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                     <Text as="span" className='font-semibold'>
                       :
                     </Text>
-                    <Text className='ml-1'>{chat.message}jasnfjasnfkjnsjkfnasjk fnasjk fnaskjfnasjk nfkjas n fkjsanjkfas nksfajns jka</Text>
+                    <Text className='ml-1'>{chat.message}
+
+                    </Text>
                   </Box>
                 </Box>
               );
