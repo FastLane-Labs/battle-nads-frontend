@@ -31,13 +31,12 @@ const EventFeed: React.FC<EventFeedProps> = ({
 
   return (
     <Box h="100%" display="flex" flexDirection="column">
-      <Heading size="md" mb={4}>Event Log</Heading>
-      
+      <h1 className='copper-text text-2xl font-bold tracking-tight text-center mb-2'>Event Log</h1>
       <Box 
         ref={parentRef}
         h="100%" 
         overflowY="auto" 
-        position="relative"
+        className="bg-dark-brown rounded-lg border border-black/40 p-3 text-center"
       >
         {isCacheLoading ? (
           <Center h="100%">
@@ -48,7 +47,7 @@ const EventFeed: React.FC<EventFeedProps> = ({
             <Box 
               height={`${rowVirtualizer.getTotalSize()}px`} 
               width="100%" 
-              position="relative"
+              className='min-h-full'
             >
               {eventLogs.length > 0 ? (
                 rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -69,17 +68,15 @@ const EventFeed: React.FC<EventFeedProps> = ({
                   return (
                     <Box 
                       key={itemKey} 
-                      position="absolute" 
                       top={0} 
                       left={0} 
                       width="100%" 
-                      height={`${virtualRow.size}px`} 
-                      transform={`translateY(${virtualRow.start}px)`}
-                      p={1}
+                      // height={`${virtualRow.size}px`} 
+                      // transform={`translateY(${virtualRow.start}px)`}
+                      className='py-1'
                     >
                       <Box
-                        bg={bgColor} 
-                        p={2} 
+                        // bg={bgColor} 
                         borderRadius="md" 
                         h="100%"
                       >
@@ -89,7 +86,7 @@ const EventFeed: React.FC<EventFeedProps> = ({
                   );
                 })
               ) : (
-                <Box p={4} textAlign="center">
+                <Box className="flex items-center justify-center h-full w-full gold-text-light text-lg font-semibold">
                   <Text>No events yet</Text>
                 </Box>
               )}
