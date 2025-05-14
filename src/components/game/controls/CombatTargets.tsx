@@ -24,35 +24,48 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
   };
   
   return (
-    <Box>
-      <Heading size="md" mb={4}>Combat</Heading>
+    <Box h="100%" display="flex" flexDirection="column">
+      <h2 className='gold-text-light text-2xl font-bold tracking-tight mb-2 text-center'>Combat</h2>
       
       {combatants.length === 0 ? (
-        <Box p={4} bg="gray.700" borderRadius="md" textAlign="center">
-          <Text>No targets in this area</Text>
+        <Box className="flex items-center justify-center h-full w-full bg-dark-brown rounded-md">
+          <Text className='gold-text-light text-lg'>No targets in this area</Text>
         </Box>
       ) : (
         <VStack spacing={2} align="stretch">
           {/* Target List */}
-          <Box p={2} bg="gray.700" borderRadius="md" mb={2} maxH="200px" overflowY="auto">
+          <Box p={2} borderRadius="md" mb={2} maxH="200px" overflowY="auto" className='bg-dark-brown'>
             {combatants.map((combatant, index) => (
               <Button
-                key={index}
-                size="sm"
-                variant={selectedTargetIndex === index ? "solid" : "ghost"}
-                colorScheme={selectedTargetIndex === index ? "red" : "gray"}
-                justifyContent="flex-start"
-                width="100%"
-                mb={1}
-                onClick={() => onSelectTarget(selectedTargetIndex === index ? null : index)}
-                disabled={isAttacking}
+              key={index}
+              size="sm"
+              variant={selectedTargetIndex === index ? "solid" : "ghost"}
+              colorScheme={selectedTargetIndex === index ? "red" : "gray"}
+              justifyContent="flex-start"
+              width="100%"
+              mb={1}
+              onClick={() => onSelectTarget(selectedTargetIndex === index ? null : index)}
+              disabled={isAttacking}
               >
-                <Text fontSize="sm" mr={2}>
+                <Text fontSize="sm" mr={2} className='gold-text-light'>
                   {combatant.name || `Enemy #${index + 1}`}
                 </Text>
-                <Badge colorScheme="green" ml="auto">
+                <Box 
+                backgroundImage="/assets/bg/level.png"
+                backgroundSize="contain"
+                backgroundRepeat="no-repeat"
+                backgroundPosition="center"
+                px={3}
+                py={1}
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                minWidth="70px"
+                height="30px"
+                className='text-yellow-400/90 text-center font-serif ml-auto'
+                >
                   Lvl {combatant.level || '?'}
-                </Badge>
+                </Box>
               </Button>
             ))}
           </Box>
@@ -65,12 +78,12 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
             isDisabled={selectedTargetIndex === null || isAttacking}
             isLoading={isAttacking}
             loadingText="Attacking..."
-          >
+            >
             Attack
           </Button>
         </VStack>
       )}
-    </Box>
+      </Box>
   );
 };
 

@@ -111,10 +111,10 @@ const GameView: React.FC<GameViewProps> = ({
         </Tabs>
       </GridItem>
 
-      {/* Combat Controls */}
+      {/* Combat */}
       <GridItem area="combat" display={{ base: 'none', md: 'block' }}>
           {/* Combat Panel */}
-            <Box p={4} bg="gray.800" borderRadius="md" className='h-full'>
+            <Box borderRadius="md" className='h-full card-bg p-4 flex flex-col'>
             <CombatTargets 
               combatants={combatants} 
               onAttack={onAttack} 
@@ -140,7 +140,7 @@ const GameView: React.FC<GameViewProps> = ({
 
       {/* Chat Panel */}
       <GridItem area="chat" overflow="auto" maxH={{ base: '200px', md: '100%' }}>
-        <Box p={4} bg="gray.800" borderRadius="md" h="100%">
+        <Box p={4} borderRadius="md" h="100%" className='bg-dark-brown'>
           <ChatPanel 
             characterId={character.id} 
             chatLogs={finalChatLogs}
