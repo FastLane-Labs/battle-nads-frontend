@@ -6,7 +6,9 @@ import {
   Heading, 
   Tooltip,
   IconButton,
-  Image
+  Image,
+  Center,
+  Text
 } from '@chakra-ui/react';
 import { 
   ChevronUpIcon, 
@@ -44,11 +46,18 @@ const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, p
 
   return (
     <Box>
-      <h1 className='gold-text text-center mb-2 text-3xl font-semibold'>Movement</h1>
+      
+      <h1 className='gold-text-light text-center mb-2 text-3xl font-semibold'>Movement</h1>
+      
       <div
-        className='border border-yellow-800/80 rounded-md w-max px-10 py-3 mx-auto'
+        className='border border-yellow-800/80 rounded-md w-max px-10 py-3 mx-auto bg-dark-brown'
 
       >
+      {/* Player Position */}
+      <div className='leading-snug mb-4 '>
+        <Text fontSize="xl" className='gold-text-light font-semibold'>Location</Text>
+        <Text fontSize="xl" className='gold-text-light'>Position ({Number(position.x)}, {Number(position.y)}), Depth {Number(position.z)}</Text>
+      </div>
       <Grid
         templateAreas={`
           ".    north   ."

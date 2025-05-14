@@ -89,16 +89,16 @@ const GameView: React.FC<GameViewProps> = ({
               />
             </TabPanel>
             {/* tab 2 (Actions) */}
-            <TabPanel>
-              <Box mt={4}> 
-                <Heading size="md" mb={2}>Abilities</Heading> 
-                <AbilityControls 
+            <TabPanel className='card-bg'>
+              <Box my={4}> 
+              <h1 className='gold-text-light text-center mb-2 text-3xl font-semibold'>Abilities</h1>
+              <AbilityControls 
                   characterId={character?.id ?? null} 
                   selectedTargetIndex={selectedTargetIndex}
                   isInCombat={isInCombat}
                 />
               </Box>
-              <Box p={4} bg="gray.800" borderRadius="md">
+              <Box>
                 <MovementControls 
                   onMove={onMove} 
                   isMoving={isMoving} 
