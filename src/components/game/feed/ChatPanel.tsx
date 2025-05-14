@@ -112,7 +112,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                       :
                     </Text>
                     <Text className='ml-1'>{chat.message}
-
                     </Text>
                   </Box>
                 </Box>
@@ -123,16 +122,14 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       </Box>
       
       <HStack spacing={2}>
-        <Input
+        <input
+          type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          placeholder="Type your message..."
-          variant="filled"
-          _hover={{ bg: 'gray.600' }}
-          _focus={{ bg: 'gray.600' }}
+          placeholder="Send a message"
           disabled={isSubmitting || isCacheLoading}
-          className='!bg-stone-600/90'
+          className="w-full bg-stone-600/90 text-white py-2 px-2 rounded-md outline-none focus:outline-none"
         />
         <Button
           onClick={handleSendMessage}
