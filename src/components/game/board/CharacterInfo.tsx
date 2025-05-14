@@ -3,10 +3,6 @@ import {
   Box, 
   Text, 
   Progress, 
-  SimpleGrid, 
-  Stat, 
-  StatLabel, 
-  StatNumber, 
   Divider, 
   Flex, 
   Badge,
@@ -85,7 +81,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   }, [combatants, isInCombat]);
 
   return (
-    <Box bg="gray.800" p={4} borderRadius="md" h="100%" overflowY="auto">
+    <Box p={4} borderRadius="md" h="100%" overflowY="auto" className='bg-[#261703] rounded-lg border border-black/40'>
       <VStack spacing={3} align="stretch">
         
         <div className='grid gap-1.5 p-2 bg-[#1d1005] rounded-lg border border-black/40'>
@@ -145,7 +141,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
         {/* Character Stats - Use stats directly from props */}
         <Box>
           <div className="bg-[#1d1005] rounded-lg border border-black/40 p-3">
-            <h2 className="gold-text text-2xl font-serif mb-2">Stats</h2>
+            <h2 className="gold-text text-2xl font-serif mb-2 font-semibold">Stats</h2>
             <div className="grid grid-cols-2 gap-2 text-xl">
               <div className="flex justify-between gold-text-light">
                 <span>STR</span>
@@ -184,23 +180,25 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
         
         {/* Character Progress */}
         <Box>
-          <Text fontWeight="bold" mb={2}>Progress</Text>
           <VStack align="stretch" spacing={2}>
             {/* Experience Bar */}
             <Box>
               <Flex justify="space-between" mb={1}>
-                <Text fontSize="sm">Experience</Text>
-                <Text fontSize="sm">
-                  {Number(stats?.experience)} / {(Number(level) * EXP_BASE) + (Number(level) * Number(level) * EXP_SCALE)}
-                </Text>
+              <Text className="gold-text text-2xl font-serif mb-1 font-semibold">Experience</Text>
+              <span className="text-amber-300 font-black font-serif">
+              {Number(stats?.experience)} / {(Number(level) * EXP_BASE) + (Number(level) * Number(level) * EXP_SCALE)}
+                </span>
               </Flex>
               <Progress 
                 value={experienceProgress} 
                 colorScheme="blue" 
-                size="sm" 
+                size="md"
+                borderRadius="sm" 
                 mb={2}
               />
             </Box>
+            <Divider />
+
             {/* Gold Display */}
             {inventory?.balance !== undefined && (
               <Flex justify="space-between">
