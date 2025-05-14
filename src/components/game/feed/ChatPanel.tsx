@@ -127,17 +127,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           onKeyDown={handleKeyDown}
           placeholder="Type your message..."
           variant="filled"
-          bg="gray.700"
           _hover={{ bg: 'gray.600' }}
           _focus={{ bg: 'gray.600' }}
           disabled={isSubmitting || isCacheLoading}
+          className='!bg-stone-600/90'
         />
         <Button
           onClick={handleSendMessage}
           isLoading={isSubmitting}
           loadingText="Sending"
-          colorScheme="blue"
+          // colorScheme="blue"
           disabled={isCacheLoading || isSubmitting || !inputValue.trim()}
+          className='!bg-[#8B6914] outline-none'
         >
           Send
         </Button>
