@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Grid, GridItem, Heading, Tabs, TabList, Tab, TabPanels, TabPanel } from '@chakra-ui/react';
+import { Box, Grid, GridItem } from '@chakra-ui/react';
 import { domain } from '@/types';
 import Minimap from '@/components/game/board/Minimap';
 import CharacterInfo from '@/components/game/board/CharacterInfo';
@@ -44,6 +44,7 @@ const GameView: React.FC<GameViewProps> = ({
   isCacheLoading
 }) => {
   const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<'character' | 'actions'>('character');
 
   // --- Conditionally Use Mock Data --- 
   const isDev = false//process.env.NODE_ENV === 'development';
@@ -75,24 +76,50 @@ const GameView: React.FC<GameViewProps> = ({
 
       {/* Tab component */}
       <GridItem area="tab" className='h-full'>
-        <Tabs variant="enclosed" colorScheme="blue">
-          <TabList>
-            <Tab>Character</Tab>
-            <Tab>Actions</Tab>
-          </TabList>
-          <TabPanels>
-            {/* tab 1 (Character) */}
-            <TabPanel>
+        <div className="flex flex-col h-full">
+          {/* Tab Buttons */}
+          <div className="flex">
+            <button
+              className={`bg-brown rounded-lg border-black/40 border-t border-x w-1/2 !rounded-b-none py-2 hover:transform-none hover:translate-y-0 border-b-2 ${activeTab === 'character' ? 'border-b-brown' : 'border-b-black/40'}`}
+              onClick={() => setActiveTab('character')}
+              style={{ transform: 'none' }}
+            >
+              {activeTab === 'character' ? 
+                <span className="gold-text-light font-semibold text-lg">Character</span> : 
+                <span className="white-text-light font-semibold text-lg">Character</span>
+              }
+            </button>
+            <button
+              className={`bg-brown rounded-lg border-black/40 border-t border-x w-1/2 !rounded-b-none py-2 hover:transform-none hover:translate-y-0 border-b-2 ${activeTab === 'actions' ? 'border-b-brown' : 'border-b-black/40'}`}
+              onClick={() => setActiveTab('actions')}
+              style={{ transform: 'none' }}
+            >
+              {activeTab === 'actions' ? 
+                <span className="gold-text-light font-semibold text-lg">Actions</span> : 
+                <span className="white-text-light font-semibold text-lg">Actions</span>
+              }
+            </button>
+          </div>
+          
+          {/* Tab Panels */}
+          <div className="flex-grow">
+            {/* Character tab content */}
+            <div 
+              className={`p-4 bg-brown border-black/40 border-b border-x !rounded-t-none !border-t-none h-full ${activeTab === 'character' ? 'block' : 'hidden'}`}
+            >
               <CharacterInfo 
                 character={character} 
                 combatants={combatants}
               />
-            </TabPanel>
-            {/* tab 2 (Actions) */}
-            <TabPanel className='card-bg !rounded-t-none'>
-              <Box my={4}> 
-              <h1 className='gold-text-light text-center mb-2 text-3xl font-semibold'>Abilities</h1>
-              <AbilityControls 
+            </div>
+            
+            {/* Actions tab content */}
+            <div 
+              className={`bg-brown p-4 border-black/40 border-b border-x h-full ${activeTab === 'actions' ? 'block' : 'hidden'}`}
+            >
+              <Box> 
+                <h1 className='gold-text-light text-center mb-2 text-3xl font-semibold'>Abilities</h1>
+                <AbilityControls 
                   characterId={character?.id ?? null} 
                   selectedTargetIndex={selectedTargetIndex}
                   isInCombat={isInCombat}
@@ -106,9 +133,9 @@ const GameView: React.FC<GameViewProps> = ({
                   isInCombat={isInCombat}
                 />
               </Box>
-            </TabPanel>
-          </TabPanels>
-        </Tabs>
+            </div>
+          </div>
+        </div>
       </GridItem>
 
       {/* Combat */}
