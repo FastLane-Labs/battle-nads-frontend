@@ -115,7 +115,7 @@ const GameView: React.FC<GameViewProps> = ({
             
             {/* Actions tab content */}
             <div 
-              className={`bg-brown p-4 border-black/40 border-b border-x h-full ${activeTab === 'actions' ? 'block' : 'hidden'}`}
+              className={`flex flex-col bg-brown px-4 pb-4 border-black/40 border-b border-x h-full justify-center items-center ${activeTab === 'actions' ? 'block' : 'hidden'}`}
             >
               <Box className='mb-2'> 
                 <h1 className='gold-text-light text-center mb-2 text-3xl font-semibold'>Abilities</h1>
@@ -154,7 +154,7 @@ const GameView: React.FC<GameViewProps> = ({
       </GridItem>
 
       {/* Event Feed */}
-      <GridItem area="feed" overflow="auto" maxH={{ base: '200px', md: '100%' }}>
+      <GridItem area="feed" overflow="auto" maxH={{ base: '200px', md: '100%' }} className='min-h-72'>
         <Box p={4} borderRadius="md" h="100%" className='card-bg'>
           <EventFeed 
             playerIndex={character.index} 
