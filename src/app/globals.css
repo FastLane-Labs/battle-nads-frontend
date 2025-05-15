@@ -582,6 +582,11 @@ button:hover:not(:disabled) {
   filter: drop-shadow(0px 1px 1px rgba(0, 0, 0, 0.3));
 }
 
+.white-text-light {
+  @apply font-serif text-white;
+  filter: drop-shadow(0px 1px 1px rgba(0, 0, 0, 0.3));
+}
+
 .copper-text {
   @apply font-serif ;
   background-image: linear-gradient(to bottom, #F9B795 0%, #CF6A3C 50%, #913A20 100%);
