@@ -601,6 +601,10 @@ button:hover:not(:disabled) {
   @apply bg-brown rounded-lg border border-black/40
 }
 
+.card-bg-dark{
+  @apply bg-dark-brown rounded-lg border border-black/40
+}
+
 /* RPG Button Animations */
 @keyframes float {
   0%, 100% {

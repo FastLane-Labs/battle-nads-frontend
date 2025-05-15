@@ -60,9 +60,9 @@ const GameView: React.FC<GameViewProps> = ({
                "feed chat"`,
         md: `"tab combat chat"
              "tab combat chat"
-             "tab feed balances"`
+             "tab feed chat"`
       }}
-      gridTemplateRows={{ base: 'auto auto 1fr', md: '1fr auto' }}
+      gridTemplateRows={{ base: 'auto auto 1fr', md: '1fr 1fr auto' }}
       gridTemplateColumns={{ base: '1fr 1fr', md: '1.5fr 1.5fr 1fr' }}
       h="100%"
       gap="4"
@@ -165,9 +165,10 @@ const GameView: React.FC<GameViewProps> = ({
         </Box>
       </GridItem>
 
-      {/* Chat Panel */}
-      <GridItem area="chat" overflow="auto" maxH={{ base: '200px', md: '100%' }}>
-        <Box p={4} borderRadius="md" h="100%" className='card-bg !bg-dark-brown'>
+      {/* Chat Panel and Wallet Balances in a single grid item */}
+      <GridItem area="chat" className="flex flex-col h-full card-bg-dark">
+        {/* Chat Panel - will grow to fill available space */}
+        <Box pt={4} pb={1} borderRadius="md" className='flex-grow overflow-auto'>
           <ChatPanel 
             characterId={character.id} 
             chatLogs={finalChatLogs}
@@ -176,12 +177,12 @@ const GameView: React.FC<GameViewProps> = ({
             isCacheLoading={isCacheLoading}
           />
         </Box>
+        
+        {/* Wallet Balances - takes only the space it needs */}
+        <Box className="flex-shrink-0">
+          <WalletBalances />
+        </Box>
       </GridItem>
-
-      {/* Wallet Balances */}
-      <GridItem area="balances" overflow="auto" maxH={{ base: '200px', md: '100%' }}>
-      <WalletBalances />
-    </GridItem>
 
     </Grid>
   );

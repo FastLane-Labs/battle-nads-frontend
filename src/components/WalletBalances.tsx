@@ -148,7 +148,7 @@ const WalletBalances: React.FC = () => {
   // Show loading state if data is not ready
   if (isLoading) {
     return (
-      <Box p={4} borderWidth="1px" borderRadius="lg" bg="gray.800" color="white">
+      <Box p={4} borderWidth="1px" borderRadius="lg" color="white">
         <Flex justify="center" align="center" minH="100px">
           <Spinner mr={3} />
           <Text>Loading wallet balances...</Text>
@@ -174,8 +174,8 @@ const WalletBalances: React.FC = () => {
   const sessionKeyAddress = gameState?.sessionKeyData?.key;
   
   return (
-    <Box borderWidth="1px" borderRadius="md" color="white" className='px-3 pt-1 pb-2 flex flex-col gap-2 w-72 mb-6 card-bg'>
-      <Text fontSize="md" fontWeight="bold">Gas Balances</Text>
+    <Box borderWidth="1px" borderRadius="md" color="white" className='px-3 pt-1 pb-2 flex flex-col gap-2 border-none'>
+      {/* <Text fontSize="md" fontWeight="bold">Gas Balances</Text> */}
 
       <Flex direction="column" gap={1} className='w-auto'>
         {/* Session Key Wallet */}
@@ -185,7 +185,7 @@ const WalletBalances: React.FC = () => {
             <Badge colorScheme="purple" size="sm">MON</Badge>
           </Flex>
           <div className='text-lg font-semibold'>
-            {parseFloat(sessionKeyBalance).toFixed(4)} MON
+            {parseFloat(sessionKeyBalance).toFixed(4)}
           </div>
         </div>
 
@@ -196,7 +196,7 @@ const WalletBalances: React.FC = () => {
             <Badge colorScheme="orange" size="sm">MON</Badge>
             </Flex>
           <div className='text-lg font-semibold'>
-            {parseFloat(bondedBalance).toFixed(4)} MON
+            {parseFloat(bondedBalance).toFixed(4)}
           </div>
         </div>
         
@@ -207,7 +207,7 @@ const WalletBalances: React.FC = () => {
             <Badge colorScheme="blue" size="sm">MON</Badge>
             </Flex>
           <div className='text-lg font-semibold'>
-            {parseFloat(ownerBalance).toFixed(4)} MON
+            {parseFloat(ownerBalance).toFixed(4)}
           </div>
         </div>
 

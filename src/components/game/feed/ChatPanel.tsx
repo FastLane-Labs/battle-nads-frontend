@@ -65,7 +65,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   
   return (
     <Box h="100%" display="flex" flexDirection="column">
-      <h2 className='gold-text-light text-2xl font-bold tracking-tight mb-2'>Chat</h2>
+      <h2 className='gold-text-light text-2xl font-bold tracking-tight mb-2 px-4'>Chat</h2>
       
       <Box 
         ref={parentRef}
@@ -73,6 +73,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         overflowY="auto" 
         mb={4}
         position="relative"
+        px={4}
       >
         {isCacheLoading ? (
           <Center h="100%">
@@ -121,7 +122,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         )}
       </Box>
       
-      <HStack spacing={2}>
+      <HStack spacing={2} px={2}>
         <input
           type="text"
           value={inputValue}
