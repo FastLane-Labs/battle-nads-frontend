@@ -130,7 +130,7 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
       )}
 
       {/* Debug Button */}
-      <Box position="fixed" right="20px" bottom="20px" zIndex={1000}>
+      <Box position="fixed" left="20px" bottom="20px" zIndex={1000}>
         <IconButton
           aria-label="Debug Tools"
           icon={<Text fontSize="xs">DEBUG</Text>}
