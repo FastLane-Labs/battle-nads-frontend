@@ -89,7 +89,7 @@ const GameView: React.FC<GameViewProps> = ({
               />
             </TabPanel>
             {/* tab 2 (Actions) */}
-            <TabPanel className='card-bg'>
+            <TabPanel className='card-bg !rounded-t-none'>
               <Box my={4}> 
               <h1 className='gold-text-light text-center mb-2 text-3xl font-semibold'>Abilities</h1>
               <AbilityControls 

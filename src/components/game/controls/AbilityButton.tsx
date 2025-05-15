@@ -8,6 +8,7 @@ import {
   CircularProgressLabel,
   Icon,
   Badge,
+  Image,
 } from '@chakra-ui/react';
 import { WarningIcon } from '@chakra-ui/icons';
 import { AbilityStage } from '@/types/domain/enums';
@@ -77,28 +78,68 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
   return (
     <Tooltip label={tooltipLabel} placement="top" hasArrow>
       <Box position="relative" display="inline-block">
-        <Button
+        <Box
+          as="button"
           onClick={onClick}
-          isDisabled={isDisabled}
-          isLoading={isMutationLoading}
-          size="md"
-          minWidth="60px" // Ensure minimum width
-          height="60px" // Ensure square shape
+          disabled={isDisabled}
           position="relative"
-          overflow="hidden" // Hide parts of progress bar outside button
-          variant={isActive ? 'solid' : 'outline'} // Indicate active state
-          colorScheme={isActive ? 'green' : 'gray'}
-          p={0} // Remove padding to allow progress to fill
-          _disabled={{
-            cursor: 'not-allowed',
-            // Keep visual style even when disabled if cooling/charging
-            opacity: (isCoolingDown || isCharging) ? 1 : 0.4, 
-          }}
+          width="60px"
+          height="60px"
+          cursor={isDisabled ? "not-allowed" : "pointer"}
+          opacity={(isDisabled && !(isCoolingDown || isCharging)) ? 0.4 : 1}
         >
+          {/* Background image */}
+          <Image
+            src="/assets/buttons/square-btn.png"
+            alt="Button background"
+            position="absolute"
+            top="0"
+            left="0"
+            width="100%"
+            height="100%"
+            zIndex="0"
+          />
+
           {/* Content */}
-          <Text fontSize="lg" fontWeight="bold">
-            {getAbilityIcon(status.ability)}
-          </Text>
+          <Box
+            position="absolute"
+            top="0"
+            left="0"
+            width="100%"
+            height="100%"
+            display="flex"
+            alignItems="center"
+            justifyContent="center"
+            zIndex="1"
+          >
+            <Text 
+              fontSize="lg" 
+              fontWeight="bold" 
+              className={isActive ? "text-green-200" : "gold-text-light"}
+
+            >
+              {getAbilityIcon(status.ability)}
+            </Text>
+          </Box>
+
+          {/* Loading state */}
+          {isMutationLoading && (
+            <Box
+              position="absolute"
+              top="0"
+              left="0"
+              width="100%"
+              height="100%"
+              bg="rgba(0, 0, 0, 0.6)"
+              display="flex"
+              alignItems="center"
+              justifyContent="center"
+              zIndex="2"
+              borderRadius="md"
+            >
+              <CircularProgress isIndeterminate size="30px" color="blue.300" />
+            </Box>
+          )}
 
           {/* Cooldown Overlay & Timer */}
           {(isCoolingDown || isCharging) && (
@@ -108,11 +149,11 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
               left="0"
               width="100%"
               height="100%"
-              bg="rgba(0, 0, 0, 0.6)" // Dark overlay
+              bg="rgba(0, 0, 0, 0.6)"
               display="flex"
               alignItems="center"
               justifyContent="center"
-              zIndex={1}
+              zIndex="2"
             >
               <CircularProgress
                 value={progress}
@@ -135,7 +176,7 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
                 variant="solid"
                 borderRadius="full"
                 p={0}
-                zIndex={2}
+                zIndex="3"
                 boxSize="18px"
                 display="flex"
                 alignItems="center"
@@ -146,6 +187,7 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
                 </Tooltip>
              </Badge>
           )}
+          
           {/* Out of Combat Indicator (if ability is ready but combat required) */}
           {isActionDisabled && status.isReady && !isMutationLoading && (
              <Badge
@@ -156,18 +198,18 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
                 variant="solid"
                 borderRadius="full"
                 p={0}
-                zIndex={2}
+                zIndex="3"
                 boxSize="18px"
                 display="flex"
                 alignItems="center"
                 justifyContent="center"
               >
                <Tooltip label="Combat required" placement="top">
-                  <Text fontSize="xs" fontWeight="bold">⚔</Text> {/* Simple combat icon */}
+                  <Text fontSize="xs" fontWeight="bold">⚔</Text>
                </Tooltip>
              </Badge>
           )}
-        </Button>
+        </Box>
       </Box>
     </Tooltip>
   );
