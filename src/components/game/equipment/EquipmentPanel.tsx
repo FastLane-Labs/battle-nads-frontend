@@ -4,6 +4,9 @@ import { useEquipment } from '@/hooks/game/useEquipment';
 import { EquipmentCard } from './EquipmentCard';
 import Image from 'next/image';
 import type { Weapon, Armor } from '@/types/domain';
+// Import images directly
+import WeaponIcon from 'public/assets/buttons/weapon.png';
+import ArmorIcon from 'public/assets/buttons/armor.png';
 
 interface EquipmentPanelProps {
   characterId: string | null;
@@ -100,7 +103,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
             disabled={isInCombat}
             >
             <Image
-              src="/assets/buttons/weapon.png"
+              src={WeaponIcon}
               alt="Weapon"
               width={64}
               height={64}
@@ -122,7 +125,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
             disabled={isInCombat}
             >
             <Image
-              src="/assets/buttons/armor.png"
+              src={ArmorIcon}
               alt="Armor"
               width={64}
               height={64}
