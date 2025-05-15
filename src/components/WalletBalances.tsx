@@ -215,26 +215,25 @@ const WalletBalances: React.FC = () => {
         {sessionKeyAddress && showDirectFunding && (
           <Box 
             mt={1} 
-            p={2} 
-            bg="blue.100" 
-            border="1px" 
-            borderColor="blue.300" 
-            borderRadius="md"
+            p={3} 
+            className="flex flex-col gap-2 card-bg !border-amber-500/15"
           >
-            <Text fontWeight="bold" fontSize="sm" color="blue.800">
+            <Text fontWeight="bold" fontSize="sm" className="gold-text-light">
               Low Session Key Balance
             </Text>
-            <Text fontSize="sm" color="blue.800" mb={2}>
-              Your session key has less than {LOW_SESSION_KEY_THRESHOLD} MON. Send funds directly?
+            <Text fontSize="sm" className="text-white" mb={1}>
+              Your session key has less than {LOW_SESSION_KEY_THRESHOLD} MON.
             </Text>
             <Button
-              colorScheme="blue"
+              bg="amber.600"
+              _hover={{ bg: "amber.500" }}
               size="sm"
               onClick={handleDirectFunding}
               isLoading={isDirectFunding}
               loadingText="Sending..."
               width="full"
-              isDisabled={!injectedWallet?.signer} // Disable if no signer
+              isDisabled={!injectedWallet?.signer}
+              className="!text-amber-300 font-medium card-bg-dark"
             >
               Send {DIRECT_FUNDING_AMOUNT} MON to Session Key
             </Button>
@@ -245,26 +244,25 @@ const WalletBalances: React.FC = () => {
         {hasShortfall && (
           <Box 
             mt={1} 
-            p={2} 
-            bg="yellow.100" 
-            border="1px" 
-            borderColor="yellow.300" 
-            borderRadius="md"
+            p={3} 
+            className="flex flex-col gap-2 card-bg !border-amber-500/15"
           >
-            <Text fontWeight="bold" fontSize="sm" color="yellow.800">
+            <Text fontWeight="bold" fontSize="sm" className="gold-text-light">
               Low Gas Balances
             </Text>
-            <Text fontSize="sm" color="yellow.800" mb={2}>
+            <Text fontSize="sm" className="text-white" mb={1}>
               Your app-committed balance is running low - gasless transactions may stop working.
             </Text>
             <Button
-              colorScheme="yellow"
+              bg="amber.600"
+              _hover={{ bg: "amber.500" }}
               size="sm"
               onClick={handleReplenishBalance}
               isLoading={isReplenishing}
               loadingText="Replenishing..."
               width="full"
-              isDisabled={!client?.replenishGasBalance} // Disable if function unavailable
+              isDisabled={!client?.replenishGasBalance}
+              className="!text-amber-300 font-medium card-bg-dark"
             >
               Replenish Committed Balance
             </Button>

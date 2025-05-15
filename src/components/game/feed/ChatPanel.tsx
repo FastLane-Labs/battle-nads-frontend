@@ -135,7 +135,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         <Button
           onClick={handleSendMessage}
           isLoading={isSubmitting}
-          loadingText="Sending"
+          loadingText=""
           // colorScheme="blue"
           disabled={isCacheLoading || isSubmitting || !inputValue.trim()}
           className='!bg-[#8B6914] outline-none'
