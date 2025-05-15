@@ -177,25 +177,25 @@ const WalletBalances: React.FC = () => {
     <Box borderWidth="1px" borderRadius="md" color="white" className='px-3 pt-1 pb-2 flex flex-col gap-2 border-none'>
       {/* <Text fontSize="md" fontWeight="bold">Gas Balances</Text> */}
 
-      <Flex direction="column" gap={1} className='w-auto'>
+      <Flex direction="column" gap={1.5} className='w-auto'>
         {/* Session Key Wallet */}
         <div className='flex w-full justify-between gap-2'>
           <Flex align="center" gap={1}>
-            <h2 className='text-sm font-medium'>Session Key</h2>
-            <Badge colorScheme="purple" size="sm">MON</Badge>
+            <h2 className='text-sm font-medium gold-text-light'>Session Key</h2>
+            <Badge colorScheme="yellow" size="xs">shMON</Badge>
           </Flex>
-          <div className='text-lg font-semibold'>
-            {parseFloat(sessionKeyBalance).toFixed(4)}
+          <div className='font-semibold text-amber-300 text-sm'>
+          {parseFloat(sessionKeyBalance).toFixed(4)}
           </div>
         </div>
 
         {/* Bonded MONAD Balance (Using ownerCommittedAmount) */}
         <div className='flex w-full justify-between gap-2'>
           <Flex align="center" gap={1}>
-            <h2 className='text-sm font-medium'>Committed</h2>
-            <Badge colorScheme="orange" size="sm">MON</Badge>
+            <h2 className='text-sm font-medium gold-text-light'>Committed</h2>
+            <Badge colorScheme="yellow" size="xs">shMON</Badge>
             </Flex>
-          <div className='text-lg font-semibold'>
+            <div className='font-semibold text-amber-300 text-sm'>
             {parseFloat(bondedBalance).toFixed(4)}
           </div>
         </div>
@@ -203,10 +203,10 @@ const WalletBalances: React.FC = () => {
         {/* Owner Wallet Balance */}
         <div className='flex w-full justify-between gap-2'>
           <Flex align="center" gap={1}>
-            <h2 className='text-sm font-medium'>Owner Wallet</h2>
-            <Badge colorScheme="blue" size="sm">MON</Badge>
+            <h2 className='text-sm font-medium gold-text-light'>Owner Wallet</h2>
+            <Badge colorScheme="purple" size="xs">MON</Badge>
             </Flex>
-          <div className='text-lg font-semibold'>
+            <div className='font-semibold text-amber-300 text-sm'>
             {parseFloat(ownerBalance).toFixed(4)}
           </div>
         </div>
