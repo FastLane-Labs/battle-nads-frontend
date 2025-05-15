@@ -4,9 +4,9 @@ import { useEquipment } from '@/hooks/game/useEquipment';
 import { EquipmentCard } from './EquipmentCard';
 import Image from 'next/image';
 import type { Weapon, Armor } from '@/types/domain';
-// Import images directly
-import WeaponIcon from 'public/assets/buttons/weapon.png';
-import ArmorIcon from 'public/assets/buttons/armor.png';
+// Remove direct imports
+// import WeaponIcon from 'public/assets/buttons/weapon.png';
+// import ArmorIcon from 'public/assets/buttons/armor.png';
 
 interface EquipmentPanelProps {
   characterId: string | null;
@@ -101,14 +101,20 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
             position="relative"
             className={`rounded-sm ${selectedSlot === 'weapon' ? '!ring-2 !ring-amber-400 hover:!ring-2 hover:!ring-amber-400' : ''}`}
             disabled={isInCombat}
-            >
-            <Image
-              src={WeaponIcon}
-              alt="Weapon"
-              width={64}
-              height={64}
+          >
+            {/* Replace Image component with more reliable div background approach */}
+            <div 
+              style={{
+                width: '64px',
+                height: '64px',
+                backgroundImage: 'url("/assets/buttons/weapon.png")',
+                backgroundSize: 'contain',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center'
+              }}
               className={`${isInCombat ? 'opacity-50' : 'hover:opacity-90'}`}
-              />
+              aria-label="Weapon"
+            />
           </Box>
         </Tooltip>
 
@@ -123,14 +129,20 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
             position="relative"
             className={`rounded-sm ${selectedSlot === 'armor' ? '!ring-2 !ring-amber-400 hover:!ring-2 hover:!ring-amber-400' : ''}`}
             disabled={isInCombat}
-            >
-            <Image
-              src={ArmorIcon}
-              alt="Armor"
-              width={64}
-              height={64}
+          >
+            {/* Replace Image component with more reliable div background approach */}
+            <div 
+              style={{
+                width: '64px',
+                height: '64px',
+                backgroundImage: 'url("/assets/buttons/armor.png")',
+                backgroundSize: 'contain',
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'center'
+              }}
               className={`${isInCombat ? 'opacity-50' : 'hover:opacity-90'}`}
-              />
+              aria-label="Armor"
+            />
           </Box>
         </Tooltip>
         </div>
