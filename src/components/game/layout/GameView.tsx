@@ -85,8 +85,8 @@ const GameView: React.FC<GameViewProps> = ({
               style={{ transform: 'none' }}
             >
               {activeTab === 'character' ? 
-                <span className="gold-text-light font-semibold text-lg">Character</span> : 
-                <span className="white-text-light font-semibold text-lg">Character</span>
+                <span className="gold-text-light font-semibold text-2xl">Character</span> : 
+                <span className="white-text-light font-semibold text-2xl">Character</span>
               }
             </button>
             <button
@@ -95,8 +95,8 @@ const GameView: React.FC<GameViewProps> = ({
               style={{ transform: 'none' }}
             >
               {activeTab === 'actions' ? 
-                <span className="gold-text-light font-semibold text-lg">Actions</span> : 
-                <span className="white-text-light font-semibold text-lg">Actions</span>
+                <span className="gold-text-light font-semibold text-2xl">Actions</span> : 
+                <span className="white-text-light font-semibold text-2xl">Actions</span>
               }
             </button>
           </div>
@@ -117,7 +117,7 @@ const GameView: React.FC<GameViewProps> = ({
             <div 
               className={`bg-brown p-4 border-black/40 border-b border-x h-full ${activeTab === 'actions' ? 'block' : 'hidden'}`}
             >
-              <Box> 
+              <Box className='mb-2'> 
                 <h1 className='gold-text-light text-center mb-2 text-3xl font-semibold'>Abilities</h1>
                 <AbilityControls 
                   characterId={character?.id ?? null} 
