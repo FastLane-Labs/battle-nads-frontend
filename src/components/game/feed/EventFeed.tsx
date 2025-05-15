@@ -45,9 +45,9 @@ const EventFeed: React.FC<EventFeedProps> = ({
         ) : (
           <>
             <Box 
-              height={`${rowVirtualizer.getTotalSize()}px`} 
+              // height={`${rowVirtualizer.getTotalSize()}px`} 
               width="100%" 
-              className='min-h-full'
+              className='min-h-full max-h-32'
             >
               {eventLogs.length > 0 ? (
                 rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -68,8 +68,8 @@ const EventFeed: React.FC<EventFeedProps> = ({
                   return (
                     <Box 
                       key={itemKey} 
-                      top={0} 
-                      left={0} 
+                      // top={0} 
+                      // left={0} 
                       width="100%" 
                       // height={`${virtualRow.size}px`} 
                       // transform={`translateY(${virtualRow.start}px)`}

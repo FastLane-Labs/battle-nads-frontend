@@ -80,7 +80,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
             <Spinner size="xl" color="blue.500" />
           </Center>
         ) : (
-          <Box height={`${rowVirtualizer.getTotalSize()}px`} width="100%" position="relative">
+          <Box 
+          // height={`${rowVirtualizer.getTotalSize()}px`} 
+          width="100%" position="relative">
             {rowVirtualizer.getVirtualItems().map((virtualRow) => {
               const chat = chatLogs[virtualRow.index];
               if (!chat) return null;
