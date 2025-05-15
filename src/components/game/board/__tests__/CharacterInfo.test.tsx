@@ -147,10 +147,23 @@ describe('CharacterInfo Component', () => {
     const strContainer = strLabel.closest('.flex');
     expect(strContainer).toHaveTextContent(String(Number(mockCharacter.stats.strength)));
     
-    // Check for weapon and armor names
-    expect(screen.getByText(mockCharacter.weapon.name)).toBeInTheDocument();
-    expect(screen.getByText(mockCharacter.armor.name)).toBeInTheDocument();
-    // ... add more checks for other stats/info if needed
+    // Check for Equipment section instead of specific weapon/armor names
+    // The weapon and armor names are now in tooltips, which are not rendered until hover
+    expect(screen.getByText('Equipment')).toBeInTheDocument();
+    
+    // Verify equipment buttons are present
+    const buttons = screen.getAllByRole('button');
+    // At least one button should have an img with weapon alt text
+    expect(buttons.some(button => {
+      const img = button.querySelector('img[alt="Weapon"]');
+      return img !== null;
+    })).toBe(true);
+    
+    // At least one button should have an img with armor alt text
+    expect(buttons.some(button => {
+      const img = button.querySelector('img[alt="Armor"]');
+      return img !== null;
+    })).toBe(true);
   });
 
   it('should not display combat indicator when combatants array is empty', () => {
