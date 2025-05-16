@@ -52,16 +52,9 @@ export const useSessionKey = (characterId: string | null) => {
       let newSessionKeyState = SessionKeyState.IDLE; // Default if validation can't run
 
       if (snapshotError) {
-        console.log("[useSessionKey Effect] Snapshot query finished with error:", snapshotError);
         newSessionKeyState = SessionKeyState.MISSING; // Error prevents validation
       } else if (isInputAvailable) {
           // We have the inputs, now check if they are valid for validation machine
-          console.log("[useSessionKey Effect] Checking isReadyForValidationMachine:", {
-              sessionKey,
-              isNotZero: sessionKey ? sessionKey.toLowerCase() !== ZeroAddress.toLowerCase() : false,
-              currentBlock,
-              isBlockPositive: currentBlock > 0
-          });
           const isReadyForValidationMachine = 
              sessionKey && 
              sessionKey.toLowerCase() !== ZeroAddress.toLowerCase() &&
@@ -75,7 +68,6 @@ export const useSessionKey = (characterId: string | null) => {
                  expiration, 
                  currentBlock
              );
-             console.log("[useSessionKey Effect] Validation result state:", newSessionKeyState);
           } else {
              // Data is available post-load, but invalid for validation (e.g., zero key)
              console.warn("[useSessionKey Effect] Validation skipped post-load: Invalid data:", {
@@ -85,7 +77,6 @@ export const useSessionKey = (characterId: string | null) => {
           }
       } else {
           // Snapshot loaded fine, but core inputs (charId, owner, embedAddr, rawData) missing
-          console.log("[useSessionKey Effect] Validation skipped post-load: Core inputs missing.");
           newSessionKeyState = SessionKeyState.IDLE; // Or MISSING depending on desired state
       }
       
@@ -93,7 +84,6 @@ export const useSessionKey = (characterId: string | null) => {
       if (isMounted) { // Check mount status before setting state
           setSessionKeyState(prevState => {
               if (prevState !== newSessionKeyState) {
-                  console.log(`[useSessionKey Effect] State transition: ${prevState} -> ${newSessionKeyState}`);
                   return newSessionKeyState;
               }
               return prevState;
@@ -104,7 +94,6 @@ export const useSessionKey = (characterId: string | null) => {
       // --- Snapshot IS Loading --- 
       // Do not change the session key state while the underlying data is refreshing.
       // Keep the previous state.
-      console.log("[useSessionKey Effect] Snapshot loading... maintaining previous state.");
     }
     // --- End Primary Logic --- 
 

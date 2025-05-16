@@ -44,6 +44,7 @@ interface CharacterInfoProps {
 }
 
 const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) => {
+  console.log('CharacterInfo component rendered with character:', character);
   // No need for separate currentStats state if just reading from props now
   // const [currentStats, setCurrentStats] = useState<typeof character.stats>(character.stats);
 
@@ -52,6 +53,9 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
 
   // Destructure health AND maxHealth directly from the character prop
   const { weapon, armor, name, inventory, level, health, maxHealth, stats } = character;
+  
+  // Add this line to convert level to a regular number
+  const displayLevel = Number(level);
   
   // Use maxHealth directly from props. Ensure it's treated as a number.
   const currentMaxHealth = Number(maxHealth || 100); // Default to 100 if maxHealth is missing/0
@@ -62,13 +66,12 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   
   // Calculate experience progress (using stats from props)
   const experienceProgress = useMemo(() => {
-    const currentLevel = Number(level);
     const currentExperience = Number(stats?.experience || 0);
-    if (currentLevel <= 0) return 0; // Avoid division by zero or weird results for level 0
-    const experienceNeededForNextLevel = (currentLevel * EXP_BASE) + (currentLevel * currentLevel * EXP_SCALE);
+    if (displayLevel <= 0) return 0; // Avoid division by zero or weird results for level 0
+    const experienceNeededForNextLevel = (displayLevel * EXP_BASE) + (displayLevel * displayLevel * EXP_SCALE);
     if (experienceNeededForNextLevel <= 0) return 0; // Avoid division by zero
     return Math.min(100, (currentExperience / experienceNeededForNextLevel) * 100); // Cap at 100%
-  }, [level, stats?.experience]);
+  }, [displayLevel, stats?.experience]);
 
   // Determine combat indicator text
   const isInCombat = combatants && combatants.length > 0;
@@ -88,7 +91,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
           {/* Character Name and Level */}
           <Flex justify="space-between" align="center">
             <h1 className='gold-text-light text-2xl font-bold tracking-tight'>{name || 'Unnamed Character'}</h1>
-            {level && (
+            {displayLevel && (
               <Box 
               backgroundImage="/assets/bg/level.png"
               backgroundSize="contain"
@@ -103,7 +106,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
               height="40px"
               className='text-yellow-400/90 font-bold text-center font-serif text-xl'
               >
-                Level {level}
+                Level {displayLevel}
               </Box>
             )}
           </Flex>
@@ -186,7 +189,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
               <Flex justify="space-between" mb={1}>
               <Text className="gold-text text-2xl font-serif mb-1 font-semibold">Experience</Text>
               <span className="text-amber-300 font-black font-serif">
-              {Number(stats?.experience)} / {(Number(level) * EXP_BASE) + (Number(level) * Number(level) * EXP_SCALE)}
+              {Number(stats?.experience)} / {(displayLevel * EXP_BASE) + (displayLevel * displayLevel * EXP_SCALE)}
                 </span>
               </Flex>
               <Progress 
