@@ -153,16 +153,16 @@ describe('CharacterInfo Component', () => {
     
     // Verify equipment buttons are present
     const buttons = screen.getAllByRole('button');
-    // At least one button should have an img with weapon alt text
+    // At least one button should have a div with Weapon aria-label
     expect(buttons.some(button => {
-      const img = button.querySelector('img[alt="Weapon"]');
-      return img !== null;
+      const div = button.querySelector('div[aria-label="Weapon"]');
+      return div !== null;
     })).toBe(true);
     
-    // At least one button should have an img with armor alt text
+    // At least one button should have a div with Armor aria-label
     expect(buttons.some(button => {
-      const img = button.querySelector('img[alt="Armor"]');
-      return img !== null;
+      const div = button.querySelector('div[aria-label="Armor"]');
+      return div !== null;
     })).toBe(true);
   });
 
