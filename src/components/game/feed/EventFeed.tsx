@@ -3,6 +3,7 @@ import { Box, Heading, Text, Spinner, Center, VStack } from '@chakra-ui/react';
 import { domain } from '@/types';
 import { EventLogItemRenderer } from './EventLogItemRenderer';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { LogType } from '@/types/domain/enums';
 
 interface EventFeedProps {
   playerIndex: number | null;
@@ -20,8 +21,21 @@ const EventFeed: React.FC<EventFeedProps> = ({
   
   const parentRef = useRef<HTMLDivElement>(null);
 
+  // Filter out chat events from the logs
+  // This is kind of a bandaid fix
+  // TODO: remove chat events from game.worldSnapshot in useGame().worldSnapshot hook
+ 
+  const filteredEvents = useMemo(() => 
+    eventLogs.filter(event => 
+      event.type !== LogType.Chat && 
+      // Also filter out events that have "Chat:" in the display message
+      !(event.displayMessage && event.displayMessage.startsWith("Chat:"))
+    ), 
+    [eventLogs]
+  );
+
   const rowVirtualizer = useVirtualizer({ 
-    count: eventLogs.length,
+    count: filteredEvents.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 60,
     overscan: 5,
@@ -49,9 +63,9 @@ const EventFeed: React.FC<EventFeedProps> = ({
               width="100%" 
               className='min-h-full max-h-32'
             >
-              {eventLogs.length > 0 ? (
+              {filteredEvents.length > 0 ? (
                 rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const event = eventLogs[virtualRow.index];
+                  const event = filteredEvents[virtualRow.index];
                   if (!event) return null; 
 
                   const itemKey = `${event.timestamp}-${event.logIndex}-${virtualRow.index}`;
