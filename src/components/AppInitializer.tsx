@@ -110,7 +110,11 @@ const AppInitializer: React.FC = () => {
          <GameContainer
            character={game.character}
            position={position}
-           gameState={game.worldSnapshot}
+           gameState={{
+             ...game.worldSnapshot,
+             // Filter out dead combatants to prevent issues with "Unnamed the Initiate"
+             combatants: game.worldSnapshot.combatants.filter(combatant => !combatant.isDead)
+           }}
            moveCharacter={moveCharacter}
            attack={attack}
            sendChatMessage={sendChatMessage}

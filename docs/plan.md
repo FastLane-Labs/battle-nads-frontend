@@ -98,3 +98,15 @@ Based on the conversation logs, I've updated the roadmap to reflect the current 
 | M3 – Public Mainnet   | + K, L, selected N-V        |
 
 This updated roadmap reflects the team's discussion about prioritizing the core gameplay mechanics while deprioritizing features like the mini-map, extensive chat history, and area view for later stages. The focus is now on ensuring that combat, equipment, and session management work properly before expanding to other features.
+
+---
+
+## 7. Bug Fixes Log
+
+### Combat System Fixes
+
+| Date       | Issue                                   | Fix Description                                      | Files Modified                                                    |
+|:-----------|:----------------------------------------|:----------------------------------------------------|:------------------------------------------------------------------|
+| YYYY-MM-DD | Dead enemies appearing in combatants list | Added filtering to prevent dead characters (marked with `isDead: true`) from appearing in combat targets, combat indicators, and combat state calculations | `CombatTargets.tsx`, `CharacterInfo.tsx`, `AppInitializer.tsx`, `useGame.ts` |
+
+> 🚨 **Combat Bug Fix:** Dead enemies were appearing in the target list with names like "Unnamed the Initiate". This occurred because the `isDead` flag wasn't being checked when displaying combatants. Filters were added at multiple levels to ensure dead characters are excluded from combat UI components and combat state calculations.

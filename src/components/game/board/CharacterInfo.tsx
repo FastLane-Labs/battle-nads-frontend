@@ -74,14 +74,15 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   }, [displayLevel, stats?.experience]);
 
   // Determine combat indicator text
-  const isInCombat = combatants && combatants.length > 0;
+  const livingCombatants = combatants.filter(combatant => !combatant.isDead);
+  const isInCombat = livingCombatants && livingCombatants.length > 0;
   const combatIndicatorText = useMemo(() => {
     if (!isInCombat) return null;
-    if (combatants.length === 1) {
-      return `Fighting: ${combatants[0]?.name || 'Unknown'}`;
+    if (livingCombatants.length === 1) {
+      return `Fighting: ${livingCombatants[0]?.name || 'Unknown'}`;
     }
-    return `Fighting: Multiple Enemies (${combatants.length})`;
-  }, [combatants, isInCombat]);
+    return `Fighting: Multiple Enemies (${livingCombatants.length})`;
+  }, [livingCombatants, isInCombat]);
 
   return (
     <Box borderRadius="md" h="100%" overflowY="auto">
