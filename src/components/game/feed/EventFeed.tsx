@@ -21,8 +21,26 @@ const EventFeed: React.FC<EventFeedProps> = ({
   const parentRef = useRef<HTMLDivElement>(null);
 
   // Filter out chat messages (type 4) from event logs
+  // Also filter out combat events with "Unnamed the Initiate"
   const filteredEventLogs = useMemo(() => {
-    return eventLogs.filter(event => Number(event.type) !== 4);
+    return eventLogs.filter(event => {
+      console.log("---------------------------Event:", event);
+      // Filter out chat messages (type 4)
+      if (Number(event.type) === 4) {
+        return false;
+      }
+      
+      // Filter out combat events involving "Unnamed the Initiate"
+      // Use Number() to handle BigInt event types properly
+      if ((Number(event.type) === 0 || Number(event.type) === 1) &&
+          ((event.defender && event.defender.name?.includes("Unnamed the Initiate")) ||
+           (event.attacker && event.attacker.name?.includes("Unnamed the Initiate")))) {
+        return false;
+      }
+      
+      // Keep all other events
+      return true;
+    });
   }, [eventLogs]);
 
   const rowVirtualizer = useVirtualizer({ 
