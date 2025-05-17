@@ -23,11 +23,14 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
     }
   };
   
+  // Filter out dead characters from combat targets to prevent attacking dead enemies
+  const validCombatants = combatants.filter(combatant => !combatant.isDead);
+  
   return (
     <Box h="100%" display="flex" flexDirection="column">
       <h2 className='gold-text-light text-2xl font-bold tracking-tight mb-2 text-center'>Combat</h2>
       
-      {combatants.length === 0 ? (
+      {validCombatants.length === 0 ? (
         <Box className="flex items-center justify-center h-full w-full bg-dark-brown rounded-md">
           <Text className='gold-text-light text-lg'>No targets in this area</Text>
         </Box>
@@ -35,7 +38,7 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
         <VStack spacing={2} align="stretch">
           {/* Target List */}
           <Box p={2} borderRadius="md" mb={2} maxH="200px" overflowY="auto" className='bg-dark-brown'>
-            {combatants.map((combatant, index) => (
+            {validCombatants.map((combatant, index) => (
               <Button
               key={index}
               size="sm"

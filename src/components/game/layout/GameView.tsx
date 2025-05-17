@@ -109,7 +109,7 @@ const GameView: React.FC<GameViewProps> = ({
             >
               <CharacterInfo 
                 character={character} 
-                combatants={combatants}
+                combatants={combatants.filter(combatant => !combatant.isDead)}
               />
             </div>
             

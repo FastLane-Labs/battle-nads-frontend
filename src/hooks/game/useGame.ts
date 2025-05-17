@@ -261,7 +261,7 @@ export const useGame = () => {
 
   // --- Determine Combat State ---
   const isInCombat = useMemo(() => {
-      return !!worldSnapshot && worldSnapshot.combatants.length > 0;
+      return !!worldSnapshot && worldSnapshot.combatants.filter(combatant => !combatant.isDead).length > 0;
   }, [worldSnapshot]);
   // ----------------------------
 
