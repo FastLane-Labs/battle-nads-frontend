@@ -24,7 +24,6 @@ const EventFeed: React.FC<EventFeedProps> = ({
   // Also filter out combat events with dead players
   const filteredEventLogs = useMemo(() => {
     return eventLogs.filter(event => {
-      console.log("---------------------------Event:", event);
       // Filter out chat messages (type 4)
       if (Number(event.type) === 4) {
         return false;

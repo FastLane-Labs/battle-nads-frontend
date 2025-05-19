@@ -32,8 +32,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
 
   // scroll to the bottom when new messages are added
   useEffect(() => {
-    console.log('ChatPanel: chatLogs.length', chatLogs.length);
-    console.log('ChatPanel: isCacheLoading', isCacheLoading);
     if (chatLogs.length > 0 ||  !isCacheLoading) {
       rowVirtualizer.scrollToIndex(chatLogs.length - 1, { align: 'start' });
     }

@@ -44,7 +44,6 @@ interface CharacterInfoProps {
 }
 
 const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) => {
-  console.log('CharacterInfo component rendered with character:', character);
   // No need for separate currentStats state if just reading from props now
   // const [currentStats, setCurrentStats] = useState<typeof character.stats>(character.stats);
 
