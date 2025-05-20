@@ -34,6 +34,8 @@ export const useBattleNads = (owner: string | null) => {
   const characterLookup = useMemo<Map<number, domain.CharacterLite>>(() => {
     const map = new Map<number, domain.CharacterLite>();
     if (rawData) {
+      // console.log('DEBUG COMBATANTS (SC raw):', rawData.combatants);
+      // console.log('DEBUG NONCOMBATANTS (SC raw):', rawData.noncombatants);
       (rawData.combatants || []).forEach(c => map.set(Number(c.index), mapCharacterLite(c)));
       (rawData.noncombatants || []).forEach(c => map.set(Number(c.index), mapCharacterLite(c)));
       if (rawData.character) {
@@ -211,8 +213,11 @@ export const useBattleNads = (owner: string | null) => {
            
     let snapshotBase: domain.WorldSnapshot | null = null;
     try {
+      // console.log('DEBUG (SC raw): Converting contract data to world snapshot:', rawData);
       snapshotBase = contractToWorldSnapshot(rawData, owner); 
+      // console.log('DEBUG (frontend data): Resulting worldSnapshot:', snapshotBase);
     } catch (e) {
+      // console.error('DEBUG: Error in contractToWorldSnapshot:', e);
       return previousGameStateRef.current;
     }
     if (!snapshotBase) {
