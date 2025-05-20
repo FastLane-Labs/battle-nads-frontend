@@ -6,7 +6,8 @@ import {
   Divider, 
   Flex, 
   Badge,
-  VStack
+  VStack,
+  Image
 } from '@chakra-ui/react';
 import { domain } from '@/types';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
@@ -204,9 +205,19 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
 
             {/* Gold Display */}
             {inventory?.balance !== undefined && (
-              <Flex justify="space-between">
-                <Text fontSize="sm">Gold <Badge bg="gold" color="black" fontSize="xs" ml={1}>SHMONAD</Badge></Text>
-                <Text fontSize="sm" fontWeight="medium">{formatGold(inventory.balance)}</Text>
+              <Flex justify="space-between" align="center">
+                <Flex align="center">
+                  <Image src="/assets/icons/gold.png" alt="Gold" width="20px" height="20px" mr={1} />
+                  <Text fontSize="md">
+                    <span className='gold-text-light font-bold'>
+                    Gold 
+                    </span>
+                    </Text>
+                </Flex>
+                <div className='flex items-center gap-1'>
+                  <Text fontSize="md" fontWeight="medium" className='gold-text-light'>{formatGold(inventory.balance)}</Text>
+                  <Badge bg="gold" color="black" fontSize="xs" ml={1}>SHMONAD</Badge>
+                </div>
               </Flex>
             )}
           </VStack>
