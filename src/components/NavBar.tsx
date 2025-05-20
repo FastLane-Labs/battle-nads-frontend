@@ -171,7 +171,7 @@ const NavBar: React.FC = () => {
                   </HStack>
                 )}
               </MenuButton>
-              <MenuList>
+              <MenuList className='!bg-brown/20 backdrop-blur-sm'>
                 {injectedWallet?.address && (
                   <Tooltip 
                     label={
@@ -187,6 +187,7 @@ const NavBar: React.FC = () => {
                     <MenuItem 
                       onClick={() => handleCopyWithDelay(onCopyInjected)}
                       closeOnSelect={false}
+                      className='!bg-brown/40'
                     >
                       <HStack spacing={1}>
                         <Badge colorScheme="blue" fontSize="xs">{formatWalletType(injectedWallet.walletClientType).toUpperCase()}</Badge>
@@ -218,6 +219,7 @@ const NavBar: React.FC = () => {
                     <MenuItem 
                       onClick={() => handleCopyWithDelay(onCopyEmbedded)}
                       closeOnSelect={false}
+                      className='!bg-brown/40'
                     >
                       <HStack spacing={1}>
                         <Badge colorScheme="green" fontSize="xs">SESSION KEY</Badge>
@@ -245,6 +247,7 @@ const NavBar: React.FC = () => {
                     onClick={() => deactivateKey()} 
                     isDisabled={!canDeactivate || isDeactivating}
                     closeOnSelect={false}
+                    className='!bg-brown/40'
                   >
                     <HStack>
                       <Text>Deactivate Session</Text>
@@ -258,7 +261,10 @@ const NavBar: React.FC = () => {
                   placement="right"
                   hasArrow
                 >
-                  <MenuItem onClick={handleLogout}>
+                  <MenuItem onClick={handleLogout}
+                    className='!bg-brown/40'
+
+                  >
                     Disconnect
                   </MenuItem>
                 </Tooltip>
