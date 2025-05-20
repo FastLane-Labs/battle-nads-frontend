@@ -94,16 +94,31 @@ export function mapCharacter(
     weight: Number(rawCharacter.armor.weight)
   };
   
-  // Map inventory
+  // Map inventory - handle both object and array-like structures
   const inventory: domain.Inventory = {
-    weaponBitmap: 0, // Placeholder
-    armorBitmap: 0, // Placeholder
-    balance: 0, // Placeholder
-    weaponIDs: [], // Placeholder
-    armorIDs: [], // Placeholder
-    weaponNames: [], // Placeholder
-    armorNames: [] // Placeholder
+    weaponBitmap: 0,
+    armorBitmap: 0,
+    balance: 0,
+    weaponIDs: [],
+    armorIDs: [],
+    weaponNames: [],
+    armorNames: []
   };
+  
+  // Check if inventory exists and has array-like indexing
+  if (rawCharacter.inventory) {
+    // Safe access with type assertion for array-like structure
+    const invArray = rawCharacter.inventory as any;
+    if (typeof invArray[0] !== 'undefined') inventory.weaponBitmap = Number(invArray[0]);
+    if (typeof invArray[1] !== 'undefined') inventory.armorBitmap = Number(invArray[1]);
+    if (typeof invArray[2] !== 'undefined') inventory.balance = Number(invArray[2]);
+    
+    // Log for debugging
+    console.log('DEBUG: Mapping character inventory:', {
+      raw: invArray,
+      mapped: inventory
+    });
+  }
   
   return {
     id: rawCharacter.id,
