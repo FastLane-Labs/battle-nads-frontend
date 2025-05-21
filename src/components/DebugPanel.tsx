@@ -18,7 +18,6 @@ import {
 } from '@chakra-ui/react';
 import { useBattleNads } from '../hooks/game/useBattleNads';
 import { useWallet } from '../providers/WalletProvider';
-import { calculateMaxHealth } from '../utils/gameDataConverters';
 import { useBattleNadsClient } from '../hooks/contracts/useBattleNadsClient';
 import { CharacterLite } from '@/types/domain';
 
