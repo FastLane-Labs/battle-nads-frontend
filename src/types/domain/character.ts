@@ -11,6 +11,18 @@ export interface Position {
   depth: number;
 }
 
+/**
+ * Movement restrictions for all directions
+ */
+export interface MovementOptions {
+  canMoveNorth: boolean;
+  canMoveSouth: boolean;
+  canMoveEast: boolean;
+  canMoveWest: boolean;
+  canMoveUp: boolean;
+  canMoveDown: boolean;
+}
+
 export interface CharacterStats {
   strength: number;
   vitality: number;
@@ -78,6 +90,7 @@ export interface Character {
   inventory: Inventory;
   isInCombat: boolean;
   isDead: boolean;
+  movementOptions: MovementOptions;
 }
 
 export interface CharacterLite {

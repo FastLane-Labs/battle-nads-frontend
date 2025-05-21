@@ -133,7 +133,7 @@ describe('useUiSnapshot', () => {
           data.dataFeeds || [],                         // 9
           BigInt(data.balanceShortfall || '0'),         // 10
           BigInt(data.unallocatedAttributePoints || '0'),// 11
-          BigInt(mockPollData.endBlock || '0')        // 12 (Correct length)
+          BigInt(data.endBlock || '0')                 // 12 (Correct length)
         ];
         return Promise.resolve(mockArrayData);
       }),
@@ -206,9 +206,25 @@ describe('useUiSnapshot', () => {
   
   it('makes API calls with correct parameters', async () => {
     // Create a mock function we can track
-    const mockGetUiSnapshot = jest.fn().mockResolvedValue({
-      ...mockPollData,
-      endBlock: BigInt(150)
+    const mockGetUiSnapshot = jest.fn().mockImplementation(() => {
+      // Convert to array format as expected by the hook
+      const data = mockPollData as any;
+      const mockArrayData = [
+        data.characterID,                             // 0
+        data.sessionKeyData,                          // 1
+        data.character,                               // 2
+        data.combatants || [],                        // 3
+        data.noncombatants || [],                     // 4
+        data.equipableWeaponIDs || [],                // 5
+        data.equipableWeaponNames || [],              // 6
+        data.equipableArmorIDs || [],                 // 7
+        data.equipableArmorNames || [],               // 8
+        data.dataFeeds || [],                         // 9
+        BigInt(data.balanceShortfall || '0'),         // 10
+        BigInt(data.unallocatedAttributePoints || '0'),// 11
+        BigInt(150)                                  // 12 - using 150 as endBlock
+      ];
+      return Promise.resolve(mockArrayData);
     });
     
     const mockClient = {
@@ -239,13 +255,45 @@ describe('useUiSnapshot', () => {
   it('provides refetch functionality', async () => {
     // Create a mock that we can track
     const mockGetUiSnapshot = jest.fn()
-      .mockResolvedValueOnce({
-        ...mockPollData,
-        endBlock: BigInt(150)
+      .mockImplementationOnce(() => {
+        // First call returns endBlock 150
+        const data = mockPollData as any;
+        const mockArrayData = [
+          data.characterID,                             // 0
+          data.sessionKeyData,                          // 1
+          data.character,                               // 2
+          data.combatants || [],                        // 3
+          data.noncombatants || [],                     // 4
+          data.equipableWeaponIDs || [],                // 5
+          data.equipableWeaponNames || [],              // 6
+          data.equipableArmorIDs || [],                 // 7
+          data.equipableArmorNames || [],               // 8
+          data.dataFeeds || [],                         // 9
+          BigInt(data.balanceShortfall || '0'),         // 10
+          BigInt(data.unallocatedAttributePoints || '0'),// 11
+          BigInt(150)                                  // 12 - using 150 as endBlock
+        ];
+        return Promise.resolve(mockArrayData);
       })
-      .mockResolvedValueOnce({
-        ...mockPollData,
-        endBlock: BigInt(200)
+      .mockImplementationOnce(() => {
+        // Second call returns endBlock 200
+        const data = mockPollData as any;
+        const mockArrayData = [
+          data.characterID,                             // 0
+          data.sessionKeyData,                          // 1
+          data.character,                               // 2
+          data.combatants || [],                        // 3
+          data.noncombatants || [],                     // 4
+          data.equipableWeaponIDs || [],                // 5
+          data.equipableWeaponNames || [],              // 6
+          data.equipableArmorIDs || [],                 // 7
+          data.equipableArmorNames || [],               // 8
+          data.dataFeeds || [],                         // 9
+          BigInt(data.balanceShortfall || '0'),         // 10
+          BigInt(data.unallocatedAttributePoints || '0'),// 11
+          BigInt(200)                                  // 12 - using 200 as endBlock
+        ];
+        return Promise.resolve(mockArrayData);
       });
     
     const mockClient = {
