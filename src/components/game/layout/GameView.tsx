@@ -55,10 +55,7 @@ const GameView: React.FC<GameViewProps> = ({
   return (
     <Grid
       templateAreas={{
-        base: `"map character"
-               "controls controls"
-               "feed chat"`,
-        md: `"tab combat chat"
+        base: `"tab combat chat"
              "tab combat chat"
              "tab feed chat"`
       }}
