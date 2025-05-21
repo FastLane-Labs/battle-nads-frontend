@@ -8,6 +8,88 @@ import { safeStringify } from '@/utils/bigintSerializer';
 import { estimateBlockTimestamp } from '@/utils/blockUtils'; // Import the utility
 
 /**
+ * Constants for movement validation
+ */
+const MAX_DUNGEON_DEPTH = 50; // Maximum depth level
+const MIN_COORDINATE = 0;     // Minimum x/y coordinate
+const MAX_COORDINATE = 50;    // Maximum x/y coordinate
+
+/**
+ * Calculate the valid coordinates for depth changes (stairs/ladders)
+ * This is a TypeScript implementation of the Solidity _depthChangeCoordinates function
+ */
+function getDepthChangeCoordinates(currentDepth: number, nextDepth: number): { x: number, y: number } | null {
+  // Validate depth change
+  if (nextDepth > MAX_DUNGEON_DEPTH || nextDepth < 0) {
+    return null; // Invalid depth change
+  }
+
+  let deeperDepth: number;
+  let shallowerDepth: number;
+  
+  if (currentDepth < nextDepth) {
+    shallowerDepth = currentDepth;
+    deeperDepth = nextDepth;
+  } else {
+    shallowerDepth = nextDepth;
+    deeperDepth = currentDepth;
+  }
+
+  let x = 25; // starting x
+  let y = 25; // starting y
+  
+  // Return (25,25) for location to descend to the second dungeon depth
+  if (shallowerDepth === 1) {
+    return { x, y };
+  }
+
+  const cornerIndicator = shallowerDepth % 4;
+  const traverse = 10 + Math.floor(shallowerDepth / 4);
+  
+  // Calculate corner positions based on depth
+  if (cornerIndicator === 0) {
+    x -= traverse;
+    y -= traverse;
+  } else if (cornerIndicator === 1) {
+    x += traverse;
+    y += traverse;
+  } else if (cornerIndicator === 2) {
+    x += traverse;
+    y -= traverse;
+  } else if (cornerIndicator === 3) {
+    x -= traverse;
+    y += traverse;
+  }
+  
+  return { x, y };
+}
+
+/**
+ * Check if vertical movement is allowed at this position
+ */
+function isVerticalMovementAllowed(direction: 'up' | 'down', position: { x: number, y: number, depth: number }): boolean {
+  const currentDepth = position.depth;
+  const targetDepth = direction === 'up' ? currentDepth + 1 : currentDepth - 1;
+  
+  // Can't go above depth 0 or below MAX_DUNGEON_DEPTH
+  if (targetDepth < 0 || targetDepth > MAX_DUNGEON_DEPTH) {
+    return false;
+  }
+  
+  // Calculate valid stair coordinates
+  const validCoords = getDepthChangeCoordinates(currentDepth, targetDepth);
+  if (!validCoords) {
+    return false;
+  }
+  
+  // Check if player is at the valid stair position
+  return (
+    position.x === validCoords.x && 
+    position.y === validCoords.y
+  );
+}
+
+/**
  * Safely maps a raw numeric or bigint class value from the contract to the domain enum.
  * Returns Bard (0) as a fallback for unknown values.
  */
@@ -120,6 +202,43 @@ export function mapCharacter(
     });
   }
   
+  const position = {
+    x: rawCharacter.stats.x,
+    y: rawCharacter.stats.y,
+    depth: rawCharacter.stats.depth
+  };
+  
+  const isInCombat = Boolean(rawCharacter.stats.combatantBitMap);
+  
+  // Calculate movement options
+  const movementOptions: domain.MovementOptions = {
+    canMoveNorth: !isInCombat,
+    canMoveSouth: !isInCombat,
+    canMoveEast: !isInCombat,
+    canMoveWest: !isInCombat,
+    canMoveUp: !isInCombat,
+    canMoveDown: !isInCombat
+  };
+  
+  // If not in combat, check specific movement restrictions
+  if (!isInCombat) {
+    const positionObj = {
+      x: Number(position.x),
+      y: Number(position.y),
+      depth: Number(position.depth)
+    };
+    
+    // Check board boundaries
+    movementOptions.canMoveNorth = positionObj.y < MAX_COORDINATE;
+    movementOptions.canMoveSouth = positionObj.y > MIN_COORDINATE;
+    movementOptions.canMoveEast = positionObj.x < MAX_COORDINATE;
+    movementOptions.canMoveWest = positionObj.x > MIN_COORDINATE;
+    
+    // Check vertical movement (stairs/ladders)
+    movementOptions.canMoveUp = isVerticalMovementAllowed('up', positionObj);
+    movementOptions.canMoveDown = isVerticalMovementAllowed('down', positionObj);
+  }
+  
   return {
     id: rawCharacter.id,
     index: rawCharacter.stats.index,
@@ -149,7 +268,8 @@ export function mapCharacter(
     },
     inventory,
     isInCombat: Boolean(rawCharacter.stats.combatantBitMap),
-    isDead: rawCharacter.tracker?.died || false
+    isDead: rawCharacter.tracker?.died || false,
+    movementOptions // Add movement options to character
   };
 }
 
@@ -460,8 +580,8 @@ export function contractToWorldSnapshot(
     character: mapCharacter(raw.character),
     combatants: (raw.combatants || []).map(mapCharacterLite),
     noncombatants: (raw.noncombatants || []).map(mapCharacterLite),
-    eventLogs: allEventLogs,      // Correct field names 
-    chatLogs: allChatMessages,     // Correct field names 
+    eventLogs: allEventLogs,
+    chatLogs: allChatMessages,
     balanceShortfall: Number(raw.balanceShortfall || 0),
     unallocatedAttributePoints: Number(raw.unallocatedAttributePoints || 0),
     lastBlock: Number(raw.endBlock || 0)

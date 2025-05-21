@@ -128,6 +128,7 @@ const GameView: React.FC<GameViewProps> = ({
                   isMoving={isMoving} 
                   position={position}
                   isInCombat={isInCombat}
+                  movementOptions={character.movementOptions}
                 />
               </Box>
             </div>
