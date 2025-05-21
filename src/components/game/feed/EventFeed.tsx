@@ -68,7 +68,7 @@ const EventFeed: React.FC<EventFeedProps> = ({
             <Box 
               // height={`${rowVirtualizer.getTotalSize()}px`} 
               width="100%" 
-              className='min-h-full max-h-32'
+              className='h-full min-h-full max-h-32'
             >
               {filteredEventLogs.length > 0 ? (
                 rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -107,9 +107,9 @@ const EventFeed: React.FC<EventFeedProps> = ({
                   );
                 })
               ) : (
-                <Box className="flex items-center justify-center h-full w-full gold-text-light text-lg font-semibold">
+                <div className="flex items-center justify-center !h-full !w-full !min-h-full text-lg gold-text-light">
                   <Text>No events yet</Text>
-                </Box>
+                </div>
               )}
             </Box>
           </>

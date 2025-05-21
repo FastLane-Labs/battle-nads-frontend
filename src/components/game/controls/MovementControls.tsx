@@ -47,7 +47,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({ onMove, isMoving, p
   return (
     <Box>
       
-      <h1 className='gold-text-light text-center mb-2 text-3xl font-semibold'>Movement</h1>
+      <h1 className='uppercase gold-text-light text-center mb-2 text-3xl font-semibold'>Movement</h1>
       
       <div
         className='border border-yellow-800/80 rounded-md w-max px-10 py-3 mx-auto bg-dark-brown'

@@ -63,7 +63,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   
   return (
     <Box h="100%" display="flex" flexDirection="column">
-      <h2 className='gold-text-light text-2xl font-bold tracking-tight mb-2 px-4'>Chat</h2>
+      <h2 className='uppercase gold-text-light text-2xl font-bold tracking-tight mb-2 px-4'>Chat</h2>
       
       <Box 
         ref={parentRef}

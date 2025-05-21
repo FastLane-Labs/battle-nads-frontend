@@ -78,9 +78,9 @@ const GameView: React.FC<GameViewProps> = ({
       <GridItem area="tab" className='h-full'>
         <div className="flex flex-col h-full">
           {/* Tab Buttons */}
-          <div className="flex">
+          <div className="flex ">
             <button
-              className={`bg-brown rounded-lg border-black/40 border-t border-x w-1/2 !rounded-b-none py-2 hover:transform-none hover:translate-y-0 border-b-2 ${activeTab === 'character' ? 'border-b-brown' : 'border-b-black/40'}`}
+              className={`uppercase bg-brown rounded-lg border-black/40 border-t border-x w-1/2 !rounded-b-none py-2 hover:transform-none hover:translate-y-0 border-b-2 ${activeTab === 'character' ? 'border-b-brown' : 'border-b-black/40'}`}
               onClick={() => setActiveTab('character')}
               style={{ transform: 'none' }}
             >
@@ -90,7 +90,7 @@ const GameView: React.FC<GameViewProps> = ({
               }
             </button>
             <button
-              className={`bg-brown rounded-lg border-black/40 border-t border-x w-1/2 !rounded-b-none py-2 hover:transform-none hover:translate-y-0 border-b-2 ${activeTab === 'actions' ? 'border-b-brown' : 'border-b-black/40'}`}
+              className={`uppercase bg-brown rounded-lg border-black/40 border-t border-x w-1/2 !rounded-b-none py-2 hover:transform-none hover:translate-y-0 border-b-2 ${activeTab === 'actions' ? 'border-b-brown' : 'border-b-black/40'}`}
               onClick={() => setActiveTab('actions')}
               style={{ transform: 'none' }}
             >
@@ -118,7 +118,7 @@ const GameView: React.FC<GameViewProps> = ({
               className={`flex flex-col bg-brown px-4 pb-4 border-black/40 border-b border-x h-full justify-center items-center ${activeTab === 'actions' ? 'block' : 'hidden'}`}
             >
               <Box className='mb-2'> 
-                <h1 className='gold-text-light text-center mb-2 text-3xl font-semibold'>Abilities</h1>
+                <h1 className='uppercase gold-text-light text-center mb-2 text-3xl font-semibold'>Abilities</h1>
                 <AbilityControls 
                   characterId={character?.id ?? null} 
                   selectedTargetIndex={selectedTargetIndex}

@@ -28,7 +28,7 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
   
   return (
     <Box h="100%" display="flex" flexDirection="column">
-      <h2 className='gold-text-light text-2xl font-bold tracking-tight mb-2 text-center'>Combat</h2>
+      <h2 className='uppercase gold-text-light text-2xl font-bold tracking-tight mb-2 text-center'>Combat</h2>
       
       {validCombatants.length === 0 ? (
         <Box className="flex items-center justify-center h-full w-full bg-dark-brown rounded-md">
