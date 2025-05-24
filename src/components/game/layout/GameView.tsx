@@ -120,6 +120,8 @@ const GameView: React.FC<GameViewProps> = ({
                   characterId={character?.id ?? null} 
                   selectedTargetIndex={selectedTargetIndex}
                   isInCombat={isInCombat}
+                  onAttack={onAttack}
+                  isAttacking={isAttacking}
                 />
               </Box>
               <Box>
@@ -142,8 +144,6 @@ const GameView: React.FC<GameViewProps> = ({
             <Box borderRadius="md" className='h-full card-bg p-4 flex flex-col'>
             <CombatTargets 
               combatants={combatants} 
-              onAttack={onAttack} 
-              isAttacking={isAttacking} 
               selectedTargetIndex={selectedTargetIndex}
               onSelectTarget={setSelectedTargetIndex}
             />

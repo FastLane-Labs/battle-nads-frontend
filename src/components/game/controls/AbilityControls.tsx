@@ -2,32 +2,39 @@ import React from 'react';
 import { Box, HStack, Text, Spinner, useToast } from '@chakra-ui/react';
 import { useAbilityCooldowns, AbilityStatus } from '@/hooks/game/useAbilityCooldowns';
 import { AbilityButton } from './AbilityButton';
+import { AttackButton } from './AttackButton';
 import { domain } from '@/types';
 
 interface AbilityControlsProps {
   characterId: string | null;
   isInCombat: boolean;
-  selectedTargetIndex?: number | null; // Optional: passed down if needed
+  selectedTargetIndex?: number | null;
+  onAttack?: (targetIndex: number) => Promise<void>;
+  isAttacking?: boolean;
 }
 
-export const AbilityControls: React.FC<AbilityControlsProps> = ({ characterId, isInCombat, selectedTargetIndex }) => {
+export const AbilityControls: React.FC<AbilityControlsProps> = ({ 
+  characterId, 
+  isInCombat, 
+  selectedTargetIndex,
+  onAttack,
+  isAttacking = false
+}) => {
   const {
     abilities,
     useAbility,
     isUsingAbility,
     abilityError,
-    isLoading: isLoadingAbilities, // Rename to avoid conflict
+    isLoading: isLoadingAbilities,
     error: hookError,
   } = useAbilityCooldowns(characterId);
 
-  const toast = useToast(); // Initialize toast
+  const toast = useToast();
 
   const handleAbilityClick = (abilityIndex: domain.Ability) => {
-    // Determine if ability requires a target
     const requiresTarget = requiresTargetCheck(abilityIndex); 
     
     if (requiresTarget && (selectedTargetIndex === undefined || selectedTargetIndex === null)) {
-      // Show toast message
       toast({ 
         title: "Target Required",
         description: `Please select a target to use the ${domain.Ability[abilityIndex]} ability.`,
@@ -39,15 +46,27 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({ characterId, i
       return;
     }
     
-    // Pass targetIndex (or 0 if not needed/available) to the hook's function
     useAbility(abilityIndex, requiresTarget ? selectedTargetIndex ?? 0 : 0);
+  };
+
+  const handleAttack = () => {
+    if (selectedTargetIndex !== null && selectedTargetIndex !== undefined && onAttack && !isAttacking) {
+      onAttack(selectedTargetIndex);
+    } else if (selectedTargetIndex === null || selectedTargetIndex === undefined) {
+      toast({
+        title: "Target Required",
+        description: "Please select a target to attack.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+    }
   };
 
   if (isLoadingAbilities) {
     return <Spinner size="md" />; 
   }
 
-  // Only show loading error if the initial query failed
   if (hookError) { 
     return <Text color="red.500">Error loading abilities.</Text>;
   }
@@ -56,10 +75,28 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({ characterId, i
     return <Text fontSize="sm" color="gray.500">No abilities available.</Text>;
   }
 
+  // Determine attack button state
+  const isAttackDisabled = !isInCombat || selectedTargetIndex === null || isAttacking || !onAttack;
+  const attackTooltip = !isInCombat 
+    ? "Cannot attack outside of combat"
+    : selectedTargetIndex === null 
+    ? "Select a target to attack"
+    : "Attack selected target";
+
   return (
     <HStack spacing={4} align="center" justify="center" width="100%">
+      {/* Attack Button */}
+      {onAttack && (
+        <AttackButton
+          onClick={handleAttack}
+          isLoading={isAttacking}
+          isDisabled={isAttackDisabled}
+          tooltipLabel={attackTooltip}
+        />
+      )}
+
+      {/* Ability Buttons */}
       {abilities.map((status) => {
-        // Determine if the button action should be disabled
         const isActionDisabled = !isInCombat || !status.isReady;
         return (
           <AbilityButton

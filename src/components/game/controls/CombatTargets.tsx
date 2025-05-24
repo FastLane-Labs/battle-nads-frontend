@@ -4,26 +4,16 @@ import { domain } from '../../../types';
 
 interface CombatTargetsProps {
   combatants: domain.CharacterLite[];
-  onAttack: (targetIndex: number) => Promise<void>;
-  isAttacking: boolean;
   selectedTargetIndex: number | null;
   onSelectTarget: (index: number | null) => void;
 }
 
 const CombatTargets: React.FC<CombatTargetsProps> = ({ 
   combatants, 
-  onAttack, 
-  isAttacking, 
   selectedTargetIndex,
   onSelectTarget
 }) => {
-  const handleAttack = () => {
-    if (selectedTargetIndex !== null && !isAttacking) {
-      onAttack(selectedTargetIndex);
-    }
-  };
-  
-  // Filter out dead characters from combat targets to prevent attacking dead enemies
+  // Filter out dead characters from combat targets to prevent targeting dead enemies
   const validCombatants = combatants.filter(combatant => !combatant.isDead);
   
   return (
@@ -48,7 +38,6 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
               width="100%"
               mb={1}
               onClick={() => onSelectTarget(selectedTargetIndex === index ? null : index)}
-              disabled={isAttacking}
               >
                 <Text fontSize="sm" mr={2} className='gold-text-light'>
                   {combatant.name || `Enemy #${index + 1}`}
@@ -72,18 +61,6 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
               </Button>
             ))}
           </Box>
-          
-          {/* Attack Button */}
-          <Button
-            colorScheme="red"
-            size="md"
-            onClick={handleAttack}
-            isDisabled={selectedTargetIndex === null || isAttacking}
-            isLoading={isAttacking}
-            loadingText="Attacking..."
-            >
-            Attack
-          </Button>
         </VStack>
       )}
       </Box>
