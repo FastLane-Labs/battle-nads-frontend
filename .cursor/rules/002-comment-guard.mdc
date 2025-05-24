@@ -1,0 +1,23 @@
+---
+description: Stop AI from adding meta comments
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Comment policy
+- Add comments **only** when they explain logic, edge cases, or a TODO the user asked for.
+- Never add meta notes like “added this”, “removed that”, or “no need to change this”.
+- Keep existing comments unless they are wrong or outdated.
+- Don’t strip author headers or license banners.
+
+# Edit scope
+- Touch comment lines only if tied to the user’s request.
+- Skip unrelated comment changes.
+
+# Confidence
+- Change comments only when ≥ 90 % sure they add value.
+- If unsure, ask the user first.
+
+# Diff hygiene
+- Show only comment lines you changed.
+- Leave untouched comments as they are.
