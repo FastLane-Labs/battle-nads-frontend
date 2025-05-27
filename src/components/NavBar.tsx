@@ -85,7 +85,7 @@ const NavBar: React.FC = () => {
       position="fixed"
       as="nav"
       w="100%"
-      boxShadow="md"
+      // boxShadow="md"
       zIndex={10}
       className='bg-gray-950/50 border-b border-gray-600/30'
     >
@@ -171,7 +171,7 @@ const NavBar: React.FC = () => {
                   </HStack>
                 )}
               </MenuButton>
-              <MenuList className='!bg-brown/20 backdrop-blur-sm'>
+              <MenuList className='!bg-transparent'>
                 {injectedWallet?.address && (
                   <Tooltip 
                     label={
@@ -187,7 +187,7 @@ const NavBar: React.FC = () => {
                     <MenuItem 
                       onClick={() => handleCopyWithDelay(onCopyInjected)}
                       closeOnSelect={false}
-                      className='!bg-brown/40'
+                      className='!bg-transparent'
                     >
                       <HStack spacing={1}>
                         <Badge colorScheme="blue" fontSize="xs">{formatWalletType(injectedWallet.walletClientType).toUpperCase()}</Badge>
@@ -219,7 +219,7 @@ const NavBar: React.FC = () => {
                     <MenuItem 
                       onClick={() => handleCopyWithDelay(onCopyEmbedded)}
                       closeOnSelect={false}
-                      className='!bg-brown/40'
+                      className='!bg-transparent'
                     >
                       <HStack spacing={1}>
                         <Badge colorScheme="green" fontSize="xs">SESSION KEY</Badge>
@@ -247,7 +247,7 @@ const NavBar: React.FC = () => {
                     onClick={() => deactivateKey()} 
                     isDisabled={!canDeactivate || isDeactivating}
                     closeOnSelect={false}
-                    className='!bg-brown/40'
+                    className='!bg-transparent'
                   >
                     <HStack>
                       <Text>Deactivate Session</Text>
@@ -262,7 +262,7 @@ const NavBar: React.FC = () => {
                   hasArrow
                 >
                   <MenuItem onClick={handleLogout}
-                    className='!bg-brown/40'
+                    className='!bg-transparent'
 
                   >
                     Disconnect
