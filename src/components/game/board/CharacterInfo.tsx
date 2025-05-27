@@ -45,24 +45,13 @@ interface CharacterInfoProps {
 }
 
 const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) => {
-  // No need for separate currentStats state if just reading from props now
-  // const [currentStats, setCurrentStats] = useState<typeof character.stats>(character.stats);
-
-  // Removed useEffect hooks related to currentStats and event listeners
   if (!character) return null;
 
-  // Destructure health AND maxHealth directly from the character prop
-  const { weapon, armor, name, inventory, level, health, maxHealth, stats } = character;
+  // Destructure needed props from character
+  const { inventory, level, stats } = character;
   
   // Add this line to convert level to a regular number
   const displayLevel = Number(level);
-  
-  // Use maxHealth directly from props. Ensure it's treated as a number.
-  const currentMaxHealth = Number(maxHealth || 100); // Default to 100 if maxHealth is missing/0
-  const currentHealth = Math.max(0, Number(health)); // Ensure health is not negative
-  
-  // Calculate percentage using health and maxHealth from props
-  const healthPercentage = currentMaxHealth > 0 ? (currentHealth / currentMaxHealth) * 100 : 0;
   
   // Calculate experience progress (using stats from props)
   const experienceProgress = useMemo(() => {
@@ -73,74 +62,9 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
     return Math.min(100, (currentExperience / experienceNeededForNextLevel) * 100); // Cap at 100%
   }, [displayLevel, stats?.experience]);
 
-  // Determine combat indicator text
-  const livingCombatants = combatants.filter(combatant => !combatant.isDead);
-  const isInCombat = livingCombatants && livingCombatants.length > 0;
-  const combatIndicatorText = useMemo(() => {
-    if (!isInCombat) return null;
-    if (livingCombatants.length === 1) {
-      return `Fighting: ${livingCombatants[0]?.name || 'Unknown'}`;
-    }
-    return `Fighting: Multiple Enemies (${livingCombatants.length})`;
-  }, [livingCombatants, isInCombat]);
-
   return (
     <Box borderRadius="md" h="100%" overflowY="auto">
       <VStack spacing={3} align="stretch">
-        
-        <div className='grid gap-1.5 p-2 bg-dark-brown rounded-lg border border-black/40'>
-          {/* Character Name and Level */}
-          <Flex justify="space-between" align="center">
-            <h1 className='gold-text-light text-2xl font-bold tracking-tight'>{name || 'Unnamed Character'}</h1>
-            {displayLevel && (
-              <Box 
-              backgroundImage="/assets/bg/level.png"
-              backgroundSize="contain"
-              backgroundRepeat="no-repeat"
-              backgroundPosition="center"
-              px={3}
-              py={1}
-              display="flex"
-              alignItems="center"
-              justifyContent="center"
-              minWidth="120px"
-              height="40px"
-              className='text-yellow-400/90 font-bold text-center font-serif text-xl'
-              >
-                Level {displayLevel}
-              </Box>
-            )}
-          </Flex>
-        
-          {/* Combat Indicator - NEW */}
-          {/* TODO: Style this badge */}
-          {isInCombat && (
-            <Badge colorScheme="red" variant="solid" p={1} textAlign="center" w="100%">
-              ⚔️ {combatIndicatorText} ⚔️
-            </Badge>
-          )}
-        
-        
-          {/* Health Bar */}
-          <Box>
-            <div className="relative w-full bg-black/70 rounded border border-amber-900/35 h-9 overflow-hidden">
-              <div 
-                className={`h-full ${
-                  healthPercentage > 55 
-                  ? 'bg-gradient-to-r from-red-800 via-red-700 to-red-800' 
-                  : healthPercentage > 30 
-                  ? 'bg-gradient-to-r from-yellow-800 via-yellow-700 to-yellow-800' 
-                  : 'bg-red-900/95'
-                }`}
-                style={{ width: `${healthPercentage}%` }}
-                />
-              <div className="absolute inset-0 flex justify-between items-center px-2">
-                <span className="text-amber-300 font-black font-serif text-xl">HP</span>
-                <span className="text-amber-300 font-black font-serif text-xl">{currentHealth}/{currentMaxHealth}</span>
-              </div>
-            </div>
-          </Box>
-        </div>
         
         {/* Character Stats - Use stats directly from props */}
         <Box>

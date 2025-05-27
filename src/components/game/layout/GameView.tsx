@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Grid, GridItem } from '@chakra-ui/react';
+import { Box, Grid, GridItem, Flex, Badge } from '@chakra-ui/react';
 import { domain } from '@/types';
 import Minimap from '@/components/game/board/Minimap';
 import CharacterInfo from '@/components/game/board/CharacterInfo';
@@ -8,6 +8,7 @@ import CombatTargets from '@/components/game/controls/CombatTargets';
 import EventFeed from '@/components/game/feed/EventFeed';
 import ChatPanel from '@/components/game/feed/ChatPanel';
 import { AbilityControls } from '@/components/game/controls/AbilityControls';
+import HealthBar from '@/components/game/ui/HealthBar';
 // --- Import Mock Data ---
 import { MOCK_CHAT_LOGS, MOCK_EVENT_LOGS } from '@/hooks/dev/mockFeedData';
 import WalletBalances from '@/components/WalletBalances';
@@ -99,10 +100,56 @@ const GameView: React.FC<GameViewProps> = ({
           </div>
           
           {/* Tab Panels */}
-          <div className="flex-grow">
+          <div className="flex-grow bg-brown border-black/40 border-b border-x rounded-b-lg">
+            {/* Character header - shared between both tabs */}
+            <div className='grid gap-1.5 p-2 bg-dark-brown rounded-lg border border-black/40 mx-4 mt-4'>
+              <Flex justify="space-between" align="center">
+                <h1 className='gold-text-light text-2xl font-bold tracking-tight'>{character?.name || 'Unnamed Character'}</h1>
+                {Number(character?.level) && (
+                  <Box 
+                  backgroundImage="/assets/bg/level.png"
+                  backgroundSize="contain"
+                  backgroundRepeat="no-repeat"
+                  backgroundPosition="center"
+                  px={3}
+                  py={1}
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  minWidth="120px"
+                  height="40px"
+                  className='text-yellow-400/90 font-bold text-center font-serif text-xl'
+                  >
+                    Level {Number(character?.level)}
+                  </Box>
+                )}
+              </Flex>
+            
+              {/* Combat Indicator */}
+              {isInCombat && (() => {
+                const livingCombatants = combatants.filter(combatant => !combatant.isDead);
+                const combatIndicatorText = livingCombatants.length === 1 
+                  ? `Fighting: ${livingCombatants[0]?.name || 'Unknown'}`
+                  : `Fighting: Multiple Enemies (${livingCombatants.length})`;
+                
+                return (
+                  <Badge colorScheme="red" variant="solid" p={1} textAlign="center" w="100%">
+                    ⚔️ {combatIndicatorText} ⚔️
+                  </Badge>
+                );
+              })()}
+            
+              {/* Health Bar */}
+              <HealthBar 
+                health={character.health} 
+                maxHealth={character.maxHealth} 
+                size="medium"
+              />
+            </div>
+
             {/* Character tab content */}
             <div 
-              className={`p-4 bg-brown border-black/40 border-b border-x !rounded-t-none !border-t-none h-full ${activeTab === 'character' ? 'block' : 'hidden'}`}
+              className={`p-4  h-full ${activeTab === 'character' ? 'block' : 'hidden'}`}
             >
               <CharacterInfo 
                 character={character} 
@@ -112,9 +159,9 @@ const GameView: React.FC<GameViewProps> = ({
             
             {/* Actions tab content */}
             <div 
-              className={`flex flex-col bg-brown px-4 pb-4 border-black/40 border-b border-x h-full justify-center items-center ${activeTab === 'actions' ? 'block' : 'hidden'}`}
+              className={`flex flex-col px-4 pb-4 h-full justify-start items-center ${activeTab === 'actions' ? 'block' : 'hidden'}`}
             >
-              <Box className='mb-2'> 
+              <Box className='mb-2 p-4'> 
                 <h1 className='uppercase gold-text-light text-center mb-2 text-3xl font-semibold'>Abilities</h1>
                 <AbilityControls 
                   characterId={character?.id ?? null} 
