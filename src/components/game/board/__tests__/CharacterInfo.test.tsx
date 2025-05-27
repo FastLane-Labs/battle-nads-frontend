@@ -55,6 +55,7 @@ const mockCharacter: domain.Character = {
   activeTask: '0x0',
   ability: { ability: domain.Ability.None, stage: 0, targetIndex: 0, taskAddress: '0x0', targetBlock: 0 },
   inventory: { weaponBitmap: 0, armorBitmap: 0, balance: 1000000000000000000, weaponIDs: [], armorIDs: [], weaponNames: [], armorNames: [] },
+  movementOptions: { canMoveNorth: true, canMoveSouth: true, canMoveEast: true, canMoveWest: true, canMoveUp: false, canMoveDown: false },
   isInCombat: false,
   isDead: false,
 };
@@ -131,24 +132,18 @@ describe('CharacterInfo Component', () => {
   it('should render character details correctly', () => {
     renderWithProvider(<CharacterInfo character={mockCharacter} combatants={[]} />);
 
-    expect(screen.getByText(mockCharacter.name)).toBeInTheDocument();
-    expect(screen.getByText(`Level ${mockCharacter.level}`)).toBeInTheDocument();
+    // Character name and level are now displayed in GameView header, not CharacterInfo
+    // So we test what's actually in CharacterInfo: stats, equipment, experience, gold
     
-    // Instead of looking for exact text which might be split across elements or have whitespace,
-    // use a more flexible approach
-    expect(screen.getByText((content, element) => {
-      return content.includes(`${Number(mockCharacter.health)}`) && 
-             content.includes(`${Number(mockCharacter.maxHealth)}`) && 
-             content.includes('/');
-    })).toBeInTheDocument();
+    // Check for stats section
+    expect(screen.getByText('Stats')).toBeInTheDocument();
     
     // Check for stats more specifically - find the STR label first, then its parent, then the value within
     const strLabel = screen.getByText('STR');
     const strContainer = strLabel.closest('.flex');
     expect(strContainer).toHaveTextContent(String(Number(mockCharacter.stats.strength)));
     
-    // Check for Equipment section instead of specific weapon/armor names
-    // The weapon and armor names are now in tooltips, which are not rendered until hover
+    // Check for Equipment section
     expect(screen.getByText('Equipment')).toBeInTheDocument();
     
     // Verify equipment buttons are present
@@ -164,34 +159,27 @@ describe('CharacterInfo Component', () => {
       const div = button.querySelector('div[aria-label="Armor"]');
       return div !== null;
     })).toBe(true);
+    
+    // Check for Experience section
+    expect(screen.getByText('Experience')).toBeInTheDocument();
+    
+    // Check for experience values
+    expect(screen.getByText((content, element) => {
+      return content.includes(`${Number(mockCharacter.stats.experience)}`) && 
+             content.includes('/');
+    })).toBeInTheDocument();
+    
+    // Check for Gold section
+    expect(screen.getByText('Gold')).toBeInTheDocument();
   });
 
   it('should not display combat indicator when combatants array is empty', () => {
     renderWithProvider(<CharacterInfo character={mockCharacter} combatants={[]} />);
 
+    // Combat indicators are now handled in GameView, not CharacterInfo
     expect(screen.queryByText(/Fighting:/)).not.toBeInTheDocument();
   });
 
-  it('should display combat indicator with single combatant name', () => {
-    renderWithProvider(<CharacterInfo character={mockCharacter} combatants={mockSingleCombatant} />);
-
-    // Use regex to ignore surrounding icons/whitespace
-    const indicator = screen.getByText(/Fighting: Goblin/i);
-    expect(indicator).toBeInTheDocument();
-    // Check if it's inside a badge with the correct style
-    expect(indicator.closest('span[class*="chakra-badge"]')).toHaveStyle('background-color: var(--chakra-colors-red-600)');
-  });
-
-  it('should display combat indicator with multiple combatants count', () => {
-    // Re-setup mock if combatants affect equipment display logic (e.g., isInCombat)
-    const combatCharacter = { ...mockCharacter, isInCombat: true };
-    setupMockUseEquipment(combatCharacter); // Ensure isInCombat is true for this test
-
-    renderWithProvider(<CharacterInfo character={combatCharacter} combatants={mockMultipleCombatants} />);
-
-    // Use regex to ignore surrounding icons/whitespace
-    const indicator = screen.getByText(/Fighting: Multiple Enemies \(2\)/i); // Escape parentheses
-    expect(indicator).toBeInTheDocument();
-    expect(indicator.closest('span[class*="chakra-badge"]')).toHaveStyle('background-color: var(--chakra-colors-red-600)');
-  });
+  // Removed combat indicator tests since they're now handled in GameView component
+  // The combat indicator logic has been moved to GameView's character header and actions tab
 }); 
