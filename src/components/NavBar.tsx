@@ -171,7 +171,7 @@ const NavBar: React.FC = () => {
                   </HStack>
                 )}
               </MenuButton>
-              <MenuList className='!bg-transparent'>
+              <MenuList className='!bg-transparent backdrop-blur-xl'>
                 {injectedWallet?.address && (
                   <Tooltip 
                     label={
