@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Button, Heading, VStack, Text, Badge } from '@chakra-ui/react';
+import { Box, Button, Heading, VStack, Text, Badge, Flex } from '@chakra-ui/react';
 import { domain } from '../../../types';
 
 interface CombatTargetsProps {
@@ -15,6 +15,11 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
 }) => {
   // Filter out dead characters from combat targets to prevent targeting dead enemies
   const validCombatants = combatants.filter(combatant => !combatant.isDead);
+  
+  // Get the character class name
+  const getClassDisplayName = (classValue: domain.CharacterClass): string => {
+    return domain.CharacterClass[classValue] || 'Unknown';
+  };
   
   return (
     <Box h="100%" display="flex" flexDirection="column">
@@ -42,22 +47,40 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
                 <Text fontSize="sm" mr={2} className='gold-text-light'>
                   {combatant.name || `Enemy #${index + 1}`}
                 </Text>
-                <Box 
-                backgroundImage="/assets/bg/level.png"
-                backgroundSize="contain"
-                backgroundRepeat="no-repeat"
-                backgroundPosition="center"
-                px={3}
-                py={1}
-                display="flex"
-                alignItems="center"
-                justifyContent="center"
-                minWidth="70px"
-                height="30px"
-                className='text-yellow-400/90 text-center font-serif ml-auto'
-                >
-                  Lvl {combatant.level || '?'}
-                </Box>
+                <Flex ml="auto" gap={1}>
+                  <Box 
+                  backgroundImage="/assets/bg/level.png"
+                  backgroundSize="contain"
+                  backgroundRepeat="no-repeat"
+                  backgroundPosition="center"
+                  px={2}
+                  py={1}
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  minWidth="60px"
+                  height="24px"
+                  className='text-yellow-400/90 text-center font-serif text-sm'
+                  >
+                    {getClassDisplayName(combatant.class)}
+                  </Box>
+                  <Box 
+                  backgroundImage="/assets/bg/level.png"
+                  backgroundSize="contain"
+                  backgroundRepeat="no-repeat"
+                  backgroundPosition="center"
+                  px={2}
+                  py={1}
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  minWidth="50px"
+                  height="24px"
+                  className='text-yellow-400/90 text-center font-serif text-sm'
+                  >
+                    Lvl {combatant.level || '?'}
+                  </Box>
+                </Flex>
               </Button>
             ))}
           </Box>
