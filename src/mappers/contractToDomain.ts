@@ -194,12 +194,6 @@ export function mapCharacter(
     if (typeof invArray[0] !== 'undefined') inventory.weaponBitmap = Number(invArray[0]);
     if (typeof invArray[1] !== 'undefined') inventory.armorBitmap = Number(invArray[1]);
     if (typeof invArray[2] !== 'undefined') inventory.balance = Number(invArray[2]);
-    
-    // Log for debugging
-    console.log('DEBUG: Mapping character inventory:', {
-      raw: invArray,
-      mapped: inventory
-    });
   }
   
   const position = {

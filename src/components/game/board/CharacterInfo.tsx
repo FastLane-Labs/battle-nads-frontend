@@ -48,10 +48,15 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   if (!character) return null;
 
   // Destructure needed props from character
-  const { inventory, level, stats } = character;
+  const { inventory, level, stats, class: characterClass } = character;
   
   // Add this line to convert level to a regular number
   const displayLevel = Number(level);
+  
+  // Get the character class name
+  const getClassDisplayName = (classValue: domain.CharacterClass): string => {
+    return domain.CharacterClass[classValue] || 'Unknown';
+  };
   
   // Calculate experience progress (using stats from props)
   const experienceProgress = useMemo(() => {
@@ -69,7 +74,25 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
         {/* Character Stats - Use stats directly from props */}
         <Box>
           <div className="bg-dark-brown rounded-lg border border-black/40 p-3">
-            <h2 className="gold-text text-2xl font-serif mb-2 font-semibold">Stats</h2>
+            <Flex justify="space-between" align="center" mb={2}>
+              <h2 className="gold-text text-2xl font-serif font-semibold">Stats</h2>
+              <Box 
+                backgroundImage="/assets/bg/level.png"
+                backgroundSize="contain"
+                backgroundRepeat="no-repeat"
+                backgroundPosition="center"
+                px={3}
+                py={1}
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+                minWidth="100px"
+                height="32px"
+                className='text-yellow-400/90 font-bold text-center font-serif text-lg'
+              >
+                {getClassDisplayName(characterClass)}
+              </Box>
+            </Flex>
             <div className="grid grid-cols-2 gap-2 text-xl">
               <div className="flex justify-between gold-text-light">
                 <span>STR</span>
