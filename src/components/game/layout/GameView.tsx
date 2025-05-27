@@ -161,6 +161,22 @@ const GameView: React.FC<GameViewProps> = ({
             <div 
               className={`flex flex-col px-4 pb-4 h-full justify-start items-center ${activeTab === 'actions' ? 'block' : 'hidden'}`}
             >
+              {/* Combat Indicator in Actions Tab */}
+              {isInCombat && (() => {
+                const livingCombatants = combatants.filter(combatant => !combatant.isDead);
+                const combatIndicatorText = livingCombatants.length === 1 
+                  ? `Fighting: ${livingCombatants[0]?.name || 'Unknown'}`
+                  : `Fighting: Multiple Enemies (${livingCombatants.length})`;
+                
+                return (
+                  <Box className='mb-4 w-full'>
+                    <Badge colorScheme="red" variant="solid" p={2} textAlign="center" w="100%" fontSize="md">
+                      ⚔️ {combatIndicatorText} ⚔️
+                    </Badge>
+                  </Box>
+                );
+              })()}
+              
               <Box className='mb-2 p-4'> 
                 <h1 className='uppercase gold-text-light text-center mb-2 text-3xl font-semibold'>Abilities</h1>
                 <AbilityControls 
