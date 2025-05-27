@@ -84,7 +84,7 @@ const GameView: React.FC<GameViewProps> = ({
             >
               {activeTab === 'character' ? 
                 <span className="gold-text-light font-semibold text-2xl">Character</span> : 
-                <span className="white-text-light font-semibold text-2xl">Character</span>
+                <span className="gray-text font-semibold text-2xl">Character</span>
               }
             </button>
             <button
@@ -94,7 +94,7 @@ const GameView: React.FC<GameViewProps> = ({
             >
               {activeTab === 'actions' ? 
                 <span className="gold-text-light font-semibold text-2xl">Actions</span> : 
-                <span className="white-text-light font-semibold text-2xl">Actions</span>
+                <span className="gray-text font-semibold text-2xl">Actions</span>
               }
             </button>
           </div>
