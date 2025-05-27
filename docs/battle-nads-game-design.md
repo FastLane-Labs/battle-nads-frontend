@@ -116,7 +116,7 @@ Players primarily interact via `Entrypoint.sol`, with calls often wrapped by `Ga
         *   Pay the `BUY_IN_AMOUNT` (0.1 `shMON`).
         *   Fund automated tasks (combat, abilities, spawning). Task costs are estimated (`_estimateTaskCost`) and paid from the bonded balance associated with the character's `owner`.
     *   Internal Balance: `Inventory.balance` tracks `shMON` held *by the character*. Gained on creation, looted on player kills. Lost on death or `sepukku`. Can be partially converted (`_allocateBalanceFromInventory`) to bonded balance to fund tasks if needed.
-    *   Yield Boost: A portion of looted `shMON` balance is sent to `_boostYield`, likely interacting with the main `shMONAD` contract.
+    *   Yield Boost: A portion of looted `shMON` balance is sent to `_boostYield`, functioning as a source of yield to the main `shMONAD` contract.
 *   **Character ID (`bytes32`):** Acts as a non-transferable identifier for the player's progress and state, similar to a soulbound NFT.
 *   **Equipment (Items):** Represented by `uint8` IDs. Ownership tracked via bitmaps in `Inventory`. Stats hardcoded in `Equipment.sol`. Acquired via looting (`_handleLoot`). Not ERC tokens.
 
