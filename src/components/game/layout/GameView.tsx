@@ -47,11 +47,12 @@ const GameView: React.FC<GameViewProps> = ({
   const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'character' | 'actions'>('character');
 
-  // --- Conditionally Use Mock Data --- 
-  const isDev = false//process.env.NODE_ENV === 'development';
+  // Check if we're in development mode
+  const isDev = false; // process.env.NODE_ENV === 'development';
+
+  // Use mock data in development for testing
   const finalChatLogs = isDev ? MOCK_CHAT_LOGS : chatLogs;
   const finalEventLogs = isDev ? MOCK_EVENT_LOGS : eventLogs;
-  // -----------------------------------
 
   return (
     <Grid
@@ -125,26 +126,27 @@ const GameView: React.FC<GameViewProps> = ({
                 )}
               </Flex>
             
-              {/* Combat Indicator */}
-              {isInCombat && (() => {
-                const livingCombatants = combatants.filter(combatant => !combatant.isDead);
-                const combatIndicatorText = livingCombatants.length === 1 
-                  ? `Fighting: ${livingCombatants[0]?.name || 'Unknown'}`
-                  : `Fighting: Multiple Enemies (${livingCombatants.length})`;
-                
-                return (
-                  <Badge colorScheme="red" variant="solid" p={1} textAlign="center" w="100%">
-                    ⚔️ {combatIndicatorText} ⚔️
-                  </Badge>
-                );
-              })()}
             
               {/* Health Bar */}
               <HealthBar 
                 health={character.health} 
                 maxHealth={character.maxHealth} 
                 size="medium"
-              />
+                />
+                
+                {/* Combat Indicator */}
+                {isInCombat && (() => {
+                  const livingCombatants = combatants.filter(combatant => !combatant.isDead);
+                  const combatIndicatorText = livingCombatants.length === 1 
+                    ? `Fighting: ${livingCombatants[0]?.name || 'Unknown'}`
+                    : `Fighting: Multiple Enemies (${livingCombatants.length})`;
+                  
+                  return (
+                    <Badge colorScheme="red" variant="solid" p={1} textAlign="center" w="100%">
+                      ⚔️ {combatIndicatorText} ⚔️
+                    </Badge>
+                  );
+                })()}
             </div>
 
             {/* Character tab content */}
@@ -161,21 +163,6 @@ const GameView: React.FC<GameViewProps> = ({
             <div 
               className={`flex flex-col px-4 pb-4 h-full justify-start items-center ${activeTab === 'actions' ? 'block' : 'hidden'}`}
             >
-              {/* Combat Indicator in Actions Tab */}
-              {isInCombat && (() => {
-                const livingCombatants = combatants.filter(combatant => !combatant.isDead);
-                const combatIndicatorText = livingCombatants.length === 1 
-                  ? `Fighting: ${livingCombatants[0]?.name || 'Unknown'}`
-                  : `Fighting: Multiple Enemies (${livingCombatants.length})`;
-                
-                return (
-                  <Box className='mb-4 w-full'>
-                    <Badge colorScheme="red" variant="solid" p={2} textAlign="center" w="100%" fontSize="md">
-                      ⚔️ {combatIndicatorText} ⚔️
-                    </Badge>
-                  </Box>
-                );
-              })()}
               
               <Box className='mb-2 p-4'> 
                 <h1 className='uppercase gold-text-light text-center mb-2 text-3xl font-semibold'>Abilities</h1>
