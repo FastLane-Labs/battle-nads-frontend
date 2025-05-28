@@ -6,7 +6,7 @@ import { AbilityControls } from '@/components/game/controls/AbilityControls';
 import MovementControls from '@/components/game/controls/MovementControls';
 import HealthBar from '@/components/game/ui/HealthBar';
 
-interface CharacterTabsProps {
+interface CharacterActionsTabsProps {
   character: domain.Character;
   position: { x: number; y: number; z: number };
   combatants: domain.CharacterLite[];
@@ -19,7 +19,7 @@ interface CharacterTabsProps {
   isInCombat: boolean;
 }
 
-const CharacterTabs: React.FC<CharacterTabsProps> = ({
+const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
   character,
   position,
   combatants,
@@ -148,4 +148,4 @@ const CharacterTabs: React.FC<CharacterTabsProps> = ({
   );
 };
 
-export default CharacterTabs; 
+export default CharacterActionsTabs; 

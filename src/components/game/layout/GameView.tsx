@@ -5,7 +5,7 @@ import Minimap from '@/components/game/board/Minimap';
 import CombatTargets from '@/components/game/controls/CombatTargets';
 import EventFeed from '@/components/game/feed/EventFeed';
 import ChatPanel from '@/components/game/feed/ChatPanel';
-import CharacterTabs from '@/components/game/ui/CharacterTabs';
+import CharacterActionsTabs from '@/components/game/ui/CharacterActionsTabs';
 // --- Import Mock Data ---
 import { MOCK_CHAT_LOGS, MOCK_EVENT_LOGS } from '@/hooks/dev/mockFeedData';
 import WalletBalances from '@/components/WalletBalances';
@@ -71,7 +71,7 @@ const GameView: React.FC<GameViewProps> = ({
 
       {/* Tab component */}
       <GridItem area="tab" className='h-full'>
-        <CharacterTabs 
+        <CharacterActionsTabs 
           character={character}
           position={position}
           combatants={combatants}
