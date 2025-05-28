@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Button,
   Box,
@@ -22,7 +22,7 @@ interface AbilityButtonProps {
   isActionDisabled: boolean;
 }
 
-// Function to get a simple icon or text for each ability
+// Function to get a simple icon or text for each ability (fallback)
 const getAbilityIcon = (ability: domain.Ability): string => {
   switch (ability) {
     case domain.Ability.ShieldBash: return 'SB';
@@ -39,6 +39,12 @@ const getAbilityIcon = (ability: domain.Ability): string => {
   }
 }
 
+// Function to get the PNG asset path for an ability
+const getAbilityImagePath = (ability: domain.Ability): string => {
+  const abilityName = domain.Ability[ability];
+  return `/assets/abilities/${abilityName}.png`;
+};
+
 // TODO: Define these mappings centrally or fetch if dynamic
 const ABILITY_COOLDOWN_DURATIONS: { [key in domain.Ability]?: number } = {
   [domain.Ability.ShieldBash]: 10, // Placeholder seconds
@@ -51,6 +57,42 @@ const ABILITY_COOLDOWN_DURATIONS: { [key in domain.Ability]?: number } = {
   [domain.Ability.ChargeUp]: 5,
   [domain.Ability.SingSong]: 18,
   [domain.Ability.DoDance]: 22,
+};
+
+// Component for rendering ability icon with fallback
+const AbilityIcon: React.FC<{ ability: domain.Ability }> = ({ ability }) => {
+  const [imageError, setImageError] = useState(false);
+  const imagePath = getAbilityImagePath(ability);
+  const fallbackText = getAbilityIcon(ability);
+
+  if (imageError) {
+    return (
+      <Text fontSize="lg" fontWeight="bold" className="gold-text-light">
+        {fallbackText}
+      </Text>
+    );
+  }
+
+  return (
+    <div 
+      style={{
+        width: '100%',
+        height: '100%',
+        backgroundImage: `url("${imagePath}")`,
+        backgroundSize: 'contain',
+        backgroundRepeat: 'no-repeat',
+        backgroundPosition: 'center'
+      }}
+    >
+      {/* Hidden img element to detect load errors */}
+      <img 
+        src={imagePath} 
+        alt={domain.Ability[ability]}
+        style={{ display: 'none' }}
+        onError={() => setImageError(true)}
+      />
+    </div>
+  );
 };
 
 export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, isMutationLoading, isActionDisabled }) => {
@@ -112,14 +154,7 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
             justifyContent="center"
             zIndex="1"
           >
-            <Text 
-              fontSize="lg" 
-              fontWeight="bold" 
-              className={isActive ? "text-green-200" : "gold-text-light"}
-
-            >
-              {getAbilityIcon(status.ability)}
-            </Text>
+            <AbilityIcon ability={status.ability} />
           </Box>
 
           {/* Loading state */}
