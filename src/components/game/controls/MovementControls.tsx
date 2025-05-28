@@ -98,23 +98,22 @@ const MovementControls: React.FC<MovementControlsProps> = ({
   return (
     <Box>
       
-      <h1 className='uppercase gold-text-light text-center mb-2 text-3xl font-semibold'>Movement</h1>
+      <h1 className='uppercase gold-text-light text-center mb-2 text-2xl font-semibold'>Movement</h1>
       
       <div
         className='border border-yellow-800/80 rounded-md w-max px-10 py-3 mx-auto bg-dark-brown'
 
       >
       {/* Player Position */}
-      <div className='leading-snug mb-4 '>
-        <Text fontSize="xl" className='gold-text-light font-semibold'>Location</Text>
-        <Text fontSize="xl" className='gold-text-light'>Position ({Number(position.x)}, {Number(position.y)}), Depth {Number(position.z)}</Text>
+      <div className='leading-snug mb-1'>
+        <Text fontSize="lg" className='gold-text-light font-semibold'>Location</Text>
+        <Text fontSize="lg" className='gold-text-light'>Position ({Number(position.x)}, {Number(position.y)}), Depth {Number(position.z)}</Text>
       </div>
       <Grid
         templateAreas={`
           ".    north   ."
           "west  .      east"
-          ".    south   ."
-          "up    .      down"
+          "up    south   down"
           `}
           gridTemplateColumns={'auto 62px auto'}
           gridTemplateRows={'auto auto auto auto'}
@@ -216,7 +215,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({
           </Tooltip>
         </GridItem>
 
-        <GridItem area="up" mt="-8px" mr="10px">
+        <GridItem area="up" mr="10px">
         <Tooltip label={getTooltipLabel('up')} placement="bottom" hasArrow>
           <Box
               as="button"
@@ -239,7 +238,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({
           </Tooltip>
         </GridItem>
         
-        <GridItem area="down" mt="-8px" ml="10px">
+        <GridItem area="down" ml="10px">
         <Tooltip label={getTooltipLabel('down')} placement="bottom" hasArrow>
         <Box
               as="button"

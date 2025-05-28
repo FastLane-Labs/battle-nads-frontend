@@ -120,11 +120,11 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
         
         {/* Actions tab content */}
         <div 
-          className={`flex flex-col px-4 pb-4 h-fit justify-start items-center ${activeTab === 'actions' ? 'block' : 'hidden'}`}
+          className={`flex flex-col px-4 pb-4 gap-2 pt-3 h-fit justify-start items-center ${activeTab === 'actions' ? 'block' : 'hidden'}`}
         >
           
-          <Box className='mb-2 p-4'> 
-            <h1 className='uppercase gold-text-light text-center mb-2 text-3xl font-semibold'>Abilities</h1>
+          <Box> 
+            <h1 className='uppercase gold-text-light text-center mb-2 text-2xl font-semibold'>Abilities</h1>
             <AbilityControls 
               characterId={character?.id ?? null} 
               selectedTargetIndex={selectedTargetIndex}
