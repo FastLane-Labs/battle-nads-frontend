@@ -245,26 +245,26 @@ const WalletBalances: React.FC = () => {
           <Box 
             mt={1} 
             p={3} 
-            className="flex flex-col gap-2 card-bg !border-amber-500/15"
+            className="flex flex-col gap-2 card-bg !border-red-500/25"
           >
-            <Text fontWeight="bold" fontSize="sm" className="gold-text-light">
-              Low Gas Balances
+            <Text fontWeight="bold" fontSize="sm" className="text-red-400">
+              ⚠️ Character at Risk!
             </Text>
             <Text fontSize="sm" className="text-white" mb={1}>
-              Your app-committed balance is running low - gasless transactions may stop working.
+              Your committed balance is running low. <strong className="text-red-300">If it hits zero, your character won't be able to defend itself and will likely die!</strong> Replenish now to keep your character alive.
             </Text>
             <Button
-              bg="amber.600"
-              _hover={{ bg: "amber.500" }}
+              bg="red.600"
+              _hover={{ bg: "red.500" }}
               size="sm"
               onClick={handleReplenishBalance}
               isLoading={isReplenishing}
               loadingText="Replenishing..."
               width="full"
               isDisabled={!client?.replenishGasBalance}
-              className="!text-amber-300 font-medium card-bg-dark"
+              className="!text-white font-medium"
             >
-              Replenish Committed Balance
+              🛡️ Replenish Committed
             </Button>
           </Box>
         )}
