@@ -151,7 +151,7 @@ const GameView: React.FC<GameViewProps> = ({
 
             {/* Character tab content */}
             <div 
-              className={`p-4  h-full ${activeTab === 'character' ? 'block' : 'hidden'}`}
+              className={`p-4 h-fit ${activeTab === 'character' ? 'block' : 'hidden'}`}
             >
               <CharacterInfo 
                 character={character} 
@@ -161,7 +161,7 @@ const GameView: React.FC<GameViewProps> = ({
             
             {/* Actions tab content */}
             <div 
-              className={`flex flex-col px-4 pb-4 h-full justify-start items-center ${activeTab === 'actions' ? 'block' : 'hidden'}`}
+              className={`flex flex-col px-4 pb-4 h-fit justify-start items-center ${activeTab === 'actions' ? 'block' : 'hidden'}`}
             >
               
               <Box className='mb-2 p-4'> 
