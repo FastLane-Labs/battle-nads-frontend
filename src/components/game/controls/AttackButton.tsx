@@ -27,34 +27,18 @@ export const AttackButton: React.FC<AttackButtonProps> = ({
           cursor={isDisabled ? "not-allowed" : "pointer"}
           opacity={isDisabled && !isLoading ? 0.4 : 1}
         >
-          {/* Background image */}
-          <Image
-            src="/assets/buttons/square-btn.png"
-            alt="Button background"
-            position="absolute"
-            top="0"
-            left="0"
-            width="100%"
-            height="100%"
-            zIndex="0"
+          {/* Background image - using weapon.png */}
+          <div 
+            style={{
+              width: '100%',
+              height: '100%',
+              backgroundImage: 'url("/assets/buttons/weapon.png")',
+              backgroundSize: 'contain',
+              backgroundRepeat: 'no-repeat',
+              backgroundPosition: 'center'
+            }}
+            className={`${isDisabled ? 'opacity-50' : 'hover:opacity-90'}`}
           />
-
-          {/* Content */}
-          <Box
-            position="absolute"
-            top="0"
-            left="0"
-            width="100%"
-            height="100%"
-            display="flex"
-            alignItems="center"
-            justifyContent="center"
-            zIndex="1"
-          >
-            <Text fontSize="lg" fontWeight="bold" className="gold-text-light">
-              ATK
-            </Text>
-          </Box>
 
           {/* Loading state */}
           {isLoading && (

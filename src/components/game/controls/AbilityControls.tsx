@@ -97,7 +97,9 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
 
       {/* Ability Buttons */}
       {abilities.map((status) => {
-        const isActionDisabled = !isInCombat || !status.isReady;
+        const requiresTarget = requiresTargetCheck(status.ability);
+        const hasTarget = selectedTargetIndex !== null && selectedTargetIndex !== undefined;
+        const isActionDisabled = !isInCombat || !status.isReady || (requiresTarget && !hasTarget);
         return (
           <AbilityButton
             key={status.ability}
