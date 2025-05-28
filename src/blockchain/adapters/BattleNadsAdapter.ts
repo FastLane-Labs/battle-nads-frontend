@@ -181,7 +181,10 @@ export class BattleNadsAdapter {
    * Uses an ability
    */
   async useAbility(characterId: string, ability: domain.Ability, targetIndex: number): Promise<TransactionResponse> {
-    return this.contract.useAbility(characterId, targetIndex, ability, { gasLimit: GAS_LIMITS.action });
+    // Map global ability enum to class-specific ability index (1 or 2)
+    const abilityIndex = getClassSpecificAbilityIndex(ability);
+    console.log(`[BattleNadsAdapter] Using ability ${domain.Ability[ability]} (${ability}) mapped to class index: ${abilityIndex} on target ${targetIndex} for character ${characterId}`);
+    return this.contract.useAbility(characterId, targetIndex, abilityIndex, { gasLimit: GAS_LIMITS.action });
   }
 
   // EQUIPMENT OPERATIONS
@@ -329,5 +332,87 @@ export class BattleNadsAdapter {
       console.error(`[BattleNadsAdapter] Error executing zoneChat:`, error);
       throw error;
     }
+  }
+}
+
+/**
+ * Maps global ability enum to class-specific ability index (1 or 2)
+ * Each character class only supports ability indices 1 and 2
+ * 
+ * Contract expects:
+ * - Bard: 1=SingSong, 2=DoDance
+ * - Warrior: 1=ShieldBash, 2=ShieldWall  
+ * - Rogue: 1=EvasiveManeuvers, 2=ApplyPoison
+ * - Monk: 1=Pray, 2=Smite
+ * - Sorcerer: 1=ChargeUp, 2=Fireball
+ */
+function getClassSpecificAbilityIndex(ability: domain.Ability): number {
+  switch (ability) {
+    // Bard abilities (class 0)
+    case domain.Ability.SingSong:
+      return 1;
+    case domain.Ability.DoDance:
+      return 2;
+    
+    // Warrior abilities (class 4)
+    case domain.Ability.ShieldBash:
+      return 1;
+    case domain.Ability.ShieldWall:
+      return 2;
+    
+    // Rogue abilities (class 5)
+    case domain.Ability.EvasiveManeuvers:
+      return 1;
+    case domain.Ability.ApplyPoison:
+      return 2;
+    
+    // Monk abilities (class 6)
+    case domain.Ability.Pray:
+      return 1;
+    case domain.Ability.Smite:
+      return 2;
+    
+    // Sorcerer abilities (class 7)
+    case domain.Ability.ChargeUp:
+      return 1;
+    case domain.Ability.Fireball:
+      return 2;
+    
+    case domain.Ability.None:
+    default:
+      throw new Error(`Invalid or unsupported ability: ${domain.Ability[ability] || ability}. Only class-specific abilities (indices 1-2) are supported.`);
+  }
+}
+
+/**
+ * Validates that an ability is valid for a given character class
+ * This is a helper function for additional validation if needed
+ */
+function isAbilityValidForClass(ability: domain.Ability, characterClass: domain.CharacterClass): boolean {
+  const classAbilities = getAbilitiesForCharacterClass(characterClass);
+  return classAbilities.includes(ability);
+}
+
+/**
+ * Gets the valid abilities for a character class
+ * This mirrors the logic in useAbilityCooldowns but is available at the adapter level
+ */
+function getAbilitiesForCharacterClass(characterClass: domain.CharacterClass): domain.Ability[] {
+  switch (characterClass) {
+    case domain.CharacterClass.Bard:
+      return [domain.Ability.SingSong, domain.Ability.DoDance];
+    case domain.CharacterClass.Warrior:
+      return [domain.Ability.ShieldBash, domain.Ability.ShieldWall];
+    case domain.CharacterClass.Rogue:
+      return [domain.Ability.EvasiveManeuvers, domain.Ability.ApplyPoison];
+    case domain.CharacterClass.Monk:
+      return [domain.Ability.Pray, domain.Ability.Smite];
+    case domain.CharacterClass.Sorcerer:
+      return [domain.Ability.ChargeUp, domain.Ability.Fireball];
+    case domain.CharacterClass.Basic:
+    case domain.CharacterClass.Elite:
+    case domain.CharacterClass.Boss:
+    default:
+      return []; // Monsters or unhandled classes have no usable abilities
   }
 } 
