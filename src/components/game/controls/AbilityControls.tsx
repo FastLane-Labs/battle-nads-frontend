@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, HStack, Text, Spinner, useToast } from '@chakra-ui/react';
+import { HStack, Text, Spinner, useToast } from '@chakra-ui/react';
 import { useAbilityCooldowns, AbilityStatus } from '@/hooks/game/useAbilityCooldowns';
 import { AbilityButton } from './AbilityButton';
 import { AttackButton } from './AttackButton';
@@ -8,9 +8,10 @@ import { domain } from '@/types';
 interface AbilityControlsProps {
   characterId: string | null;
   isInCombat: boolean;
-  selectedTargetIndex?: number | null;
+  selectedTargetIndex: number;
   onAttack?: (targetIndex: number) => Promise<void>;
   isAttacking?: boolean;
+  combatants?: domain.CharacterLite[]; // Add combatants to validate target exists
 }
 
 export const AbilityControls: React.FC<AbilityControlsProps> = ({ 
@@ -18,7 +19,8 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
   isInCombat, 
   selectedTargetIndex,
   onAttack,
-  isAttacking = false
+  isAttacking = false,
+  combatants = []
 }) => {
   const {
     abilities,
@@ -31,31 +33,44 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
 
   const toast = useToast();
 
+  // Helper function to check if the selected target position index corresponds to a valid combatant
+  const isValidTarget = (positionIndex: number): boolean => {
+    return combatants.some(combatant => combatant.index === positionIndex && !combatant.isDead);
+  };
+
+  // Helper function to get target name for display
+  const getTargetName = (positionIndex: number): string => {
+    const target = combatants.find(combatant => combatant.index === positionIndex);
+    return target?.name || `Position ${positionIndex}`;
+  };
+
   const handleAbilityClick = (abilityIndex: domain.Ability) => {
     const requiresTarget = requiresTargetCheck(abilityIndex); 
     
-    if (requiresTarget && (selectedTargetIndex === undefined || selectedTargetIndex === null)) {
+    if (requiresTarget && !isValidTarget(selectedTargetIndex)) {
       toast({ 
         title: "Target Required",
-        description: `Please select a target to use the ${domain.Ability[abilityIndex]} ability.`,
+        description: `Please select a valid target to use the ${domain.Ability[abilityIndex]} ability.`,
         status: "warning",
         duration: 3000,
         isClosable: true,
       });
-      console.warn(`Ability ${abilityIndex} requires a target, but none selected.`);
+      console.warn(`Ability ${abilityIndex} requires a target, but none selected or target invalid.`);
       return;
     }
     
-    useAbility(abilityIndex, requiresTarget ? selectedTargetIndex ?? 0 : 0);
+    // Use the position index directly for abilities that require targets
+    useAbility(abilityIndex, requiresTarget ? selectedTargetIndex : 0);
   };
 
   const handleAttack = () => {
-    if (selectedTargetIndex !== null && selectedTargetIndex !== undefined && onAttack && !isAttacking) {
+    if (isValidTarget(selectedTargetIndex) && onAttack && !isAttacking) {
+      // Pass the position index to the attack function
       onAttack(selectedTargetIndex);
-    } else if (selectedTargetIndex === null || selectedTargetIndex === undefined) {
+    } else if (!isValidTarget(selectedTargetIndex)) {
       toast({
         title: "Target Required",
-        description: "Please select a target to attack.",
+        description: "Please select a valid target to attack.",
         status: "warning",
         duration: 3000,
         isClosable: true,
@@ -76,12 +91,13 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
   }
 
   // Determine attack button state
-  const isAttackDisabled = !isInCombat || selectedTargetIndex === null || isAttacking || !onAttack;
+  const hasValidTarget = isValidTarget(selectedTargetIndex);
+  const isAttackDisabled = !isInCombat || !hasValidTarget || isAttacking || !onAttack;
   const attackTooltip = !isInCombat 
     ? "Cannot attack outside of combat"
-    : selectedTargetIndex === null 
-    ? "Select a target to attack"
-    : "Attack selected target";
+    : !hasValidTarget 
+    ? "Select a valid target to attack"
+    : `Attack ${getTargetName(selectedTargetIndex)}`;
 
   return (
     <HStack spacing={4} align="center" justify="center" width="100%">
@@ -98,7 +114,7 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
       {/* Ability Buttons */}
       {abilities.map((status) => {
         const requiresTarget = requiresTargetCheck(status.ability);
-        const hasTarget = selectedTargetIndex !== null && selectedTargetIndex !== undefined;
+        const hasTarget = isValidTarget(selectedTargetIndex);
         const isActionDisabled = !isInCombat || !status.isReady || (requiresTarget && !hasTarget);
         return (
           <AbilityButton

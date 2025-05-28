@@ -63,7 +63,6 @@ export const useAbilityCooldowns = (characterId: string | null) => {
 
   // Get ability details from character and class
   const character = gameState?.character;
-  const characterClass = character?.class ?? domain.CharacterClass.Warrior;
   const characterName = character?.name || 'Character';
 
   // State to hold the ability index that was just optimistically used

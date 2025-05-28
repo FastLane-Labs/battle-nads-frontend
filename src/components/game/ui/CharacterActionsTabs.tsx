@@ -125,13 +125,25 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
           
           <Box> 
             <h1 className='uppercase gold-text-light text-center mb-2 text-2xl font-semibold'>Abilities</h1>
-            <AbilityControls 
-              characterId={character?.id ?? null} 
-              selectedTargetIndex={selectedTargetIndex}
-              isInCombat={isInCombat}
-              onAttack={onAttack}
-              isAttacking={isAttacking}
-            />
+            {selectedTargetIndex !== null ? (
+              <AbilityControls 
+                characterId={character?.id ?? null} 
+                selectedTargetIndex={selectedTargetIndex}
+                isInCombat={isInCombat}
+                onAttack={onAttack}
+                isAttacking={isAttacking}
+                combatants={combatants}
+              />
+            ) : (
+              <AbilityControls 
+                characterId={character?.id ?? null} 
+                selectedTargetIndex={-1} // Use -1 as invalid position when no target selected
+                isInCombat={isInCombat}
+                onAttack={onAttack}
+                isAttacking={isAttacking}
+                combatants={combatants}
+              />
+            )}
           </Box>
           <Box>
             <MovementControls 

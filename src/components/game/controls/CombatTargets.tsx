@@ -34,77 +34,83 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
         <VStack spacing={2} align="stretch">
           {/* Target List */}
           <Box p={2} borderRadius="md" mb={2} overflowY="auto" className='bg-dark-brown'>
-            {validCombatants.map((combatant, index) => (
-              <Button
-              key={index}
-              size="sm"
-              variant={selectedTargetIndex === index ? "solid" : "ghost"}
-              colorScheme={selectedTargetIndex === index ? "whiteAlpha" : "gray"}
-              justifyContent="flex-start"
-              width="100%"
-              mb={1}
-              p={3}
-              h="auto"
-              onClick={() => onSelectTarget(selectedTargetIndex === index ? null : index)}
-              flexDirection="column"
-              alignItems="stretch"
-              >
-                {/* Top row: Name, Class, Level */}
-                <Flex justify="space-between" align="center" w="100%" mb={2}>
-                  <Text fontSize="sm" className='gold-text-light'>
-                    {combatant.name || `Enemy #${index + 1}`}
-                  </Text>
-                  <Flex gap={1}>
-                    <Box 
-                    backgroundImage="/assets/bg/level.png"
-                    backgroundSize="contain"
-                    backgroundRepeat="no-repeat"
-                    backgroundPosition="center"
-                    px={2}
-                    py={1}
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    minWidth="60px"
-                    height="24px"
-                    className='text-yellow-400/90 text-center font-serif text-sm'
-                    >
-                      {getClassDisplayName(combatant.class)}
-                    </Box>
-                    <Box 
-                    backgroundImage="/assets/bg/level.png"
-                    backgroundSize="contain"
-                    backgroundRepeat="no-repeat"
-                    backgroundPosition="center"
-                    px={2}
-                    py={1}
-                    display="flex"
-                    alignItems="center"
-                    justifyContent="center"
-                    minWidth="50px"
-                    height="24px"
-                    className='text-yellow-400/90 text-center font-serif text-sm'
-                    >
-                      Lvl {combatant.level || '?'}
-                    </Box>
+            {validCombatants.map((combatant, arrayIndex) => {
+              // Use the character's position index for targeting, not array index
+              const positionIndex = combatant.index;
+              const isSelected = selectedTargetIndex === positionIndex;
+              
+              return (
+                <Button
+                key={combatant.id} // Use character ID as key for stability
+                size="sm"
+                variant={isSelected ? "solid" : "ghost"}
+                colorScheme={isSelected ? "whiteAlpha" : "gray"}
+                justifyContent="flex-start"
+                width="100%"
+                mb={1}
+                p={3}
+                h="auto"
+                onClick={() => onSelectTarget(isSelected ? null : positionIndex)}
+                flexDirection="column"
+                alignItems="stretch"
+                >
+                  {/* Top row: Name, Class, Level */}
+                  <Flex justify="space-between" align="center" w="100%" mb={2}>
+                    <Text fontSize="sm" className='gold-text-light'>
+                      {combatant.name || `Enemy #${arrayIndex + 1}`}
+                    </Text>
+                    <Flex gap={1}>
+                      <Box 
+                      backgroundImage="/assets/bg/level.png"
+                      backgroundSize="contain"
+                      backgroundRepeat="no-repeat"
+                      backgroundPosition="center"
+                      px={2}
+                      py={1}
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                      minWidth="60px"
+                      height="24px"
+                      className='text-yellow-400/90 text-center font-serif text-sm'
+                      >
+                        {getClassDisplayName(combatant.class)}
+                      </Box>
+                      <Box 
+                      backgroundImage="/assets/bg/level.png"
+                      backgroundSize="contain"
+                      backgroundRepeat="no-repeat"
+                      backgroundPosition="center"
+                      px={2}
+                      py={1}
+                      display="flex"
+                      alignItems="center"
+                      justifyContent="center"
+                      minWidth="50px"
+                      height="24px"
+                      className='text-yellow-400/90 text-center font-serif text-sm'
+                      >
+                        Lvl {combatant.level || '?'}
+                      </Box>
+                    </Flex>
                   </Flex>
-                </Flex>
-                
-                {/* Bottom row: Health Bar */}
-                <Box w="100%">
-                  <HealthBar 
-                    health={combatant.health}
-                    maxHealth={combatant.maxHealth}
-                    size="small"
-                    showLabel={true}
-                  />
-                </Box>
-              </Button>
-            ))}
+                  
+                  {/* Bottom row: Health Bar */}
+                  <Box w="100%">
+                    <HealthBar 
+                      health={combatant.health}
+                      maxHealth={combatant.maxHealth}
+                      size="small"
+                      showLabel={true}
+                    />
+                  </Box>
+                </Button>
+              );
+            })}
           </Box>
         </VStack>
       )}
-      </Box>
+    </Box>
   );
 };
 
