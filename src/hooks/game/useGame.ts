@@ -261,8 +261,10 @@ export const useGame = () => {
 
   // --- Determine Combat State ---
   const isInCombat = useMemo(() => {
-      return !!worldSnapshot && worldSnapshot.combatants.filter(combatant => !combatant.isDead).length > 0;
-  }, [worldSnapshot]);
+      // Use the character's combat state (combatantBitMap) as the primary source of truth
+      // This ensures the character is actually engaged in combat, not just in an area with combatants
+      return !!worldSnapshot?.character?.isInCombat;
+  }, [worldSnapshot?.character?.isInCombat]);
   // ----------------------------
 
   // --- Combine Loading States (Now includes cache loading) ---

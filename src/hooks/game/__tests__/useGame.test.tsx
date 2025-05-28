@@ -280,11 +280,17 @@ describe('useGame', () => {
 
   // --- NEW Test Cases for isInCombat --- 
 
-  it('should return isInCombat: false when combatants array is empty', async () => {
+  it('should return isInCombat: false when character.isInCombat is false', async () => {
+    const mockCharacterNotInCombat = {
+      ...mockCharacter,
+      isInCombat: false // Character not in combat
+    };
+    
     (useBattleNads as jest.Mock).mockReturnValue({
       gameState: {
         ...mockBaseGameState,
-        combatants: [], // Ensure empty array
+        character: mockCharacterNotInCombat,
+        combatants: [{ id: 'combatant1', name: 'Goblin' }], // Enemies present but not engaged
       },
       isLoading: false,
       error: null,
@@ -298,12 +304,17 @@ describe('useGame', () => {
     expect(result.current.isInCombat).toBe(false);
   });
 
-  it('should return isInCombat: true when combatants array has items', async () => {
-    const mockCombatant = { id: 'combatant1', name: 'Goblin' }; 
+  it('should return isInCombat: true when character.isInCombat is true', async () => {
+    const mockCharacterInCombat = {
+      ...mockCharacter,
+      isInCombat: true // Character actively in combat
+    };
+    
     (useBattleNads as jest.Mock).mockReturnValue({
       gameState: {
         ...mockBaseGameState,
-        combatants: [mockCombatant], // Ensure non-empty array
+        character: mockCharacterInCombat,
+        combatants: [{ id: 'combatant1', name: 'Goblin' }], // Enemies present and engaged
       },
       isLoading: false,
       error: null,
