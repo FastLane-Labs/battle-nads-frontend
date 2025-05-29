@@ -2,18 +2,11 @@ import React from 'react';
 import {
   Box, 
   Grid,
-  GridItem,
-  Heading, 
+  GridItem, 
   Tooltip,
-  IconButton,
   Image,
-  Center,
   Text
 } from '@chakra-ui/react';
-import { 
-  ChevronUpIcon, 
-  ChevronDownIcon
-} from '@chakra-ui/icons';
 import { MovementOptions } from '@/types/domain';
 
 interface MovementControlsProps {
@@ -33,6 +26,10 @@ const MovementControls: React.FC<MovementControlsProps> = ({
 }) => {
 
   const getTooltipLabel = (dir: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
+    if (Number(position.z) === 0) {
+      return "🚫 Cannot move while spawning - please wait";
+    }
+    
     if (isInCombat) {
       return "⚔️ Cannot move while in combat";
     }
@@ -79,6 +76,9 @@ const MovementControls: React.FC<MovementControlsProps> = ({
 
   // Check if a direction is disabled
   const isDirectionDisabled = (dir: 'north' | 'south' | 'east' | 'west' | 'up' | 'down'): boolean => {
+    // Disable movement when at spawn location (z=0)
+    if (Number(position.z) === 0) return true;
+    
     if (isMoving || isInCombat) return true;
     
     if (movementOptions) {
