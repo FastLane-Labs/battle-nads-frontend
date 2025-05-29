@@ -50,6 +50,16 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
     setPendingId(null); // Reset pending ID when changing slots
   };
 
+  // Handle opening the modal - set pendingId to current equipment if any
+  const handleOpenModal = () => {
+    if (currentEquipment) {
+      setPendingId(currentEquipment.id);
+    } else {
+      setPendingId(null);
+    }
+    onOpen();
+  };
+
   // Handle equipping an item
   const handleEquip = () => {
     if (pendingId !== null && selectedSlot) {
@@ -149,7 +159,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
         
         {/* Change Button */}
         <Button
-          onClick={onOpen}
+          onClick={handleOpenModal}
           disabled={selectedSlot === null || isInCombat}
           size="md"
           className="bg-brown border-black/40 border hover:border-amber-400 font-semibold"
@@ -171,14 +181,13 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
           <ModalCloseButton />
           <ModalBody pb={6}>
             <Select
-              placeholder={currentEquipment ? 'Change...' : 'Equip...'}
               value={pendingId ?? ''}
               onChange={(e) => setPendingId(Number(e.target.value))}
               className="bg-dark-brown mb-4"
             >
               {availableEquipment.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.name}
+                  {item.name}{item.id === currentEquipment?.id ? ' (Currently Equipped)' : ''}
                 </option>
               ))}
             </Select>
@@ -188,9 +197,10 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
                 onClick={handleEquip} 
                 isLoading={isEquipping}
                 className="w-full bg-brown border border-black/40"
+                disabled={pendingId === currentEquipment?.id}
               >
                 <span className='gold-text-light'>
-                Equip
+                {pendingId === currentEquipment?.id ? 'Already Equipped' : 'Equip'}
                 </span>
               </Button>
             )}
