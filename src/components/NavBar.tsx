@@ -98,23 +98,9 @@ const NavBar: React.FC = () => {
       >
         <Flex alignItems="center" flex="1">
           <Box mr={6}>
-            {hasCharacter && hasWallet && pathname !== '/game' && pathname !== '/game-v2' ? (
-              <Link href="/game">
-                <Image src="/BattleNadsLogo.png" alt="Battle-Nads Logo" height="40px" />
-              </Link>
-            ) : (!hasCharacter && hasWallet) || pathname === '/game' || pathname === '/game-v2' ? (
-              pathname === '/game' || pathname === '/game-v2' ? (
-                <Image src="/BattleNadsLogo.png" alt="Battle-Nads Logo" height="40px" />
-              ) : (
-                <Link href="/">
-                  <Image src="/BattleNadsLogo.png" alt="Battle-Nads Logo" height="40px" />
-                </Link>
-              )
-            ) : (
-              <Link href="/">
-                <Image src="/BattleNadsLogo.png" alt="Battle-Nads Logo" height="40px" />
-              </Link>
-            )}
+            <Link href="/">
+              <Image src="/BattleNadsLogo.png" alt="Battle-Nads Logo" height="40px" />
+            </Link>
           </Box>
 
           {hasWallet && (
