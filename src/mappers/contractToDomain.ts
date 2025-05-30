@@ -341,9 +341,20 @@ export function mapSessionKeyData(
 function findCharacterParticipantByIndex(
   index: number, 
   combatants: contract.CharacterLite[], 
-  noncombatants: contract.CharacterLite[]
+  noncombatants: contract.CharacterLite[],
+  mainCharacter?: contract.Character | null
 ): domain.EventParticipant | null {
   if (index <= 0) return null; // Index 0 usually means no participant
+
+  // First check if this is the main character
+  if (mainCharacter && Number(mainCharacter.stats.index) === index) {
+    return {
+      id: mainCharacter.id,
+      name: mainCharacter.name,
+      index: index
+    };
+  }
+
   // Combine lists for easier lookup
   const allCharacters = [...combatants, ...noncombatants];
   // IMPORTANT: Contract CharacterLite.index is uint256, often large, need to compare safely
@@ -460,10 +471,10 @@ export function contractToWorldSnapshot(
       const logIndex = Number(log.index); 
       const mainPlayerIdx = Number(log.mainPlayerIndex);
       const otherPlayerIdx = Number(log.otherPlayerIndex);
-      
+
       switch (logTypeNum) {
         case domain.LogType.Chat: {
-          const sender = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
+          const sender = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
           const messageContent = feed.chatLogs?.[blockChatLogIndex] ?? "[Chat message content unavailable]";
           blockChatLogIndex++;
           
@@ -498,7 +509,7 @@ export function contractToWorldSnapshot(
         }
         case domain.LogType.EnteredArea:
         case domain.LogType.LeftArea: { 
-          const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
+          const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
           const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
           const displayMessage = `${participant?.name || `Index ${mainPlayerIdx}`} ${logTypeNum === domain.LogType.EnteredArea ? 'entered' : 'left'} the area.`;
           const newEventMessage: domain.EventMessage = {
@@ -515,8 +526,8 @@ export function contractToWorldSnapshot(
           break;
         }
         case domain.LogType.Ability: { 
-          const caster = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
-          const target = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants);
+          const caster = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
+          const target = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character);
           const isPlayer = !!ownerCharacterId && !!caster && caster.id === ownerCharacterId;
           const abilityName = domain.Ability[Number(log.value)] || `Ability ${log.value}`;
           let displayMessage = `${caster?.name || `Index ${mainPlayerIdx}`} used ${abilityName}`;
@@ -537,7 +548,7 @@ export function contractToWorldSnapshot(
           break;
         }
         case domain.LogType.Ascend: {
-           const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants);
+           const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
            const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
            const displayMessage = `${participant?.name || `Index ${mainPlayerIdx}`} died.`;
            const newEventMessage: domain.EventMessage = {
