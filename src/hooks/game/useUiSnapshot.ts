@@ -44,6 +44,7 @@ export const useUiSnapshot = (owner: string | null) => {
       let mappedData: contract.PollFrontendDataReturn;
       try {
         const dataAsAny = rawArrayData as any; 
+
         mappedData = {
           characterID: dataAsAny[0],
           sessionKeyData: dataAsAny[1],
