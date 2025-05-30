@@ -130,20 +130,19 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
   );
 };
 
-// Placeholder function - needs actual implementation based on ability logic
 const requiresTargetCheck = (ability: domain.Ability): boolean => {
   switch (ability) {
     case domain.Ability.ShieldBash:
     case domain.Ability.ApplyPoison:
     case domain.Ability.Smite:
     case domain.Ability.Fireball:
+    case domain.Ability.DoDance:
       return true;
     case domain.Ability.ShieldWall:
     case domain.Ability.EvasiveManeuvers:
     case domain.Ability.Pray:
     case domain.Ability.ChargeUp:
     case domain.Ability.SingSong:
-    case domain.Ability.DoDance:
     default:
       return false;
   }
