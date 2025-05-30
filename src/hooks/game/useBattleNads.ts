@@ -34,17 +34,30 @@ export const useBattleNads = (owner: string | null) => {
   const characterLookup = useMemo<Map<number, domain.CharacterLite>>(() => {
     const map = new Map<number, domain.CharacterLite>();
     if (rawData) {
-      // console.log('DEBUG COMBATANTS (SC raw):', rawData.combatants);
-      // console.log('DEBUG NONCOMBATANTS (SC raw):', rawData.noncombatants);
-      (rawData.combatants || []).forEach(c => map.set(Number(c.index), mapCharacterLite(c)));
-      (rawData.noncombatants || []).forEach(c => map.set(Number(c.index), mapCharacterLite(c)));
+      // Only use FRESH contract data for current character lookup
+      // This ensures we only have characters that currently exist in the game world
+      
+      // Add current combatants from fresh contract data
+      (rawData.combatants || []).forEach(c => {
+        const mapped = mapCharacterLite(c);
+        map.set(Number(c.index), mapped);
+      });
+      
+      // Add current noncombatants from fresh contract data
+      (rawData.noncombatants || []).forEach(c => {
+        const mapped = mapCharacterLite(c);
+        map.set(Number(c.index), mapped);
+      });
+      
+      // Add player character from fresh contract data
       if (rawData.character) {
         const playerCharData = rawData.character;
-        map.set(Number(playerCharData.stats.index), {
+        const playerLite = {
           id: playerCharData.id,
           index: Number(playerCharData.stats.index),
           name: playerCharData.name,
-        } as domain.CharacterLite);
+        } as domain.CharacterLite;
+        map.set(Number(playerCharData.stats.index), playerLite);
       }
     }
     return map;
@@ -213,9 +226,7 @@ export const useBattleNads = (owner: string | null) => {
            
     let snapshotBase: domain.WorldSnapshot | null = null;
     try {
-      // console.log('DEBUG (SC raw): Converting contract data to world snapshot:', rawData);
       snapshotBase = contractToWorldSnapshot(rawData, owner); 
-      // console.log('DEBUG (frontend data): Resulting worldSnapshot:', snapshotBase);
     } catch (e) {
       // console.error('DEBUG: Error in contractToWorldSnapshot:', e);
       return previousGameStateRef.current;
@@ -224,7 +235,7 @@ export const useBattleNads = (owner: string | null) => {
       return previousGameStateRef.current;
     }
      
-    // --- Map Historical Data --- 
+    // --- SEPARATE: Build Chat/Event Logs from Historical + Fresh Data ---
     const historicalChatLogs: domain.ChatMessage[] = historicalBlocks.flatMap((block: CachedDataBlock) => 
       block.chats.map((chat: SerializedChatLog): domain.ChatMessage => ({
         logIndex: chat.logIndex,
@@ -238,17 +249,21 @@ export const useBattleNads = (owner: string | null) => {
     
     const historicalEventLogs: domain.EventMessage[] = historicalBlocks.flatMap((block: CachedDataBlock) => 
       block.events.map((event: SerializedEventLog): domain.EventMessage => { 
+          // For historical events, use stored names (these are just for display in logs)
           const attacker: domain.EventParticipant | undefined = event.mainPlayerIndex > 0 ? { 
-              id: characterLookup.get(event.mainPlayerIndex)?.id || `index_${event.mainPlayerIndex}`,
+              id: `index_${event.mainPlayerIndex}`, // Use generic ID for historical
               name: event.attackerName || `Index ${event.mainPlayerIndex}`, 
               index: event.mainPlayerIndex 
           } : undefined;
           const defender: domain.EventParticipant | undefined = event.otherPlayerIndex > 0 ? { 
-              id: characterLookup.get(event.otherPlayerIndex)?.id || `index_${event.otherPlayerIndex}`,
+              id: `index_${event.otherPlayerIndex}`, // Use generic ID for historical
               name: event.defenderName || `Index ${event.otherPlayerIndex}`, 
               index: event.otherPlayerIndex 
           } : undefined;
-          const isPlayerInitiated = !!snapshotBase?.character && !!attacker && attacker.id === snapshotBase.character.id;
+          
+          // For historical events, we can't reliably determine if player initiated
+          const isPlayerInitiated = false; // Conservative: assume not player-initiated for historical
+          
           return {
               logIndex: event.index,
               blocknumber: block.blockNumber, 
@@ -266,55 +281,64 @@ export const useBattleNads = (owner: string | null) => {
       })
     ).filter(event => event.blocknumber !== undefined && event.logIndex !== undefined); 
  
-    // --- Combine ALL Event Logs (Simplified: Historical + Runtime Only) --- 
+    // --- Combine Historical + Runtime Event Logs --- 
     const combinedEventLogsMap = new Map<string, domain.EventMessage>();
     const validRuntimeEventLogs = runtimeEventLogs.filter(event => event.blocknumber !== undefined && event.logIndex !== undefined);
     
     // 1. Add historical logs
     historicalEventLogs.forEach(log => {
-        const key = `conf-${log.blocknumber}-${log.logIndex}`;
-        if (!combinedEventLogsMap.has(key)) { 
-            combinedEventLogsMap.set(key, log);
-        }
+        const key = `hist-${log.blocknumber}-${log.logIndex}`;
+        combinedEventLogsMap.set(key, log);
     });
-    // 2. Add VALID RUNTIME logs (overwrites historical)
+    // 2. Add runtime logs (from fresh contract data)
     validRuntimeEventLogs.forEach(log => {
-        const key = `conf-${log.blocknumber}-${log.logIndex}`;
+        const key = `live-${log.blocknumber}-${log.logIndex}`;
+        combinedEventLogsMap.set(key, log);
+    });
+    // 3. Add fresh logs from current snapshot (these have current participant mapping)
+    snapshotBase.eventLogs.forEach(log => {
+        const key = `snap-${log.blocknumber}-${log.logIndex}`;
         combinedEventLogsMap.set(key, log);
     });
 
-    // 3. Convert map back to array and sort
     const finalEventLogs = Array.from(combinedEventLogsMap.values())
                                   .sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
     
-    // --- Combine ALL Chat logs (Using Consistent Key) --- 
+    // --- Combine Historical + Runtime Chat Logs --- 
     const combinedChatLogsMap = new Map<string, domain.ChatMessage>();
     const validRuntimeChatLogs = runtimeConfirmedLogs.filter(chat => chat.blocknumber !== undefined && chat.logIndex !== undefined);
 
-    // 1. Add historical logs using the conf- key with the CORRECT index
+    // 1. Add historical chat logs
     historicalChatLogs.forEach(log => {
-        const key = `conf-${log.blocknumber}-${log.logIndex}`;
-        if (!combinedChatLogsMap.has(key)) { 
-            combinedChatLogsMap.set(key, log);
-        }
+        const key = `hist-${log.blocknumber}-${log.logIndex}`;
+        combinedChatLogsMap.set(key, log);
     });
-    // 2. Add VALID runtime confirmed logs (overwrites historical IF keys match)
+    // 2. Add runtime confirmed chat logs 
     validRuntimeChatLogs.forEach(log => {
-        const key = `conf-${log.blocknumber}-${log.logIndex}`; 
-        combinedChatLogsMap.set(key, log); // Overwrite based on the same key
+        const key = `live-${log.blocknumber}-${log.logIndex}`; 
+        combinedChatLogsMap.set(key, log);
     });
-    // 3. Add optimistic logs
+    // 3. Add fresh chat logs from current snapshot
+    snapshotBase.chatLogs.forEach(log => {
+        const key = `snap-${log.blocknumber}-${log.logIndex}`;
+        combinedChatLogsMap.set(key, log);
+    });
+    // 4. Add optimistic chat messages
     optimisticChatMessages.forEach(log => {
         const key = `opt-${log.timestamp}-${log.sender.id}-${log.message.slice(0,10)}`;
         combinedChatLogsMap.set(key, log);
     });
-    // 4. Convert map values back to array and sort
+
     const finalChatLogs = Array.from(combinedChatLogsMap.values())
                               .sort((a, b) => a.timestamp - b.timestamp);
 
-    // --- Construct the final WorldSnapshot --- 
+    // --- SEPARATE: Use ONLY Fresh Contract Data for Combatants --- 
     const finalSnapshot: domain.WorldSnapshot = {
        ...snapshotBase,
+       // Use ONLY fresh contract combatants/noncombatants (no historical contamination)
+       combatants: snapshotBase.combatants, // These come from fresh contract data only
+       noncombatants: snapshotBase.noncombatants, // These come from fresh contract data only
+       // Use combined logs (historical + fresh)
        eventLogs: finalEventLogs, 
        chatLogs: finalChatLogs
     };
@@ -322,7 +346,7 @@ export const useBattleNads = (owner: string | null) => {
     previousGameStateRef.current = finalSnapshot;
     return finalSnapshot;
 
-  }, [rawData, owner, optimisticChatMessages, historicalBlocks, runtimeConfirmedLogs, runtimeEventLogs, characterLookup]); 
+  }, [rawData, owner, optimisticChatMessages, historicalBlocks, runtimeConfirmedLogs, runtimeEventLogs, characterLookup]);
 
   // Function to add an optimistic message
   const addOptimisticChatMessage = useCallback((message: string) => {

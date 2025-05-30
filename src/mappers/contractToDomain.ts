@@ -288,15 +288,23 @@ export function mapCharacterLite(
      } as domain.CharacterLite;
   }
  
+  const health = Number(raw.health || 0);
+  const maxHealth = Number(raw.maxHealth || 0);
+  
+  // Defensive validation: If health is 0 OR maxHealth is 0, the character should be dead
+  // This fixes contract bugs where isDead is false but health/maxHealth is 0
+  const shouldBeDead = health <= 0 || maxHealth <= 0;
+  const actuallyDead = Boolean(raw.isDead) || shouldBeDead;
+
   // Map properties directly, applying necessary conversions
-  return {
+  const result = {
     id: raw.id,
     index: Number(raw.index || 0),
     name: raw.name || 'Unknown',
     class: mapContractClassToDomain(raw.class), // Use the class directly now
     level: Number(raw.level || 0),
-    health: Number(raw.health || 0),
-    maxHealth: Number(raw.maxHealth || 0), 
+    health: health,
+    maxHealth: maxHealth, 
     buffs: mapStatusEffects(Number(raw.buffs || 0)), 
     debuffs: mapStatusEffects(Number(raw.debuffs || 0)),
     ability: {
@@ -308,8 +316,10 @@ export function mapCharacterLite(
     },
     weaponName: raw.weaponName || '',
     armorName: raw.armorName || '',
-    isDead: Boolean(raw.isDead)
+    isDead: actuallyDead // Use our validated death status instead of raw contract value
   };
+
+  return result;
 }
 
 /**

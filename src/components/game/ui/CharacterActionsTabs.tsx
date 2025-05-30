@@ -132,7 +132,7 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
                 isInCombat={isInCombat}
                 onAttack={onAttack}
                 isAttacking={isAttacking}
-                combatants={combatants}
+                combatants={combatants.filter(combatant => !combatant.isDead)}
               />
             ) : (
               <AbilityControls 
@@ -141,7 +141,7 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
                 isInCombat={isInCombat}
                 onAttack={onAttack}
                 isAttacking={isAttacking}
-                combatants={combatants}
+                combatants={combatants.filter(combatant => !combatant.isDead)}
               />
             )}
           </Box>
