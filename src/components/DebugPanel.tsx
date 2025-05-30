@@ -16,10 +16,13 @@ import {
   Input,
   useToast
 } from '@chakra-ui/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useBattleNads } from '../hooks/game/useBattleNads';
 import { useWallet } from '../providers/WalletProvider';
 import { useBattleNadsClient } from '../hooks/contracts/useBattleNadsClient';
 import { CharacterLite } from '@/types/domain';
+import { invalidateSnapshot } from '../hooks/utils';
+import { db } from '../lib/db';
 
 interface DebugPanelProps {
   isVisible?: boolean;
@@ -46,6 +49,8 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
   const { injectedWallet, embeddedWallet } = useWallet();
   
   const toast = useToast();
+  
+  const queryClient = useQueryClient();
   
   // Add a logging function that shows timestamps
   const addLog = (message: string) => {
@@ -332,6 +337,312 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
     }
   };
   
+  // Add a button to clear all cached data
+  const clearCache = async () => {
+    try {
+      addLog('🧹 Starting comprehensive cache clearing...');
+      
+      // Step 1: Clear IndexedDB data (this is likely where stale enemy data lives)
+      addLog('Clearing IndexedDB (historical data)...');
+      if (ownerAddress) {
+        const deletedCount = await db.dataBlocks
+          .where('owner')
+          .equals(ownerAddress)
+          .delete();
+        addLog(`Deleted ${deletedCount} historical data blocks from IndexedDB`);
+      } else {
+        // Clear all IndexedDB data if no specific owner
+        await db.dataBlocks.clear();
+        addLog('Cleared all IndexedDB data (no owner address)');
+      }
+      
+      // Step 2: Clear React Query cache for this owner
+      addLog('Clearing React Query cache...');
+      await invalidateSnapshot(queryClient, ownerAddress);
+      
+      // Step 3: Clear ALL React Query cache as a final fallback
+      addLog('Clearing all React Query cache...');
+      await queryClient.clear();
+      
+      addLog('✅ All cached data cleared successfully!');
+      addLog('🔄 Please refresh the page to see fresh data');
+      
+      toast({
+        title: '🗑️ Cache Completely Cleared!',
+        description: 'All cached data (React Query + IndexedDB) has been cleared. Refresh the page to see fresh enemy data.',
+        status: 'success',
+        duration: 8000,
+        isClosable: true,
+      });
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      addLog(`❌ Error clearing cache: ${errorMsg}`);
+      console.error('[DebugPanel] Error:', err);
+      
+      toast({
+        title: 'Cache Clear Failed',
+        description: `Error: ${errorMsg}`,
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+    }
+  };
+  
+  // Add a function to log all enemy data to console
+  const logAllEnemies = () => {
+    addLog('🐉 Logging all enemy data to console...');
+    
+    if (!gameState) {
+      console.log('[Enemy Debug] No game state available');
+      addLog('No game state available');
+      return;
+    }
+    
+    console.group('🐉 ENEMY DEBUG DATA');
+    
+    // Log raw combatants
+    console.log('📋 Raw Combatants from gameState:', gameState.combatants);
+    
+    // Log filtered combatants (dead removed)
+    const liveCombatants = gameState.combatants?.filter(combatant => !combatant.isDead) || [];
+    console.log('✅ Live Combatants (isDead=false):', liveCombatants);
+    
+    // Log dead combatants
+    const deadCombatants = gameState.combatants?.filter(combatant => combatant.isDead) || [];
+    console.log('💀 Dead Combatants (isDead=true):', deadCombatants);
+    
+    // Log detailed breakdown
+    console.log('📊 Detailed Breakdown:');
+    gameState.combatants?.forEach((combatant, index) => {
+      console.log(`  Enemy ${index + 1}:`, {
+        name: combatant.name,
+        id: combatant.id,
+        index: combatant.index,
+        health: combatant.health,
+        maxHealth: combatant.maxHealth,
+        isDead: combatant.isDead,
+        class: combatant.class,
+        level: combatant.level
+      });
+    });
+    
+    // Log non-combatants too
+    if (gameState.noncombatants && gameState.noncombatants.length > 0) {
+      console.log('👥 Non-Combatants:', gameState.noncombatants);
+    }
+    
+    console.groupEnd();
+    
+    addLog(`Found ${gameState.combatants?.length || 0} total combatants`);
+    addLog(`Found ${liveCombatants.length} live combatants`);
+    addLog(`Found ${deadCombatants.length} dead combatants`);
+    addLog('All enemy data logged to console (check browser dev tools)');
+  };
+  
+  // Add a function to trace the complete data flow pipeline
+  const traceDataFlow = async () => {
+    addLog('🔍 Tracing complete data flow pipeline...');
+    
+    if (!ownerAddress || !client) {
+      addLog('❌ Missing owner address or client');
+      return;
+    }
+    
+    console.group('🔍 DATA FLOW TRACE');
+    
+    try {
+      // Step 1: Get fresh raw data directly from contract
+      addLog('Step 1: Fetching fresh raw data from contract...');
+      const rawArrayData = await client.getUiSnapshot(ownerAddress, BigInt(0));
+      
+      console.log('🏗️ RAW CONTRACT DATA (array format):', rawArrayData);
+      
+      // Parse the raw array data like useUiSnapshot does
+      const dataAsAny = rawArrayData as any;
+      const rawMappedData = {
+        characterID: dataAsAny[0],
+        sessionKeyData: dataAsAny[1], 
+        character: dataAsAny[2],
+        combatants: dataAsAny[3],
+        noncombatants: dataAsAny[4],
+        equipableWeaponIDs: dataAsAny[5],
+        equipableWeaponNames: dataAsAny[6],
+        equipableArmorIDs: dataAsAny[7],
+        equipableArmorNames: dataAsAny[8],
+        dataFeeds: dataAsAny[9] || [],
+        balanceShortfall: dataAsAny[10],
+        unallocatedAttributePoints: dataAsAny[11],
+        endBlock: dataAsAny[12],
+      };
+      
+      console.log('📋 RAW MAPPED DATA:', rawMappedData);
+      console.log('🎯 RAW COMBATANTS:', rawMappedData.combatants);
+      console.log('👥 RAW NON-COMBATANTS:', rawMappedData.noncombatants);
+      
+      addLog(`Raw data shows ${rawMappedData.combatants?.length || 0} combatants`);
+      addLog(`Raw data shows ${rawMappedData.noncombatants?.length || 0} non-combatants`);
+      
+      // Step 2: Check what's in React Query cache
+      addLog('Step 2: Checking React Query cache...');
+      const cachedData = queryClient.getQueryData(['uiSnapshot', ownerAddress]);
+      console.log('💾 CACHED DATA from React Query:', cachedData);
+      
+      // Step 3: Check IndexedDB historical data
+      addLog('Step 3: Checking IndexedDB historical data...');
+      const historicalBlocks = await db.dataBlocks
+        .where('owner').equals(ownerAddress)
+        .toArray();
+      console.log('🗄️ INDEXEDDB HISTORICAL BLOCKS:', historicalBlocks);
+      
+      // Step 4: Check what useBattleNads is actually returning
+      addLog('Step 4: Checking useBattleNads output...');
+      console.log('🎮 CURRENT GAME STATE:', gameState);
+      console.log('🐉 GAME STATE COMBATANTS:', gameState?.combatants);
+      console.log('👥 GAME STATE NON-COMBATANTS:', gameState?.noncombatants);
+      
+      if (gameState?.combatants && gameState.combatants.length > 0) {
+        const contractCount = rawMappedData.combatants?.length || 0;
+        const uiCount = gameState.combatants.length;
+        if (contractCount !== uiCount) {
+          console.log('⚠️ MISMATCH DETECTED!');
+          console.log(`Contract shows ${contractCount} combatants`);
+          console.log(`But gameState shows ${uiCount} combatants`);
+          addLog(`🚨 MISMATCH: Contract has ${contractCount}, UI shows ${uiCount}`);
+        } else {
+          addLog('✅ Data flow looks consistent');
+        }
+      } else {
+        addLog('✅ Data flow looks consistent');
+      }
+      
+      console.groupEnd();
+      
+    } catch (err) {
+      console.error('❌ Error in data flow trace:', err);
+      addLog(`❌ Error tracing data flow: ${err instanceof Error ? err.message : String(err)}`);
+      console.groupEnd();
+    }
+  };
+  
+  // Add a function to investigate contract issues with specific characters
+  const investigateContractIssue = async () => {
+    try {
+      addLog('🔍 Investigating contract state vs expected state...');
+      
+      if (!client || !ownerAddress) {
+        addLog('❌ Missing client or owner address');
+        return;
+      }
+      
+      // Get current contract state
+      addLog('📋 Fetching current contract state...');
+      const rawData = await client.getUiSnapshot(ownerAddress, BigInt(0));
+      const dataAsAny = rawData as any;
+      
+      console.group('🔍 CONTRACT INVESTIGATION');
+      console.log('📋 Raw contract response:', rawData);
+      console.log('🔢 Block info:', {
+        startBlock: 0,
+        endBlock: dataAsAny[12]?.toString(),
+        timestamp: new Date().toISOString()
+      });
+      
+      // Analyze combatants for issues
+      const combatants = dataAsAny[3] || [];
+      console.log(`📊 Combatants analysis (${combatants.length} total):`);
+      
+      combatants.forEach((combatant: any, index: number) => {
+        const health = Number(combatant.health || 0);
+        const maxHealth = Number(combatant.maxHealth || 0);
+        const isDead = Boolean(combatant.isDead);
+        
+        console.log(`🔍 Combatant ${index}:`, {
+          name: combatant.name,
+          id: combatant.id,
+          health: health,
+          maxHealth: maxHealth,
+          isDead: isDead,
+          healthPercentage: maxHealth > 0 ? (health / maxHealth * 100).toFixed(1) + '%' : '0%',
+          index: combatant.index,
+          shouldBeAlive: health > 0,
+          contractSaysAlive: !isDead
+        });
+        
+        // Check for inconsistencies
+        if (health <= 0 && !isDead) {
+          console.error(`🚨 INCONSISTENCY: ${combatant.name} has no health but isDead=false`);
+          addLog(`🚨 Found contract bug: ${combatant.name} has ${health} health but isDead=false`);
+        }
+        if (health > 0 && isDead) {
+          console.error(`🚨 INCONSISTENCY: ${combatant.name} has health but isDead=true`);
+          addLog(`🚨 Found contract bug: ${combatant.name} has ${health} health but isDead=true`);
+        }
+        
+        // Check for any problematic characters (generic check)
+        if (health > 0 && !isDead) {
+          console.log(`✅ ALIVE COMBATANT: ${combatant.name} (${health}/${maxHealth} HP)`);
+        } else if (health <= 0 || isDead) {
+          console.warn(`⚠️ DEAD/DYING COMBATANT: ${combatant.name} (${health}/${maxHealth} HP, isDead: ${isDead})`);
+        }
+      });
+      
+      // Check non-combatants too
+      const noncombatants = dataAsAny[4] || [];
+      console.log(`📊 Non-combatants analysis (${noncombatants.length} total):`);
+      
+      if (noncombatants.length > 0) {
+        console.log('👥 NON-COMBATANTS:', noncombatants);
+      }
+      
+      console.groupEnd();
+      
+      addLog('✅ Contract investigation complete - check console for detailed analysis');
+      
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      addLog(`❌ Contract investigation failed: ${errorMsg}`);
+      console.error('[DebugPanel] Contract investigation error:', err);
+    }
+  };
+  
+  // Add simplified startBlock comparison for debugging the stale monster issue
+  const testDifferentStartBlocks = async () => {
+    try {
+      addLog('🔬 Testing different startBlock approaches...');
+      
+      if (!ownerAddress || !client) {
+        addLog('❌ Missing owner address or client');
+        return;
+      }
+      
+      const currentBlock = await client.getLatestBlockNumber();
+      
+      // Test user's script approach (current - 1)
+      const userResult = await client.getUiSnapshot(ownerAddress, currentBlock - 1n);
+      const userCombatants = (userResult as any)[3];
+      
+      // Test startBlock 0 approach  
+      const zeroResult = await client.getUiSnapshot(ownerAddress, BigInt(0));
+      const zeroCombatants = (zeroResult as any)[3];
+      
+      console.log(`🔬 STARTBLOCK TEST RESULTS:`);
+      console.log(`Current block: ${currentBlock}`);
+      console.log(`User approach (current-1): ${userCombatants?.length || 0} combatants`);
+      console.log(`StartBlock 0 approach: ${zeroCombatants?.length || 0} combatants`);
+      console.log(`Frontend cache: ${gameState?.combatants?.length || 0} combatants`);
+      
+      if (userCombatants?.length === 0 && gameState?.combatants && gameState.combatants.length > 0) {
+        addLog('🚨 STALE DATA CONFIRMED: User approach shows empty, frontend shows monsters');
+      } else if (userCombatants?.length === gameState?.combatants?.length) {
+        addLog('✅ Data matches between user approach and frontend');
+      }
+      
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      addLog(`❌ StartBlock test failed: ${errorMsg}`);
+    }
+  };
   
   if (!isVisible) return null;
   
@@ -349,67 +660,175 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       <VStack spacing={4} align="stretch">
         <Heading size="md">Battle Nads Debug Panel</Heading>
         
+        {/* Wallet & Connection Info */}
         <Box p={2} bg="gray.800" borderRadius="md">
           <Heading size="sm" mb={2}>Wallet Information</Heading>
           <Text>Owner Wallet: {injectedWallet?.address || 'Not connected'}</Text>
           <Text>Session Wallet: {embeddedWallet?.address || 'Not connected'}</Text>
         </Box>
         
+        {/* Character Management */}
         <Box p={2} bg="gray.800" borderRadius="md">
-          <Heading size="sm" mb={2}>Character ID</Heading>
-          <HStack>
-            <Text>Current: {fetchedCharacterId || 'Not found'}</Text>
-            {fetchedCharacterId && (
-              <Button size="xs" onClick={copyCharacterId}>
-                Copy
-              </Button>
-            )}
-          </HStack>
+          <Heading size="sm" mb={2}>Character Management</Heading>
           
-          <HStack mt={2}>
-            <Input 
-              placeholder="Owner address" 
-              value={ownerAddress} 
-              onChange={(e) => setOwnerAddress(e.target.value)} 
-            />
-            <Button onClick={fetchCharacterId} isLoading={isLoading}>
-              Fetch ID
-            </Button>
-          </HStack>
+          {/* Character ID Section */}
+          <VStack spacing={2} align="stretch">
+            <HStack>
+              <Text fontSize="sm">Current ID: {fetchedCharacterId || 'Not found'}</Text>
+              {fetchedCharacterId && (
+                <Button size="xs" onClick={copyCharacterId}>
+                  Copy
+                </Button>
+              )}
+            </HStack>
+            
+            <HStack>
+              <Input 
+                placeholder="Owner address" 
+                value={ownerAddress} 
+                onChange={(e) => setOwnerAddress(e.target.value)}
+                size="sm"
+              />
+              <Button onClick={fetchCharacterId} isLoading={isLoading} size="sm">
+                Fetch ID
+              </Button>
+            </HStack>
+            
+            {/* Character Data Buttons */}
+            <HStack spacing={2}>
+              <Button 
+                onClick={handleGetBattleNad} 
+                isDisabled={!fetchedCharacterId || !client}
+                colorScheme="purple"
+                size="sm"
+                flex="1"
+              >
+                Get Full Data
+              </Button>
+              <Button 
+                onClick={handleGetBattleNadLite} 
+                isDisabled={!fetchedCharacterId || !client}
+                colorScheme="blue"
+                size="sm"
+                flex="1"
+              >
+                Get Lite Data
+              </Button>
+            </HStack>
+            <Text fontSize="xs" color="gray.400">
+              Character data will be logged to console
+            </Text>
+          </VStack>
         </Box>
         
+        {/* Contract Data Management */}
         <Box p={2} bg="gray.800" borderRadius="md">
-          <Heading size="sm" mb={2}>Frontend Data</Heading>
-          <HStack>
-            <Input 
-              placeholder="Address" 
-              value={ownerAddress} 
-              onChange={(e) => setOwnerAddress(e.target.value)} 
-            />
-            <Input 
-              placeholder="Start block" 
-              type="number" 
-              value={startBlock} 
-              onChange={(e) => setStartBlock(parseInt(e.target.value) || 0)}
-              w="150px"
-            />
-            <Button onClick={fetchFullFrontendData} isLoading={isLoading}>
-              Fetch Data
-            </Button>
-          </HStack>
+          <Heading size="sm" mb={2}>Contract Data</Heading>
+          
+          <VStack spacing={2} align="stretch">
+            {/* Frontend Data Fetch */}
+            <HStack>
+              <Input 
+                placeholder="Address" 
+                value={ownerAddress} 
+                onChange={(e) => setOwnerAddress(e.target.value)}
+                size="sm"
+              />
+              <Input 
+                placeholder="Start block" 
+                type="number" 
+                value={startBlock} 
+                onChange={(e) => setStartBlock(parseInt(e.target.value) || 0)}
+                w="120px"
+                size="sm"
+              />
+              <Button onClick={fetchFullFrontendData} isLoading={isLoading} size="sm">
+                Fetch
+              </Button>
+            </HStack>
+            
+            {/* Buy-In Amount */}
+            <HStack>
+              <Text fontSize="sm">Buy-in: {buyInAmount || 'Not fetched'}</Text>
+              <Button onClick={fetchBuyInAmount} isLoading={isLoading} size="xs">
+                Fetch Amount
+              </Button>
+            </HStack>
+          </VStack>
         </Box>
         
+        {/* Game State Analysis */}
         <Box p={2} bg="gray.800" borderRadius="md">
-          <Heading size="sm" mb={2}>Buy-In Amount</Heading>
-          <HStack>
-            <Text>Amount: {buyInAmount || 'Not fetched'}</Text>
-            <Button onClick={fetchBuyInAmount} isLoading={isLoading} size="sm">
-              Fetch Amount
+          <Heading size="sm" mb={2}>Game State Analysis</Heading>
+          
+          <VStack spacing={2} align="stretch">
+            <Button 
+              onClick={logAllEnemies} 
+              isDisabled={!gameState}
+              colorScheme="green"
+              size="sm"
+              width="100%"
+            >
+              🐉 Log Enemy Data
             </Button>
-          </HStack>
+            
+            <Button 
+              onClick={traceDataFlow} 
+              isDisabled={!gameState}
+              colorScheme="teal"
+              size="sm"
+              width="100%"
+            >
+              🔍 Trace Data Flow
+            </Button>
+            
+            <Button 
+              onClick={investigateContractIssue} 
+              isDisabled={!gameState}
+              colorScheme="orange"
+              size="sm"
+              width="100%"
+            >
+              🔍 Investigate Contract
+            </Button>
+            
+            <Button 
+              onClick={testDifferentStartBlocks} 
+              isDisabled={!gameState}
+              colorScheme="purple"
+              size="sm"
+              width="100%"
+            >
+              🔬 Test StartBlock Approaches
+            </Button>
+            
+            {renderMonsterHealthDebug()}
+          </VStack>
         </Box>
         
-        <Accordion allowMultiple defaultIndex={[0]}>
+        {/* Cache & Performance */}
+        <Box p={2} bg="gray.800" borderRadius="md">
+          <Heading size="sm" mb={2}>Cache & Performance</Heading>
+          
+          <VStack spacing={2} align="stretch">
+            <Button 
+              onClick={clearCache} 
+              isLoading={isLoading} 
+              size="sm" 
+              width="100%" 
+              colorScheme="red"
+              variant="outline"
+            >
+              🗑️ Clear All Cache
+            </Button>
+            <Text fontSize="xs" color="gray.400">
+              Clears React Query cache + IndexedDB storage to fix stale data issues
+            </Text>
+          </VStack>
+        </Box>
+        
+        {/* Debug Logs */}
+        <Accordion allowMultiple defaultIndex={[]}>
           <AccordionItem>
             <h2>
               <AccordionButton>
@@ -427,45 +846,17 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
                     {log.message}
                   </Box>
                 ))}
-                {logs.length === 0 && <Text>No logs yet</Text>}
+                {logs.length === 0 && <Text fontSize="xs">No logs yet</Text>}
               </VStack>
             </AccordionPanel>
           </AccordionItem>
         </Accordion>
         
-        {renderMonsterHealthDebug()}
-
-        <Box p={2} bg="gray.800" borderRadius="md">
-          <Heading size="sm" mb={2}>Character Data</Heading>
-          <VStack spacing={2}>
-            <Button 
-              onClick={handleGetBattleNad} 
-              isDisabled={!fetchedCharacterId || !client}
-              colorScheme="purple"
-              size="sm"
-              width="100%"
-            >
-              Get Full Character Data
-            </Button>
-            <Button 
-              onClick={handleGetBattleNadLite} 
-              isDisabled={!fetchedCharacterId || !client}
-              colorScheme="blue"
-              size="sm"
-              width="100%"
-            >
-              Get Lite Character Data
-            </Button>
-          </VStack>
-          <Text fontSize="xs" mt={1}>
-            Results will be logged to the console
-          </Text>
-        </Box>
-        
+        {/* Error Display */}
         {error && (
           <Box p={2} bg="red.900" borderRadius="md">
             <Heading size="sm">Error</Heading>
-            <Text>{error ? error.message : 'No error'}</Text>
+            <Text fontSize="sm">{error ? error.message : 'No error'}</Text>
           </Box>
         )}
       </VStack>
