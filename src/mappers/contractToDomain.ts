@@ -4,7 +4,6 @@
  */
 
 import { contract, domain } from '@/types';
-import { safeStringify } from '@/utils/bigintSerializer';
 import { estimateBlockTimestamp } from '@/utils/blockUtils'; // Import the utility
 
 /**
