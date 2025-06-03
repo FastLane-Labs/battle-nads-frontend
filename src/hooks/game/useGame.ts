@@ -306,11 +306,11 @@ export const useGame = () => {
 
     // Actions
     moveCharacter: (direction: domain.Direction) => 
-      moveCharacterMutation.mutate({ direction }),
+      moveCharacterMutation.mutateAsync({ direction }),
     isMoving: moveCharacterMutation.isPending,
     
     attack: (targetIndex: number) => 
-      attackMutation.mutate({ targetIndex }),
+      attackMutation.mutateAsync({ targetIndex }),
     isAttacking: attackMutation.isPending,
     
     sendChatMessage,
