@@ -183,7 +183,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
             <Select
               value={pendingId ?? ''}
               onChange={(e) => setPendingId(Number(e.target.value))}
-              className="bg-dark-brown mb-4"
+              className="!bg-brown cursor-pointer"
             >
               {availableEquipment.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -196,7 +196,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
               <Button 
                 onClick={handleEquip} 
                 isLoading={isEquipping}
-                className="w-full bg-brown border border-black/40"
+                className="w-full bg-brown border border-black/40 mt-4"
                 disabled={pendingId === currentEquipment?.id}
               >
                 <span className='gold-text-light'>

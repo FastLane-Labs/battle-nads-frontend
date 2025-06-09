@@ -23,7 +23,7 @@ export const RPC_URLS = {
 export const RPC = process.env.NEXT_PUBLIC_DEFAULT_RPC_URL || RPC_URLS.PRIMARY;
 
 // Polling settings
-export const POLL_INTERVAL = 3000; // 3 seconds
+export const POLL_INTERVAL = 500 ; // 500ms
 
 // Chain settings
 export const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '10143', 10143);
