@@ -35,6 +35,11 @@ interface GameContainerProps {
   isInCombat: boolean;
   addOptimisticChatMessage: (message: string) => void;
   isCacheLoading: boolean;
+  // Add equipment names for lookup
+  equipableWeaponIDs?: number[];
+  equipableWeaponNames?: string[];
+  equipableArmorIDs?: number[];
+  equipableArmorNames?: string[];
 }
 
 const GameContainer: React.FC<GameContainerProps> = (props) => {
@@ -50,7 +55,11 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
     isSendingChat,
     isInCombat,
     addOptimisticChatMessage,
-    isCacheLoading
+    isCacheLoading,
+    equipableWeaponIDs,
+    equipableWeaponNames,
+    equipableArmorIDs,
+    equipableArmorNames
   } = props;
 
   const isSpawned = !(position.x === 0 && position.y === 0 && position.z === 0);
@@ -168,6 +177,10 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
           addOptimisticChatMessage={addOptimisticChatMessage}
           isInCombat={isInCombat}
           isCacheLoading={isCacheLoading}
+          equipableWeaponIDs={equipableWeaponIDs}
+          equipableWeaponNames={equipableWeaponNames}
+          equipableArmorIDs={equipableArmorIDs}
+          equipableArmorNames={equipableArmorNames}
         />
       </Flex>
     </Box>

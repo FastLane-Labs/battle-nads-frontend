@@ -9,13 +9,22 @@ interface EventFeedProps {
   eventLogs: domain.EventMessage[];
   combatants: domain.CharacterLite[];
   isCacheLoading: boolean;
+  // Add equipment names for lookup
+  equipableWeaponIDs?: number[];
+  equipableWeaponNames?: string[];
+  equipableArmorIDs?: number[];
+  equipableArmorNames?: string[];
 }
 
 const EventFeed: React.FC<EventFeedProps> = ({ 
   playerIndex,
   eventLogs,
   combatants, 
-  isCacheLoading 
+  isCacheLoading,
+  equipableWeaponIDs,
+  equipableWeaponNames,
+  equipableArmorIDs,
+  equipableArmorNames
 }) => {
   
   const parentRef = useRef<HTMLDivElement>(null);
@@ -49,6 +58,47 @@ const EventFeed: React.FC<EventFeedProps> = ({
   });
   
   const combatantIds = useMemo(() => new Set(combatants.map(c => c.id)), [combatants]);
+
+  // Create equipment name lookup functions
+  const getWeaponName = useMemo(() => {
+    return (weaponId: number): string => {
+      if (!equipableWeaponIDs || !equipableWeaponNames) {
+        return `Weapon ${weaponId}`;
+      }
+      
+      // Convert weaponId to number if it's not already
+      const numericWeaponId = Number(weaponId);
+      
+      // Find the index of this weapon ID in the array
+      const index = equipableWeaponIDs.findIndex(id => Number(id) === numericWeaponId);
+      
+      if (index >= 0 && equipableWeaponNames[index]) {
+        return equipableWeaponNames[index];
+      }
+      
+      return `Weapon ${weaponId}`;
+    };
+  }, [equipableWeaponIDs, equipableWeaponNames]);
+
+  const getArmorName = useMemo(() => {
+    return (armorId: number): string => {
+      if (!equipableArmorIDs || !equipableArmorNames) {
+        return `Armor ${armorId}`;
+      }
+      
+      // Convert armorId to number if it's not already
+      const numericArmorId = Number(armorId);
+      
+      // Find the index of this armor ID in the array
+      const index = equipableArmorIDs.findIndex(id => Number(id) === numericArmorId);
+      
+      if (index >= 0 && equipableArmorNames[index]) {
+        return equipableArmorNames[index];
+      }
+      
+      return `Armor ${armorId}`;
+    };
+  }, [equipableArmorIDs, equipableArmorNames]);
 
   return (
     <Box h="100%" display="flex" flexDirection="column">
@@ -101,7 +151,12 @@ const EventFeed: React.FC<EventFeedProps> = ({
                         borderRadius="md" 
                         h="100%"
                       >
-                        <EventLogItemRenderer event={event} playerIndex={playerIndex} />
+                        <EventLogItemRenderer 
+                          event={event} 
+                          playerIndex={playerIndex}
+                          getWeaponName={getWeaponName}
+                          getArmorName={getArmorName}
+                        />
                       </Box>
                     </Box>
                   );
