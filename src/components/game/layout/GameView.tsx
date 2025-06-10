@@ -24,6 +24,10 @@ interface GameViewProps {
   isAttacking: boolean;
   isInCombat: boolean;
   isCacheLoading: boolean;
+  equipableWeaponIDs?: number[];
+  equipableWeaponNames?: string[];
+  equipableArmorIDs?: number[];
+  equipableArmorNames?: string[];
 }
 
 const GameView: React.FC<GameViewProps> = ({
@@ -39,7 +43,11 @@ const GameView: React.FC<GameViewProps> = ({
   isMoving,
   isAttacking,
   isInCombat,
-  isCacheLoading
+  isCacheLoading,
+  equipableWeaponIDs,
+  equipableWeaponNames,
+  equipableArmorIDs,
+  equipableArmorNames
 }) => {
   const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(null);
 
@@ -106,6 +114,10 @@ const GameView: React.FC<GameViewProps> = ({
             eventLogs={finalEventLogs}
             combatants={combatants}
             isCacheLoading={isCacheLoading}
+            equipableWeaponIDs={equipableWeaponIDs}
+            equipableWeaponNames={equipableWeaponNames}
+            equipableArmorIDs={equipableArmorIDs}
+            equipableArmorNames={equipableArmorNames}
           />
         </Box>
       </GridItem>

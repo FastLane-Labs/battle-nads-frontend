@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGame } from '../hooks/game/useGame';
+import { useBattleNads } from '../hooks/game/useBattleNads';
 import Login from './auth/Login';
 import LoadingScreen from './game/screens/LoadingScreen';
 import ErrorScreen from './game/screens/ErrorScreen';
@@ -14,6 +15,14 @@ const AppInitializer: React.FC = () => {
   const game = useGame();
   const router = useRouter();
   const zeroCharacterId = "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+  // Also get equipment names data from useBattleNads
+  const { 
+    rawEquipableWeaponIDs,
+    rawEquipableWeaponNames,
+    rawEquipableArmorIDs,
+    rawEquipableArmorNames 
+  } = useBattleNads(game.owner);
 
   const renderWithNav = (content: React.ReactNode, label?: string) => {
     return (
@@ -124,6 +133,11 @@ const AppInitializer: React.FC = () => {
            isSendingChat={game.isSendingChat}
            isInCombat={game.isInCombat}
            isCacheLoading={game.isCacheLoading}
+           // Add equipment names data
+           equipableWeaponIDs={rawEquipableWeaponIDs}
+           equipableWeaponNames={rawEquipableWeaponNames}
+           equipableArmorIDs={rawEquipableArmorIDs}
+           equipableArmorNames={rawEquipableArmorNames}
          />,
          "Game Container"
       );

@@ -9,6 +9,9 @@ interface EventLogItemRendererProps {
   event: domain.EventMessage; // Use the specific EventMessage type
   // Change prop to playerIndex
   playerIndex: number | null; 
+  // Add equipment name lookup functions
+  getWeaponName?: (weaponId: number) => string;
+  getArmorName?: (armorId: number) => string;
 }
 
 // Helper to get color based on type
@@ -52,7 +55,12 @@ const getEventTypeName = (type: domain.LogType | number): string => {
     }
 };
 
-export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({ event, playerIndex }) => {
+export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({ 
+  event, 
+  playerIndex, 
+  getWeaponName, 
+  getArmorName 
+}) => {
 
   // Use the helper function for the event type name
   const eventTypeName = getEventTypeName(event.type);
@@ -113,16 +121,17 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({ even
             [+{Number(event.details.experience)} XP].{" "}
           </chakra.span>
         )}
+        {/* Weapon looted */}
         {event.details.lootedWeaponID && Number(event.details.lootedWeaponID) > 0 && (
-          <chakra.span color="orange.300">
-            {" "}
-            [Looted Wpn {Number(event.details.lootedWeaponID)}].{" "}
+          <chakra.span color="yellow.400">
+            [Weapon: {getWeaponName ? getWeaponName(Number(event.details.lootedWeaponID)) : `Weapon ${Number(event.details.lootedWeaponID)}`}]. 
           </chakra.span>
         )}
+        
+        {/* Armor looted */}
         {event.details.lootedArmorID && Number(event.details.lootedArmorID) > 0 && (
-          <chakra.span color="orange.300">
-            {" "}
-            [Looted Arm {Number(event.details.lootedArmorID)}].{" "}
+          <chakra.span color="yellow.400">
+            [Armor: {getArmorName ? getArmorName(Number(event.details.lootedArmorID)) : `Armor ${Number(event.details.lootedArmorID)}`}]. 
           </chakra.span>
         )}
          {event.details.targetDied && (
