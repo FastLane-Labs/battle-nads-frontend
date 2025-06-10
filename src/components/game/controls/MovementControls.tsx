@@ -107,7 +107,11 @@ const MovementControls: React.FC<MovementControlsProps> = ({
       {/* Player Position */}
       <div className='leading-snug mb-1'>
         <Text fontSize="lg" className='gold-text-light font-semibold'>Location</Text>
-        <Text fontSize="lg" className='gold-text-light'>Position ({Number(position.x)}, {Number(position.y)}), Depth {Number(position.z)}</Text>
+        {Number(position.x) === 0 && Number(position.y) === 0 && Number(position.z) === 0 ? (
+          <Text fontSize="lg" className='gold-text-light'>Spawning...</Text>
+        ) : (
+          <Text fontSize="lg" className='gold-text-light'>Position ({Number(position.x)}, {Number(position.y)}), Depth {Number(position.z)}</Text>
+        )}
       </div>
       <Grid
         templateAreas={`
