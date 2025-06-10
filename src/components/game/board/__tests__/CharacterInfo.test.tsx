@@ -4,39 +4,21 @@ import { ChakraProvider } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import CharacterInfo from '../CharacterInfo';
 import { domain } from '@/types'; // Assuming types are exported from domain
-import { useEquipment } from '@/hooks/game/useEquipment'; // Import the hook
-import { useBattleNads } from '@/hooks/game/useBattleNads'; // Import the hook
+import { useGame } from '@/hooks/game/useGame'; // Import the hook
 
-// Mock the useBattleNads hook using Jest
-jest.mock('@/hooks/game/useBattleNads', () => ({
-  useBattleNads: jest.fn(),
+// Mock the useGame hook that CharacterInfo now uses
+jest.mock('@/hooks/game/useGame', () => ({
+  useGame: jest.fn(),
 }));
 
-// Mock the useEquipment hook using Jest
-jest.mock('@/hooks/game/useEquipment', () => ({
-  useEquipment: jest.fn(),
+// Mock the EquipmentPanel component since it's not the focus of this test
+jest.mock('@/components/game/equipment/EquipmentPanel', () => ({
+  EquipmentPanel: function MockEquipmentPanel() {
+    return <div data-testid="equipment-panel">Equipment</div>;
+  },
 }));
 
-// Helper function to setup the mock implementation for useEquipment
-const setupMockUseEquipment = (character: domain.Character) => {
-  (useEquipment as jest.Mock).mockReturnValue({
-    currentWeapon: character.weapon,
-    currentArmor: character.armor,
-    equipableWeapons: [],
-    equipableArmors: [],
-    equipWeapon: jest.fn(),
-    isEquippingWeapon: false,
-    weaponError: null,
-    equipArmor: jest.fn(),
-    isEquippingArmor: false,
-    armorError: null,
-    getWeaponName: jest.fn().mockResolvedValue('Mocked Weapon Name'),
-    getArmorName: jest.fn().mockResolvedValue('Mocked Armor Name'),
-    isInCombat: character.isInCombat,
-  });
-};
-
-// Restore inline Mock Data
+// Mock Data - Character with some unallocated points for testing
 const mockCharacter: domain.Character = {
   id: 'char1',
   index: 1,
@@ -60,62 +42,33 @@ const mockCharacter: domain.Character = {
   isDead: false,
 };
 
-// Mock Data
-const mockSingleCombatant: domain.CharacterLite[] = [
-  { id: 'combatant1', index: 2, name: 'Goblin', class: domain.CharacterClass.Basic, level: 3, health: 30, maxHealth: 30, buffs: [], debuffs: [], ability: { ability: domain.Ability.None, stage: 0, targetIndex: 0, taskAddress: '0x0', targetBlock: 0 }, weaponName: 'Club', armorName: 'Loincloth', isDead: false },
-];
-
-const mockMultipleCombatants: domain.CharacterLite[] = [
-  { id: 'combatant1', index: 2, name: 'Goblin', class: domain.CharacterClass.Basic, level: 3, health: 30, maxHealth: 30, buffs: [], debuffs: [], ability: { ability: domain.Ability.None, stage: 0, targetIndex: 0, taskAddress: '0x0', targetBlock: 0 }, weaponName: 'Club', armorName: 'Loincloth', isDead: false },
-  { id: 'combatant2', index: 3, name: 'Skeleton', class: domain.CharacterClass.Basic, level: 4, health: 40, maxHealth: 40, buffs: [], debuffs: [], ability: { ability: domain.Ability.None, stage: 0, targetIndex: 0, taskAddress: '0x0', targetBlock: 0 }, weaponName: 'Rusty Sword', armorName: 'None', isDead: false },
-];
-
-// Helper function to render with providers and mock setup
-const renderWithProvider = (component: React.ReactElement, mockGameState: Partial<ReturnType<typeof useBattleNads>> = {}, mockEquipmentState: Partial<ReturnType<typeof useEquipment>> = {}) => {
-  // Default mocks
-  const defaultGameState: ReturnType<typeof useBattleNads> = {
-    gameState: null,
-    addOptimisticChatMessage: jest.fn(),
-    rawSessionKeyData: undefined,
-    rawEndBlock: 0n,
-    rawBalanceShortfall: 0n,
+// Helper function to setup useGame mock
+const setupMockUseGame = (unallocatedAttributePoints: number = 0) => {
+  (useGame as jest.Mock).mockReturnValue({
+    worldSnapshot: {
+      unallocatedAttributePoints,
+      // Add other properties that might be needed
+    },
+    allocatePoints: jest.fn().mockResolvedValue({}),
+    isAllocatingPoints: false,
+    // Add other properties returned by useGame that might be needed
+    character: mockCharacter,
+    combatants: [],
     isLoading: false,
-    isSnapshotLoading: false,
-    isHistoryLoading: false,
     error: null,
-    // Provide default empty arrays for equipment to prevent crashes
-    rawEquipableWeaponIDs: [],
-    rawEquipableWeaponNames: [],
-    rawEquipableArmorIDs: [],
-    rawEquipableArmorNames: [],
-    ...mockGameState,
-  };
+  });
+};
 
-  const defaultEquipmentState: ReturnType<typeof useEquipment> = {
-    currentWeapon: null,
-    currentArmor: null,
-    equipableWeapons: [],
-    equipableArmors: [],
-    equipWeapon: jest.fn(),
-    isEquippingWeapon: false,
-    weaponError: null,
-    equipArmor: jest.fn(),
-    isEquippingArmor: false,
-    armorError: null,
-    getWeaponName: jest.fn().mockResolvedValue('Mocked Weapon Name'),
-    getArmorName: jest.fn().mockResolvedValue('Mocked Armor Name'),
-    isInCombat: false,
-  };
-
-  // Create a new QueryClient instance for each test to ensure isolation
+// Helper function to render with providers
+const renderWithProvider = (component: React.ReactElement) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        // ✅ turns retries off
         retry: false,
       },
     },
   });
+  
   return render(
     <QueryClientProvider client={queryClient}>
       <ChakraProvider>{component}</ChakraProvider>
@@ -124,41 +77,33 @@ const renderWithProvider = (component: React.ReactElement, mockGameState: Partia
 };
 
 describe('CharacterInfo Component', () => {
-  // Setup the mock before each test
   beforeEach(() => {
-    setupMockUseEquipment(mockCharacter);
+    setupMockUseGame();
   });
 
   it('should render character details correctly', () => {
     renderWithProvider(<CharacterInfo character={mockCharacter} combatants={[]} />);
 
-    // Character name and level are now displayed in GameView header, not CharacterInfo
-    // So we test what's actually in CharacterInfo: stats, equipment, experience, gold
-    
     // Check for stats section
     expect(screen.getByText('Stats')).toBeInTheDocument();
     
-    // Check for stats more specifically - find the STR label first, then its parent, then the value within
+    // Check for character class display
+    expect(screen.getByText('Warrior')).toBeInTheDocument();
+    
+    // Check for stat values - find the STR label first, then its container, then the value
     const strLabel = screen.getByText('STR');
     const strContainer = strLabel.closest('.flex');
     expect(strContainer).toHaveTextContent(String(Number(mockCharacter.stats.strength)));
     
-    // Check for Equipment section
-    expect(screen.getByText('Equipment')).toBeInTheDocument();
+    // Check for other stats
+    expect(screen.getByText('VIT')).toBeInTheDocument();
+    expect(screen.getByText('DEX')).toBeInTheDocument();
+    expect(screen.getByText('QCK')).toBeInTheDocument();
+    expect(screen.getByText('STD')).toBeInTheDocument();
+    expect(screen.getByText('LCK')).toBeInTheDocument();
     
-    // Verify equipment buttons are present
-    const buttons = screen.getAllByRole('button');
-    // At least one button should have a div with Weapon aria-label
-    expect(buttons.some(button => {
-      const div = button.querySelector('div[aria-label="Weapon"]');
-      return div !== null;
-    })).toBe(true);
-    
-    // At least one button should have a div with Armor aria-label
-    expect(buttons.some(button => {
-      const div = button.querySelector('div[aria-label="Armor"]');
-      return div !== null;
-    })).toBe(true);
+    // Check for Equipment section (mocked)
+    expect(screen.getByTestId('equipment-panel')).toBeInTheDocument();
     
     // Check for Experience section
     expect(screen.getByText('Experience')).toBeInTheDocument();
@@ -173,13 +118,49 @@ describe('CharacterInfo Component', () => {
     expect(screen.getByText('Gold')).toBeInTheDocument();
   });
 
+  it('should display stat allocation UI when unallocated points are available', () => {
+    // Setup mock with unallocated points
+    setupMockUseGame(5);
+    
+    renderWithProvider(<CharacterInfo character={mockCharacter} combatants={[]} />);
+
+    // Should show the level up notification
+    expect(screen.getByTestId('level-up-notification')).toBeInTheDocument();
+    expect(screen.getByTestId('level-up-banner')).toBeInTheDocument();
+    expect(screen.getByTestId('attribute-points-label')).toBeInTheDocument();
+    
+    // Should show the available points count
+    expect(screen.getByTestId('attribute-points-count')).toHaveTextContent('5');
+    
+    // Should show increment/decrement buttons for each stat
+    const incrementButtons = screen.getAllByRole('button', { name: '+' });
+    const decrementButtons = screen.getAllByRole('button', { name: '-' });
+    
+    // 6 stats = 6 increment buttons and 6 decrement buttons
+    expect(incrementButtons).toHaveLength(6);
+    expect(decrementButtons).toHaveLength(6);
+  });
+
+  it('should not display stat allocation UI when no unallocated points are available', () => {
+    // Setup mock with no unallocated points
+    setupMockUseGame(0);
+    
+    renderWithProvider(<CharacterInfo character={mockCharacter} combatants={[]} />);
+
+    // Should NOT show the level up notification
+    expect(screen.queryByTestId('level-up-notification')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('level-up-banner')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('attribute-points-label')).not.toBeInTheDocument();
+    
+    // Should NOT show increment/decrement buttons
+    expect(screen.queryByRole('button', { name: '+' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '-' })).not.toBeInTheDocument();
+  });
+
   it('should not display combat indicator when combatants array is empty', () => {
     renderWithProvider(<CharacterInfo character={mockCharacter} combatants={[]} />);
 
     // Combat indicators are now handled in GameView, not CharacterInfo
     expect(screen.queryByText(/Fighting:/)).not.toBeInTheDocument();
   });
-
-  // Removed combat indicator tests since they're now handled in GameView component
-  // The combat indicator logic has been moved to GameView's character header and actions tab
 }); 

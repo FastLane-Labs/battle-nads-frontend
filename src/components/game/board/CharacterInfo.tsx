@@ -313,17 +313,17 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
         <Box>
           {/* Alert for unallocated points */}
           {unallocatedAttributePoints > 0 && (
-            <div className="card-bg-dark border-2 !border-amber-600 shadow-sm shadow-amber-800 p-4 mb-3 relative">
+            <div className="card-bg-dark border-2 !border-amber-600 shadow-sm shadow-amber-800 p-4 mb-3 relative" data-testid="level-up-notification">
               <div className="absolute -top-2 left-4 px-3 py-1 card-bg border border-amber-600/60 rounded">
-                <Text className="gold-text text-sm font-serif font-bold">⚡ LEVEL UP ⚡</Text>
+                <Text className="gold-text text-sm font-serif font-bold" data-testid="level-up-banner">⚡ LEVEL UP ⚡</Text>
               </div>
               <div className="pt-2">
                 <Flex align="center" justify="space-between">
-                  <Text className="gold-text-light font-serif text-lg font-medium">
+                  <Text className="gold-text-light font-serif text-lg font-medium" data-testid="attribute-points-label">
                     Attribute Points Available
                   </Text>
                   <div className="px-3 py-1 bg-amber-900/30 border border-amber-600/40 rounded-md">
-                    <Text className="gold-text font-serif text-xl font-bold">
+                    <Text className="gold-text font-serif text-xl font-bold" data-testid="attribute-points-count">
                       {unallocatedAttributePoints}
                     </Text>
                   </div>
