@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Box, Text, Tooltip, HStack, Button, VStack, useDisclosure, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Select } from '@chakra-ui/react';
-import { useEquipment } from '@/hooks/game/useEquipment';
+import { Box, Text, Tooltip, HStack, Button, VStack, useDisclosure, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Divider, Spinner, SimpleGrid } from '@chakra-ui/react';
+import { useEquipment, useEquipmentDetails } from '@/hooks/game/useEquipment';
 import { EquipmentCard } from './EquipmentCard';
 import Image from 'next/image';
 import type { Weapon, Armor } from '@/types/domain';
@@ -11,6 +11,124 @@ import type { Weapon, Armor } from '@/types/domain';
 interface EquipmentPanelProps {
   characterId: string | null;
 }
+
+// Component to display an equipment option as a selectable card
+const EquipmentOptionCard: React.FC<{
+  slot: 'weapon' | 'armor';
+  equipmentId: number;
+  equipmentName: string;
+  isCurrentlyEquipped: boolean;
+  onEquip: (id: number) => void;
+  isEquipping: boolean;
+}> = ({ slot, equipmentId, equipmentName, isCurrentlyEquipped, onEquip, isEquipping }) => {
+  const { data: equipment, isLoading, error } = useEquipmentDetails(slot, equipmentId);
+
+  if (isLoading) {
+    return (
+      <Box className="p-4 border border-amber-400/30 rounded-md bg-dark-brown/30 cursor-not-allowed">
+        <HStack justify="center" mb={2}>
+          <Spinner size="sm" />
+          <Text className="gold-text-light" fontSize="sm">Loading...</Text>
+        </HStack>
+        <Text className="text-gray-400" fontSize="sm" textAlign="center">{equipmentName}</Text>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box className="p-4 border border-red-400/30 rounded-md bg-red-900/20 cursor-not-allowed">
+        <Text className="text-red-400" fontSize="sm" textAlign="center">
+          Failed to load {equipmentName}
+        </Text>
+      </Box>
+    );
+  }
+
+  if (!equipment) return null;
+
+  return (
+    <Box 
+      as="button"
+      onClick={() => onEquip(equipmentId)}
+      disabled={isCurrentlyEquipped || isEquipping}
+      className={`p-4 border rounded-md transition-all duration-200 text-left w-full ${
+        isCurrentlyEquipped 
+          ? 'border-green-400/60 bg-green-900/20 cursor-default' 
+          : 'border-amber-400/30 bg-dark-brown/30 hover:border-amber-400/60 hover:bg-dark-brown/50 cursor-pointer'
+      } ${isEquipping ? 'opacity-50 cursor-not-allowed' : ''}`}
+    >
+      <HStack justify="space-between" mb={2}>
+        <Text className="gold-text-light font-semibold" fontSize="sm">
+          {equipment.name}
+        </Text>
+        {isCurrentlyEquipped && (
+          <Text className="text-green-400 font-medium" fontSize="xs">
+            Equipped
+          </Text>
+        )}
+      </HStack>
+      
+      <Divider className="border-amber-400/20 mb-2" />
+      
+      {slot === 'weapon' ? (
+        <VStack align="start" spacing={1}>
+          <HStack justify="space-between" w="full">
+            <Text fontSize="xs" className="text-gray-300">Base Damage:</Text>
+            <Text fontSize="xs" className="gold-text-light font-medium">
+              {(equipment as Weapon).baseDamage}
+            </Text>
+          </HStack>
+          <HStack justify="space-between" w="full">
+            <Text fontSize="xs" className="text-gray-300">Bonus Damage:</Text>
+            <Text fontSize="xs" className="gold-text-light font-medium">
+              {(equipment as Weapon).bonusDamage}
+            </Text>
+          </HStack>
+          <HStack justify="space-between" w="full">
+            <Text fontSize="xs" className="text-gray-300">Accuracy:</Text>
+            <Text fontSize="xs" className="gold-text-light font-medium">
+              {(equipment as Weapon).accuracy}
+            </Text>
+          </HStack>
+          <HStack justify="space-between" w="full">
+            <Text fontSize="xs" className="text-gray-300">Speed:</Text>
+            <Text fontSize="xs" className="gold-text-light font-medium">
+              {(equipment as Weapon).speed}
+            </Text>
+          </HStack>
+        </VStack>
+      ) : (
+        <VStack align="start" spacing={1}>
+          <HStack justify="space-between" w="full">
+            <Text fontSize="xs" className="text-gray-300">Armor Factor:</Text>
+            <Text fontSize="xs" className="gold-text-light font-medium">
+              {(equipment as Armor).armorFactor}
+            </Text>
+          </HStack>
+          <HStack justify="space-between" w="full">
+            <Text fontSize="xs" className="text-gray-300">Quality:</Text>
+            <Text fontSize="xs" className="gold-text-light font-medium">
+              {(equipment as Armor).armorQuality}
+            </Text>
+          </HStack>
+          <HStack justify="space-between" w="full">
+            <Text fontSize="xs" className="text-gray-300">Flexibility:</Text>
+            <Text fontSize="xs" className="gold-text-light font-medium">
+              {(equipment as Armor).flexibility}
+            </Text>
+          </HStack>
+          <HStack justify="space-between" w="full">
+            <Text fontSize="xs" className="text-gray-300">Weight:</Text>
+            <Text fontSize="xs" className="gold-text-light font-medium">
+              {(equipment as Armor).weight}
+            </Text>
+          </HStack>
+        </VStack>
+      )}
+    </Box>
+  );
+};
 
 export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) => {
   const equipmentHookResult = useEquipment(characterId);
@@ -23,7 +141,6 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
   } = equipmentHookResult;
 
   const [selectedSlot, setSelectedSlot] = useState<'weapon' | 'armor' | null>(null);
-  const [pendingId, setPendingId] = useState<number | null>(null);
   
   const { isOpen, onOpen, onClose } = useDisclosure();
 
@@ -41,31 +158,15 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
 
   // Handle selecting an equipment slot
   const handleSelectSlot = (slot: 'weapon' | 'armor') => {
-    // If this slot is already selected, deselect it
-    if (selectedSlot === slot) {
-      setSelectedSlot(null);
-    } else {
-      setSelectedSlot(slot);
-    }
-    setPendingId(null); // Reset pending ID when changing slots
-  };
-
-  // Handle opening the modal - set pendingId to current equipment if any
-  const handleOpenModal = () => {
-    if (currentEquipment) {
-      setPendingId(currentEquipment.id);
-    } else {
-      setPendingId(null);
-    }
+    setSelectedSlot(slot);
     onOpen();
   };
 
   // Handle equipping an item
-  const handleEquip = () => {
-    if (pendingId !== null && selectedSlot) {
-      equipAction(pendingId);
+  const handleEquip = (equipmentId: number) => {
+    if (selectedSlot) {
+      equipAction(equipmentId);
       onClose();
-      setPendingId(null);
     }
   };
 
@@ -109,10 +210,9 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
             as="button"
             onClick={() => handleSelectSlot('weapon')}
             position="relative"
-            className={`rounded-sm ${selectedSlot === 'weapon' ? '!ring-2 !ring-amber-400 hover:!ring-2 hover:!ring-amber-400' : ''}`}
+            className="rounded-sm hover:opacity-90"
             disabled={isInCombat}
           >
-            {/* Replace Image component with more reliable div background approach */}
             <div 
               style={{
                 width: '64px',
@@ -137,10 +237,9 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
             as="button"
             onClick={() => handleSelectSlot('armor')}
             position="relative"
-            className={`rounded-sm ${selectedSlot === 'armor' ? '!ring-2 !ring-amber-400 hover:!ring-2 hover:!ring-amber-400' : ''}`}
+            className="rounded-sm hover:opacity-90"
             disabled={isInCombat}
           >
-            {/* Replace Image component with more reliable div background approach */}
             <div 
               style={{
                 width: '64px',
@@ -156,54 +255,30 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
           </Box>
         </Tooltip>
         </div>
-        
-        {/* Change Button */}
-        <Button
-          onClick={handleOpenModal}
-          disabled={selectedSlot === null || isInCombat}
-          size="md"
-          className="bg-brown border-black/40 border hover:border-amber-400 font-semibold"
-          _disabled={{ opacity: 0.5, cursor: 'not-allowed' }}
-          >
-         <span className='gold-text-light'>
-            Change
-         </span>
-        </Button>
       </HStack>
 
       {/* Change Equipment Modal */}
-      <Modal isOpen={isOpen} onClose={onClose} isCentered>
+      <Modal isOpen={isOpen} onClose={onClose} isCentered size="xl">
         <ModalOverlay />
-        <ModalContent className="border border-amber-400/40 !bg-dark-brown">
+        <ModalContent className="border border-amber-400/40 !bg-dark-brown max-w-4xl">
           <ModalHeader className="gold-text-light">
-            {selectedSlot === 'weapon' ? 'Change Weapon' : 'Change Armor'}
+            {selectedSlot === 'weapon' ? 'Choose Weapon' : 'Choose Armor'}
           </ModalHeader>
           <ModalCloseButton />
           <ModalBody pb={6}>
-            <Select
-              value={pendingId ?? ''}
-              onChange={(e) => setPendingId(Number(e.target.value))}
-              className="!bg-brown cursor-pointer"
-            >
+            <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
               {availableEquipment.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}{item.id === currentEquipment?.id ? ' (Currently Equipped)' : ''}
-                </option>
+                <EquipmentOptionCard
+                  key={item.id}
+                  slot={selectedSlot!}
+                  equipmentId={item.id}
+                  equipmentName={item.name}
+                  isCurrentlyEquipped={item.id === currentEquipment?.id}
+                  onEquip={handleEquip}
+                  isEquipping={isEquipping}
+                />
               ))}
-            </Select>
-
-            {pendingId !== null && (
-              <Button 
-                onClick={handleEquip} 
-                isLoading={isEquipping}
-                className="w-full bg-brown border border-black/40 mt-4"
-                disabled={pendingId === currentEquipment?.id}
-              >
-                <span className='gold-text-light'>
-                {pendingId === currentEquipment?.id ? 'Already Equipped' : 'Equip'}
-                </span>
-              </Button>
-            )}
+            </SimpleGrid>
           </ModalBody>
         </ModalContent>
       </Modal>
