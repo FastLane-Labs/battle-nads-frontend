@@ -101,20 +101,29 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({ even
         {!event.details.hit && event.type === domain.LogType.Combat && (
           <chakra.span> Miss. </chakra.span>
         )}
-        {event.details.damageDone && event.details.damageDone > 0 && (
-          <chakra.span> [{event.details.damageDone} dmg]. </chakra.span>
+        {event.details.damageDone && Number(event.details.damageDone) > 0 && (
+          <chakra.span> [{Number(event.details.damageDone)} dmg]. </chakra.span>
         )}
-        {event.details.healthHealed && event.details.healthHealed > 0 && (
-          <chakra.span> [{event.details.healthHealed} heal]. </chakra.span>
+        {event.details.healthHealed && Number(event.details.healthHealed) > 0 && (
+          <chakra.span> [{Number(event.details.healthHealed)} heal]. </chakra.span>
         )}
-        {event.details.experience && event.details.experience > 0 && (
-          <chakra.span color="green.300"> [+{event.details.experience} XP]. </chakra.span>
+        {event.details.experience && Number(event.details.experience) > 0 && (
+          <chakra.span color="green.300">
+            {" "}
+            [+{Number(event.details.experience)} XP].{" "}
+          </chakra.span>
         )}
-        {event.details.lootedWeaponID && event.details.lootedWeaponID > 0 && (
-          <chakra.span color="orange.300"> [Looted Wpn {event.details.lootedWeaponID}]. </chakra.span>
+        {event.details.lootedWeaponID && Number(event.details.lootedWeaponID) > 0 && (
+          <chakra.span color="orange.300">
+            {" "}
+            [Looted Wpn {Number(event.details.lootedWeaponID)}].{" "}
+          </chakra.span>
         )}
-        {event.details.lootedArmorID && event.details.lootedArmorID > 0 && (
-          <chakra.span color="orange.300"> [Looted Arm {event.details.lootedArmorID}]. </chakra.span>
+        {event.details.lootedArmorID && Number(event.details.lootedArmorID) > 0 && (
+          <chakra.span color="orange.300">
+            {" "}
+            [Looted Arm {Number(event.details.lootedArmorID)}].{" "}
+          </chakra.span>
         )}
          {event.details.targetDied && (
           <chakra.span color="red.500" fontWeight="bold"> Target Died! </chakra.span>
