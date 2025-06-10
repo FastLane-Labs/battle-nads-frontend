@@ -32,7 +32,17 @@ const EventFeed: React.FC<EventFeedProps> = ({
   // Filter out chat messages (type 4) from event logs
   // Also filter out combat events with dead players
   const filteredEventLogs = useMemo(() => {
+    // Handle undefined/null eventLogs array
+    if (!eventLogs || !Array.isArray(eventLogs)) {
+      return [];
+    }
+    
     return eventLogs.filter(event => {
+      // Skip events without proper structure
+      if (!event || typeof event.type === 'undefined') {
+        return false;
+      }
+      
       // Filter out chat messages (type 4)
       if (Number(event.type) === 4) {
         return false;
@@ -40,8 +50,8 @@ const EventFeed: React.FC<EventFeedProps> = ({
       
       // Filter out combat events involving "Unnamed the Initiate"
       if ((Number(event.type) === 0 || Number(event.type) === 1) &&
-          ((event.defender && event.defender.name?.includes("Unnamed the Initiate")) ||
-           (event.attacker && event.attacker.name?.includes("Unnamed the Initiate")))) {
+          ((event.defender?.name?.includes("Unnamed the Initiate")) ||
+           (event.attacker?.name?.includes("Unnamed the Initiate")))) {
         return false;
       }
       
@@ -51,29 +61,61 @@ const EventFeed: React.FC<EventFeedProps> = ({
   }, [eventLogs]);
 
   const rowVirtualizer = useVirtualizer({ 
-    count: filteredEventLogs.length,
+    count: filteredEventLogs?.length || 0,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 60,
     overscan: 5,
   });
   
-  const combatantIds = useMemo(() => new Set(combatants.map(c => c.id)), [combatants]);
+  // Handle undefined/null combatants array safely
+  const combatantIds = useMemo(() => {
+    if (!combatants || !Array.isArray(combatants)) {
+      return new Set();
+    }
+    return new Set(combatants.map(c => c?.id).filter(Boolean));
+  }, [combatants]);
 
-  // Create equipment name lookup functions
+  // Create equipment name lookup functions with comprehensive safety checks
   const getWeaponName = useMemo(() => {
-    return (weaponId: number): string => {
-      if (!equipableWeaponIDs || !equipableWeaponNames) {
+    return (weaponId: number | null | undefined): string => {
+      // Handle invalid weapon ID
+      if (weaponId == null || isNaN(Number(weaponId))) {
+        return 'Unknown Weapon';
+      }
+      
+      // Handle missing equipment data
+      if (!equipableWeaponIDs || !equipableWeaponNames || !Array.isArray(equipableWeaponIDs) || !Array.isArray(equipableWeaponNames)) {
         return `Weapon ${weaponId}`;
       }
       
-      // Convert weaponId to number if it's not already
-      const numericWeaponId = Number(weaponId);
+      // Handle empty arrays
+      if (equipableWeaponIDs.length === 0 || equipableWeaponNames.length === 0) {
+        return `Weapon ${weaponId}`;
+      }
       
-      // Find the index of this weapon ID in the array
-      const index = equipableWeaponIDs.findIndex(id => Number(id) === numericWeaponId);
-      
-      if (index >= 0 && equipableWeaponNames[index]) {
-        return equipableWeaponNames[index];
+      try {
+        // Convert weaponId to number safely
+        const numericWeaponId = Number(weaponId);
+        
+        // Find the index of this weapon ID in the array
+        const index = equipableWeaponIDs.findIndex(id => {
+          try {
+            return Number(id) === numericWeaponId;
+          } catch {
+            return false;
+          }
+        });
+        
+        // Check if we found a valid index and name
+        if (index >= 0 && index < equipableWeaponNames.length && equipableWeaponNames[index]) {
+          const weaponName = equipableWeaponNames[index];
+          // Ensure the name is a valid string
+          if (typeof weaponName === 'string' && weaponName.trim().length > 0) {
+            return weaponName;
+          }
+        }
+      } catch (error) {
+        console.warn('Error in weapon name lookup:', error);
       }
       
       return `Weapon ${weaponId}`;
@@ -81,19 +123,45 @@ const EventFeed: React.FC<EventFeedProps> = ({
   }, [equipableWeaponIDs, equipableWeaponNames]);
 
   const getArmorName = useMemo(() => {
-    return (armorId: number): string => {
-      if (!equipableArmorIDs || !equipableArmorNames) {
+    return (armorId: number | null | undefined): string => {
+      // Handle invalid armor ID
+      if (armorId == null || isNaN(Number(armorId))) {
+        return 'Unknown Armor';
+      }
+      
+      // Handle missing equipment data
+      if (!equipableArmorIDs || !equipableArmorNames || !Array.isArray(equipableArmorIDs) || !Array.isArray(equipableArmorNames)) {
         return `Armor ${armorId}`;
       }
       
-      // Convert armorId to number if it's not already
-      const numericArmorId = Number(armorId);
+      // Handle empty arrays
+      if (equipableArmorIDs.length === 0 || equipableArmorNames.length === 0) {
+        return `Armor ${armorId}`;
+      }
       
-      // Find the index of this armor ID in the array
-      const index = equipableArmorIDs.findIndex(id => Number(id) === numericArmorId);
-      
-      if (index >= 0 && equipableArmorNames[index]) {
-        return equipableArmorNames[index];
+      try {
+        // Convert armorId to number safely
+        const numericArmorId = Number(armorId);
+        
+        // Find the index of this armor ID in the array
+        const index = equipableArmorIDs.findIndex(id => {
+          try {
+            return Number(id) === numericArmorId;
+          } catch {
+            return false;
+          }
+        });
+        
+        // Check if we found a valid index and name
+        if (index >= 0 && index < equipableArmorNames.length && equipableArmorNames[index]) {
+          const armorName = equipableArmorNames[index];
+          // Ensure the name is a valid string
+          if (typeof armorName === 'string' && armorName.trim().length > 0) {
+            return armorName;
+          }
+        }
+      } catch (error) {
+        console.warn('Error in armor name lookup:', error);
       }
       
       return `Armor ${armorId}`;

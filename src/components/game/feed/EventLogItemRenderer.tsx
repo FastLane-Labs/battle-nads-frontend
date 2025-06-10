@@ -9,9 +9,9 @@ interface EventLogItemRendererProps {
   event: domain.EventMessage; // Use the specific EventMessage type
   // Change prop to playerIndex
   playerIndex: number | null; 
-  // Add equipment name lookup functions
-  getWeaponName?: (weaponId: number) => string;
-  getArmorName?: (armorId: number) => string;
+  // Add equipment name lookup functions - marked as optional for safety
+  getWeaponName?: ((weaponId: number | null | undefined) => string) | null;
+  getArmorName?: ((armorId: number | null | undefined) => string) | null;
 }
 
 // Helper to get color based on type
@@ -95,7 +95,7 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
       </Text>
       
       <Text display="inline">:
-        {event.type === domain.LogType.Ability && event.details.value != null && (
+        {event.type === domain.LogType.Ability && event.details?.value != null && !isNaN(Number(event.details.value)) && (
           <chakra.span color="purple.300" mx={1}> 
             [{domain.Ability[Number(event.details.value)] || `Ability ${event.details.value}`}]
           </chakra.span>
@@ -103,38 +103,65 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
         {event.count && event.count > 1 && (
           <chakra.span fontWeight="bold" mr={1}>({event.count}x)</chakra.span>
         )}
-        {event.details.hit && (
+        {event.details?.hit && (
           <chakra.span color={event.details.critical ? "yellow.300" : "inherit"} fontWeight={event.details.critical ? "bold" : "normal"}> Hit{event.details.critical ? " (CRIT!) " : ". "}</chakra.span>
         )}
-        {!event.details.hit && event.type === domain.LogType.Combat && (
+        {event.details && !event.details.hit && event.type === domain.LogType.Combat && (
           <chakra.span> Miss. </chakra.span>
         )}
-        {event.details.damageDone && Number(event.details.damageDone) > 0 && (
+        {/* Damage dealt */}
+        {event.details?.damageDone && !isNaN(Number(event.details.damageDone)) && Number(event.details.damageDone) > 0 && (
           <chakra.span> [{Number(event.details.damageDone)} dmg]. </chakra.span>
         )}
-        {event.details.healthHealed && Number(event.details.healthHealed) > 0 && (
+        {/* Health healed */}
+        {event.details?.healthHealed && !isNaN(Number(event.details.healthHealed)) && Number(event.details.healthHealed) > 0 && (
           <chakra.span> [{Number(event.details.healthHealed)} heal]. </chakra.span>
         )}
-        {event.details.experience && Number(event.details.experience) > 0 && (
+        {/* Experience gained */}
+        {event.details?.experience && !isNaN(Number(event.details.experience)) && Number(event.details.experience) > 0 && (
           <chakra.span color="green.300">
             {" "}
             [+{Number(event.details.experience)} XP].{" "}
           </chakra.span>
         )}
-        {/* Weapon looted */}
-        {event.details.lootedWeaponID && Number(event.details.lootedWeaponID) > 0 && (
+        {/* Weapon looted - with comprehensive safety checks */}
+        {event.details?.lootedWeaponID && !isNaN(Number(event.details.lootedWeaponID)) && Number(event.details.lootedWeaponID) > 0 && (
           <chakra.span color="yellow.400">
-            [Weapon: {getWeaponName ? getWeaponName(Number(event.details.lootedWeaponID)) : `Weapon ${Number(event.details.lootedWeaponID)}`}]. 
+            [Weapon: {(() => {
+              try {
+                const weaponId = Number(event.details.lootedWeaponID);
+                if (getWeaponName && typeof getWeaponName === 'function') {
+                  const weaponName = getWeaponName(weaponId);
+                  return weaponName || `Weapon ${weaponId}`;
+                }
+                return `Weapon ${weaponId}`;
+              } catch (error) {
+                console.warn('Error displaying weapon name:', error);
+                return 'Unknown Weapon';
+              }
+            })()}]. 
           </chakra.span>
         )}
         
-        {/* Armor looted */}
-        {event.details.lootedArmorID && Number(event.details.lootedArmorID) > 0 && (
+        {/* Armor looted - with comprehensive safety checks */}
+        {event.details?.lootedArmorID && !isNaN(Number(event.details.lootedArmorID)) && Number(event.details.lootedArmorID) > 0 && (
           <chakra.span color="yellow.400">
-            [Armor: {getArmorName ? getArmorName(Number(event.details.lootedArmorID)) : `Armor ${Number(event.details.lootedArmorID)}`}]. 
+            [Armor: {(() => {
+              try {
+                const armorId = Number(event.details.lootedArmorID);
+                if (getArmorName && typeof getArmorName === 'function') {
+                  const armorName = getArmorName(armorId);
+                  return armorName || `Armor ${armorId}`;
+                }
+                return `Armor ${armorId}`;
+              } catch (error) {
+                console.warn('Error displaying armor name:', error);
+                return 'Unknown Armor';
+              }
+            })()}]. 
           </chakra.span>
         )}
-         {event.details.targetDied && (
+        {event.details?.targetDied && (
           <chakra.span color="red.500" fontWeight="bold"> Target Died! </chakra.span>
         )}
       </Text>
