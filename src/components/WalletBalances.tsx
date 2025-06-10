@@ -49,7 +49,7 @@ const WalletBalances: React.FC = () => {
   const [isDirectFunding, setIsDirectFunding] = useState(false);
   
   // Function to replenish session key balance using contract client
-  const handleReplenishBalance = async () => {
+  const handleReplenishBalance = async (useMinimalAmount: boolean = false) => {
     if (!client?.replenishGasBalance) {
       toast({ title: 'Error', description: 'Replenish function not available', status: 'error' });
       return;
@@ -75,13 +75,23 @@ const WalletBalances: React.FC = () => {
       // Convert owner balance to BigInt for comparison
       const ownerBalanceWei = ethers.parseEther(ownerBalance);
       
+      // Calculate replenish amount based on option chosen
+      let targetAmount: bigint;
+      if (useMinimalAmount) {
+        // Minimal: just cover the shortfall
+        targetAmount = shortfallBigInt;
+      } else {
+        // Safe: shortfall + 50% buffer for safety
+        targetAmount = shortfallBigInt + (shortfallBigInt / BigInt(2));
+      }
+      
       // Calculate safe replenish amount
       let replenishAmountWei: bigint;
-      if (ownerBalanceWei < shortfallBigInt) {
+      if (ownerBalanceWei < targetAmount) {
         const safeBalance = ownerBalanceWei - ethers.parseEther(MIN_SAFE_OWNER_BALANCE); 
         replenishAmountWei = safeBalance > 0 ? safeBalance : BigInt(0);
       } else {
-        replenishAmountWei = shortfallBigInt;
+        replenishAmountWei = targetAmount;
       }
       
       const replenishAmountEth = ethers.formatEther(replenishAmountWei);
@@ -102,7 +112,7 @@ const WalletBalances: React.FC = () => {
   };
 
   // Function to directly fund session key from owner wallet
-  const handleDirectFunding = async () => {
+  const handleDirectFunding = async (amount: string) => {
     if (!injectedWallet?.signer) {
        toast({ title: 'Error', description: 'Owner wallet signer not available', status: 'error' });
        return;
@@ -124,9 +134,9 @@ const WalletBalances: React.FC = () => {
       // Convert owner balance to BigInt for comparison
       const ownerBalanceWei = ethers.parseEther(ownerBalance);
       
-      const transferAmount = ethers.parseEther(DIRECT_FUNDING_AMOUNT);
+      const transferAmount = ethers.parseEther(amount);
       if (ownerBalanceWei < transferAmount + ethers.parseEther(MIN_SAFE_OWNER_BALANCE)) {
-        throw new Error(`Insufficient owner funds. Need ${DIRECT_FUNDING_AMOUNT} MON + gas.`);
+        throw new Error(`Insufficient owner funds. Need ${amount} MON + gas.`);
       }
       
       const tx = await injectedWallet.signer.sendTransaction({
@@ -136,7 +146,7 @@ const WalletBalances: React.FC = () => {
       
       await tx.wait();
       
-      toast({ title: 'Success', description: `Sent ${DIRECT_FUNDING_AMOUNT} MON to session key`, status: 'success' });
+      toast({ title: 'Success', description: `Sent ${amount} MON to session key`, status: 'success' });
     } catch (error: any) {
       console.error('Error in direct funding:', error);
       toast({ title: 'Error', description: `Direct funding failed: ${error.message || String(error)}`, status: 'error' });
@@ -172,6 +182,15 @@ const WalletBalances: React.FC = () => {
   // Determine if direct funding should be offered
   const showDirectFunding = sessionKeyBalanceNum < LOW_SESSION_KEY_THRESHOLD;
   const sessionKeyAddress = gameState?.sessionKeyData?.key;
+  
+  // Calculate funding amounts for display
+  const smallFundingAmount = (parseFloat(DIRECT_FUNDING_AMOUNT) * 0.5).toFixed(1);
+  const largeFundingAmount = DIRECT_FUNDING_AMOUNT;
+  
+  // Calculate shortfall amounts for display
+  const shortfallEth = shortfall ? ethers.formatEther(shortfall) : '0';
+  const shortfallNum = parseFloat(shortfallEth);
+  const safeReplenishAmount = (shortfallNum * 1.5).toFixed(4);
   
   return (
     <Box borderWidth="1px" borderRadius="md" color="white" className='px-3 pt-1 pb-2 flex flex-col gap-2 border-none'>
@@ -221,22 +240,37 @@ const WalletBalances: React.FC = () => {
             <Text fontWeight="bold" fontSize="sm" className="gold-text-light">
               Low Session Key Balance
             </Text>
-            <Text fontSize="sm" className="text-white" mb={1}>
+            <Text fontSize="sm" className="text-white" mb={2}>
               Your session key has less than {LOW_SESSION_KEY_THRESHOLD} MON.
             </Text>
-            <Button
-              bg="amber.600"
-              _hover={{ bg: "amber.500" }}
-              size="sm"
-              onClick={handleDirectFunding}
-              isLoading={isDirectFunding}
-              loadingText="Sending..."
-              width="full"
-              isDisabled={!injectedWallet?.signer}
-              className="!text-amber-300 font-medium card-bg-dark"
-            >
-              Send {DIRECT_FUNDING_AMOUNT} MON to Session Key
-            </Button>
+            <Flex gap={2} width="full">
+              <Button
+                bg="amber.700"
+                _hover={{ bg: "amber.600" }}
+                size="sm"
+                onClick={() => handleDirectFunding(smallFundingAmount)}
+                isLoading={isDirectFunding}
+                loadingText="Sending..."
+                flex={1}
+                isDisabled={!injectedWallet?.signer}
+                className="!text-amber-300 font-medium card-bg-dark"
+              >
+                Send {smallFundingAmount} MON
+              </Button>
+              <Button
+                bg="amber.600"
+                _hover={{ bg: "amber.500" }}
+                size="sm"
+                onClick={() => handleDirectFunding(largeFundingAmount)}
+                isLoading={isDirectFunding}
+                loadingText="Sending..."
+                flex={1}
+                isDisabled={!injectedWallet?.signer}
+                className="!text-amber-300 font-medium card-bg-dark"
+              >
+                Send {largeFundingAmount} MON
+              </Button>
+            </Flex>
           </Box>
         )}
 
@@ -250,22 +284,37 @@ const WalletBalances: React.FC = () => {
             <Text fontWeight="bold" fontSize="sm" className="text-red-400">
               ⚠️ Character at Risk!
             </Text>
-            <Text fontSize="sm" className="text-white" mb={1}>
+            <Text fontSize="sm" className="text-white" mb={2}>
               Your committed balance is running low. <strong className="text-red-300">If it hits zero, your character won't be able to defend itself and will likely die!</strong> Replenish now to keep your character alive.
             </Text>
-            <Button
-              bg="red.600"
-              _hover={{ bg: "red.500" }}
-              size="sm"
-              onClick={handleReplenishBalance}
-              isLoading={isReplenishing}
-              loadingText="Replenishing..."
-              width="full"
-              isDisabled={!client?.replenishGasBalance}
-              className="!text-white font-medium"
-            >
-              🛡️ Replenish Committed
-            </Button>
+            <Flex gap={2} width="full">
+              <Button
+                bg="red.700"
+                _hover={{ bg: "red.600" }}
+                size="sm"
+                onClick={() => handleReplenishBalance(true)}
+                isLoading={isReplenishing}
+                loadingText="Replenishing..."
+                flex={1}
+                isDisabled={!client?.replenishGasBalance}
+                className="!text-white font-medium"
+              >
+                🛡️ Minimal ({shortfallNum.toFixed(4)})
+              </Button>
+              <Button
+                bg="red.600"
+                _hover={{ bg: "red.500" }}
+                size="sm"
+                onClick={() => handleReplenishBalance(false)}
+                isLoading={isReplenishing}
+                loadingText="Replenishing..."
+                flex={1}
+                isDisabled={!client?.replenishGasBalance}
+                className="!text-white font-medium"
+              >
+                🛡️ Safer ({safeReplenishAmount})
+              </Button>
+            </Flex>
           </Box>
         )}
       </Flex>
