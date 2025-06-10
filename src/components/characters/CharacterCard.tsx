@@ -3,6 +3,7 @@ import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Select, But
 import { Character } from '@/types/domain/character';
 import { calculateMaxHealth } from '@/utils/calculateMaxHealth';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
+import { useGame } from '@/hooks/game/useGame';
 
 interface CharacterCardProps {
   character: Character; // Corrected type name
@@ -37,6 +38,9 @@ const formatGold = (value: number | bigint | undefined): string => {
 
 export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
   const [currentStats, setCurrentStats] = useState<Character['stats'] | undefined>(character?.stats); // Corrected type name
+  
+  // Get game state and actions
+  const { worldSnapshot, allocatePoints, isAllocatingPoints } = useGame();
   
   // Update current stats when props change
   useEffect(() => {
@@ -119,7 +123,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
   }, [level, currentStats?.experience]);
 
   // TODO: Replace gameData usage with appropriate state/hook
-  const unallocatedAttributePoints = 0; // Placeholder
+  const unallocatedAttributePoints = worldSnapshot?.unallocatedAttributePoints || 0; // Get from game state
   const equipableWeaponIDs: number[] = []; // Placeholder
   const equipableWeaponNames: string[] = []; // Placeholder
   const equipableArmorIDs: number[] = []; // Placeholder
@@ -197,11 +201,12 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
               <Text fontWeight="bold">Allocate Stat Points</Text>
               <Badge colorScheme="green">{unallocatedAttributePoints} points</Badge>
             </Flex>
-            {/* Temporarily commenting out StatAllocationPanel until assignNewPoints is located */}
-            {/* <StatAllocationPanel 
+            <StatAllocationPanel
               character={character}
               unspentAttributePoints={unallocatedAttributePoints}
-            /> */}
+              allocatePoints={allocatePoints}
+              isAllocatingPoints={isAllocatingPoints}
+            />
           </Box>
         )}
         
@@ -279,15 +284,12 @@ const StatAllocator: React.FC<{
 );
 
 // Component to manage stat allocation
-// TODO: Re-implement this once the correct hook for 'assignNewPoints' is found
-/* 
 const StatAllocationPanel: React.FC<{
   character: Character;
   unspentAttributePoints: number;
-}> = ({ character, unspentAttributePoints }) => {
-  // TODO: Need to find where assignNewPoints comes from
-  // const { assignNewPoints } = useBattleNads(); // This hook doesn't provide assignNewPoints
-  
+  allocatePoints: (strength: bigint, vitality: bigint, dexterity: bigint, quickness: bigint, sturdiness: bigint, luck: bigint) => Promise<any>;
+  isAllocatingPoints: boolean;
+}> = ({ character, unspentAttributePoints, allocatePoints, isAllocatingPoints }) => {
   const [allocation, setAllocation] = useState({
     strength: BigInt(0),
     vitality: BigInt(0),
@@ -297,29 +299,30 @@ const StatAllocationPanel: React.FC<{
     luck: BigInt(0)
   });
 
-  const allocatePoints = () => {
+  const handleAllocatePoints = async () => {
     if (character.id) {
-      // TODO: Call the correct assignNewPoints function here
-      console.warn("assignNewPoints not implemented yet.");
-      // assignNewPoints(
-      //   character.id,
-      //   allocation.strength,
-      //   allocation.vitality,
-      //   allocation.dexterity,
-      //   allocation.quickness,
-      //   allocation.sturdiness,
-      //   allocation.luck
-      // );
+      try {
+        await allocatePoints(
+          allocation.strength,
+          allocation.vitality,
+          allocation.dexterity,
+          allocation.quickness,
+          allocation.sturdiness,
+          allocation.luck
+        );
+        // Reset allocation on success
+        setAllocation({
+          strength: BigInt(0),
+          vitality: BigInt(0),
+          dexterity: BigInt(0),
+          quickness: BigInt(0),
+          sturdiness: BigInt(0),
+          luck: BigInt(0)
+        });
+      } catch (error) {
+        console.error('Error allocating points:', error);
+      }
     }
-    // Reset allocation
-    setAllocation({
-      strength: BigInt(0),
-      vitality: BigInt(0),
-      dexterity: BigInt(0),
-      quickness: BigInt(0),
-      sturdiness: BigInt(0),
-      luck: BigInt(0)
-    });
   };
 
   // Calculate points used
@@ -393,7 +396,7 @@ const StatAllocationPanel: React.FC<{
       />
       <StatAllocator 
         name="Sturdiness" 
-        abbr="STD" // Corrected abbreviation
+        abbr="STD" 
         currentValue={Number(character.stats.sturdiness)}
         allocation={Number(allocation.sturdiness)}
         onIncrement={() => {
@@ -435,8 +438,9 @@ const StatAllocationPanel: React.FC<{
         colorScheme="blue" 
         size="sm" 
         width="100%" 
-        onClick={allocatePoints}
-        isDisabled={pointsUsed === 0}
+        onClick={handleAllocatePoints}
+        isDisabled={pointsUsed === 0 || isAllocatingPoints}
+        isLoading={isAllocatingPoints}
         mt={2}
       >
         Confirm Allocation
@@ -444,4 +448,3 @@ const StatAllocationPanel: React.FC<{
     </VStack>
   );
 }; 
-*/ 

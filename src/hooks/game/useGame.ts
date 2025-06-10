@@ -82,6 +82,35 @@ export const useGame = () => {
     }
   });
   
+  // Mutation for allocating attribute points
+  const allocatePointsMutation = useMutation({
+    mutationFn: async ({ 
+      strength, 
+      vitality, 
+      dexterity, 
+      quickness, 
+      sturdiness, 
+      luck 
+    }: { 
+      strength: bigint, 
+      vitality: bigint, 
+      dexterity: bigint, 
+      quickness: bigint, 
+      sturdiness: bigint, 
+      luck: bigint 
+    }) => {
+      if (!client || !characterId) {
+        throw new Error('Client or character ID missing');
+      }
+      
+      return client.allocatePoints(characterId, strength, vitality, dexterity, quickness, sturdiness, luck);
+    },
+    onSuccess: () => {
+      // Invalidate and refetch game state
+      queryClient.invalidateQueries({ queryKey: ['uiSnapshot', owner] });
+    }
+  });
+  
   // Mutation for chat
   const chatMutation = useMutation({
     mutationFn: async ({ message }: { message: string }) => {
@@ -312,6 +341,17 @@ export const useGame = () => {
     attack: (targetIndex: number) => 
       attackMutation.mutateAsync({ targetIndex }),
     isAttacking: attackMutation.isPending,
+    
+    allocatePoints: (
+      strength: bigint, 
+      vitality: bigint, 
+      dexterity: bigint, 
+      quickness: bigint, 
+      sturdiness: bigint, 
+      luck: bigint
+    ) => 
+      allocatePointsMutation.mutateAsync({ strength, vitality, dexterity, quickness, sturdiness, luck }),
+    isAllocatingPoints: allocatePointsMutation.isPending,
     
     sendChatMessage,
     addOptimisticChatMessage,
