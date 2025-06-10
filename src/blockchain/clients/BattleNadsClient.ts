@@ -221,6 +221,28 @@ export class BattleNadsClient {
     }
   }
 
+  /**
+   * Gets full weapon data by weapon ID
+   */
+  async getWeapon(weaponId: number): Promise<contract.Weapon> {
+    try {
+      return await this.readAdapter.getWeapon(weaponId);
+    } catch (error) {
+      throw new ContractCallError(`Failed to get weapon data: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Gets full armor data by armor ID
+   */
+  async getArmor(armorId: number): Promise<contract.Armor> {
+    try {
+      return await this.readAdapter.getArmor(armorId);
+    } catch (error) {
+      throw new ContractCallError(`Failed to get armor data: ${(error as Error).message}`);
+    }
+  }
+
   // CHARACTER MANAGEMENT
 
   /**

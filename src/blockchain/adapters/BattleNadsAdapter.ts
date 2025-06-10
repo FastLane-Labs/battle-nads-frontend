@@ -124,6 +124,20 @@ export class BattleNadsAdapter {
     return this.contract.getArmorName(armorId);
   }
 
+  /**
+   * Gets full weapon data by weapon ID
+   */
+  async getWeapon(weaponId: number): Promise<contract.Weapon> {
+    return this.contract.getWeapon(weaponId);
+  }
+
+  /**
+   * Gets full armor data by armor ID
+   */
+  async getArmor(armorId: number): Promise<contract.Armor> {
+    return this.contract.getArmor(armorId);
+  }
+
   // MOVEMENT OPERATIONS
 
   /**

@@ -1,5 +1,5 @@
 import { useMemo, useCallback } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from './useBattleNads';
@@ -112,7 +112,13 @@ export const useEquipment = (characterId: string | null) => {
     if (!client) {
       throw new Error('Client missing');
     }
-    return client.getWeaponName(weaponId);
+    try {
+      const name = await client.getWeaponName(weaponId);
+      return name || `Weapon ${weaponId}`;
+    } catch (error) {
+      console.warn(`Failed to get weapon name for ID ${weaponId}:`, error);
+      return `Weapon ${weaponId}`;
+    }
   };
   
   // Get armor name
@@ -120,7 +126,45 @@ export const useEquipment = (characterId: string | null) => {
     if (!client) {
       throw new Error('Client missing');
     }
-    return client.getArmorName(armorId);
+    try {
+      const name = await client.getArmorName(armorId);
+      return name || `Armor ${armorId}`;
+    } catch (error) {
+      console.warn(`Failed to get armor name for ID ${armorId}:`, error);
+      return `Armor ${armorId}`;
+    }
+  };
+
+  // Get weapon details
+  const getWeaponDetails = async (weaponId: number): Promise<Weapon> => {
+    if (!client) {
+      throw new Error('Client missing');
+    }
+    const contractWeapon = await client.getWeapon(weaponId);
+    return {
+      id: weaponId,
+      name: contractWeapon.name || `Weapon ${weaponId}`,
+      baseDamage: Number(contractWeapon.baseDamage) || 0,
+      bonusDamage: Number(contractWeapon.bonusDamage) || 0,
+      accuracy: Number(contractWeapon.accuracy) || 0,
+      speed: Number(contractWeapon.speed) || 0,
+    };
+  };
+
+  // Get armor details
+  const getArmorDetails = async (armorId: number): Promise<Armor> => {
+    if (!client) {
+      throw new Error('Client missing');
+    }
+    const contractArmor = await client.getArmor(armorId);
+    return {
+      id: armorId,
+      name: contractArmor.name || `Armor ${armorId}`,
+      armorFactor: Number(contractArmor.armorFactor) || 0,
+      armorQuality: Number(contractArmor.armorQuality) || 0,
+      flexibility: Number(contractArmor.flexibility) || 0,
+      weight: Number(contractArmor.weight) || 0,
+    };
   };
   
   return {
@@ -143,8 +187,50 @@ export const useEquipment = (characterId: string | null) => {
     // Utility functions
     getWeaponName,
     getArmorName,
+    getWeaponDetails,
+    getArmorDetails,
     
     // Combat state
     isInCombat
   };
+};
+
+/**
+ * Hook for fetching equipment details by ID
+ * Uses React-Query for caching
+ */
+export const useEquipmentDetails = (slot: 'weapon' | 'armor', equipmentId: number | null) => {
+  const { client } = useBattleNadsClient();
+
+  return useQuery<Weapon | Armor, Error>({
+    queryKey: ['equipmentDetails', slot, equipmentId],
+    enabled: !!client && !!equipmentId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - equipment stats don't change often
+    
+    queryFn: async () => {
+      if (!client || !equipmentId) throw new Error('Missing client or equipment ID');
+      
+      if (slot === 'weapon') {
+        const contractWeapon = await client.getWeapon(equipmentId);
+        return {
+          id: equipmentId,
+          name: contractWeapon.name || `Weapon ${equipmentId}`,
+          baseDamage: Number(contractWeapon.baseDamage) || 0,
+          bonusDamage: Number(contractWeapon.bonusDamage) || 0,
+          accuracy: Number(contractWeapon.accuracy) || 0,
+          speed: Number(contractWeapon.speed) || 0,
+        } as Weapon;
+      } else {
+        const contractArmor = await client.getArmor(equipmentId);
+        return {
+          id: equipmentId,
+          name: contractArmor.name || `Armor ${equipmentId}`,
+          armorFactor: Number(contractArmor.armorFactor) || 0,
+          armorQuality: Number(contractArmor.armorQuality) || 0,
+          flexibility: Number(contractArmor.flexibility) || 0,
+          weight: Number(contractArmor.weight) || 0,
+        } as Armor;
+      }
+    },
+  });
 }; 
