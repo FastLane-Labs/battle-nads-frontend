@@ -69,7 +69,7 @@ export const ABILITY_METADATA: Record<domain.Ability, AbilityMetadata> = {
   },
   [domain.Ability.ChargeUp]: {
     name: 'Charge Up',
-    description: 'Concentrates magical energy to enhance your next spell or ability with increased power.',
+    description: 'Temporarily reduces your defense while charging up, but guarantees critical hits on your next attacks.',
     requiresTarget: false,
   },
 };
