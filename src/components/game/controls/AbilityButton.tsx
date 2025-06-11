@@ -9,11 +9,13 @@ import {
   Icon,
   Badge,
   Image,
+  VStack,
 } from '@chakra-ui/react';
 import { WarningIcon } from '@chakra-ui/icons';
 import { AbilityStage } from '@/types/domain/enums';
 import { AbilityStatus } from '@/hooks/game/useAbilityCooldowns';
 import { domain } from '@/types';
+import { getAbilityMetadata } from '@/data/abilities';
 
 interface AbilityButtonProps {
   status: AbilityStatus;
@@ -109,16 +111,33 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
     ? Math.min(100, Math.max(0, ((totalCooldownDuration - status.secondsLeft) / totalCooldownDuration) * 100)) // Ensure progress is 0-100
     : 0;
 
-  // Tooltip message refinement
-  let tooltipLabel = status.description;
-  if (isActionDisabled && !status.isReady) {
-      // Already handled by status.description potentially
-  } else if (isActionDisabled && status.isReady) {
-      tooltipLabel = `${domain.Ability[status.ability].replace(/([A-Z])/g, ' $1').trim()} (Cannot use outside combat)`;
-  }
+  // Get ability metadata for description
+  const abilityMetadata = getAbilityMetadata(status.ability);
+  
+  // Create enhanced tooltip content
+  const createTooltipLabel = () => {
+    return (
+      <VStack align="start" spacing={0} p={1}>
+        <Text fontWeight="bold" className="gold-text-light">{abilityMetadata.name}</Text>
+        <Text fontSize="xs" className="text-white" mt={1}>{abilityMetadata.description}</Text>
+        {(!status.isReady || isActionDisabled) && (
+          <Text fontSize="xs" className="text-red-300" mt={2}>
+            {!status.isReady ? `Status: ${status.description}` : 'Cannot use outside combat'}
+          </Text>
+        )}
+      </VStack>
+    );
+  };
+
+  const tooltipLabel = createTooltipLabel();
 
   return (
-    <Tooltip label={tooltipLabel} placement="top" hasArrow>
+    <Tooltip 
+      label={tooltipLabel} 
+      placement="top" 
+      hasArrow
+      className="mx-2 !bg-dark-brown border rounded-md border-amber-400/30 !text-white"
+    >
       <Box position="relative" display="inline-block">
         <Box
           as="button"
