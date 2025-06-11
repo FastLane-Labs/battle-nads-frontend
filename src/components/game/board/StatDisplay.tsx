@@ -13,7 +13,8 @@ const StatRow = memo<{
   unallocatedAttributePoints: number;
   onIncrement: (key: string) => void;
   onDecrement: (key: string) => void;
-}>(({ label, value, allocationKey, allocation, hasPointsToAllocate, pointsUsed, unallocatedAttributePoints, onIncrement, onDecrement }) => {
+  isInCombat: boolean;
+}>(({ label, value, allocationKey, allocation, hasPointsToAllocate, pointsUsed, unallocatedAttributePoints, onIncrement, onDecrement, isInCombat }) => {
   const handleIncrement = useCallback(() => onIncrement(allocationKey), [allocationKey, onIncrement]);
   const handleDecrement = useCallback(() => onDecrement(allocationKey), [allocationKey, onDecrement]);
   
@@ -27,7 +28,7 @@ const StatRow = memo<{
             +{allocation}
           </span>
         )}
-        {hasPointsToAllocate && (
+        {hasPointsToAllocate && !isInCombat && (
           <div className="flex gap-1 ml-2">
             <button 
               className={`relative flex items-center justify-center w-[30px] h-[30px] ${allocation <= 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 transition-transform duration-200'}`}
@@ -67,10 +68,11 @@ export interface StatDisplayProps {
   unallocatedAttributePoints: number;
   allocatePoints: (strength: bigint, vitality: bigint, dexterity: bigint, quickness: bigint, sturdiness: bigint, luck: bigint) => Promise<any>;
   isAllocatingPoints: boolean;
+  isInCombat: boolean;
 }
 
 // Memoized StatDisplay component to prevent re-renders that cause button flickering
-export const StatDisplay = memo<StatDisplayProps>(({ stats, unallocatedAttributePoints, allocatePoints, isAllocatingPoints }) => {
+export const StatDisplay = memo<StatDisplayProps>(({ stats, unallocatedAttributePoints, allocatePoints, isAllocatingPoints, isInCombat }) => {
   const [allocation, setAllocation] = useState({
     strength: 0,
     vitality: 0,
@@ -135,6 +137,7 @@ export const StatDisplay = memo<StatDisplayProps>(({ stats, unallocatedAttribute
           unallocatedAttributePoints={unallocatedAttributePoints}
           onIncrement={handleIncrement}
           onDecrement={handleDecrement}
+          isInCombat={isInCombat}
         />
         <StatRow 
           label="DEX" 
@@ -146,6 +149,7 @@ export const StatDisplay = memo<StatDisplayProps>(({ stats, unallocatedAttribute
           unallocatedAttributePoints={unallocatedAttributePoints}
           onIncrement={handleIncrement}
           onDecrement={handleDecrement}
+          isInCombat={isInCombat}
         />
         <StatRow 
           label="VIT" 
@@ -157,6 +161,7 @@ export const StatDisplay = memo<StatDisplayProps>(({ stats, unallocatedAttribute
           unallocatedAttributePoints={unallocatedAttributePoints}
           onIncrement={handleIncrement}
           onDecrement={handleDecrement}
+          isInCombat={isInCombat}
         />
         <StatRow 
           label="STD" 
@@ -168,6 +173,7 @@ export const StatDisplay = memo<StatDisplayProps>(({ stats, unallocatedAttribute
           unallocatedAttributePoints={unallocatedAttributePoints}
           onIncrement={handleIncrement}
           onDecrement={handleDecrement}
+          isInCombat={isInCombat}
         />
         <StatRow 
           label="QCK" 
@@ -179,6 +185,7 @@ export const StatDisplay = memo<StatDisplayProps>(({ stats, unallocatedAttribute
           unallocatedAttributePoints={unallocatedAttributePoints}
           onIncrement={handleIncrement}
           onDecrement={handleDecrement}
+          isInCombat={isInCombat}
         />
         <StatRow 
           label="LCK" 
@@ -190,6 +197,7 @@ export const StatDisplay = memo<StatDisplayProps>(({ stats, unallocatedAttribute
           unallocatedAttributePoints={unallocatedAttributePoints}
           onIncrement={handleIncrement}
           onDecrement={handleDecrement}
+          isInCombat={isInCombat}
         />
       </div>
 
@@ -202,6 +210,12 @@ export const StatDisplay = memo<StatDisplayProps>(({ stats, unallocatedAttribute
             </span>
           </Flex>
           
+          {isInCombat && (
+            <Text fontSize="sm" className="text-red-400 text-center italic">
+              Cannot allocate points while in combat
+            </Text>
+          )}
+          
           <div className="relative w-full group">
             {/* Background image - Confirm Allocation Button */}
             <img 
@@ -213,15 +227,19 @@ export const StatDisplay = memo<StatDisplayProps>(({ stats, unallocatedAttribute
             
             <button 
               className={`relative h-[45px] w-full text-lg font-bold uppercase z-[2] bg-transparent border-0
-                ${(pointsUsed === 0 || isAllocatingPoints) 
+                ${(pointsUsed === 0 || isAllocatingPoints || isInCombat) 
                   ? 'opacity-50 cursor-not-allowed' 
                   : ''}`}
               onClick={handleAllocatePoints}
-              disabled={pointsUsed === 0 || isAllocatingPoints}
+              disabled={pointsUsed === 0 || isAllocatingPoints || isInCombat}
               style={{ transform: 'translateZ(0)' }}
             >
               <p className='gold-text transition-transform duration-200 group-hover:scale-[1.02] group-active:scale-95'>
-                {isAllocatingPoints ? 'Allocating...' : 'Confirm Allocation'}
+                {isInCombat 
+                  ? 'Combat Active' 
+                  : isAllocatingPoints 
+                    ? 'Allocating...' 
+                    : 'Confirm Allocation'}
               </p>
             </button>
           </div>

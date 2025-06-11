@@ -50,7 +50,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   if (!character) return null;
 
   // Get game state and actions
-  const { worldSnapshot, allocatePoints, isAllocatingPoints } = useGame();
+  const { worldSnapshot, allocatePoints, isAllocatingPoints, isInCombat } = useGame();
 
   // Destructure needed props from character
   const { inventory, level, stats, class: characterClass } = character;
@@ -130,6 +130,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
               unallocatedAttributePoints={unallocatedAttributePoints}
               allocatePoints={allocatePoints}
               isAllocatingPoints={isAllocatingPoints}
+              isInCombat={isInCombat}
             />
           </div>
         </Box>

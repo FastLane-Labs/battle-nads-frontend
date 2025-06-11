@@ -43,7 +43,7 @@ const mockCharacter: domain.Character = {
 };
 
 // Helper function to setup useGame mock
-const setupMockUseGame = (unallocatedAttributePoints: number = 0) => {
+const setupMockUseGame = (unallocatedAttributePoints: number = 0, isInCombat: boolean = false) => {
   (useGame as jest.Mock).mockReturnValue({
     worldSnapshot: {
       unallocatedAttributePoints,
@@ -51,6 +51,7 @@ const setupMockUseGame = (unallocatedAttributePoints: number = 0) => {
     },
     allocatePoints: jest.fn().mockResolvedValue({}),
     isAllocatingPoints: false,
+    isInCombat,
     // Add other properties returned by useGame that might be needed
     character: mockCharacter,
     combatants: [],
