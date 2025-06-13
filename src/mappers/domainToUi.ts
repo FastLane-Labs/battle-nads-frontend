@@ -3,6 +3,7 @@
  * This centralizes all transformation logic between the domain and UI layers
  */
 
+import { ethers } from 'ethers';
 import { domain, ui } from '@/types';
 import { DEFAULT_SESSION_KEY_DATA } from '@/types/domain';
 
@@ -72,7 +73,7 @@ export function worldSnapshotToGameState(
     equipableArmorIDs: [],
     equipableArmorNames: [],
     unallocatedAttributePoints: snapshot.unallocatedAttributePoints,
-    balanceShortfall: snapshot.balanceShortfall,
+    balanceShortfall: Number(ethers.formatEther(snapshot.balanceShortfall)),
     updates,
     loading: false,
     error: null

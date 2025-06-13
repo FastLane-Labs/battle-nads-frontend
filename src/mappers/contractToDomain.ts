@@ -596,7 +596,7 @@ export function contractToWorldSnapshot(
     noncombatants: (raw.noncombatants || []).map(mapCharacterLite),
     eventLogs: allEventLogs,
     chatLogs: allChatMessages,
-    balanceShortfall: Number(raw.balanceShortfall || 0),
+    balanceShortfall: raw.balanceShortfall || BigInt(0),
     unallocatedAttributePoints: Number(raw.unallocatedAttributePoints || 0),
     lastBlock: Number(raw.endBlock || 0)
   };

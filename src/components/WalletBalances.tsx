@@ -47,6 +47,9 @@ const WalletBalances: React.FC = () => {
   // State for action buttons
   const [isReplenishing, setIsReplenishing] = useState(false);
   const [isDirectFunding, setIsDirectFunding] = useState(false);
+
+  // Calculate shortfall amounts for display
+  const shortfallEth = shortfall && shortfall > BigInt(0) ? ethers.formatEther(shortfall) : '0';
   
   // Function to replenish session key balance using contract client
   const handleReplenishBalance = async (useMinimalAmount: boolean = false) => {
@@ -62,13 +65,8 @@ const WalletBalances: React.FC = () => {
         throw new Error('Owner wallet not connected.');
       }
       
-      // Convert shortfall to BigInt if it's not already
-      const shortfallBigInt = typeof shortfall === 'number' 
-        ? BigInt(Math.round(shortfall)) 
-        : shortfall;
-      
-      // Validate the shortfall
-      if (!shortfallBigInt || shortfallBigInt <= BigInt(0)) {
+      // Validate the shortfall (already in wei)
+      if (!shortfall || shortfall <= BigInt(0)) {
         throw new Error("No balance shortfall detected.");
       }
       
@@ -79,10 +77,10 @@ const WalletBalances: React.FC = () => {
       let targetAmount: bigint;
       if (useMinimalAmount) {
         // Minimal: just cover the shortfall
-        targetAmount = shortfallBigInt;
+        targetAmount = shortfall;
       } else {
         // Safe: shortfall + 50% buffer for safety
-        targetAmount = shortfallBigInt + (shortfallBigInt / BigInt(2));
+        targetAmount = shortfall + (shortfall / BigInt(2));
       }
       
       // Calculate safe replenish amount
@@ -187,8 +185,6 @@ const WalletBalances: React.FC = () => {
   const smallFundingAmount = (parseFloat(DIRECT_FUNDING_AMOUNT) * 0.5).toFixed(1);
   const largeFundingAmount = DIRECT_FUNDING_AMOUNT;
   
-  // Calculate shortfall amounts for display
-  const shortfallEth = shortfall ? ethers.formatEther(shortfall) : '0';
   const shortfallNum = parseFloat(shortfallEth);
   const safeReplenishAmount = (shortfallNum * 1.5).toFixed(4);
   

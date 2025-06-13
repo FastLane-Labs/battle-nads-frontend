@@ -19,7 +19,7 @@ export interface WorldSnapshot {
   noncombatants: CharacterLite[];
   eventLogs: EventMessage[];
   chatLogs: ChatMessage[];
-  balanceShortfall: number;
+  balanceShortfall: bigint;
   unallocatedAttributePoints: number;
   
   // Tracking

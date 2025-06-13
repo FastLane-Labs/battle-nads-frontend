@@ -57,8 +57,9 @@ export function useWalletBalances(owner: string | null) {
     : '0';
     
   const shortfall = hasValidSessionKeyData ? (gameState.balanceShortfall || BigInt(0)) : BigInt(0);
+  
   // Only format if shortfall is positive AND session key data was valid
-  const formattedShortfall = hasValidSessionKeyData && shortfall > 0 ? ethers.formatUnits(BigInt(shortfall), 18) : '0'; 
+  const formattedShortfall = hasValidSessionKeyData && shortfall > 0 ? ethers.formatEther(shortfall) : '0'; 
   
   // Determine if the session key balance is below threshold
   const targetBalance = hasValidSessionKeyData ? (gameState.sessionKeyData?.targetBalance || BigInt(0)) : BigInt(0);
