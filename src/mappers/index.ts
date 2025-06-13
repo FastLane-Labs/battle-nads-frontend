@@ -36,7 +36,7 @@ export function contractToGameState(
       noncombatants: [],
       eventLogs: [],
       chatLogs: [],
-      balanceShortfall: 0,
+      balanceShortfall: BigInt(0),
       unallocatedAttributePoints: 0,
       lastBlock: 0
     };
