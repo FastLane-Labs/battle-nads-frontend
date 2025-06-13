@@ -281,7 +281,7 @@ export const useGame = () => {
       noncombatants: liveGameState.noncombatants || [],
       eventLogs: liveGameState.eventLogs || [], // Using only live events for now
       chatLogs: uniqueChatLogs, // Use combined, unique, sorted chat logs
-      balanceShortfall: liveGameState.balanceShortfall || 0,
+      balanceShortfall: liveGameState.balanceShortfall || BigInt(0),
       unallocatedAttributePoints: liveGameState.unallocatedAttributePoints || 0,
       lastBlock: liveGameState.lastBlock || 0
     };
