@@ -50,6 +50,7 @@ const GameView: React.FC<GameViewProps> = ({
   equipableArmorNames
 }) => {
   const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(null);
+  const [activeTab, setActiveTab] = useState<'character' | 'actions'>('character');
 
   // Check if we're in development mode
   const isDev = false; // process.env.NODE_ENV === 'development';
@@ -57,6 +58,16 @@ const GameView: React.FC<GameViewProps> = ({
   // Use mock data in development for testing
   const finalChatLogs = isDev ? MOCK_CHAT_LOGS : chatLogs;
   const finalEventLogs = isDev ? MOCK_EVENT_LOGS : eventLogs;
+
+  // Handle target selection with automatic tab switching
+  const handleSelectTarget = (index: number | null) => {
+    setSelectedTargetIndex(index);
+    
+    // Switch to "Actions" tab when a target is selected (not when deselecting)
+    if (index !== null) {
+      setActiveTab('actions');
+    }
+  };
 
   return (
     <Grid
@@ -84,12 +95,14 @@ const GameView: React.FC<GameViewProps> = ({
           position={position}
           combatants={combatants}
           selectedTargetIndex={selectedTargetIndex}
-          setSelectedTargetIndex={setSelectedTargetIndex}
+          setSelectedTargetIndex={handleSelectTarget}
           onMove={onMove}
           onAttack={onAttack}
           isMoving={isMoving}
           isAttacking={isAttacking}
           isInCombat={isInCombat}
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
         />
       </GridItem>
 
@@ -100,7 +113,7 @@ const GameView: React.FC<GameViewProps> = ({
             <CombatTargets 
               combatants={combatants} 
               selectedTargetIndex={selectedTargetIndex}
-              onSelectTarget={setSelectedTargetIndex}
+              onSelectTarget={handleSelectTarget}
             />
             
           </Box>

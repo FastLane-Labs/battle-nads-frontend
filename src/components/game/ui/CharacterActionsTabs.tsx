@@ -17,6 +17,8 @@ interface CharacterActionsTabsProps {
   isMoving: boolean;
   isAttacking: boolean;
   isInCombat: boolean;
+  activeTab: 'character' | 'actions';
+  setActiveTab: (tab: 'character' | 'actions') => void;
 }
 
 const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
@@ -29,10 +31,10 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
   onAttack,
   isMoving,
   isAttacking,
-  isInCombat
+  isInCombat,
+  activeTab,
+  setActiveTab
 }) => {
-  const [activeTab, setActiveTab] = useState<'character' | 'actions'>('character');
-
   return (
     <div className="flex flex-col h-full">
       {/* Tab Buttons */}
