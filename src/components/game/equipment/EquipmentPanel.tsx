@@ -21,7 +21,9 @@ const EquipmentOptionCard: React.FC<{
   isCurrentlyEquipped: boolean;
   onEquip: (id: number) => void;
   isEquipping: boolean;
-}> = ({ slot, equipmentId, equipmentName, isCurrentlyEquipped, onEquip, isEquipping }) => {
+  isTransactionDisabled: boolean;
+  insufficientBalanceMessage: string | null;
+}> = ({ slot, equipmentId, equipmentName, isCurrentlyEquipped, onEquip, isEquipping, isTransactionDisabled, insufficientBalanceMessage }) => {
   const { data: equipment, isLoading, error } = useEquipmentDetails(slot, equipmentId);
 
   if (isLoading) {
@@ -48,14 +50,19 @@ const EquipmentOptionCard: React.FC<{
 
   if (!equipment) return null;
 
+  // Equipment card is disabled if currently equipped, equipping in progress, or insufficient balance (but only for non-equipped items)
+  const isDisabled = isCurrentlyEquipped || isEquipping || (isTransactionDisabled && !isCurrentlyEquipped);
+
   return (
     <Box 
       as="button"
-      onClick={() => onEquip(equipmentId)}
-      disabled={isCurrentlyEquipped || isEquipping}
+      onClick={() => !isDisabled && onEquip(equipmentId)}
+      disabled={isDisabled}
       className={`p-4 border rounded-md transition-all duration-200 text-left w-full ${
         isCurrentlyEquipped 
           ? 'border-green-400/60 bg-green-900/20 cursor-default' 
+          : isTransactionDisabled && !isCurrentlyEquipped
+          ? 'border-red-400/30 bg-red-900/10 cursor-not-allowed'
           : 'border-amber-400/30 bg-dark-brown/30 hover:border-amber-400/60 hover:bg-dark-brown/50 cursor-pointer'
       } ${isEquipping ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
@@ -66,6 +73,11 @@ const EquipmentOptionCard: React.FC<{
         {isCurrentlyEquipped && (
           <Text className="text-green-400 font-medium" fontSize="xs">
             Equipped
+          </Text>
+        )}
+        {isTransactionDisabled && !isCurrentlyEquipped && (
+          <Text className="text-red-400 font-medium" fontSize="xs">
+            No Balance
           </Text>
         )}
       </HStack>
@@ -127,6 +139,16 @@ const EquipmentOptionCard: React.FC<{
           </HStack>
         </VStack>
       )}
+      
+      {/* Show insufficient balance message at bottom if applicable */}
+      {isTransactionDisabled && !isCurrentlyEquipped && insufficientBalanceMessage && (
+        <>
+          <Divider className="border-red-400/20 mt-2 mb-1" />
+          <Text fontSize="xs" className="text-red-300" textAlign="center">
+            {insufficientBalanceMessage}
+          </Text>
+        </>
+      )}
     </Box>
   );
 };
@@ -168,7 +190,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
 
   // Handle equipping an item
   const handleEquip = (equipmentId: number) => {
-    if (selectedSlot) {
+    if (selectedSlot && !isTransactionDisabled) {
       equipAction(equipmentId);
       onClose();
     }
@@ -176,33 +198,24 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
 
   // Render equipment stats tooltip content
   const renderStatsTooltip = (item: Weapon | Armor | null, slot: 'weapon' | 'armor') => {
-    if (!item && !isTransactionDisabled) return "Nothing equipped";
+    if (!item) return "Nothing equipped";
     
     const content = (
       <VStack align="start" spacing={0} p={1}>
-        {item && (
+        <Text fontWeight="bold" className='gold-text-light'>{item.name}</Text>
+        {slot === 'weapon' ? (
           <>
-            <Text fontWeight="bold" className='gold-text-light'>{item.name}</Text>
-            {slot === 'weapon' ? (
-              <>
-                <Text fontSize="xs">Damage: {(item as Weapon).baseDamage} + {(item as Weapon).bonusDamage}</Text>
-                <Text fontSize="xs">Accuracy: {(item as Weapon).accuracy}</Text>
-                <Text fontSize="xs">Speed: {(item as Weapon).speed}</Text>
-              </>
-            ) : (
-              <>
-                <Text fontSize="xs">Factor: {(item as Armor).armorFactor}</Text>
-                <Text fontSize="xs">Quality: {(item as Armor).armorQuality}</Text>
-                <Text fontSize="xs">Flexibility: {(item as Armor).flexibility}</Text>
-                <Text fontSize="xs">Weight: {(item as Armor).weight}</Text>
-              </>
-            )}
+            <Text fontSize="xs">Damage: {(item as Weapon).baseDamage} + {(item as Weapon).bonusDamage}</Text>
+            <Text fontSize="xs">Accuracy: {(item as Weapon).accuracy}</Text>
+            <Text fontSize="xs">Speed: {(item as Weapon).speed}</Text>
           </>
-        )}
-        {isTransactionDisabled && (
-          <Text fontSize="xs" className="text-red-300" mt={2}>
-            {insufficientBalanceMessage}
-          </Text>
+        ) : (
+          <>
+            <Text fontSize="xs">Factor: {(item as Armor).armorFactor}</Text>
+            <Text fontSize="xs">Quality: {(item as Armor).armorQuality}</Text>
+            <Text fontSize="xs">Flexibility: {(item as Armor).flexibility}</Text>
+            <Text fontSize="xs">Weight: {(item as Armor).weight}</Text>
+          </>
         )}
       </VStack>
     );
@@ -223,7 +236,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
             onClick={() => handleSelectSlot('weapon')}
             position="relative"
             className="rounded-sm hover:opacity-90"
-            disabled={isInCombat || isTransactionDisabled}
+            disabled={isInCombat}
           >
             <div 
               style={{
@@ -234,7 +247,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
                 backgroundRepeat: 'no-repeat',
                 backgroundPosition: 'center'
               }}
-              className={`${(isInCombat || isTransactionDisabled) ? 'opacity-50' : 'hover:opacity-90'}`}
+              className={`${isInCombat ? 'opacity-50' : 'hover:opacity-90'}`}
               aria-label="Weapon"
             />
           </Box>
@@ -250,7 +263,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
             onClick={() => handleSelectSlot('armor')}
             position="relative"
             className="rounded-sm hover:opacity-90"
-            disabled={isInCombat || isTransactionDisabled}
+            disabled={isInCombat}
           >
             <div 
               style={{
@@ -261,7 +274,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
                 backgroundRepeat: 'no-repeat',
                 backgroundPosition: 'center'
               }}
-              className={`${(isInCombat || isTransactionDisabled) ? 'opacity-50' : 'hover:opacity-90'}`}
+              className={`${isInCombat ? 'opacity-50' : 'hover:opacity-90'}`}
               aria-label="Armor"
             />
           </Box>
@@ -288,6 +301,8 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
                   isCurrentlyEquipped={item.id === currentEquipment?.id}
                   onEquip={handleEquip}
                   isEquipping={isEquipping}
+                  isTransactionDisabled={isTransactionDisabled}
+                  insufficientBalanceMessage={insufficientBalanceMessage}
                 />
               ))}
             </SimpleGrid>
