@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Box, Heading, VStack, Input, Button, HStack, Text, Flex, Spinner, Center } from '@chakra-ui/react';
+import { Box, Button, HStack, Text, Spinner, Center, Tooltip } from '@chakra-ui/react';
 import { domain } from '@/types';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { useTransactionBalance } from '@/hooks/game/useTransactionBalance';
 
 interface ChatPanelProps {
   characterId: string;
@@ -21,6 +22,9 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   const [inputValue, setInputValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Transaction balance validation
+  const { isTransactionDisabled, insufficientBalanceMessage } = useTransactionBalance();
+  
   const parentRef = useRef<HTMLDivElement>(null);
   
   const rowVirtualizer = useVirtualizer({ 
@@ -39,7 +43,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   
   const handleSendMessage = async () => {
     const messageToSend = inputValue.trim();
-    if (messageToSend && !isSubmitting) {
+    if (messageToSend && !isSubmitting && !isTransactionDisabled) {
       setIsSubmitting(true);
       
       try {
@@ -55,12 +59,12 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   };
   
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === 'Enter' && !e.shiftKey && !isTransactionDisabled) {
       e.preventDefault();
       handleSendMessage();
     }
   };
-  
+
   return (
     <Box h="100%" display="flex" flexDirection="column">
       <h2 className='uppercase gold-text-light text-2xl font-bold tracking-tight mb-2 px-4'>Chat</h2>
@@ -132,16 +136,26 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           disabled={isSubmitting || isCacheLoading}
           className="w-full bg-stone-600/90 text-white py-2 px-2 rounded-md outline-none focus:outline-none"
         />
-        <Button
-          onClick={handleSendMessage}
-          isLoading={isSubmitting}
-          loadingText=""
-          // colorScheme="blue"
-          disabled={isCacheLoading || isSubmitting || !inputValue.trim()}
-          className='!bg-[#8B6914] outline-none'
+        <Tooltip 
+          label={insufficientBalanceMessage} 
+          placement="top" 
+          hasArrow
+          isDisabled={!isTransactionDisabled}
+          className="mx-2 !bg-dark-brown border rounded-md border-amber-400/30 !text-white"
         >
-          Send
-        </Button>
+          <Button
+            onClick={handleSendMessage}
+            isLoading={isSubmitting}
+            loadingText=""
+            // colorScheme="blue"
+            disabled={isCacheLoading || isSubmitting || !inputValue.trim() || isTransactionDisabled}
+            className={`!outline-none ${
+              isTransactionDisabled ? '!bg-[#8B6914]/50 !opacity-50' : '!bg-[#8B6914]'
+            }`}
+          >
+            Send
+          </Button>
+        </Tooltip>
       </HStack>
     </Box>
   );

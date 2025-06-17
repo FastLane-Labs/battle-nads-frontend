@@ -20,11 +20,17 @@ export const useTransactionBalance = () => {
   // Transaction is disabled if insufficient balance and not loading
   const isTransactionDisabled = !isLoading && !hasSufficientBalance;
   
+  // Create formatted insufficient balance message
+  const insufficientBalanceMessage = isTransactionDisabled
+    ? `Insufficient balance: ${sessionKeyBalanceNum.toFixed(4)} MON (need ${MIN_TRANSACTION_BALANCE} MON)`
+    : null;
+  
   return {
     sessionKeyBalance: sessionKeyBalanceNum,
     hasSufficientBalance,
     isTransactionDisabled,
     minRequiredBalance: MIN_TRANSACTION_BALANCE,
     isBalanceLoading: isLoading,
+    insufficientBalanceMessage,
   };
 }; 
