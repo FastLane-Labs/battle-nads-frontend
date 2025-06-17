@@ -13,6 +13,7 @@ import { domain } from '@/types';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
 import { StatDisplay } from './StatDisplay';
 import { useGame } from '@/hooks/game/useGame';
+import { useTransactionBalance } from '@/hooks/game/useTransactionBalance';
 
 // Constants from the smart contract
 const EXP_BASE = 100; // Base experience points required per level
@@ -51,6 +52,9 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
 
   // Get game state and actions
   const { worldSnapshot, allocatePoints, isAllocatingPoints, isInCombat } = useGame();
+
+  // Transaction balance validation
+  const { isTransactionDisabled, insufficientBalanceMessage } = useTransactionBalance();
 
   // Destructure needed props from character
   const { inventory, level, stats, class: characterClass } = character;
@@ -131,6 +135,8 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
               allocatePoints={allocatePoints}
               isAllocatingPoints={isAllocatingPoints}
               isInCombat={isInCombat}
+              isTransactionDisabled={isTransactionDisabled}
+              insufficientBalanceMessage={insufficientBalanceMessage}
             />
           </div>
         </Box>
