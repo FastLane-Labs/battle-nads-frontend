@@ -199,8 +199,8 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
   };
 
   return (
-    <Box className="card-bg p-4">
-      <Text className="gold-text text-2xl font-serif mb-4 font-semibold">Equipment</Text>
+    <Box className="flex justify-between items-center gap-2">
+      <Text className="gold-text text-2xl font-serif font-semibold">Equipment</Text>
 
       <HStack spacing={4} className="justify-between">
         <div className='flex gap-4 items-center'>
