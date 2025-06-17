@@ -22,7 +22,7 @@ export const useTransactionBalance = () => {
   
   // Create formatted insufficient balance message
   const insufficientBalanceMessage = isTransactionDisabled
-    ? `Insufficient balance: ${sessionKeyBalanceNum.toFixed(4)} MON (need ${MIN_TRANSACTION_BALANCE} MON)`
+    ? `Insufficient balance: ${sessionKeyBalanceNum.toFixed(4)} shMON (need ${MIN_TRANSACTION_BALANCE} shMON)`
     : null;
   
   return {
