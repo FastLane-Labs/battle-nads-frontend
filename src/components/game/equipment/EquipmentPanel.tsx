@@ -198,24 +198,36 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
 
   // Render equipment stats tooltip content
   const renderStatsTooltip = (item: Weapon | Armor | null, slot: 'weapon' | 'armor') => {
-    if (!item) return "Nothing equipped";
+    if (!item && !isInCombat) return "Nothing equipped";
     
     const content = (
       <VStack align="start" spacing={0} p={1}>
-        <Text fontWeight="bold" className='gold-text-light'>{item.name}</Text>
-        {slot === 'weapon' ? (
+        {item && (
           <>
-            <Text fontSize="xs">Damage: {(item as Weapon).baseDamage} + {(item as Weapon).bonusDamage}</Text>
-            <Text fontSize="xs">Accuracy: {(item as Weapon).accuracy}</Text>
-            <Text fontSize="xs">Speed: {(item as Weapon).speed}</Text>
+            <Text fontWeight="bold" className='gold-text-light'>{item.name}</Text>
+            {slot === 'weapon' ? (
+              <>
+                <Text fontSize="xs">Damage: {(item as Weapon).baseDamage} + {(item as Weapon).bonusDamage}</Text>
+                <Text fontSize="xs">Accuracy: {(item as Weapon).accuracy}</Text>
+                <Text fontSize="xs">Speed: {(item as Weapon).speed}</Text>
+              </>
+            ) : (
+              <>
+                <Text fontSize="xs">Factor: {(item as Armor).armorFactor}</Text>
+                <Text fontSize="xs">Quality: {(item as Armor).armorQuality}</Text>
+                <Text fontSize="xs">Flexibility: {(item as Armor).flexibility}</Text>
+                <Text fontSize="xs">Weight: {(item as Armor).weight}</Text>
+              </>
+            )}
           </>
-        ) : (
-          <>
-            <Text fontSize="xs">Factor: {(item as Armor).armorFactor}</Text>
-            <Text fontSize="xs">Quality: {(item as Armor).armorQuality}</Text>
-            <Text fontSize="xs">Flexibility: {(item as Armor).flexibility}</Text>
-            <Text fontSize="xs">Weight: {(item as Armor).weight}</Text>
-          </>
+        )}
+        {!item && !isInCombat && (
+          <Text className='gold-text-light'>Nothing equipped</Text>
+        )}
+        {isInCombat && (
+          <Text fontSize="xs" className="text-red-300" mt={item ? 2 : 0}>
+            Cannot change equipment during combat
+          </Text>
         )}
       </VStack>
     );
