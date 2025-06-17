@@ -16,6 +16,7 @@ import { AbilityStage } from '@/types/domain/enums';
 import { AbilityStatus } from '@/hooks/game/useAbilityCooldowns';
 import { domain } from '@/types';
 import { getAbilityMetadata } from '@/data/abilities';
+import { useTransactionBalance } from '@/hooks/game/useTransactionBalance';
 
 interface AbilityButtonProps {
   status: AbilityStatus;
@@ -98,12 +99,14 @@ const AbilityIcon: React.FC<{ ability: domain.Ability }> = ({ ability }) => {
 };
 
 export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, isMutationLoading, isActionDisabled }) => {
+  const { isTransactionDisabled, minRequiredBalance, sessionKeyBalance } = useTransactionBalance();
+  
   const isCoolingDown = !status.isReady && status.stage === AbilityStage.COOLDOWN && status.secondsLeft > 0;
   const isCharging = !status.isReady && status.stage === AbilityStage.CHARGING && status.secondsLeft > 0;
   const isActive = !status.isReady && status.stage === AbilityStage.ACTION;
 
-  // Overall disabled state: action disabled OR mutation is loading
-  const isDisabled = isActionDisabled || isMutationLoading;
+  // Overall disabled state: action disabled OR mutation is loading OR insufficient balance
+  const isDisabled = isActionDisabled || isMutationLoading || isTransactionDisabled;
 
   // Calculate cooldown progress percentage (0-100)
   const totalCooldownDuration = status.currentCooldownInitialTotalSeconds ?? ABILITY_COOLDOWN_DURATIONS[status.ability] ?? 60;
@@ -120,9 +123,14 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
       <VStack align="start" spacing={0} p={1}>
         <Text fontWeight="bold" className="gold-text-light">{abilityMetadata.name}</Text>
         <Text fontSize="xs" className="text-white" mt={1}>{abilityMetadata.description}</Text>
-        {(!status.isReady || isActionDisabled) && (
+        {(!status.isReady || isActionDisabled || isTransactionDisabled) && (
           <Text fontSize="xs" className="text-red-300" mt={2}>
-            {!status.isReady ? `Status: ${status.description}` : 'Cannot use outside combat'}
+            {!status.isReady 
+              ? `Status: ${status.description}` 
+              : isTransactionDisabled
+              ? `Insufficient balance: ${sessionKeyBalance.toFixed(4)} MON (need ${minRequiredBalance} MON)`
+              : 'Cannot use outside combat'
+            }
           </Text>
         )}
       </VStack>
@@ -242,8 +250,30 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
              </Badge>
           )}
           
+          {/* Insufficient Balance Indicator */}
+          {isTransactionDisabled && status.isReady && !isMutationLoading && (
+             <Badge
+                position="absolute"
+                top="-1"
+                left="-1"
+                colorScheme="red"
+                variant="solid"
+                borderRadius="full"
+                p={0}
+                zIndex="3"
+                boxSize="18px"
+                display="flex"
+                alignItems="center"
+                justifyContent="center"
+              >
+               <Tooltip label={`Insufficient balance: need ${minRequiredBalance} MON`} placement="top">
+                  <Text fontSize="xs" fontWeight="bold">$</Text>
+               </Tooltip>
+             </Badge>
+          )}
+          
           {/* Out of Combat Indicator (if ability is ready but combat required) */}
-          {isActionDisabled && status.isReady && !isMutationLoading && (
+          {isActionDisabled && status.isReady && !isMutationLoading && !isTransactionDisabled && (
              <Badge
                 position="absolute"
                 bottom="-1"
