@@ -16,7 +16,6 @@ import {
   Flex
 } from '@chakra-ui/react';
 
-import WalletBalances from '../WalletBalances';
 import DebugPanel from '../DebugPanel';
 import GameView from './layout/GameView';
 import { domain } from '../../types';
@@ -96,12 +95,17 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
     if (!isAttacking) {
       try {
         await attack(targetIndex);
-        toast({ title: `Attacked target ${targetIndex}`, status: "success", duration: 1500 });
+        
+        // Find the target name from combatants array
+        const target = gameState?.combatants?.find(combatant => combatant.index === targetIndex);
+        const targetName = target?.name || `Position ${targetIndex}`;
+        
+        toast({ title: `Attacked ${targetName}`, status: "success", duration: 1500 });
       } catch (err: any) {
         toast({ title: "Attack Failed", description: err.message, status: "error", duration: 3000 });
       }
     }
-  }, [attack, isAttacking, toast]);
+  }, [attack, isAttacking, toast, gameState?.combatants]);
 
   const handleSendChatMessage = useCallback(async (message: string) => {
     if (!isSendingChat && message.trim()) {

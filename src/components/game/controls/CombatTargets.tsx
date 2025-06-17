@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Box, Button, Heading, VStack, Text, Badge, Flex } from '@chakra-ui/react';
+import React from 'react';
+import { Box, Button, VStack, Text, Flex } from '@chakra-ui/react';
 import { domain } from '../../../types';
 import HealthBar from '../ui/HealthBar';
 
