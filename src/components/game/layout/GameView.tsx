@@ -93,7 +93,7 @@ const GameView: React.FC<GameViewProps> = ({
         md: '1fr 1fr',
         lg: '1.5fr 1.5fr 1fr' 
       }}
-      h="100%"
+      h={{ base: "auto", lg: "100%" }}
       gap="4"
       p="4"
       color="white"

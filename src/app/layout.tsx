@@ -41,7 +41,7 @@ export default function RootLayout({
         <ColorModeScript initialColorMode={theme.config.initialColorMode} />
       </head>
       <body  
-      className="bg-cover bg-center bg-no-repeat"
+      className="bg-cover bg-center bg-repeat-y lg:bg-no-repeat"
       style={{ backgroundImage: "url('/assets/bg/dark-smoky-bg.webp')" }}
       >
           <ErrorBoundary>
