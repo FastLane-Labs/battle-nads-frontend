@@ -1,11 +1,32 @@
 import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { ChakraProvider, Tooltip } from '@chakra-ui/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MovementControls from '../MovementControls';
 
-// Helper to render with ChakraProvider
+// Mock the useTransactionBalance hook
+jest.mock('@/hooks/game/useTransactionBalance', () => ({
+  useTransactionBalance: () => ({
+    isTransactionDisabled: false,
+    insufficientBalanceMessage: null,
+  }),
+}));
+
+// Helper to render with ChakraProvider and QueryClientProvider
 const renderWithProvider = (component: React.ReactElement) => {
-  return render(<ChakraProvider>{component}</ChakraProvider>);
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        retry: false,
+      },
+    },
+  });
+  
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <ChakraProvider>{component}</ChakraProvider>
+    </QueryClientProvider>
+  );
 };
 
 describe('MovementControls Component', () => {
