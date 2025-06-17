@@ -142,7 +142,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
   } = equipmentHookResult;
 
   // Transaction balance validation
-  const { isTransactionDisabled, minRequiredBalance, sessionKeyBalance } = useTransactionBalance();
+  const { isTransactionDisabled, insufficientBalanceMessage } = useTransactionBalance();
 
   const [selectedSlot, setSelectedSlot] = useState<'weapon' | 'armor' | null>(null);
   
@@ -201,7 +201,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
         )}
         {isTransactionDisabled && (
           <Text fontSize="xs" className="text-red-300" mt={2}>
-            Insufficient balance: {sessionKeyBalance.toFixed(4)} MON (need {minRequiredBalance} MON)
+            {insufficientBalanceMessage}
           </Text>
         )}
       </VStack>

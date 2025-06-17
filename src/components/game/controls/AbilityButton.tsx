@@ -99,7 +99,7 @@ const AbilityIcon: React.FC<{ ability: domain.Ability }> = ({ ability }) => {
 };
 
 export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, isMutationLoading, isActionDisabled }) => {
-  const { isTransactionDisabled, minRequiredBalance, sessionKeyBalance } = useTransactionBalance();
+  const { isTransactionDisabled, insufficientBalanceMessage, minRequiredBalance } = useTransactionBalance();
   
   const isCoolingDown = !status.isReady && status.stage === AbilityStage.COOLDOWN && status.secondsLeft > 0;
   const isCharging = !status.isReady && status.stage === AbilityStage.CHARGING && status.secondsLeft > 0;
@@ -128,7 +128,7 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
             {!status.isReady 
               ? `Status: ${status.description}` 
               : isTransactionDisabled
-              ? `Insufficient balance: ${sessionKeyBalance.toFixed(4)} MON (need ${minRequiredBalance} MON)`
+              ? insufficientBalanceMessage
               : 'Cannot use outside combat'
             }
           </Text>

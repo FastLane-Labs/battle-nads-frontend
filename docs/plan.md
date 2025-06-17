@@ -119,7 +119,8 @@ This updated roadmap reflects the team's discussion about prioritizing the core 
 - **Feature**: Added minimum balance validation for transaction-requiring buttons
 - **Implementation**: 
   - Created `useTransactionBalance` hook that validates session key balance against 0.05 MON minimum
-  - Applied to `AbilityButton` and `EquipmentPanel` (weapon/armor buttons) as initial implementation
+  - Applied to `AbilityButton`, `EquipmentPanel` (weapon/armor buttons), and `ChatPanel` (Send button) as initial implementation
   - Buttons are disabled when balance is insufficient with clear visual indicators and tooltip messages
+  - Input fields are also disabled and visually dimmed when balance is insufficient
 - **Configuration**: Added `MIN_TRANSACTION_BALANCE = 0.05` to `src/config/wallet.ts`
 - **Status**: ✅ Implemented for initial components, ready for rollout to other transaction buttons
