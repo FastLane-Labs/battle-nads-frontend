@@ -8,6 +8,7 @@ import {
   Text
 } from '@chakra-ui/react';
 import { MovementOptions } from '@/types/domain';
+import { useTransactionBalance } from '@/hooks/game/useTransactionBalance';
 
 interface MovementControlsProps {
   onMove: (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => Promise<void>;
@@ -25,6 +26,9 @@ const MovementControls: React.FC<MovementControlsProps> = ({
   movementOptions 
 }) => {
 
+  // Transaction balance validation
+  const { isTransactionDisabled, insufficientBalanceMessage } = useTransactionBalance();
+
   const getTooltipLabel = (dir: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
     if (Number(position.z) === 0) {
       return "🚫 Cannot move while spawning - please wait";
@@ -32,6 +36,10 @@ const MovementControls: React.FC<MovementControlsProps> = ({
     
     if (isInCombat) {
       return "⚔️ Cannot move while in combat";
+    }
+    
+    if (isTransactionDisabled) {
+      return insufficientBalanceMessage || "Insufficient balance";
     }
     
     // Check movement options for restrictions
@@ -79,7 +87,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({
     // Disable movement when at spawn location (z=0)
     if (Number(position.z) === 0) return true;
     
-    if (isMoving || isInCombat) return true;
+    if (isMoving || isInCombat || isTransactionDisabled) return true;
     
     if (movementOptions) {
       switch (dir) {

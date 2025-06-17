@@ -1,21 +1,46 @@
 import React from "react";
-import { Box, Text, Tooltip, CircularProgress, Image } from "@chakra-ui/react";
+import { Box, Text, Tooltip, CircularProgress, Image, VStack } from "@chakra-ui/react";
 
 interface AttackButtonProps {
   onClick: () => void;
   isLoading: boolean;
   isDisabled: boolean;
-  tooltipLabel?: string;
+  targetName?: string;
+  statusMessage?: string;
 }
 
 export const AttackButton: React.FC<AttackButtonProps> = ({
   onClick,
   isLoading,
   isDisabled,
-  tooltipLabel = "Attack selected target",
+  targetName,
+  statusMessage,
 }) => {
+  // Create enhanced tooltip content
+  const createTooltipLabel = () => {
+    return (
+      <VStack align="start" spacing={0} p={1}>
+        <Text fontWeight="bold" className="gold-text-light">
+          {targetName ? `Attack ${targetName}` : "Attack"}
+        </Text>
+        {statusMessage && (
+          <Text fontSize="xs" className="text-red-300" mt={2}>
+            {statusMessage}
+          </Text>
+        )}
+      </VStack>
+    );
+  };
+
+  const tooltipLabel = createTooltipLabel();
+
   return (
-    <Tooltip label={tooltipLabel} placement="top" hasArrow>
+    <Tooltip 
+      label={tooltipLabel} 
+      placement="top" 
+      hasArrow
+      className="mx-2 !bg-dark-brown border rounded-md border-amber-400/30 !text-white"
+    >
       <Box position="relative" display="inline-block">
         <Box
           as="button"

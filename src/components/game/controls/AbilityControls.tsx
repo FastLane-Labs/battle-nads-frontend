@@ -5,6 +5,7 @@ import { AbilityButton } from './AbilityButton';
 import { AttackButton } from './AttackButton';
 import { domain } from '@/types';
 import { abilityRequiresTarget } from '@/data/abilities';
+import { useTransactionBalance } from '@/hooks/game/useTransactionBalance';
 
 interface AbilityControlsProps {
   characterId: string | null;
@@ -31,6 +32,9 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
     isLoading: isLoadingAbilities,
     error: hookError,
   } = useAbilityCooldowns(characterId);
+
+  // Transaction balance validation
+  const { isTransactionDisabled, insufficientBalanceMessage } = useTransactionBalance();
 
   const toast = useToast();
 
@@ -65,7 +69,7 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
   };
 
   const handleAttack = () => {
-    if (isValidTarget(selectedTargetIndex) && onAttack && !isAttacking) {
+    if (isValidTarget(selectedTargetIndex) && onAttack && !isAttacking && !isTransactionDisabled) {
       // Pass the position index to the attack function
       onAttack(selectedTargetIndex);
     } else if (!isValidTarget(selectedTargetIndex)) {
@@ -93,12 +97,19 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
 
   // Determine attack button state
   const hasValidTarget = isValidTarget(selectedTargetIndex);
-  const isAttackDisabled = !isInCombat || !hasValidTarget || isAttacking || !onAttack;
-  const attackTooltip = !isInCombat 
+  const isAttackDisabled = !isInCombat || !hasValidTarget || isAttacking || !onAttack || isTransactionDisabled;
+  
+  // Get target name for attack button
+  const attackTargetName = hasValidTarget ? getTargetName(selectedTargetIndex) : undefined;
+  
+  // Get status message for attack button
+  const attackStatusMessage = !isInCombat 
     ? "Cannot attack outside of combat"
     : !hasValidTarget 
     ? "Select a valid target to attack"
-    : `Attack ${getTargetName(selectedTargetIndex)}`;
+    : isTransactionDisabled
+    ? insufficientBalanceMessage || "Insufficient balance"
+    : undefined;
 
   return (
     <HStack spacing={4} align="center" justify="center" width="100%">
@@ -108,7 +119,8 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
           onClick={handleAttack}
           isLoading={isAttacking}
           isDisabled={isAttackDisabled}
-          tooltipLabel={attackTooltip}
+          targetName={attackTargetName}
+          statusMessage={attackStatusMessage}
         />
       )}
 
