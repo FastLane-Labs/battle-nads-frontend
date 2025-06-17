@@ -4,6 +4,7 @@ import { useEquipment, useEquipmentDetails } from '@/hooks/game/useEquipment';
 import { EquipmentCard } from './EquipmentCard';
 import Image from 'next/image';
 import type { Weapon, Armor } from '@/types/domain';
+import { useTransactionBalance } from '@/hooks/game/useTransactionBalance';
 // Remove direct imports
 // import WeaponIcon from 'public/assets/buttons/weapon.png';
 // import ArmorIcon from 'public/assets/buttons/armor.png';
@@ -140,6 +141,9 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
     isInCombat
   } = equipmentHookResult;
 
+  // Transaction balance validation
+  const { isTransactionDisabled, minRequiredBalance, sessionKeyBalance } = useTransactionBalance();
+
   const [selectedSlot, setSelectedSlot] = useState<'weapon' | 'armor' | null>(null);
   
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -172,30 +176,38 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
 
   // Render equipment stats tooltip content
   const renderStatsTooltip = (item: Weapon | Armor | null, slot: 'weapon' | 'armor') => {
-    if (!item) return "Nothing equipped";
+    if (!item && !isTransactionDisabled) return "Nothing equipped";
     
-    if (slot === 'weapon') {
-      const weapon = item as Weapon;
-      return (
-        <VStack align="start" spacing={0} p={1} className=''>
-          <Text fontWeight="bold" className='gold-text-light'>{weapon.name}</Text>
-          <Text fontSize="xs">Damage: {weapon.baseDamage} + {weapon.bonusDamage}</Text>
-          <Text fontSize="xs">Accuracy: {weapon.accuracy}</Text>
-          <Text fontSize="xs">Speed: {weapon.speed}</Text>
-        </VStack>
-      );
-    } else {
-      const armor = item as Armor;
-      return (
-        <VStack align="start" spacing={0} p={1}>
-          <Text fontWeight="bold" className='gold-text-light'>{armor.name}</Text>
-          <Text fontSize="xs">Factor: {armor.armorFactor}</Text>
-          <Text fontSize="xs">Quality: {armor.armorQuality}</Text>
-          <Text fontSize="xs">Flexibility: {armor.flexibility}</Text>
-          <Text fontSize="xs">Weight: {armor.weight}</Text>
-        </VStack>
-      );
-    }
+    const content = (
+      <VStack align="start" spacing={0} p={1}>
+        {item && (
+          <>
+            <Text fontWeight="bold" className='gold-text-light'>{item.name}</Text>
+            {slot === 'weapon' ? (
+              <>
+                <Text fontSize="xs">Damage: {(item as Weapon).baseDamage} + {(item as Weapon).bonusDamage}</Text>
+                <Text fontSize="xs">Accuracy: {(item as Weapon).accuracy}</Text>
+                <Text fontSize="xs">Speed: {(item as Weapon).speed}</Text>
+              </>
+            ) : (
+              <>
+                <Text fontSize="xs">Factor: {(item as Armor).armorFactor}</Text>
+                <Text fontSize="xs">Quality: {(item as Armor).armorQuality}</Text>
+                <Text fontSize="xs">Flexibility: {(item as Armor).flexibility}</Text>
+                <Text fontSize="xs">Weight: {(item as Armor).weight}</Text>
+              </>
+            )}
+          </>
+        )}
+        {isTransactionDisabled && (
+          <Text fontSize="xs" className="text-red-300" mt={2}>
+            Insufficient balance: {sessionKeyBalance.toFixed(4)} MON (need {minRequiredBalance} MON)
+          </Text>
+        )}
+      </VStack>
+    );
+    
+    return content;
   };
 
   return (
@@ -211,7 +223,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
             onClick={() => handleSelectSlot('weapon')}
             position="relative"
             className="rounded-sm hover:opacity-90"
-            disabled={isInCombat}
+            disabled={isInCombat || isTransactionDisabled}
           >
             <div 
               style={{
@@ -222,7 +234,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
                 backgroundRepeat: 'no-repeat',
                 backgroundPosition: 'center'
               }}
-              className={`${isInCombat ? 'opacity-50' : 'hover:opacity-90'}`}
+              className={`${(isInCombat || isTransactionDisabled) ? 'opacity-50' : 'hover:opacity-90'}`}
               aria-label="Weapon"
             />
           </Box>
@@ -238,7 +250,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
             onClick={() => handleSelectSlot('armor')}
             position="relative"
             className="rounded-sm hover:opacity-90"
-            disabled={isInCombat}
+            disabled={isInCombat || isTransactionDisabled}
           >
             <div 
               style={{
@@ -249,7 +261,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
                 backgroundRepeat: 'no-repeat',
                 backgroundPosition: 'center'
               }}
-              className={`${isInCombat ? 'opacity-50' : 'hover:opacity-90'}`}
+              className={`${(isInCombat || isTransactionDisabled) ? 'opacity-50' : 'hover:opacity-90'}`}
               aria-label="Armor"
             />
           </Box>
