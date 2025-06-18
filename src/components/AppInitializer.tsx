@@ -7,9 +7,11 @@ import LoadingScreen from './game/screens/LoadingScreen';
 import ErrorScreen from './game/screens/ErrorScreen';
 import SessionKeyPrompt from './game/screens/SessionKeyPrompt';
 import GameContainer from './game/GameContainer';
+import DeathModal from './game/modals/DeathModal';
 import { isValidCharacterId } from '../utils/getCharacterLocalStorageKey';
 import NavBar from './NavBar';
 import { Box } from '@chakra-ui/react';
+import { formatEther } from 'ethers';
 
 const AppInitializer: React.FC = () => {
   const game = useGame();
@@ -74,8 +76,30 @@ const AppInitializer: React.FC = () => {
     return renderWithNav(<LoadingScreen message="Redirecting to character creation..." />, "Redirecting");
   }
 
-  // 5. Session Key Needs Update State (Only checked if a valid character exists AND data is loaded)
+  // 4.5. Character Death State (Check if character is dead)
   const isValidChar = isValidCharacterId(game.characterId);
+  if (game.hasWallet && 
+      isValidChar && 
+      !game.isLoading &&
+      game.character && 
+      game.character.isDead) 
+  {
+    // Calculate balance lost (what the player had before death)
+    const balanceLost = game.character.inventory.balance 
+      ? `${formatEther(game.character.inventory.balance)} MON`
+      : undefined;
+
+    return renderWithNav(
+      <DeathModal
+        isOpen={true}
+        characterName={game.character.name}
+        balanceLost={balanceLost}
+      />,
+      "Death Modal"
+    );
+  }
+
+  // 5. Session Key Needs Update State (Only checked if a valid character exists AND data is loaded)
   if (game.hasWallet && 
       isValidChar && 
       game.needsSessionKeyUpdate && 
