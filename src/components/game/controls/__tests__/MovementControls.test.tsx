@@ -43,7 +43,6 @@ describe('MovementControls Component', () => {
         onMove={mockOnMove} 
         isMoving={false} 
         position={mockPosition} 
-        isInCombat={false} 
       />
     );
     expect(screen.getByRole('button', { name: /move north/i })).toBeInTheDocument();
@@ -60,7 +59,6 @@ describe('MovementControls Component', () => {
         onMove={mockOnMove} 
         isMoving={false} 
         position={mockPosition} 
-        isInCombat={false} 
       />
     );
 
@@ -72,70 +70,53 @@ describe('MovementControls Component', () => {
     // ... add clicks for other directions if needed ...
   });
 
-  it('disables buttons and shows coordinate tooltip when isMoving=true, isInCombat=false', async () => {
+  it('disables buttons when isMoving=true', async () => {
     renderWithProvider(
       <MovementControls 
         onMove={mockOnMove} 
         isMoving={true} 
         position={mockPosition} 
-        isInCombat={false} 
       />
     );
     const northButton = screen.getByRole('button', { name: /move north/i });
     expect(northButton).toBeDisabled();
-
-    // Tooltip check (find by associated button's aria-describedby, then check text)
-    // Note: Chakra Tooltip content might not be directly in DOM until hover.
-    // Testing the label prop passed might be more reliable in unit tests.
-    // For now, we check disability.
   });
 
-  it('disables buttons and shows combat tooltip when isMoving=false, isInCombat=true', async () => {
+  it('enables buttons when isMoving=false', async () => {
     renderWithProvider(
       <MovementControls 
         onMove={mockOnMove} 
         isMoving={false} 
         position={mockPosition} 
-        isInCombat={true} 
-      />
-    );
-    const northButton = screen.getByRole('button', { name: /move north/i });
-    expect(northButton).toBeDisabled();
-    
-    // Hover to potentially show tooltip
-    // fireEvent.mouseEnter(northButton);
-    // const tooltip = await screen.findByRole('tooltip');
-    // expect(tooltip).toHaveTextContent('⚔️ Cannot move while in combat');
-    // ---> Due to complexity of reliably testing tooltips with RTL, we focus on disabled state here.
-    // ---> The `getTooltipLabel` function logic is tested implicitly by its usage.
-  });
-  
-  it('disables buttons and shows combat tooltip when isMoving=true, isInCombat=true', async () => {
-    renderWithProvider(
-      <MovementControls 
-        onMove={mockOnMove} 
-        isMoving={true} 
-        position={mockPosition} 
-        isInCombat={true} 
-      />
-    );
-    const northButton = screen.getByRole('button', { name: /move north/i });
-    expect(northButton).toBeDisabled();
-    // Tooltip check remains complex, rely on disabled state and function logic.
-  });
-
-  it('enables buttons and shows coordinate tooltip when isMoving=false, isInCombat=false', async () => {
-    renderWithProvider(
-      <MovementControls 
-        onMove={mockOnMove} 
-        isMoving={false} 
-        position={mockPosition} 
-        isInCombat={false} 
       />
     );
     const northButton = screen.getByRole('button', { name: /move north/i });
     expect(northButton).toBeEnabled();
-    // Tooltip check remains complex, rely on enabled state and function logic.
+  });
+
+  it('disables buttons when at spawn location (z=0)', async () => {
+    const spawnPosition = { x: 0, y: 0, z: 0 };
+    renderWithProvider(
+      <MovementControls 
+        onMove={mockOnMove} 
+        isMoving={false} 
+        position={spawnPosition} 
+      />
+    );
+    const northButton = screen.getByRole('button', { name: /move north/i });
+    expect(northButton).toBeDisabled();
+  });
+
+  it('enables buttons when not at spawn location', async () => {
+    renderWithProvider(
+      <MovementControls 
+        onMove={mockOnMove} 
+        isMoving={false} 
+        position={mockPosition} 
+      />
+    );
+    const northButton = screen.getByRole('button', { name: /move north/i });
+    expect(northButton).toBeEnabled();
   });
 
 }); 
