@@ -21,6 +21,45 @@
     },
     {
         "type": "function",
+        "name": "ADDRESS_HUB",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "ATLAS",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "GENERAL_TASK_IMPL",
+        "inputs": [],
+        "outputs": [
+            {
+                "name": "",
+                "type": "address",
+                "internalType": "address"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
         "name": "POLICY_ID",
         "inputs": [],
         "outputs": [
@@ -174,6 +213,29 @@
                 "name": "newLuck",
                 "type": "uint256",
                 "internalType": "uint256"
+            }
+        ],
+        "outputs": [],
+        "stateMutability": "nonpayable"
+    },
+    {
+        "type": "function",
+        "name": "areaCleanUp",
+        "inputs": [
+            {
+                "name": "depth",
+                "type": "uint8",
+                "internalType": "uint8"
+            },
+            {
+                "name": "x",
+                "type": "uint8",
+                "internalType": "uint8"
+            },
+            {
+                "name": "y",
+                "type": "uint8",
+                "internalType": "uint8"
             }
         ],
         "outputs": [],
@@ -507,8 +569,8 @@
         "outputs": [
             {
                 "name": "",
-                "type": "address",
-                "internalType": "address"
+                "type": "bytes32",
+                "internalType": "bytes32"
             }
         ],
         "stateMutability": "view"
@@ -550,6 +612,55 @@
             }
         ],
         "stateMutability": "view"
+    },
+    {
+        "type": "function",
+        "name": "createCharacter",
+        "inputs": [
+            {
+                "name": "name",
+                "type": "string",
+                "internalType": "string"
+            },
+            {
+                "name": "strength",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
+            {
+                "name": "vitality",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
+            {
+                "name": "dexterity",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
+            {
+                "name": "quickness",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
+            {
+                "name": "sturdiness",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
+            {
+                "name": "luck",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "characterID",
+                "type": "bytes32",
+                "internalType": "bytes32"
+            }
+        ],
+        "stateMutability": "payable"
     },
     {
         "type": "function",
@@ -6360,6 +6471,25 @@
     },
     {
         "type": "function",
+        "name": "killMap",
+        "inputs": [
+            {
+                "name": "",
+                "type": "bytes32",
+                "internalType": "bytes32"
+            }
+        ],
+        "outputs": [
+            {
+                "name": "",
+                "type": "bytes32",
+                "internalType": "bytes32"
+            }
+        ],
+        "stateMutability": "view"
+    },
+    {
+        "type": "function",
         "name": "logs",
         "inputs": [
             {
@@ -7755,31 +7885,6 @@
         "anonymous": false
     },
     {
-        "type": "event",
-        "name": "TaskNotScheduled",
-        "inputs": [
-            {
-                "name": "maxPayment",
-                "type": "uint256",
-                "indexed": false,
-                "internalType": "uint256"
-            },
-            {
-                "name": "amountEstimated",
-                "type": "uint256",
-                "indexed": false,
-                "internalType": "uint256"
-            },
-            {
-                "name": "targetBlock",
-                "type": "uint256",
-                "indexed": false,
-                "internalType": "uint256"
-            }
-        ],
-        "anonymous": false
-    },
-    {
         "type": "error",
         "name": "AbilityCantHaveTarget",
         "inputs": []
@@ -7895,11 +8000,6 @@
                 "internalType": "bytes32"
             }
         ]
-    },
-    {
-        "type": "error",
-        "name": "CantMoveInCombat",
-        "inputs": []
     },
     {
         "type": "error",
@@ -8127,19 +8227,8 @@
     },
     {
         "type": "error",
-        "name": "InvalidTaskCostEstimate",
-        "inputs": [
-            {
-                "name": "amountEstimated",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "executionCost",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ]
+        "name": "InvalidTaskOwner",
+        "inputs": []
     },
     {
         "type": "error",
@@ -8232,22 +8321,6 @@
     },
     {
         "type": "error",
-        "name": "SessionKeyExpired",
-        "inputs": [
-            {
-                "name": "expiration",
-                "type": "uint256",
-                "internalType": "uint256"
-            },
-            {
-                "name": "currentBlock",
-                "type": "uint256",
-                "internalType": "uint256"
-            }
-        ]
-    },
-    {
-        "type": "error",
         "name": "SessionKeyMonTransferFailed",
         "inputs": [
             {
@@ -8275,12 +8348,34 @@
     },
     {
         "type": "error",
-        "name": "TaskNotRescheduled",
-        "inputs": []
+        "name": "TaskDeadlineInvalid",
+        "inputs": [
+            {
+                "name": "deadline",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ]
     },
     {
         "type": "error",
-        "name": "TaskNotScheduled",
+        "name": "TaskExpired",
+        "inputs": [
+            {
+                "name": "expiration",
+                "type": "uint256",
+                "internalType": "uint256"
+            },
+            {
+                "name": "currentBlock",
+                "type": "uint256",
+                "internalType": "uint256"
+            }
+        ]
+    },
+    {
+        "type": "error",
+        "name": "TaskNotRescheduled",
         "inputs": []
     },
     {
@@ -8295,7 +8390,7 @@
     },
     {
         "type": "error",
-        "name": "UnknownMsgSender",
+        "name": "UnknownMsgSenderType",
         "inputs": []
     },
     {
