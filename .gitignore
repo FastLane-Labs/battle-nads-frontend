@@ -46,4 +46,4 @@ screenshots/
 
 # Test coverage
 coverage/
-.tsconfig.tsbuildinfo
+tsconfig.tsbuildinfo
