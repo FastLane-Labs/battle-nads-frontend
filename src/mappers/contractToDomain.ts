@@ -203,34 +203,23 @@ export function mapCharacter(
   
   const isInCombat = Boolean(rawCharacter.stats.combatantBitMap);
   
-  // Calculate movement options
-  const movementOptions: domain.MovementOptions = {
-    canMoveNorth: !isInCombat,
-    canMoveSouth: !isInCombat,
-    canMoveEast: !isInCombat,
-    canMoveWest: !isInCombat,
-    canMoveUp: !isInCombat,
-    canMoveDown: !isInCombat
+  // Calculate movement options based on position and boundaries, not combat status
+  const positionObj = {
+    x: Number(position.x),
+    y: Number(position.y),
+    depth: Number(position.depth)
   };
   
-  // If not in combat, check specific movement restrictions
-  if (!isInCombat) {
-    const positionObj = {
-      x: Number(position.x),
-      y: Number(position.y),
-      depth: Number(position.depth)
-    };
-    
+  const movementOptions: domain.MovementOptions = {
     // Check board boundaries
-    movementOptions.canMoveNorth = positionObj.y < MAX_COORDINATE;
-    movementOptions.canMoveSouth = positionObj.y > MIN_COORDINATE;
-    movementOptions.canMoveEast = positionObj.x < MAX_COORDINATE;
-    movementOptions.canMoveWest = positionObj.x > MIN_COORDINATE;
-    
+    canMoveNorth: positionObj.y < MAX_COORDINATE,
+    canMoveSouth: positionObj.y > MIN_COORDINATE,
+    canMoveEast: positionObj.x < MAX_COORDINATE,
+    canMoveWest: positionObj.x > MIN_COORDINATE,
     // Check vertical movement (stairs/ladders)
-    movementOptions.canMoveUp = isVerticalMovementAllowed('up', positionObj);
-    movementOptions.canMoveDown = isVerticalMovementAllowed('down', positionObj);
-  }
+    canMoveUp: isVerticalMovementAllowed('up', positionObj),
+    canMoveDown: isVerticalMovementAllowed('down', positionObj)
+  };
   
   return {
     id: rawCharacter.id,

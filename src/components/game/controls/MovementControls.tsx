@@ -14,7 +14,6 @@ interface MovementControlsProps {
   onMove: (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => Promise<void>;
   isMoving: boolean;
   position: { x: number; y: number; z: number };
-  isInCombat: boolean;
   movementOptions?: MovementOptions;
 }
 
@@ -22,7 +21,6 @@ const MovementControls: React.FC<MovementControlsProps> = ({
   onMove, 
   isMoving, 
   position, 
-  isInCombat,
   movementOptions 
 }) => {
 
@@ -32,10 +30,6 @@ const MovementControls: React.FC<MovementControlsProps> = ({
   const getTooltipLabel = (dir: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => {
     if (Number(position.z) === 0) {
       return "🚫 Cannot move while spawning - please wait";
-    }
-    
-    if (isInCombat) {
-      return "⚔️ Cannot move while in combat";
     }
     
     if (isTransactionDisabled) {
@@ -87,7 +81,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({
     // Disable movement when at spawn location (z=0)
     if (Number(position.z) === 0) return true;
     
-    if (isMoving || isInCombat || isTransactionDisabled) return true;
+    if (isMoving || isTransactionDisabled) return true;
     
     if (movementOptions) {
       switch (dir) {
