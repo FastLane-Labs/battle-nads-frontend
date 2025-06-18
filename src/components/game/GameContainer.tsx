@@ -84,9 +84,9 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
       }
       try {
         await moveCharacter(directionEnum);
-        toast({ title: `Moved ${directionString}`, status: "success", duration: 1500 });
+        toast({ title: `Moved ${directionString}`, status: "success", duration: 1500, isClosable: true });
       } catch (err: any) {
-        toast({ title: "Movement Failed", description: err.message, status: "error", duration: 3000 });
+        toast({ title: "Movement Failed", description: err.message, status: "error", duration: 3000, isClosable: true });
       }
     }
   }, [moveCharacter, isMoving, toast, directionMap]);
@@ -100,9 +100,9 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
         const target = gameState?.combatants?.find(combatant => combatant.index === targetIndex);
         const targetName = target?.name || `Position ${targetIndex}`;
         
-        toast({ title: `Attacked ${targetName}`, status: "success", duration: 1500 });
+        toast({ title: `Attacked ${targetName}`, status: "success", duration: 1500, isClosable: true });
       } catch (err: any) {
-        toast({ title: "Attack Failed", description: err.message, status: "error", duration: 3000 });
+        toast({ title: "Attack Failed", description: err.message, status: "error", duration: 3000, isClosable: true });
       }
     }
   }, [attack, isAttacking, toast, gameState?.combatants]);
@@ -112,7 +112,7 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
       try {
         await sendChatMessage(message);
       } catch (err: any) {
-         toast({ title: "Send Failed", description: err.message, status: "error", duration: 3000 });
+         toast({ title: "Send Failed", description: err.message, status: "error", duration: 3000, isClosable: true });
       }
     }
   }, [sendChatMessage, isSendingChat, toast]);

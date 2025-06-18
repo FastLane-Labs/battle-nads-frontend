@@ -82,6 +82,7 @@ export const useEquipment = (characterId: string | null) => {
         description: `${variables.slot} equipped successfully.`,
         status: 'success',
         duration: 3000,
+        isClosable: true,
       });
       // Invalidate queries to refetch game state
       queryClient.invalidateQueries({ queryKey: ['uiSnapshot', owner] });
@@ -92,6 +93,7 @@ export const useEquipment = (characterId: string | null) => {
         description: error.message || 'An unknown error occurred',
         status: 'error',
         duration: 5000,
+        isClosable: true,
       });
     },
   });

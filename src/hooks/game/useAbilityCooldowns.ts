@@ -210,6 +210,7 @@ export const useAbilityCooldowns = (characterId: string | null) => {
         description: 'Your ability has been activated!',
         status: 'success',
         duration: 3000,
+        isClosable: true,
       });
       // Invalidate queries to refetch game state after success
       queryClient.invalidateQueries({ queryKey: ['uiSnapshot', owner] });
@@ -221,6 +222,7 @@ export const useAbilityCooldowns = (characterId: string | null) => {
         description: error.message || 'Failed to use ability',
         status: 'error',
         duration: 5000,
+        isClosable: true,
       });
     }
   });
@@ -236,7 +238,7 @@ export const useAbilityCooldowns = (characterId: string | null) => {
     
     if (!abilityStatus) {
        console.error(`[useAbilityCooldowns] Status not found for ability ${abilityIndex}`);
-       toast({ title: 'Error', description: `Could not find status for ability ${domain.Ability[abilityIndex]}.`, status: 'error' });
+       toast({ title: 'Error', description: `Could not find status for ability ${domain.Ability[abilityIndex]}.`, status: 'error', isClosable: true });
        return;
     }
 
@@ -248,6 +250,7 @@ export const useAbilityCooldowns = (characterId: string | null) => {
         description: `This ability is currently ${getStageDescription(abilityStatus.stage)}. ${abilityStatus.secondsLeft.toFixed(0)}s remaining.`,
         status: 'warning',
         duration: 3000,
+        isClosable: true,
       });
       return;
     }

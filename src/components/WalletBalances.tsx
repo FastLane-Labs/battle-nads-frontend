@@ -54,7 +54,7 @@ const WalletBalances: React.FC = () => {
   // Function to replenish session key balance using contract client
   const handleReplenishBalance = async (useMinimalAmount: boolean = false) => {
     if (!client?.replenishGasBalance) {
-      toast({ title: 'Error', description: 'Replenish function not available', status: 'error' });
+      toast({ title: 'Error', description: 'Replenish function not available', status: 'error', isClosable: true });
       return;
     }
     
@@ -100,10 +100,10 @@ const WalletBalances: React.FC = () => {
       // Call the contract method
       await client.replenishGasBalance(replenishAmountWei); 
       
-      toast({ title: 'Success', description: `Replenish transaction sent for ${replenishAmountEth} MON`, status: 'success' });
+      toast({ title: 'Success', description: `Replenish transaction sent for ${replenishAmountEth} MON`, status: 'success', isClosable: true });
     } catch (error: any) {
       console.error('Error replenishing balance:', error);
-      toast({ title: 'Error', description: `Replenish failed: ${error.message || String(error)}`, status: 'error' });
+      toast({ title: 'Error', description: `Replenish failed: ${error.message || String(error)}`, status: 'error', isClosable: true });
     } finally {
       setIsReplenishing(false);
     }
@@ -112,7 +112,7 @@ const WalletBalances: React.FC = () => {
   // Function to directly fund session key from owner wallet
   const handleDirectFunding = async (amount: string) => {
     if (!injectedWallet?.signer) {
-       toast({ title: 'Error', description: 'Owner wallet signer not available', status: 'error' });
+       toast({ title: 'Error', description: 'Owner wallet signer not available', status: 'error', isClosable: true });
        return;
     }
     
@@ -144,10 +144,10 @@ const WalletBalances: React.FC = () => {
       
       await tx.wait();
       
-      toast({ title: 'Success', description: `Sent ${amount} MON to session key`, status: 'success' });
+      toast({ title: 'Success', description: `Sent ${amount} MON to session key`, status: 'success', isClosable: true });
     } catch (error: any) {
       console.error('Error in direct funding:', error);
-      toast({ title: 'Error', description: `Direct funding failed: ${error.message || String(error)}`, status: 'error' });
+      toast({ title: 'Error', description: `Direct funding failed: ${error.message || String(error)}`, status: 'error', isClosable: true });
     } finally {
       setIsDirectFunding(false);
     }
