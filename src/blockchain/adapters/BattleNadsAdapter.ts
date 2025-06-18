@@ -362,31 +362,31 @@ export class BattleNadsAdapter {
  */
 function getClassSpecificAbilityIndex(ability: domain.Ability): number {
   switch (ability) {
-    // Bard abilities (class 0)
+    // Bard abilities (class 4)
     case domain.Ability.SingSong:
       return 1;
     case domain.Ability.DoDance:
       return 2;
     
-    // Warrior abilities (class 4)
+    // Warrior abilities (class 5)
     case domain.Ability.ShieldBash:
       return 1;
     case domain.Ability.ShieldWall:
       return 2;
     
-    // Rogue abilities (class 5)
+    // Rogue abilities (class 6)
     case domain.Ability.EvasiveManeuvers:
       return 1;
     case domain.Ability.ApplyPoison:
       return 2;
     
-    // Monk abilities (class 6)
+    // Monk abilities (class 7)
     case domain.Ability.Pray:
       return 1;
     case domain.Ability.Smite:
       return 2;
     
-    // Sorcerer abilities (class 7)
+    // Sorcerer abilities (class 8)
     case domain.Ability.ChargeUp:
       return 1;
     case domain.Ability.Fireball:
@@ -426,6 +426,7 @@ function getAbilitiesForCharacterClass(characterClass: domain.CharacterClass): d
     case domain.CharacterClass.Basic:
     case domain.CharacterClass.Elite:
     case domain.CharacterClass.Boss:
+    case domain.CharacterClass.Null:
     default:
       return []; // Monsters or unhandled classes have no usable abilities
   }

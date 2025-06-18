@@ -4,7 +4,9 @@
  */
 
 // Contract addresses
-export const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || '0x6a5b12B54921d023d3537caa210dCfFEB2f4A253'; // Policy 30
+export const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || '0xfd6354B61Ac348226dB816192D00Ab7fCF984169'; // Policy 33
+
+//'0x6a5b12B54921d023d3537caa210dCfFEB2f4A253'; // Policy 30
 
 
 // to many dead bodies 
