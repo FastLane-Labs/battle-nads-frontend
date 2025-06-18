@@ -81,12 +81,19 @@ export const useBattleNads = (owner: string | null) => {
         // Validate feed structure
         const blockNumberBigInt = feed.blockNumber ? BigInt(feed.blockNumber) : undefined;
         if (blockNumberBigInt === undefined) {
+            console.warn(`🪲 [DEBUG] Data struct validation: Skipping feed ${feedIndex} - missing blockNumber:`, feed);
             return; // Skip this feed
         }
 
         (feed.logs || []).forEach((log, logIndexInFeed) => {
             // Validate log structure (check index and logType from log, blockNumber from feed)
             if (log.index === undefined || feed.blockNumber === undefined || log.logType === undefined) {
+                console.warn(`🪲 [DEBUG] Data struct validation: Skipping log in feed ${feedIndex}, logIndex ${logIndexInFeed} - missing required fields:`, {
+                    logIndex: log.index,
+                    blockNumber: feed.blockNumber,
+                    logType: log.logType,
+                    fullLog: log
+                });
                 return; // Skip this log
             }
             // Check for BigInt conversion issues (logIndex is sometimes BigInt, sometimes number?)
@@ -94,6 +101,15 @@ export const useBattleNads = (owner: string | null) => {
 
             const attackerInfo = characterLookup.get(Number(log.mainPlayerIndex));
             const defenderInfo = characterLookup.get(Number(log.otherPlayerIndex));
+            
+            // Character lookup failure logging
+            if (log.mainPlayerIndex !== undefined && log.mainPlayerIndex !== 0 && !attackerInfo) {
+                console.warn(`🪲 [DEBUG] Character lookup failure: mainPlayerIndex ${log.mainPlayerIndex} not found in characterLookup. Available indices:`, Array.from(characterLookup.keys()), 'Log:', log);
+            }
+            if (log.otherPlayerIndex !== undefined && log.otherPlayerIndex !== 0 && !defenderInfo) {
+                console.warn(`🪲 [DEBUG] Character lookup failure: otherPlayerIndex ${log.otherPlayerIndex} not found in characterLookup. Available indices:`, Array.from(characterLookup.keys()), 'Log:', log);
+            }
+            
             const estimatedTimestamp = estimateBlockTimestamp(
                 BigInt(rawData.endBlock || 0),
                 rawData.fetchTimestamp,
@@ -159,6 +175,8 @@ export const useBattleNads = (owner: string | null) => {
           // Only add to runtime state if it wasn't loaded from history
           if (!historicalLogKeys.has(key)) { 
             chatMap.set(key, log);
+          } else {
+            console.log(`🪲 [DEBUG] Deduplication: Chat log ${key} already exists in historical blocks, skipping runtime addition. Message: "${log.message}" from ${log.sender.name}`);
           }
         });
         return Array.from(chatMap.values());
@@ -168,7 +186,18 @@ export const useBattleNads = (owner: string | null) => {
     // --- Update Runtime EVENT Logs --- 
     // Filter invalid events before setting state
     const validNewlyConfirmedEventLogs = newlyConfirmedEventLogs.filter(
-        event => event.blocknumber !== undefined && event.logIndex !== undefined && event.type !== undefined
+        event => {
+            const isValid = event.blocknumber !== undefined && event.logIndex !== undefined && event.type !== undefined;
+            if (!isValid) {
+                console.warn(`🪲 [DEBUG] Data struct validation: Filtering out invalid event log:`, {
+                    blocknumber: event.blocknumber,
+                    logIndex: event.logIndex,
+                    type: event.type,
+                    fullEvent: event
+                });
+            }
+            return isValid;
+        }
     );
 
     if (validNewlyConfirmedEventLogs.length > 0) {
@@ -186,6 +215,11 @@ export const useBattleNads = (owner: string | null) => {
               const key = `conf-${log.blocknumber}-${log.logIndex}`;
               if (!historicalEventLogKeys.has(key)) {
                 eventMap.set(key, log);
+              } else {
+                const eventTypeStr = domain.LogType[log.type] || `Type ${log.type}`;
+                const attackerStr = log.attacker ? log.attacker.name : 'Unknown';
+                const defenderStr = log.defender ? log.defender.name : 'Unknown';
+                console.log(`🪲 [DEBUG] Deduplication: Event log ${key} already exists in historical blocks, skipping runtime addition. Event: ${eventTypeStr}, Attacker: ${attackerStr}, Defender: ${defenderStr}`);
               }
           });
           const newState = Array.from(eventMap.values());
@@ -215,7 +249,7 @@ export const useBattleNads = (owner: string | null) => {
         ).catch((err: Error) => console.error("[useBattleNads] Failed to store new feeds in background:", err.message));
     }
 
-  }, [rawData, owner, optimisticChatMessages, characterLookup]);
+  }, [rawData, owner, optimisticChatMessages, characterLookup, historicalBlocks]);
 
 
   // --- Memoize the final WorldSnapshot --- 

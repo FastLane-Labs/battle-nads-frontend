@@ -40,6 +40,7 @@ const EventFeed: React.FC<EventFeedProps> = ({
     return eventLogs.filter(event => {
       // Skip events without proper structure
       if (!event || typeof event.type === 'undefined') {
+        console.warn(`🪲 [DEBUG] EventFeed filtering: Event without proper structure:`, event);
         return false;
       }
       
