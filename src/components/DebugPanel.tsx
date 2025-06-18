@@ -154,6 +154,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
         title: "Copied to clipboard",
         status: "success",
         duration: 2000,
+        isClosable: true,
       });
     }
   };
@@ -383,7 +384,6 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
         title: 'Cache Clear Failed',
         description: `Error: ${errorMsg}`,
         status: 'error',
-        duration: 5000,
         isClosable: true,
       });
     }

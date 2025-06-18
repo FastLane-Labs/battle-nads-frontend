@@ -146,7 +146,8 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
         toast({
           title: 'Buy-in Error',
           description: 'Could not estimate character creation cost.',
-          status: 'error'
+          status: 'error',
+          isClosable: true
         });
         return BigInt(0); // Return 0 on error
       }
@@ -171,7 +172,8 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
         toast({
           title: 'Block Fetch Error',
           description: 'Could not retrieve current block number.',
-          status: 'error'
+          status: 'error',
+          isClosable: true
         });
         return BigInt(0);
       }
@@ -294,33 +296,33 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
   const getCharacterIdByTransactionHash = async (txHash: string): Promise<string | null> => {
      if (!client) {
         console.error("Client not ready for transaction lookup");
-        toast({ title: 'Error', description: 'Client not available for lookup', status: 'error' });
+        toast({ title: 'Error', description: 'Client not available for lookup', status: 'error', isClosable: true });
         return null;
      }
      console.warn("getCharacterIdByTransactionHash not implemented on client yet");
-     toast({ title: 'Info', description: 'Transaction lookup not implemented yet.', status: 'info' });
+     toast({ title: 'Info', description: 'Transaction lookup not implemented yet.', status: 'info', isClosable: true });
      return null; 
   };
   
   const handleTransactionLookup = async () => {
     if (!transactionHash) {
-      toast({ title: 'Error', description: 'Please enter a transaction hash', status: 'error' });
+      toast({ title: 'Error', description: 'Please enter a transaction hash', status: 'error', isClosable: true });
       return;
     }
     try {
       const foundCharacterId = await getCharacterIdByTransactionHash(transactionHash);
       if (foundCharacterId && isValidCharacterId(foundCharacterId)) {
-        toast({ title: 'Success', description: `Found character ID: ${foundCharacterId}`, status: 'success' });
+        toast({ title: 'Success', description: `Found character ID: ${foundCharacterId}`, status: 'success', isClosable: true });
         localStorage.setItem('battleNadsCharacterId', foundCharacterId);
          router.push('/game');
       } else if (foundCharacterId === null) {
          // Function not implemented yet or lookup failed cleanly
          // Toast already shown in getCharacterIdByTransactionHash
       } else {
-        toast({ title: 'Error', description: 'Could not find valid character ID for this transaction', status: 'error' });
+        toast({ title: 'Error', description: 'Could not find valid character ID for this transaction', status: 'error', isClosable: true });
       }
     } catch (err: any) {
-      toast({ title: 'Lookup Error', description: err.message || 'Lookup failed', status: 'error' });
+      toast({ title: 'Lookup Error', description: err.message || 'Lookup failed', status: 'error', isClosable: true });
     } finally {
        onClose();
     }
@@ -328,19 +330,19 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
   
   const handleCreateCharacter = () => {
     if (!name) {
-      toast({ title: 'Error', description: 'Please enter a name', status: 'error' });
+      toast({ title: 'Error', description: 'Please enter a name', status: 'error', isClosable: true });
       return;
     }
     if (unspentAttributePoints !== 0) {
-      toast({ title: 'Error', description: `Please allocate all ${TOTAL_POINTS} attribute points. Remaining: ${unspentAttributePoints}`, status: 'error' });
+      toast({ title: 'Error', description: `Please allocate all ${TOTAL_POINTS} attribute points. Remaining: ${unspentAttributePoints}`, status: 'error', isClosable: true });
       return;
     }
     if (!embeddedWallet?.address || !ethers.isAddress(embeddedWallet.address)) {
-      toast({ title: 'Error', description: 'Valid Session key wallet not available.', status: 'error' });
+      toast({ title: 'Error', description: 'Valid Session key wallet not available.', status: 'error', isClosable: true });
       return;
     }
     if (!injectedWallet?.address) {
-      toast({ title: 'Error', description: 'Owner wallet not connected.', status: 'error' });
+      toast({ title: 'Error', description: 'Owner wallet not connected.', status: 'error', isClosable: true });
       return;
     }
 
@@ -349,7 +351,8 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
         toast({ 
             title: 'Error', 
             description: 'Waiting for creation cost estimate or estimate is invalid.', 
-            status: 'warning' 
+            status: 'warning',
+            isClosable: true
         });
         return;
     }
@@ -360,7 +363,8 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
         toast({ 
             title: 'Error', 
             description: 'Waiting for current block number.', 
-            status: 'warning' 
+            status: 'warning',
+            isClosable: true
         });
         return;
     }
