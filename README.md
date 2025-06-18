@@ -1,4 +1,4 @@
-# BattleNads Frontend 
+# BattleNads Frontend
 
 This is a Next.js frontend for the BattleNads game, a web3 RPG built on Monad.
 
