@@ -152,7 +152,6 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
               onMove={onMove} 
               isMoving={isMoving} 
               position={position}
-              isInCombat={isInCombat}
               movementOptions={character.movementOptions}
             />
           </Box>
