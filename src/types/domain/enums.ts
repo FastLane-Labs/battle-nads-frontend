@@ -6,16 +6,17 @@
 // Match the contract's CharacterClass enum
 export enum CharacterClass {
   // Null value
-  Bard = 0,
+  Null = 0,
   // Monsters
   Basic = 1,
   Elite = 2,
   Boss = 3,
   // Player Classes
-  Warrior = 4,
-  Rogue = 5,
-  Monk = 6,
-  Sorcerer = 7
+  Bard = 4,
+  Warrior = 5,
+  Rogue = 6,
+  Monk = 7,
+  Sorcerer = 8
 }
 
 // Match the contract's StatusEffect enum

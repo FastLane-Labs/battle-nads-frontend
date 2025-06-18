@@ -60,12 +60,12 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
         duration: 3000,
         isClosable: true,
       });
-      console.warn(`Ability ${abilityIndex} requires a target, but none selected or target invalid.`);
       return;
     }
     
     // Use the position index directly for abilities that require targets
-    useAbility(abilityIndex, requiresTarget ? selectedTargetIndex : 0);
+    const finalTargetIndex = requiresTarget ? selectedTargetIndex : 0;
+    useAbility(abilityIndex, finalTargetIndex);
   };
 
   const handleAttack = () => {

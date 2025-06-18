@@ -271,6 +271,8 @@ export const useAbilityCooldowns = (characterId: string | null) => {
  */
 function getAbilitiesForClass(characterClass: domain.CharacterClass): domain.Ability[] {
   switch (characterClass) {
+    case domain.CharacterClass.Bard:
+      return [domain.Ability.SingSong, domain.Ability.DoDance];
     case domain.CharacterClass.Warrior:
       return [domain.Ability.ShieldBash, domain.Ability.ShieldWall];
     case domain.CharacterClass.Rogue:
@@ -279,12 +281,10 @@ function getAbilitiesForClass(characterClass: domain.CharacterClass): domain.Abi
       return [domain.Ability.Pray, domain.Ability.Smite];
     case domain.CharacterClass.Sorcerer:
       return [domain.Ability.Fireball, domain.Ability.ChargeUp];
-    case domain.CharacterClass.Bard:
-      return [domain.Ability.SingSong, domain.Ability.DoDance];
-    // Add other classes if they exist
-    // case domain.CharacterClass.Basic:
-    // case domain.CharacterClass.Elite:
-    // case domain.CharacterClass.Boss:
+    case domain.CharacterClass.Basic:
+    case domain.CharacterClass.Elite:
+    case domain.CharacterClass.Boss:
+    case domain.CharacterClass.Null:
     default:
       return []; // Monsters or unhandled classes have no usable abilities
   }
