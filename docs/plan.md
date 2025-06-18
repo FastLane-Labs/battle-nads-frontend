@@ -124,3 +124,11 @@ This updated roadmap reflects the team's discussion about prioritizing the core 
   - Input fields are also disabled and visually dimmed when balance is insufficient
 - **Configuration**: Added `MIN_TRANSACTION_BALANCE = 0.05` to `src/config/wallet.ts`
 - **Status**: ✅ Implemented for initial components, ready for rollout to other transaction buttons
+
+#### Character Death Handling (December 2024)
+- **Feature**: Added "YOU DIED" modal for character death scenarios
+- **Implementation**: 
+  - Created `DeathModal` component with red text on black background and darkened overlay
+  - Added death detection in `AppInitializer` to show modal when player character's `isDead` flag is true
+  - Provides "Create New Character" button that clears localStorage and redirects to character creation
+  - Modal is non-dismissible (cannot be closed with ESC or overlay click) to ensure proper flow
