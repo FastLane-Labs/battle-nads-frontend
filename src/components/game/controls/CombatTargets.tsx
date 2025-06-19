@@ -42,8 +42,21 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
   console.log('  Total noncombatants:', noncombatants.length);
   console.log('  Current player ID:', currentPlayerId);
   
+  // First, deduplicate noncombatants by ID to prevent duplicate entries
+  const uniqueNoncombatants = noncombatants.reduce((acc, current) => {
+    const existing = acc.find(item => item.id === current.id);
+    if (!existing) {
+      acc.push(current);
+    }
+    return acc;
+  }, [] as domain.CharacterLite[]);
+  
+  console.log('  Deduplication result:');
+  console.log('    Original noncombatants:', noncombatants.length);
+  console.log('    Unique noncombatants:', uniqueNoncombatants.length);
+  
   // Filter out dead characters, current player, and anyone who is already a combatant
-  const validNoncombatants = noncombatants.filter(noncombatant => {
+  const validNoncombatants = uniqueNoncombatants.filter(noncombatant => {
     const isAlive = !noncombatant.isDead;
     const isNotCurrentPlayer = noncombatant.id !== currentPlayerId;
     const isNotCombatant = !combatantIds.has(noncombatant.id);
