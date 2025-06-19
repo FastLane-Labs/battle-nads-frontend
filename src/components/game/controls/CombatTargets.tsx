@@ -34,14 +34,6 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
   // Create a set of combatant IDs for efficient lookup
   const combatantIds = new Set(validCombatants.map(combatant => combatant.id));
   
-  // Debug logging
-  console.log('🔍 CombatTargets Debug:');
-  console.log('  Total combatants:', combatants.length);
-  console.log('  Valid combatants:', validCombatants.length);
-  console.log('  Combatant IDs:', Array.from(combatantIds));
-  console.log('  Total noncombatants:', noncombatants.length);
-  console.log('  Current player ID:', currentPlayerId);
-  
   // First, deduplicate noncombatants by ID to prevent duplicate entries
   const uniqueNoncombatants = noncombatants.reduce((acc, current) => {
     const existing = acc.find(item => item.id === current.id);
@@ -51,88 +43,20 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
     return acc;
   }, [] as domain.CharacterLite[]);
   
-  console.log('  Deduplication result:');
-  console.log('    Original noncombatants:', noncombatants.length);
-  console.log('    Unique noncombatants:', uniqueNoncombatants.length);
-  
   // Filter out dead characters, current player, and anyone who is already a combatant
-  const validNoncombatants = uniqueNoncombatants.filter(noncombatant => {
-    const isAlive = !noncombatant.isDead;
-    const isNotCurrentPlayer = noncombatant.id !== currentPlayerId;
-    const isNotCombatant = !combatantIds.has(noncombatant.id);
-    
-    console.log(`  Noncombatant ${noncombatant.id} (${noncombatant.name || 'unnamed'}):`, {
-      isAlive,
-      isNotCurrentPlayer,
-      isNotCombatant,
-      class: noncombatant.class,
-      included: isAlive && isNotCurrentPlayer && isNotCombatant
-    });
-    
-    return isAlive && isNotCurrentPlayer && isNotCombatant;
-  });
+  const validNoncombatants = uniqueNoncombatants.filter(noncombatant => 
+    !noncombatant.isDead && 
+    noncombatant.id !== currentPlayerId &&
+    !combatantIds.has(noncombatant.id)
+  );
   
   // Split non-combatants into players and enemies based on character class
   const playerNoncombatants = validNoncombatants.filter(character => {
-    const isPlayer = isPlayerClass(character.class);
-    console.log(`  Character ${character.id} class ${character.class} isPlayer:`, isPlayer);
-    return isPlayer;
+    return isPlayerClass(character.class);
   });
   const enemyNoncombatants = validNoncombatants.filter(character => {
-    const isEnemy = isEnemyClass(character.class);
-    console.log(`  Character ${character.id} class ${character.class} isEnemy:`, isEnemy);
-    return isEnemy;
+    return isEnemyClass(character.class);
   });
-  
-  console.log('  Final counts:');
-  console.log('    validNoncombatants:', validNoncombatants.length);
-  console.log('    playerNoncombatants:', playerNoncombatants.length);
-  console.log('    enemyNoncombatants:', enemyNoncombatants.length);
-  
-  // Check for potential duplicates between sections
-  const allCombatantIds = validCombatants.map(c => c.id);
-  const allPlayerIds = playerNoncombatants.map(c => c.id);
-  const allEnemyIds = enemyNoncombatants.map(c => c.id);
-  
-  console.log('  Checking for cross-section duplicates:');
-  console.log('    Combatant IDs:', allCombatantIds);
-  console.log('    Player IDs:', allPlayerIds);
-  console.log('    Enemy IDs:', allEnemyIds);
-  
-  // Find overlapping IDs
-  const combatantPlayerOverlap = allCombatantIds.filter(id => allPlayerIds.includes(id));
-  const combatantEnemyOverlap = allCombatantIds.filter(id => allEnemyIds.includes(id));
-  
-  if (combatantPlayerOverlap.length > 0) {
-    console.warn('  ⚠️ IDs appearing in BOTH combatants and players:', combatantPlayerOverlap);
-  }
-  if (combatantEnemyOverlap.length > 0) {
-    console.warn('  ⚠️ IDs appearing in BOTH combatants and enemies:', combatantEnemyOverlap);
-  }
-  
-  // Check for duplicates within the same arrays
-  const playerIdCounts: Record<string, number> = {};
-  playerNoncombatants.forEach(player => {
-    playerIdCounts[player.id] = (playerIdCounts[player.id] || 0) + 1;
-  });
-  
-  const enemyIdCounts: Record<string, number> = {};
-  enemyNoncombatants.forEach(enemy => {
-    enemyIdCounts[enemy.id] = (enemyIdCounts[enemy.id] || 0) + 1;
-  });
-  
-  const duplicatePlayerIds = Object.entries(playerIdCounts).filter(([, count]) => count > 1);
-  const duplicateEnemyIds = Object.entries(enemyIdCounts).filter(([, count]) => count > 1);
-  
-  if (duplicatePlayerIds.length > 0) {
-    console.error('  🚨 DUPLICATE IDs within players:', duplicatePlayerIds);
-    console.log('  🔍 All player characters:', playerNoncombatants.map(p => ({ id: p.id, name: p.name, index: p.index })));
-  }
-  
-  if (duplicateEnemyIds.length > 0) {
-    console.error('  🚨 DUPLICATE IDs within enemies:', duplicateEnemyIds);
-    console.log('  🔍 All enemy characters:', enemyNoncombatants.map(e => ({ id: e.id, name: e.name, index: e.index })));
-  }
   
   // Get the character class name
   const getClassDisplayName = (classValue: domain.CharacterClass): string => {
@@ -270,16 +194,9 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
           {playerNoncombatants.length > 0 && (
             <Box p={2} borderRadius="md" mb={2} overflowY="auto" className='bg-dark-brown/50'>
               <Text className='text-gray-300 text-sm font-bold mb-2 uppercase tracking-wide'>Other Players</Text>
-              {playerNoncombatants.map((player, arrayIndex) => {
-                console.log(`🎮 Rendering player ${arrayIndex}:`, {
-                  id: player.id,
-                  name: player.name,
-                  index: player.index,
-                  arrayIndex,
-                  class: player.class
-                });
-                return renderCharacterButton(player, arrayIndex, 'player');
-              })}
+              {playerNoncombatants.map((player, arrayIndex) => 
+                renderCharacterButton(player, arrayIndex, 'player')
+              )}
             </Box>
           )}
           
