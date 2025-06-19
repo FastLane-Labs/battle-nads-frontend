@@ -17,7 +17,10 @@ export const useBattleNads = (owner: string | null) => {
     error: snapshotError, 
   } = useUiSnapshot(owner);
 
-  const { historicalBlocks, isHistoryLoading: isCacheHistoryLoading } = useCachedDataFeed(owner);
+  // Character ID extraction for cache management
+  const characterId = useMemo(() => rawData?.character?.id || null, [rawData]);
+  
+  const { historicalBlocks, isHistoryLoading: isCacheHistoryLoading } = useCachedDataFeed(owner, characterId);
 
   const [optimisticChatMessages, setOptimisticChatMessages] = useState<domain.ChatMessage[]>([]);
   const [runtimeConfirmedLogs, setRuntimeConfirmedLogs] = useState<domain.ChatMessage[]>([]);
@@ -204,10 +207,11 @@ export const useBattleNads = (owner: string | null) => {
                 nonCombatantsContextForStorage.push(playerCharLite);
             }
      }
-    // Pass raw feeds and context to storeFeedData (CORRECT 6 arguments)
-    if (rawData.dataFeeds.length > 0 && owner) { 
+    // Pass raw feeds and context to storeFeedData (CORRECT 7 arguments with characterId)
+    if (rawData.dataFeeds.length > 0 && owner && characterId) { 
         storeFeedData(
-            owner, 
+            owner,
+            characterId, // Include characterId for character-specific storage
             rawData.dataFeeds, // Pass raw feeds
             combatantsContextForStorage, 
             nonCombatantsContextForStorage,
