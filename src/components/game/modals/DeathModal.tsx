@@ -12,6 +12,8 @@ import {
   Box
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
+import { useQueryClient } from '@tanstack/react-query';
+import { useWallet } from '@/providers/WalletProvider';
 
 interface DeathModalProps {
   isOpen: boolean;
@@ -27,21 +29,37 @@ const DeathModal: React.FC<DeathModalProps> = ({
   balanceLost 
 }) => {
   const router = useRouter();
+  const queryClient = useQueryClient();
+  const { injectedWallet } = useWallet();
 
   const handleCreateNewCharacter = () => {
     // Clear any character data from localStorage before redirecting
     if (typeof window !== 'undefined') {
       // Clear character ID from localStorage
       const keys = Object.keys(localStorage);
-      keys.forEach(key => {
-        if (key.includes('battleNadsCharacterId')) {
-          localStorage.removeItem(key);
-        }
+      const keysToRemove = keys.filter(key => key.includes('battleNadsCharacterId'));
+      
+      keysToRemove.forEach(key => {
+        localStorage.removeItem(key);
       });
     }
     
-    // Redirect to character creation
-    router.push('/create');
+    // Invalidate all game-related queries to force a refresh
+    const owner = injectedWallet?.address;
+    if (owner) {
+      // Invalidate the main game state query
+      queryClient.invalidateQueries({ queryKey: ['uiSnapshot', owner] });
+      // Invalidate session key queries
+      queryClient.invalidateQueries({ queryKey: ['sessionKey'] });
+      // Invalidate any other character-related queries
+      queryClient.invalidateQueries({ queryKey: ['battleNads'] });
+    }
+    
+    // Add a small delay to allow queries to refresh before redirecting
+    setTimeout(() => {
+      // Redirect to character creation
+      router.push('/create');
+    }, 100);
   };
 
   return (
