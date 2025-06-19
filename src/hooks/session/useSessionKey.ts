@@ -16,6 +16,13 @@ export const useSessionKey = (characterId: string | null) => {
   const { embeddedWallet, injectedWallet } = useWallet();
   const ownerAddress = injectedWallet?.address ?? null; // Ensure ownerAddress is string | null
   const queryClient = useQueryClient();
+
+  console.log('[useSessionKey] Hook setup:', {
+    characterId,
+    ownerAddress,
+    embeddedWalletAddress: embeddedWallet?.address,
+    injectedWalletAddress: injectedWallet?.address
+  });
   
   // Get snapshot data from useBattleNads
   const { 
@@ -46,6 +53,18 @@ export const useSessionKey = (characterId: string | null) => {
       rawSessionKeyData !== undefined && 
       rawEndBlock !== undefined;
 
+    console.log('[useSessionKey] Validation inputs:', {
+      characterId,
+      ownerAddress,
+      embeddedAddr,
+      sessionKey,
+      expiration,
+      currentBlock,
+      isInputAvailable,
+      isSnapshotLoading,
+      rawSessionKeyData
+    });
+
     // --- Primary Logic: Only calculate final state AFTER loading is complete --- 
     if (!isSnapshotLoading) {
       // Snapshot has finished loading (or wasn't loading)
@@ -62,12 +81,25 @@ export const useSessionKey = (characterId: string | null) => {
 
           if (isReadyForValidationMachine) {
              // All checks passed, safe to assert non-null
+             console.log('[useSessionKey] Running validation machine with:', {
+               sessionKey,
+               embeddedAddr,
+               expiration,
+               currentBlock
+             });
+             
              newSessionKeyState = sessionKeyMachine.validate(
                  sessionKey!, 
                  embeddedAddr!, 
                  expiration, 
                  currentBlock
              );
+             
+             console.log('[useSessionKey] Validation result:', {
+               newSessionKeyState,
+               sessionKeyMatches: sessionKey?.toLowerCase() === embeddedAddr?.toLowerCase(),
+               isExpired: expiration < currentBlock
+             });
           } else {
              // Data is available post-load, but invalid for validation (e.g., zero key)
              console.warn("[useSessionKey Effect] Validation skipped post-load: Invalid data:", {

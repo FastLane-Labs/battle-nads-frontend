@@ -17,6 +17,13 @@ export const useUiSnapshot = (owner: string | null) => {
   const { embeddedWallet } = useWallet();
   const queryClient = useQueryClient();
 
+  console.log('[useUiSnapshot] Hook setup:', {
+    owner,
+    embeddedWalletAddress: embeddedWallet?.address,
+    queryKey: ['uiSnapshot', owner, embeddedWallet?.address],
+    enabled: !!owner && !!client
+  });
+
   return useQuery<contract.PollFrontendDataReturn, Error>({
     queryKey: ['uiSnapshot', owner, embeddedWallet?.address],
     enabled: !!owner && !!client,
@@ -68,6 +75,15 @@ export const useUiSnapshot = (owner: string | null) => {
         const errorMessage = mappingError instanceof Error ? mappingError.message : String(mappingError);
         throw new Error(`Failed to map snapshot array: ${errorMessage}`);
       }
+
+      // Debug log the session key data
+      console.log('[useUiSnapshot] Session key data fetched:', {
+        owner,
+        embeddedWalletAddress: embeddedWallet?.address,
+        sessionKeyData: mappedData.sessionKeyData,
+        characterId: mappedData.character?.id,
+        endBlock: mappedData.endBlock
+      });
 
       // Asynchronously store the newly fetched feeds
       const liveFeeds = mappedData.dataFeeds;
