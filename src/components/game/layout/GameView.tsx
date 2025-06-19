@@ -111,6 +111,7 @@ const GameView: React.FC<GameViewProps> = ({
           character={character}
           position={position}
           combatants={combatants}
+          noncombatants={noncombatants}
           selectedTargetIndex={selectedTargetIndex}
           setSelectedTargetIndex={handleSelectTarget}
           onMove={onMove}

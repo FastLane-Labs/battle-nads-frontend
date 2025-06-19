@@ -10,6 +10,7 @@ interface CharacterActionsTabsProps {
   character: domain.Character;
   position: { x: number; y: number; z: number };
   combatants: domain.CharacterLite[];
+  noncombatants: domain.CharacterLite[];
   selectedTargetIndex: number | null;
   setSelectedTargetIndex: (index: number | null) => void;
   onMove: (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => Promise<void>;
@@ -25,6 +26,7 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
   character,
   position,
   combatants,
+  noncombatants,
   selectedTargetIndex,
   setSelectedTargetIndex,
   onMove,
@@ -135,6 +137,7 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
                 onAttack={onAttack}
                 isAttacking={isAttacking}
                 combatants={combatants.filter(combatant => !combatant.isDead)}
+                noncombatants={noncombatants.filter(noncombatant => !noncombatant.isDead)}
               />
             ) : (
               <AbilityControls 
@@ -144,6 +147,7 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
                 onAttack={onAttack}
                 isAttacking={isAttacking}
                 combatants={combatants.filter(combatant => !combatant.isDead)}
+                noncombatants={noncombatants.filter(noncombatant => !noncombatant.isDead)}
               />
             )}
           </Box>
