@@ -98,18 +98,18 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
   }
   
   // Check for duplicates within the same arrays
-  const playerIdCounts = {};
+  const playerIdCounts: Record<string, number> = {};
   playerNoncombatants.forEach(player => {
     playerIdCounts[player.id] = (playerIdCounts[player.id] || 0) + 1;
   });
   
-  const enemyIdCounts = {};
+  const enemyIdCounts: Record<string, number> = {};
   enemyNoncombatants.forEach(enemy => {
     enemyIdCounts[enemy.id] = (enemyIdCounts[enemy.id] || 0) + 1;
   });
   
-  const duplicatePlayerIds = Object.entries(playerIdCounts).filter(([id, count]) => count > 1);
-  const duplicateEnemyIds = Object.entries(enemyIdCounts).filter(([id, count]) => count > 1);
+  const duplicatePlayerIds = Object.entries(playerIdCounts).filter(([, count]) => count > 1);
+  const duplicateEnemyIds = Object.entries(enemyIdCounts).filter(([, count]) => count > 1);
   
   if (duplicatePlayerIds.length > 0) {
     console.error('  🚨 DUPLICATE IDs within players:', duplicatePlayerIds);
