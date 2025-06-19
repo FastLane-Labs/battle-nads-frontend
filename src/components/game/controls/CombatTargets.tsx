@@ -76,6 +76,27 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
   console.log('    playerNoncombatants:', playerNoncombatants.length);
   console.log('    enemyNoncombatants:', enemyNoncombatants.length);
   
+  // Check for potential duplicates between sections
+  const allCombatantIds = validCombatants.map(c => c.id);
+  const allPlayerIds = playerNoncombatants.map(c => c.id);
+  const allEnemyIds = enemyNoncombatants.map(c => c.id);
+  
+  console.log('  Checking for cross-section duplicates:');
+  console.log('    Combatant IDs:', allCombatantIds);
+  console.log('    Player IDs:', allPlayerIds);
+  console.log('    Enemy IDs:', allEnemyIds);
+  
+  // Find overlapping IDs
+  const combatantPlayerOverlap = allCombatantIds.filter(id => allPlayerIds.includes(id));
+  const combatantEnemyOverlap = allCombatantIds.filter(id => allEnemyIds.includes(id));
+  
+  if (combatantPlayerOverlap.length > 0) {
+    console.warn('  ⚠️ IDs appearing in BOTH combatants and players:', combatantPlayerOverlap);
+  }
+  if (combatantEnemyOverlap.length > 0) {
+    console.warn('  ⚠️ IDs appearing in BOTH combatants and enemies:', combatantEnemyOverlap);
+  }
+  
   // Get the character class name
   const getClassDisplayName = (classValue: domain.CharacterClass): string => {
     return domain.CharacterClass[classValue] || 'Unknown';
@@ -107,7 +128,7 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
     
     return (
       <Button
-        key={character.id} // Use character ID as key for stability
+        key={`${characterType}-${character.id}`} // Use character type + ID for unique keys
         size="sm"
         variant={isSelected ? "solid" : "ghost"}
         colorScheme={isSelected ? "whiteAlpha" : "gray"}
