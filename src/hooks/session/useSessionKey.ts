@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { SessionKeyState, sessionKeyMachine } from '../../machines/sessionKeyMachine';
 import { useWallet } from '../../providers/WalletProvider';
@@ -17,12 +17,24 @@ export const useSessionKey = (characterId: string | null) => {
   const ownerAddress = injectedWallet?.address ?? null; // Ensure ownerAddress is string | null
   const queryClient = useQueryClient();
 
-  console.log('[useSessionKey] Hook setup:', {
-    characterId,
-    ownerAddress,
-    embeddedWalletAddress: embeddedWallet?.address,
-    injectedWalletAddress: injectedWallet?.address
-  });
+  // Only log when addresses change to reduce spam
+  const prevOwnerRef = useRef<string | null>(null);
+  const prevEmbeddedRef = useRef<string | null>(null);
+  
+  useEffect(() => {
+    if (prevOwnerRef.current !== ownerAddress || prevEmbeddedRef.current !== (embeddedWallet?.address ?? null)) {
+      if (prevOwnerRef.current !== null || prevEmbeddedRef.current !== null) { // Skip initial load
+        console.log('[useSessionKey] Wallet addresses changed:', {
+          previousOwner: prevOwnerRef.current,
+          newOwner: ownerAddress,
+          previousEmbedded: prevEmbeddedRef.current,
+          newEmbedded: embeddedWallet?.address
+        });
+      }
+      prevOwnerRef.current = ownerAddress;
+      prevEmbeddedRef.current = embeddedWallet?.address ?? null;
+    }
+  }, [ownerAddress, embeddedWallet?.address]);
   
   // Get snapshot data from useBattleNads
   const { 
@@ -53,17 +65,19 @@ export const useSessionKey = (characterId: string | null) => {
       rawSessionKeyData !== undefined && 
       rawEndBlock !== undefined;
 
-    console.log('[useSessionKey] Validation inputs:', {
-      characterId,
-      ownerAddress,
-      embeddedAddr,
-      sessionKey,
-      expiration,
-      currentBlock,
-      isInputAvailable,
-      isSnapshotLoading,
-      rawSessionKeyData
-    });
+    // Only log validation inputs if there's a problem or first time
+    if (!isInputAvailable || !sessionKey || sessionKey.toLowerCase() === ZeroAddress.toLowerCase()) {
+      console.log('[useSessionKey] Validation issue detected:', {
+        characterId,
+        ownerAddress,
+        embeddedAddr,
+        sessionKey,
+        expiration,
+        currentBlock,
+        isInputAvailable,
+        isSnapshotLoading
+      });
+    }
 
     // --- Primary Logic: Only calculate final state AFTER loading is complete --- 
     if (!isSnapshotLoading) {
@@ -81,13 +95,6 @@ export const useSessionKey = (characterId: string | null) => {
 
           if (isReadyForValidationMachine) {
              // All checks passed, safe to assert non-null
-             console.log('[useSessionKey] Running validation machine with:', {
-               sessionKey,
-               embeddedAddr,
-               expiration,
-               currentBlock
-             });
-             
              newSessionKeyState = sessionKeyMachine.validate(
                  sessionKey!, 
                  embeddedAddr!, 
@@ -95,11 +102,18 @@ export const useSessionKey = (characterId: string | null) => {
                  currentBlock
              );
              
-             console.log('[useSessionKey] Validation result:', {
-               newSessionKeyState,
-               sessionKeyMatches: sessionKey?.toLowerCase() === embeddedAddr?.toLowerCase(),
-               isExpired: expiration < currentBlock
-             });
+             // Only log if validation fails or shows problems
+             if (newSessionKeyState !== SessionKeyState.VALID) {
+               console.log('[useSessionKey] Session key validation failed:', {
+                 newSessionKeyState,
+                 sessionKey,
+                 embeddedAddr,
+                 sessionKeyMatches: sessionKey?.toLowerCase() === embeddedAddr?.toLowerCase(),
+                 isExpired: expiration < currentBlock,
+                 expiration,
+                 currentBlock
+               });
+             }
           } else {
              // Data is available post-load, but invalid for validation (e.g., zero key)
              console.warn("[useSessionKey Effect] Validation skipped post-load: Invalid data:", {

@@ -1,3 +1,4 @@
+import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
@@ -17,12 +18,26 @@ export const useUiSnapshot = (owner: string | null) => {
   const { embeddedWallet } = useWallet();
   const queryClient = useQueryClient();
 
-  console.log('[useUiSnapshot] Hook setup:', {
-    owner,
-    embeddedWalletAddress: embeddedWallet?.address,
-    queryKey: ['uiSnapshot', owner, embeddedWallet?.address],
-    enabled: !!owner && !!client
-  });
+  // Only log when wallet addresses change or on first load
+  const prevOwnerRef = React.useRef<string | null>(null);
+  const prevEmbeddedRef = React.useRef<string | null>(null);
+  
+  React.useEffect(() => {
+    const embeddedAddress = embeddedWallet?.address ?? null;
+    if (prevOwnerRef.current !== owner || prevEmbeddedRef.current !== embeddedAddress) {
+      // Only log if not the initial render
+      if (prevOwnerRef.current !== null || prevEmbeddedRef.current !== null) {
+        console.log('[useUiSnapshot] Wallet change detected:', {
+          previousOwner: prevOwnerRef.current,
+          newOwner: owner,
+          previousEmbedded: prevEmbeddedRef.current,
+          newEmbedded: embeddedAddress
+        });
+      }
+      prevOwnerRef.current = owner;
+      prevEmbeddedRef.current = embeddedAddress;
+    }
+  }, [owner, embeddedWallet?.address]);
 
   return useQuery<contract.PollFrontendDataReturn, Error>({
     queryKey: ['uiSnapshot', owner, embeddedWallet?.address],
