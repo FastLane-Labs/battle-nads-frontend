@@ -323,6 +323,10 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         });
         
         // Set session key to embedded wallet address
+        console.log('[WalletProvider] Setting embedded wallet and session key:', {
+          embeddedAddress: foundEmbeddedWallet.address,
+          injectedAddress: foundInjectedWallet?.address
+        });
         setSessionKey(foundEmbeddedWallet.address);
       } else {
         setEmbeddedWallet(null);
@@ -382,6 +386,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   useEffect(() => {
     const currentInjectedAddress = injectedWallet?.address || null;
     const currentEmbeddedAddress = embeddedWallet?.address || null;
+    
+    console.log('[WalletProvider] Wallet change detection:', {
+      currentInjectedAddress,
+      currentEmbeddedAddress,
+      previousInjectedAddress: previousInjectedAddressRef.current,
+      previousEmbeddedAddress: previousEmbeddedAddressRef.current
+    });
     
     // Check if injected wallet address changed
     if (previousInjectedAddressRef.current !== null && 
