@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
+import { useWallet } from '../../providers/WalletProvider';
 import { contract } from '../../types';
 import { POLL_INTERVAL, INITIAL_SNAPSHOT_LOOKBACK_BLOCKS } from '../../config/env';
 import { storeFeedData } from './useCachedDataFeed';
@@ -13,10 +14,11 @@ import { mapCharacterLite } from '@/mappers';
  */
 export const useUiSnapshot = (owner: string | null) => {
   const { client } = useBattleNadsClient();
+  const { embeddedWallet } = useWallet();
   const queryClient = useQueryClient();
 
   return useQuery<contract.PollFrontendDataReturn, Error>({
-    queryKey: ['uiSnapshot', owner],
+    queryKey: ['uiSnapshot', owner, embeddedWallet?.address],
     enabled: !!owner && !!client,
     staleTime: POLL_INTERVAL,
     refetchInterval: POLL_INTERVAL,
@@ -24,7 +26,7 @@ export const useUiSnapshot = (owner: string | null) => {
     queryFn: async () => {
       if (!client || !owner) throw new Error('Missing client or owner');
       
-      const previousData = queryClient.getQueryData<contract.PollFrontendDataReturn>(['uiSnapshot', owner]);
+      const previousData = queryClient.getQueryData<contract.PollFrontendDataReturn>(['uiSnapshot', owner, embeddedWallet?.address]);
       
       const startBlock = previousData?.endBlock 
         ? previousData.endBlock + 1n 

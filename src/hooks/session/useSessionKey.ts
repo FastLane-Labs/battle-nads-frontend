@@ -113,6 +113,16 @@ export const useSessionKey = (characterId: string | null) => {
     snapshotError      // Depend on snapshot error state
   ]);
 
+  // Effect to handle wallet address changes and invalidate cache
+  useEffect(() => {
+    // When embedded wallet address changes, invalidate the query to force refresh
+    if (ownerAddress && embeddedWallet?.address) {
+      queryClient.invalidateQueries({ 
+        queryKey: ['uiSnapshot', ownerAddress, embeddedWallet.address] 
+      });
+    }
+  }, [embeddedWallet?.address, ownerAddress, queryClient]);
+
   // Determine if session key needs update (based on final state)
   const needsUpdate = 
     sessionKeyState === SessionKeyState.EXPIRED || 
@@ -126,7 +136,7 @@ export const useSessionKey = (characterId: string | null) => {
   // Define refresh function using queryClient
   const refreshSessionKey = () => {
     if (ownerAddress) {
-      queryClient.invalidateQueries({ queryKey: ['uiSnapshot', ownerAddress] });
+      queryClient.invalidateQueries({ queryKey: ['uiSnapshot', ownerAddress, embeddedWallet?.address] });
     }
   };
 
