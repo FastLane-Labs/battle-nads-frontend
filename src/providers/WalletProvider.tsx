@@ -387,12 +387,20 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     const currentInjectedAddress = injectedWallet?.address || null;
     const currentEmbeddedAddress = embeddedWallet?.address || null;
     
-    console.log('[WalletProvider] Wallet change detection:', {
-      currentInjectedAddress,
-      currentEmbeddedAddress,
-      previousInjectedAddress: previousInjectedAddressRef.current,
-      previousEmbeddedAddress: previousEmbeddedAddressRef.current
-    });
+    // Only log if there are actual changes (not on every render)
+    const hasInjectedChange = previousInjectedAddressRef.current !== null && 
+                             previousInjectedAddressRef.current !== currentInjectedAddress;
+    const hasEmbeddedChange = previousEmbeddedAddressRef.current !== null && 
+                             previousEmbeddedAddressRef.current !== currentEmbeddedAddress;
+    
+    if (hasInjectedChange || hasEmbeddedChange) {
+      console.log('[WalletProvider] Wallet addresses changed:', {
+        injectedChanged: hasInjectedChange,
+        embeddedChanged: hasEmbeddedChange,
+        currentInjected: currentInjectedAddress,
+        currentEmbedded: currentEmbeddedAddress
+      });
+    }
     
     // Check if injected wallet address changed
     if (previousInjectedAddressRef.current !== null && 
