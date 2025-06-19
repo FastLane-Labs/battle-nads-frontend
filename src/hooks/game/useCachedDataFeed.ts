@@ -4,6 +4,7 @@ import { db, StoredDataBlock } from '../../lib/db'; // Import Dexie db instance
 import { LogType } from '@/types/domain/enums'; // Import LogType
 import { CharacterLite } from '@/types/domain'; // Import CharacterLite
 import { estimateBlockTimestamp } from '@/utils/blockUtils'; // Import the new utility function
+import { ENTRYPOINT_ADDRESS } from '../../config/env'; // Import contract address
 
 // Define SerializedEventLog based on contract.Log, converting BigInts
 // Export needed types
@@ -71,8 +72,9 @@ export const useCachedDataFeed = (owner: string | null) => {
       if (!isMounted) return;
       setIsHistoryLoading(true);
       try {
+        const contractAddress = ENTRYPOINT_ADDRESS.toLowerCase();
         const recentStoredBlocks = await db.dataBlocks
-          .where('owner').equals(owner)
+          .where('[owner+contract]').equals([owner, contractAddress])
           .toArray();
 
         recentStoredBlocks.sort((a, b) => parseInt(a.block, 10) - parseInt(b.block, 10));
@@ -93,12 +95,12 @@ export const useCachedDataFeed = (owner: string | null) => {
         const now = Date.now();
         const expirationTime = now - FEED_TTL;
         db.dataBlocks
-            .where('owner').equals(owner) // Also scope purge to owner
+            .where('[owner+contract]').equals([owner, contractAddress]) // Scope purge to owner and contract
             .and(item => item.ts < expirationTime)
             .delete()
             .then(deleteCount => {
                 if (deleteCount > 0) {
-                    // console.log(`[CachedDataFeed] Purged ${deleteCount} expired blocks for owner.`);
+                    // console.log(`[CachedDataFeed] Purged ${deleteCount} expired blocks for owner and contract.`);
                 }
             }).catch(err => {
                 console.error("[CachedDataFeed] Error purging expired blocks:", err);
@@ -258,8 +260,10 @@ export const storeFeedData = async (
   );
 
   // 2. Transform processed blocks into the format needed for Dexie (StoredDataBlock)
+  const contractAddress = ENTRYPOINT_ADDRESS.toLowerCase();
   const blocksToStore: StoredDataBlock[] = processedBlocks.map(block => ({
     owner: owner,
+    contract: contractAddress,
     block: block.blockNumber.toString(),
     ts: block.timestamp,
     chats: block.chats,
