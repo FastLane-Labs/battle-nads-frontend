@@ -565,8 +565,10 @@ export function contractToWorldSnapshot(
           const attacker = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
           const defender = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character);
           const isPlayer = !!ownerCharacterId && !!attacker && attacker.id === ownerCharacterId;
-          const attackerName = isPlayer ? "You" : attacker?.name || `Index ${mainPlayerIdx}`;
-          const defenderName = defender?.name || `Index ${otherPlayerIdx}`;
+          
+          // Enhanced fallback for missing character names
+          const attackerName = isPlayer ? "You" : attacker?.name || `Character (Index ${mainPlayerIdx})`;
+          const defenderName = defender?.name || `Character (Index ${otherPlayerIdx})`;
 
           let displayMessage = '';
 
@@ -671,7 +673,19 @@ export function contractToWorldSnapshot(
         case domain.LogType.LeftArea: { 
           const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
           const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
-          const displayMessage = `${participant?.name || `Index ${mainPlayerIdx}`} ${logTypeNum === domain.LogType.EnteredArea ? 'entered' : 'left'} the area.`;
+          
+          // Enhanced fallback for missing character names
+          let participantName: string;
+          if (participant?.name) {
+            participantName = isPlayer ? "You" : participant.name;
+          } else {
+            // Character not found in current area data (likely left already)
+            participantName = `Character (Index ${mainPlayerIdx})`;
+          }
+          
+          const actionText = logTypeNum === domain.LogType.EnteredArea ? 'entered' : 'left';
+          const displayMessage = `${participantName} ${actionText} the area.`;
+          
           const newEventMessage: domain.EventMessage = {
             logIndex: logIndex,
             blocknumber: eventBlockNumber, 
@@ -690,8 +704,10 @@ export function contractToWorldSnapshot(
           const caster = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
           const target = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character);
           const isPlayer = !!ownerCharacterId && !!caster && caster.id === ownerCharacterId;
-          const casterName = isPlayer ? "You" : caster?.name || `Index ${mainPlayerIdx}`;
-          const targetName = target?.name;
+          
+          // Enhanced fallback for missing character names
+          const casterName = isPlayer ? "You" : caster?.name || `Character (Index ${mainPlayerIdx})`;
+          const targetName = target?.name || (otherPlayerIdx !== 0 ? `Character (Index ${otherPlayerIdx})` : undefined);
 
           const casterCharacter = [...combatants, ...noncombatants, ...(raw.character ? [mapCharacterToCharacterLite(raw.character)] : [])].find(c => c?.index === mainPlayerIdx);
 
@@ -724,7 +740,15 @@ export function contractToWorldSnapshot(
         case domain.LogType.Ascend: {
            const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
            const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
-           const participantName = isPlayer ? "You" : participant?.name || `Index ${mainPlayerIdx}`;
+           
+           // Enhanced fallback for missing character names
+           let participantName: string;
+           if (participant?.name) {
+             participantName = isPlayer ? "You" : participant.name;
+           } else {
+             participantName = `Character (Index ${mainPlayerIdx})`;
+           }
+           
            const displayMessage = `${participantName} died.`;
            const newEventMessage: domain.EventMessage = {
               logIndex: logIndex,
