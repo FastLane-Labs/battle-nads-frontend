@@ -1,5 +1,5 @@
 import React, { useMemo, useRef } from 'react';
-import { Box, Heading, Text, Spinner, Center, VStack } from '@chakra-ui/react';
+import { Box, Heading, Text, Spinner, Center } from '@chakra-ui/react';
 import { domain } from '@/types';
 import { EventLogItemRenderer } from './EventLogItemRenderer';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -80,45 +80,50 @@ const EventFeed: React.FC<EventFeedProps> = ({
 
   // Create equipment name lookup functions with comprehensive safety checks
   const getWeaponName = useMemo(() => {
+    // Comprehensive weapon mapping as fallback
+    const weaponNameMap: { [key: number]: string } = {
+      1: "A Dumb-Looking Stick", 2: "A Cool-Looking Stick", 3: "Mean Words", 4: "A Rock",
+      5: "A Club, But It Smells Weird", 6: "A Baby Seal", 7: "A Pillow Shaped Like A Sword",
+      8: "Brass Knuckles", 9: "A Pocket Knife", 10: "Battle Axe", 11: "A Bowie Knife",
+      12: "A Bowstaff", 13: "A Spear", 14: "A Dagger", 15: "An Actual Sword",
+      16: "Enchanted Warhammer", 17: "Flaming Longsword", 18: "Frozen Rapier", 19: "Spiked Mace",
+      20: "Crystal Halberd", 21: "Obsidian Blade", 22: "Thundering Greatsword", 23: "Venomous Whip",
+      24: "Shadowblade", 25: "Double-Bladed Axe", 26: "Ancient War Scythe", 27: "Celestial Quarterstaff",
+      28: "Soulstealer Katana", 29: "Demonic Trident", 30: "Volcanic Greataxe", 31: "Ethereal Bow",
+      32: "Runic Warsword", 33: "Abyssal Mace", 34: "Dragon's Tooth Dagger", 35: "Astral Glaive",
+      36: "Blessed Claymore", 37: "Living Whip Vine", 38: "Frostbite Blade", 39: "Spectral Sickle",
+      40: "Corrupted Cleaver", 41: "Tidal Trident", 42: "Eldritch Staff", 43: "Phoenix Feather Spear",
+      44: "Starfall Blade", 45: "Void Edge", 46: "Moonlight Greatsword", 47: "Sunforged Hammer",
+      48: "Nemesis Blade", 49: "Cosmic Crusher", 50: "Ultimate Weapon of Ultimate Destiny"
+    };
+
     return (weaponId: number | null | undefined): string => {
       // Handle invalid weapon ID
       if (weaponId == null || isNaN(Number(weaponId))) {
         return 'Unknown Weapon';
       }
-      
-      // Handle missing equipment data
-      if (!equipableWeaponIDs || !equipableWeaponNames || !Array.isArray(equipableWeaponIDs) || !Array.isArray(equipableWeaponNames)) {
-        return `Weapon ${weaponId}`;
-      }
-      
-      // Handle empty arrays
-      if (equipableWeaponIDs.length === 0 || equipableWeaponNames.length === 0) {
-        return `Weapon ${weaponId}`;
-      }
-      
-      try {
-        // Convert weaponId to number safely
-        const numericWeaponId = Number(weaponId);
-        
-        // Find the index of this weapon ID in the array
-        const index = equipableWeaponIDs.findIndex(id => {
-          try {
-            return Number(id) === numericWeaponId;
-          } catch {
-            return false;
+
+      const numericWeaponId = Number(weaponId);
+
+      // First try to find in equipable weapons (for current player's available weapons)
+      if (equipableWeaponIDs && equipableWeaponNames && Array.isArray(equipableWeaponIDs) && Array.isArray(equipableWeaponNames)) {
+        try {
+          const index = equipableWeaponIDs.findIndex(id => Number(id) === numericWeaponId);
+          if (index >= 0 && index < equipableWeaponNames.length && equipableWeaponNames[index]) {
+            const weaponName = equipableWeaponNames[index];
+            if (typeof weaponName === 'string' && weaponName.trim().length > 0) {
+              return weaponName;
+            }
           }
-        });
-        
-        // Check if we found a valid index and name
-        if (index >= 0 && index < equipableWeaponNames.length && equipableWeaponNames[index]) {
-          const weaponName = equipableWeaponNames[index];
-          // Ensure the name is a valid string
-          if (typeof weaponName === 'string' && weaponName.trim().length > 0) {
-            return weaponName;
-          }
+        } catch (error) {
+          console.warn('Error in equipable weapon name lookup:', error);
         }
-      } catch (error) {
-        console.warn('Error in weapon name lookup:', error);
+      }
+      
+      // Fallback to comprehensive weapon mapping
+      const mappedName = weaponNameMap[numericWeaponId];
+      if (mappedName) {
+        return mappedName;
       }
       
       return `Weapon ${weaponId}`;
@@ -126,45 +131,50 @@ const EventFeed: React.FC<EventFeedProps> = ({
   }, [equipableWeaponIDs, equipableWeaponNames]);
 
   const getArmorName = useMemo(() => {
+    // Comprehensive armor mapping as fallback
+    const armorNameMap: { [key: number]: string } = {
+      1: "Literally Nothing", 2: "A Scavenged Loin Cloth", 3: "A Positive Outlook On Life", 4: "Gym Clothes",
+      5: "Tattered Rags", 6: "98% Mostly-Deceased Baby Seals, 2% Staples", 7: "A Padded Jacket",
+      8: "Black Leather Suit (Used)", 9: "Tinfoil and Duct Tape", 10: "Keone's Cod Piece", 11: "Chainmail",
+      12: "Scalemail", 13: "Kevlar", 14: "Kevlar + Tactical", 15: "Ninja Gear",
+      16: "Dragonhide Leather", 17: "Reinforced Platemail", 18: "Elven Silverweave", 19: "Dwarven Full Plate",
+      20: "Enchanted Robes", 21: "Crystal-Infused Mail", 22: "Beastmancer Hide", 23: "Shadow Cloak",
+      24: "Volcanic Forged Armor", 25: "Celestial Breastplate", 26: "Abyssal Shroud", 27: "Guardian's Platemail",
+      28: "Sylvan Leaf Armor", 29: "Runic Warden Plate", 30: "Spectral Shroud", 31: "Void-Touched Mail",
+      32: "Bloodforged Plate", 33: "Astral Silk Robes", 34: "Stormcaller Armor", 35: "Frostweave Garment",
+      36: "Infernal Scale Armor", 37: "Divine Protector Suit", 38: "Ethereal Weave", 39: "Obsidian Battle Plate",
+      40: "Phoenix Feather Cloak", 41: "Dragon Knight Armor", 42: "Soul-Bonded Plate", 43: "Living Mushroom Armor",
+      44: "Cosmic Veil", 45: "Titan's Bulwark", 46: "Moonlight Shroud", 47: "Sunforged Plate",
+      48: "Chronoshifter's Garb", 49: "Crystalline Exoskeleton", 50: "Ultimate Armor of Ultimate Protection"
+    };
+
     return (armorId: number | null | undefined): string => {
       // Handle invalid armor ID
       if (armorId == null || isNaN(Number(armorId))) {
         return 'Unknown Armor';
       }
       
-      // Handle missing equipment data
-      if (!equipableArmorIDs || !equipableArmorNames || !Array.isArray(equipableArmorIDs) || !Array.isArray(equipableArmorNames)) {
-        return `Armor ${armorId}`;
-      }
+      const numericArmorId = Number(armorId);
       
-      // Handle empty arrays
-      if (equipableArmorIDs.length === 0 || equipableArmorNames.length === 0) {
-        return `Armor ${armorId}`;
-      }
-      
-      try {
-        // Convert armorId to number safely
-        const numericArmorId = Number(armorId);
-        
-        // Find the index of this armor ID in the array
-        const index = equipableArmorIDs.findIndex(id => {
-          try {
-            return Number(id) === numericArmorId;
-          } catch {
-            return false;
+      // First try to find in equipable armor (for current player's available armor)
+      if (equipableArmorIDs && equipableArmorNames && Array.isArray(equipableArmorIDs) && Array.isArray(equipableArmorNames)) {
+        try {
+          const index = equipableArmorIDs.findIndex(id => Number(id) === numericArmorId);
+          if (index >= 0 && index < equipableArmorNames.length && equipableArmorNames[index]) {
+            const armorName = equipableArmorNames[index];
+            if (typeof armorName === 'string' && armorName.trim().length > 0) {
+              return armorName;
+            }
           }
-        });
-        
-        // Check if we found a valid index and name
-        if (index >= 0 && index < equipableArmorNames.length && equipableArmorNames[index]) {
-          const armorName = equipableArmorNames[index];
-          // Ensure the name is a valid string
-          if (typeof armorName === 'string' && armorName.trim().length > 0) {
-            return armorName;
-          }
+        } catch (error) {
+          console.warn('Error in equipable armor name lookup:', error);
         }
-      } catch (error) {
-        console.warn('Error in armor name lookup:', error);
+      }
+      
+      // Fallback to comprehensive armor mapping
+      const mappedName = armorNameMap[numericArmorId];
+      if (mappedName) {
+        return mappedName;
       }
       
       return `Armor ${armorId}`;
