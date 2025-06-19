@@ -46,6 +46,7 @@ export const useSessionKey = (characterId: string | null) => {
 
   // Local state for the derived validation state
   const [sessionKeyState, setSessionKeyState] = useState<SessionKeyState>(SessionKeyState.IDLE);
+  const lastLoggedStateRef = useRef<string | null>(null);
 
   // Effect to calculate and update session key state when relevant dependencies change
   useEffect(() => {
@@ -102,17 +103,25 @@ export const useSessionKey = (characterId: string | null) => {
                  currentBlock
              );
              
-             // Only log if validation fails or shows problems
+             // Only log if validation fails or shows problems, and state has changed
              if (newSessionKeyState !== SessionKeyState.VALID) {
-               console.log('[useSessionKey] Session key validation failed:', {
-                 newSessionKeyState,
-                 sessionKey,
-                 embeddedAddr,
-                 sessionKeyMatches: sessionKey?.toLowerCase() === embeddedAddr?.toLowerCase(),
-                 isExpired: expiration < currentBlock,
-                 expiration,
-                 currentBlock
-               });
+               const stateKey = `${newSessionKeyState}-${sessionKey}-${embeddedAddr}`;
+               if (lastLoggedStateRef.current !== stateKey) {
+                 console.log('[useSessionKey] Session key validation failed:', {
+                   newSessionKeyState,
+                   sessionKey,
+                   embeddedAddr,
+                   sessionKeyMatches: sessionKey?.toLowerCase() === embeddedAddr?.toLowerCase(),
+                   isExpired: expiration < currentBlock,
+                   expiration,
+                   currentBlock,
+                   blocksUntilExpiry: expiration - currentBlock
+                 });
+                 lastLoggedStateRef.current = stateKey;
+               }
+             } else {
+               // Reset logged state when validation becomes valid
+               lastLoggedStateRef.current = null;
              }
           } else {
              // Data is available post-load, but invalid for validation (e.g., zero key)
