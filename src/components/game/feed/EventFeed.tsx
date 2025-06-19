@@ -228,7 +228,7 @@ const EventFeed: React.FC<EventFeedProps> = ({
                   const involvesCombatant = 
                     (event.attacker && combatantIds.has(event.attacker.id)) || 
                     (event.defender && combatantIds.has(event.defender.id));
-                  const isPlayerAction = !!playerIndex && event.attacker?.index === playerIndex;
+                  const isPlayerAction = !!playerIndex && Number(event.attacker?.index) === Number(playerIndex);
                   
                   if (involvesCombatant) bgColor = "red.900"; 
                   if (isPlayerAction) bgColor = "blue.900";
