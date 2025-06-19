@@ -22,7 +22,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useBattleNads } from '../hooks/game/useBattleNads';
 import { useWallet } from '../providers/WalletProvider';
 import { useBattleNadsClient } from '../hooks/contracts/useBattleNadsClient';
-import { CharacterLite } from '@/types/domain';
 import { invalidateSnapshot } from '../hooks/utils';
 import { db } from '../lib/db';
 import { useStorageCleanup } from '../hooks/useStorageCleanup';
@@ -75,7 +74,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       addLog(`Character ID updated: ${gameState.characterID}`);
     }
   }, [gameState?.characterID]);
-
+  
   // === EVENT INVESTIGATION FUNCTIONS ===
   
   /**
@@ -84,12 +83,12 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
    */
   const investigateEventDataFlow = async () => {
     addLog('🔍 Starting comprehensive event investigation...');
-    
-    if (!ownerAddress || !client) {
+      
+      if (!ownerAddress || !client) {
       addLog('❌ Missing owner address or client');
-      return;
-    }
-    
+        return;
+      }
+      
     console.group('🔍 EVENT DATA FLOW INVESTIGATION');
     
     try {
@@ -336,7 +335,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       console.error('[Event Filtering Test Error]:', err);
     }
   };
-
+  
   // === CACHE MANAGEMENT FUNCTIONS ===
   
   const clearAllCache = async () => {
@@ -440,7 +439,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       addLog(`❌ Storage reset failed: ${errorMsg}`);
     }
   };
-
+  
   if (!isVisible) return null;
   
   return (
@@ -568,16 +567,16 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
             Clear cached data when events appear stale or incorrect
           </Text>
           
-          <Button 
+            <Button 
             onClick={clearAllCache} 
-            isLoading={isLoading} 
-            size="sm" 
-            width="100%" 
-            colorScheme="red"
-            variant="outline"
-          >
-            🗑️ Clear All Cache
-          </Button>
+              isLoading={isLoading} 
+              size="sm" 
+              width="100%" 
+              colorScheme="red"
+              variant="outline"
+            >
+              🗑️ Clear All Cache
+            </Button>
         </Box>
 
         {/* Storage Management */}
