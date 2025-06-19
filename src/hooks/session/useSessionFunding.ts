@@ -13,7 +13,7 @@ export const useSessionFunding = (characterId: string | null) => {
   const { client } = useBattleNadsClient();
   const queryClient = useQueryClient();
   const { sessionKeyData } = useSessionKey(characterId);
-  const { injectedWallet } = useWallet();
+  const { injectedWallet, embeddedWallet } = useWallet();
   const ownerAddress = injectedWallet?.address ?? null;
 
   const { rawBalanceShortfall } = useBattleNads(ownerAddress);
@@ -29,7 +29,7 @@ export const useSessionFunding = (characterId: string | null) => {
       return client.replenishGasBalance(amount);
     },
     onSuccess: () => {
-      invalidateSnapshot(queryClient, ownerAddress);
+      invalidateSnapshot(queryClient, ownerAddress, embeddedWallet?.address);
     }
   });
   
@@ -38,13 +38,21 @@ export const useSessionFunding = (characterId: string | null) => {
     mutationKey: ['deactivateKey', characterId, sessionKeyData?.key, ownerAddress],
     mutationFn: async () => {
       const keyToDeactivate = sessionKeyData?.key;
+      console.log('[useSessionFunding] Deactivating session key:', {
+        ownerAddress,
+        characterId,
+        keyToDeactivate,
+        sessionKeyData
+      });
+      
       if (!client || !keyToDeactivate) {
         throw new Error('Client or session key address missing');
       }
       return client.deactivateSessionKey(keyToDeactivate);
     },
     onSuccess: () => {
-      invalidateSnapshot(queryClient, ownerAddress);
+      console.log('[useSessionFunding] Session key deactivated successfully, invalidating snapshot for:', ownerAddress);
+      invalidateSnapshot(queryClient, ownerAddress, embeddedWallet?.address);
     }
   });
 
