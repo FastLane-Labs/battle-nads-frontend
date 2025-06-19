@@ -638,7 +638,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       }
       
       // Clear React Query cache
-      await invalidateSnapshot(queryClient, ownerAddress);
+      await invalidateSnapshot(queryClient, ownerAddress, embeddedWallet?.address);
       await queryClient.clear();
       
       addLog('✅ All cache cleared - refresh page to see fresh data');
