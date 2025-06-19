@@ -84,6 +84,7 @@ export interface Character {
   weapon: Weapon;
   armor: Armor;
   position: Position;
+  areaId: bigint;
   owner: string;
   activeTask: string;
   ability: AbilityState;
@@ -106,5 +107,6 @@ export interface CharacterLite {
   ability: AbilityState;
   weaponName: string;
   armorName: string;
+  areaId: bigint;
   isDead: boolean;
 } 

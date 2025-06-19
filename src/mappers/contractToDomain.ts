@@ -4,7 +4,8 @@
  */
 
 import { contract, domain } from '@/types';
-import { estimateBlockTimestamp } from '@/utils/blockUtils'; // Import the utility
+import { estimateBlockTimestamp } from '@/utils/blockUtils';
+import { createAreaID } from '@/utils/areaId'; 
 
 /**
  * Constants for movement validation
@@ -220,6 +221,9 @@ export function mapCharacter(
     canMoveUp: isVerticalMovementAllowed('up', positionObj),
     canMoveDown: isVerticalMovementAllowed('down', positionObj)
   };
+
+  // Calculate area ID from position
+  const areaId = createAreaID(positionObj.depth, positionObj.x, positionObj.y);
   
   return {
     id: rawCharacter.id,
@@ -239,6 +243,7 @@ export function mapCharacter(
       y: rawCharacter.stats.y,
       depth: rawCharacter.stats.depth
     },
+    areaId,
     owner: rawCharacter.owner,
     activeTask: rawCharacter.activeTask,
     ability: {
@@ -271,7 +276,7 @@ export function mapCharacterLite(
     return { 
         id: 'error-invalid-input', index: 0, name: 'Mapping Error',
         class: domain.CharacterClass.Bard, level: 0, health: 0, maxHealth: 0,
-        buffs: [], debuffs: [], weaponName: '', armorName: '', isDead: true,
+        buffs: [], debuffs: [], weaponName: '', armorName: '', areaId: 0n, isDead: true,
         ability: { ability: domain.Ability.None, stage: 0, targetIndex: 0, taskAddress: '', targetBlock: 0 }
      } as domain.CharacterLite;
   }
@@ -304,6 +309,7 @@ export function mapCharacterLite(
     },
     weaponName: raw.weaponName || '',
     armorName: raw.armorName || '',
+    areaId: 0n, // CharacterLite doesn't have position data, so areaId defaults to 0n
     isDead: actuallyDead // Use our validated death status instead of raw contract value
   };
 
@@ -450,6 +456,14 @@ export function contractToWorldSnapshot(
   const combatants = raw.combatants || [];
   const noncombatants = raw.noncombatants || [];
 
+  // Calculate player's current area ID from position
+  const playerAreaId = raw.character ? 
+    createAreaID(
+      Number(raw.character.stats.depth),
+      Number(raw.character.stats.x),
+      Number(raw.character.stats.y)
+    ) : 0n;
+
   // Reference point for timestamp estimation - Use BigInt for block number
   const referenceBlockNumber = BigInt(raw.endBlock || 0);
   const referenceTimestamp = Date.now(); 
@@ -471,6 +485,54 @@ export function contractToWorldSnapshot(
       const otherPlayerIdx = Number(log.otherPlayerIndex);
 
       switch (logTypeNum) {
+        case domain.LogType.Combat:
+        case domain.LogType.InstigatedCombat: {
+          const attacker = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
+          const defender = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character);
+          const isPlayer = !!ownerCharacterId && !!attacker && attacker.id === ownerCharacterId;
+          
+          let displayMessage = '';
+          if (logTypeNum === domain.LogType.InstigatedCombat) {
+            displayMessage = `${attacker?.name || `Index ${mainPlayerIdx}`} initiated combat with ${defender?.name || `Index ${otherPlayerIdx}`}.`;
+          } else {
+            // Regular combat event
+            if (log.hit) {
+              const damage = log.damageDone > 0 ? ` for ${log.damageDone} damage` : '';
+              const critical = log.critical ? ' (Critical!)' : '';
+              displayMessage = `${attacker?.name || `Index ${mainPlayerIdx}`} hits ${defender?.name || `Index ${otherPlayerIdx}`}${damage}${critical}.`;
+              if (log.targetDied) {
+                displayMessage += ` ${defender?.name || `Index ${otherPlayerIdx}`} died!`;
+              }
+            } else {
+              displayMessage = `${attacker?.name || `Index ${mainPlayerIdx}`} misses ${defender?.name || `Index ${otherPlayerIdx}`}.`;
+            }
+          }
+          
+          const newEventMessage: domain.EventMessage = {
+            logIndex: logIndex,
+            blocknumber: eventBlockNumber, 
+            timestamp: estimatedTimestamp,
+            type: logTypeNum as domain.LogType,
+            attacker: attacker || undefined,
+            defender: defender || undefined,
+            areaId: playerAreaId, // Use player's current position
+            isPlayerInitiated: isPlayer, 
+            details: { 
+              hit: log.hit,
+              critical: log.critical,
+              damageDone: log.damageDone,
+              healthHealed: log.healthHealed,
+              targetDied: log.targetDied,
+              lootedWeaponID: log.lootedWeaponID,
+              lootedArmorID: log.lootedArmorID,
+              experience: log.experience,
+              value: log.value 
+            }, 
+            displayMessage: displayMessage 
+          };
+          allEventLogs.push(newEventMessage);
+          break;
+        }
         case domain.LogType.Chat: {
           const sender = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
           const messageContent = feed.chatLogs?.[blockChatLogIndex] ?? "[Chat message content unavailable]";
@@ -494,6 +556,7 @@ export function contractToWorldSnapshot(
               type: logTypeNum as domain.LogType,
               attacker: sender,
               defender: undefined,
+              areaId: playerAreaId, // Use player's current position
               isPlayerInitiated: isPlayer,
               details: { value: messageContent }, 
               displayMessage: `Chat: ${sender.name}: ${messageContent}`
@@ -516,6 +579,7 @@ export function contractToWorldSnapshot(
             timestamp: estimatedTimestamp,
             type: logTypeNum as domain.LogType,
             attacker: participant || undefined,
+            areaId: playerAreaId, // Use player's current position
             isPlayerInitiated: isPlayer, 
             details: { value: log.value }, 
             displayMessage: displayMessage 
@@ -538,6 +602,7 @@ export function contractToWorldSnapshot(
             type: logTypeNum as domain.LogType,
             attacker: caster || undefined,
             defender: target || undefined, 
+            areaId: playerAreaId, // Use player's current position
             isPlayerInitiated: isPlayer, 
             details: { value: log.value }, 
             displayMessage: displayMessage 
@@ -555,6 +620,7 @@ export function contractToWorldSnapshot(
               timestamp: estimatedTimestamp,
               type: logTypeNum as domain.LogType,
               attacker: participant || undefined,
+              areaId: playerAreaId, // Use player's current position
               isPlayerInitiated: isPlayer, 
               details: { value: log.value }, 
               displayMessage: displayMessage 
@@ -626,6 +692,7 @@ export function mapCharacterToCharacterLite(
     },
     weaponName: rawCharacter.weapon?.name || '',
     armorName: rawCharacter.armor?.name || '',
+    areaId: createAreaID(Number(rawCharacter.stats.depth), Number(rawCharacter.stats.x), Number(rawCharacter.stats.y)),
     isDead: rawCharacter.tracker?.died || false
   };
 }

@@ -20,7 +20,8 @@ export interface EventMessage {
   type: LogType;
   attacker?: EventParticipant;
   defender?: EventParticipant;
-  isPlayerInitiated: boolean; // Flag if the player character initiated
+  areaId: bigint;
+  isPlayerInitiated: boolean;
   details: {
     // Raw details from contract.Log, mapped appropriately
     hit?: boolean;
