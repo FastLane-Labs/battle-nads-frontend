@@ -171,6 +171,7 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
           character={character}
           position={position}
           combatants={gameState?.combatants || []}
+          noncombatants={gameState?.noncombatants || []}
           chatLogs={gameState?.chatLogs || []}
           eventLogs={gameState?.eventLogs || []}
           onMove={handleMovement}

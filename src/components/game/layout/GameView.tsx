@@ -14,6 +14,7 @@ interface GameViewProps {
   character: domain.Character;
   position: { x: number; y: number; z: number };
   combatants: domain.CharacterLite[];
+  noncombatants: domain.CharacterLite[];
   chatLogs: domain.ChatMessage[];
   eventLogs: domain.EventMessage[];
   onMove: (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => Promise<void>;
@@ -34,6 +35,7 @@ const GameView: React.FC<GameViewProps> = ({
   character,
   position,
   combatants,
+  noncombatants,
   chatLogs,
   eventLogs,
   onMove,
@@ -126,7 +128,8 @@ const GameView: React.FC<GameViewProps> = ({
           {/* Combat Panel */}
             <Box borderRadius="md" className='h-full card-bg p-4 flex flex-col'>
             <CombatTargets 
-              combatants={combatants} 
+              combatants={combatants}
+              noncombatants={noncombatants}
               selectedTargetIndex={selectedTargetIndex}
               onSelectTarget={handleSelectTarget}
             />
