@@ -225,13 +225,32 @@ const EventFeed: React.FC<EventFeedProps> = ({
                   const itemKey = `${event.timestamp}-${event.logIndex}-${virtualRow.index}`;
                   
                   let bgColor = "gray.700";
-                  const involvesCombatant = 
-                    (event.attacker && combatantIds.has(event.attacker.id)) || 
-                    (event.defender && combatantIds.has(event.defender.id));
-                  const isPlayerAction = !!playerIndex && Number(event.attacker?.index) === Number(playerIndex);
                   
-                  if (involvesCombatant) bgColor = "red.900"; 
-                  if (isPlayerAction) bgColor = "blue.900";
+                  // Check if event involves the player directly (as attacker or defender)
+                  const isPlayerAttacker = !!playerIndex && Number(event.attacker?.index) === Number(playerIndex);
+                  const isPlayerDefender = !!playerIndex && Number(event.defender?.index) === Number(playerIndex);
+                  const involvesPlayer = isPlayerAttacker || isPlayerDefender;
+                  
+                  // Check if event involves current combatants (but not the player)
+                  const involvesCombatant = !involvesPlayer && (
+                    (event.attacker && combatantIds.has(event.attacker.id)) || 
+                    (event.defender && combatantIds.has(event.defender.id))
+                  );
+                  
+                  // Check if it's any combat event (for general combat highlighting)
+                  const isCombatEvent = Number(event.type) === 0 || Number(event.type) === 1; // Combat or InstigatedCombat
+                  
+                  // Three-tier highlighting system:
+                  // 1. Blue: Player-initiated actions (highest priority)
+                  // 2. Red: Combat involving player's current combatants
+                  // 3. Orange: Any other combat events (NPC vs NPC fights)
+                  if (involvesPlayer) {
+                    bgColor = "blue.900"; // Player involved (highest priority)
+                  } else if (involvesCombatant) {
+                    bgColor = "red.900"; // Current combatants involved
+                  } else if (isCombatEvent) {
+                    bgColor = "orange.900"; // Any other combat
+                  }
 
                   return (
                     <Box 
@@ -246,14 +265,14 @@ const EventFeed: React.FC<EventFeedProps> = ({
                       py={1}
                     >
                       <Box
-                        bg={isPlayerAction ? "rgba(59, 130, 246, 0.1)" : involvesCombatant ? "rgba(239, 68, 68, 0.1)" : "transparent"}
+                        bg={involvesPlayer ? "rgba(59, 130, 246, 0.1)" : involvesCombatant ? "rgba(239, 68, 68, 0.1)" : isCombatEvent ? "rgba(251, 146, 60, 0.1)" : "transparent"}
                         borderRadius="md" 
                         px={2}
                         py={1}
-                        border={isPlayerAction ? "1px solid rgba(59, 130, 246, 0.2)" : involvesCombatant ? "1px solid rgba(239, 68, 68, 0.2)" : "1px solid transparent"}
+                        border={involvesPlayer ? "1px solid rgba(59, 130, 246, 0.2)" : involvesCombatant ? "1px solid rgba(239, 68, 68, 0.2)" : isCombatEvent ? "1px solid rgba(251, 146, 60, 0.2)" : "1px solid transparent"}
                         transition="all 0.2s"
                         _hover={{
-                          bg: isPlayerAction ? "rgba(59, 130, 246, 0.15)" : involvesCombatant ? "rgba(239, 68, 68, 0.15)" : "rgba(255, 255, 255, 0.05)"
+                          bg: involvesPlayer ? "rgba(59, 130, 246, 0.15)" : involvesCombatant ? "rgba(239, 68, 68, 0.15)" : isCombatEvent ? "rgba(251, 146, 60, 0.15)" : "rgba(255, 255, 255, 0.05)"
                         }}
                       >
                         <EventLogItemRenderer 
