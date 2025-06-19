@@ -8,29 +8,16 @@ interface CombatTargetsProps {
   noncombatants: domain.CharacterLite[];
   selectedTargetIndex: number | null;
   onSelectTarget: (index: number | null) => void;
+  currentPlayerId?: string; // Add current player ID to filter them out
 }
 
 const CombatTargets: React.FC<CombatTargetsProps> = ({ 
   combatants, 
   noncombatants,
   selectedTargetIndex,
-  onSelectTarget
+  onSelectTarget,
+  currentPlayerId
 }) => {
-  // Filter out dead characters from combat targets to prevent targeting dead enemies
-  const validCombatants = combatants.filter(combatant => !combatant.isDead);
-  
-  // Filter out dead characters from non-combatants as well
-  const validNoncombatants = noncombatants.filter(noncombatant => !noncombatant.isDead);
-  
-  // Split non-combatants into players and enemies based on character class
-  const playerNoncombatants = validNoncombatants.filter(character => isPlayerClass(character.class));
-  const enemyNoncombatants = validNoncombatants.filter(character => isEnemyClass(character.class));
-  
-  // Get the character class name
-  const getClassDisplayName = (classValue: domain.CharacterClass): string => {
-    return domain.CharacterClass[classValue] || 'Unknown';
-  };
-
   // Helper function to check if a character class is a player class
   const isPlayerClass = (classValue: domain.CharacterClass): boolean => {
     return classValue >= domain.CharacterClass.Bard && classValue <= domain.CharacterClass.Sorcerer;
@@ -40,9 +27,26 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
   const isEnemyClass = (classValue: domain.CharacterClass): boolean => {
     return classValue >= domain.CharacterClass.Basic && classValue <= domain.CharacterClass.Boss;
   };
+
+  // Filter out dead characters from combat targets to prevent targeting dead enemies
+  const validCombatants = combatants.filter(combatant => !combatant.isDead);
+  
+  // Filter out dead characters and current player from non-combatants
+  const validNoncombatants = noncombatants.filter(noncombatant => 
+    !noncombatant.isDead && noncombatant.id !== currentPlayerId
+  );
+  
+  // Split non-combatants into players and enemies based on character class
+  const playerNoncombatants = validNoncombatants.filter(character => isPlayerClass(character.class));
+  const enemyNoncombatants = validNoncombatants.filter(character => isEnemyClass(character.class));
+  
+  // Get the character class name
+  const getClassDisplayName = (classValue: domain.CharacterClass): string => {
+    return domain.CharacterClass[classValue] || 'Unknown';
+  };
   
   // Render character button component
-  const renderCharacterButton = (character: domain.CharacterLite, arrayIndex: number, isNoncombatant: boolean = false, characterType: 'combatant' | 'player' | 'enemy' = 'combatant') => {
+  const renderCharacterButton = (character: domain.CharacterLite, arrayIndex: number, characterType: 'combatant' | 'player' | 'enemy' = 'combatant') => {
     // Use the character's position index for targeting, not array index
     const positionIndex = character.index;
     const isSelected = selectedTargetIndex === positionIndex;
@@ -163,7 +167,7 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
             <Box p={2} borderRadius="md" mb={2} overflowY="auto" className='bg-dark-brown'>
               <Text className='gold-text-light text-sm font-bold mb-2 uppercase tracking-wide'>Active Combatants</Text>
               {validCombatants.map((combatant, arrayIndex) => 
-                renderCharacterButton(combatant, arrayIndex, false, 'combatant')
+                renderCharacterButton(combatant, arrayIndex, 'combatant')
               )}
             </Box>
           )}
@@ -173,7 +177,7 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
             <Box p={2} borderRadius="md" mb={2} overflowY="auto" className='bg-dark-brown/50'>
               <Text className='text-gray-300 text-sm font-bold mb-2 uppercase tracking-wide'>Other Players</Text>
               {playerNoncombatants.map((player, arrayIndex) => 
-                renderCharacterButton(player, arrayIndex, true, 'player')
+                renderCharacterButton(player, arrayIndex, 'player')
               )}
             </Box>
           )}
@@ -183,7 +187,7 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
             <Box p={2} borderRadius="md" mb={2} overflowY="auto" className='bg-red-900/30'>
               <Text className='text-red-300 text-sm font-bold mb-2 uppercase tracking-wide'>Enemies</Text>
               {enemyNoncombatants.map((enemy, arrayIndex) => 
-                renderCharacterButton(enemy, arrayIndex, true, 'enemy')
+                renderCharacterButton(enemy, arrayIndex, 'enemy')
               )}
             </Box>
           )}
