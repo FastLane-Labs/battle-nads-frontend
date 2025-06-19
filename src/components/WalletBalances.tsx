@@ -47,6 +47,10 @@ const WalletBalances: React.FC = () => {
   // Calculate shortfall amounts for display
   const shortfallEth = shortfall && shortfall > BigInt(0) ? ethers.formatEther(shortfall) : '0';
   
+  // committed balance replensish amounts
+  const shortfallNum = parseFloat(shortfallEth) * 3;
+  const safeReplenishAmount = (shortfallNum * 2).toFixed(4);
+  
   // Function to replenish session key balance using contract client
   const handleReplenishBalance = async (useMinimalAmount: boolean = false) => {
     if (!client?.replenishGasBalance) {
@@ -69,14 +73,16 @@ const WalletBalances: React.FC = () => {
       // Convert owner balance to BigInt for comparison
       const ownerBalanceWei = ethers.parseEther(ownerBalance);
       
-      // Calculate replenish amount based on option chosen
+      // Calculate replenish amount based on option chosen using the same logic as UI display
       let targetAmount: bigint;
       if (useMinimalAmount) {
-        // Minimal: just cover the shortfall
-        targetAmount = shortfall;
+        // Minimal: shortfallNum amount (shortfall * 3)
+        const shortfallNumWei = ethers.parseEther(shortfallNum.toString());
+        targetAmount = shortfallNumWei;
       } else {
-        // Safe: shortfall + 50% buffer for safety
-        targetAmount = shortfall + (shortfall / BigInt(2));
+        // Safe: safeReplenishAmount (shortfallNum * 2)
+        const safeReplenishAmountWei = ethers.parseEther(safeReplenishAmount);
+        targetAmount = safeReplenishAmountWei;
       }
       
       // Calculate safe replenish amount
@@ -180,10 +186,6 @@ const WalletBalances: React.FC = () => {
   // Calculate session key funding amounts for display
   const smallFundingAmount = (parseFloat(DIRECT_FUNDING_AMOUNT) * 0.5).toFixed(1);
   const largeFundingAmount = DIRECT_FUNDING_AMOUNT;
-  
-  // committed balance replensish amounts
-  const shortfallNum = parseFloat(shortfallEth) * 3;
-  const safeReplenishAmount = (shortfallNum * 2).toFixed(4);
   
   return (
     <Box borderWidth="1px" borderRadius="md" color="white" className='px-3 pt-1 pb-2 flex flex-col gap-2 border-none'>
