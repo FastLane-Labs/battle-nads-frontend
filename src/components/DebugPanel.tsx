@@ -23,6 +23,8 @@ import { useBattleNadsClient } from '../hooks/contracts/useBattleNadsClient';
 import { CharacterLite } from '@/types/domain';
 import { invalidateSnapshot } from '../hooks/utils';
 import { db } from '../lib/db';
+import { useStorageCleanup } from '../hooks/useStorageCleanup';
+import { ENTRYPOINT_ADDRESS } from '../config/env';
 
 interface DebugPanelProps {
   isVisible?: boolean;
@@ -51,6 +53,14 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
   const toast = useToast();
   
   const queryClient = useQueryClient();
+  
+  // Storage cleanup functionality
+  const {
+    isClearing: isStorageClearing,
+    clearContractData,
+    forceReset: forceStorageReset,
+    checkAndHandleContractChange
+  } = useStorageCleanup();
   
   // Add a logging function that shows timestamps
   const addLog = (message: string) => {
@@ -382,6 +392,102 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       
       toast({
         title: 'Cache Clear Failed',
+        description: `Error: ${errorMsg}`,
+        status: 'error',
+        isClosable: true,
+      });
+    }
+  };
+
+  // Handle contract data cleanup
+  const handleClearContractData = async () => {
+    try {
+      addLog('🧽 Clearing previous contract data...');
+      await clearContractData();
+      addLog('✅ Previous contract data cleared successfully!');
+      
+      toast({
+        title: '🧽 Contract Data Cleared',
+        description: 'Previous contract data has been cleared. Current contract data remains intact.',
+        status: 'success',
+        duration: 5000,
+        isClosable: true,
+      });
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      addLog(`❌ Error clearing contract data: ${errorMsg}`);
+      
+      toast({
+        title: 'Contract Cleanup Failed',
+        description: `Error: ${errorMsg}`,
+        status: 'error',
+        isClosable: true,
+      });
+    }
+  };
+
+  // Handle force storage reset
+  const handleForceStorageReset = async () => {
+    try {
+      addLog('💥 Force resetting ALL storage data...');
+      await forceStorageReset();
+      addLog('✅ All storage data has been reset!');
+      addLog('🔄 Please refresh the page');
+      
+      toast({
+        title: '💥 Storage Force Reset',
+        description: 'ALL storage data has been cleared. Refresh the page to start fresh.',
+        status: 'warning',
+        duration: 8000,
+        isClosable: true,
+      });
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      addLog(`❌ Error during force reset: ${errorMsg}`);
+      
+      toast({
+        title: 'Force Reset Failed',
+        description: `Error: ${errorMsg}`,
+        status: 'error',
+        isClosable: true,
+      });
+    }
+  };
+
+  // Handle contract change check
+  const handleContractChangeCheck = async () => {
+    try {
+      addLog('🔍 Checking for contract changes...');
+      const changeDetected = await checkAndHandleContractChange();
+      
+      if (changeDetected) {
+        addLog('✅ Contract change detected and handled!');
+        addLog('🔄 Please refresh the page');
+        
+        toast({
+          title: '🔄 Contract Change Detected',
+          description: 'Contract change was detected and old data was cleared.',
+          status: 'info',
+          duration: 8000,
+          isClosable: true,
+        });
+      } else {
+        addLog('ℹ️ No contract change detected');
+        
+        toast({
+          title: '✅ Contract Up to Date',
+          description: 'No contract change detected. Storage is current.',
+          status: 'success',
+          duration: 3000,
+          isClosable: true,
+        });
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      addLog(`❌ Error checking contract change: ${errorMsg}`);
+      
+      toast({
+        title: 'Contract Check Failed',
         description: `Error: ${errorMsg}`,
         status: 'error',
         isClosable: true,
@@ -823,6 +929,53 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
             </Button>
             <Text fontSize="xs" color="gray.400">
               Clears React Query cache + IndexedDB storage to fix stale data issues
+            </Text>
+          </VStack>
+        </Box>
+
+        {/* Storage Management */}
+        <Box p={2} bg="gray.800" borderRadius="md">
+          <Heading size="sm" mb={2}>Storage Management</Heading>
+          
+          <VStack spacing={2} align="stretch">
+            <Button 
+              onClick={handleContractChangeCheck} 
+              isLoading={isStorageClearing} 
+              size="sm" 
+              width="100%" 
+              colorScheme="blue"
+              variant="outline"
+            >
+              🔍 Check Contract Change
+            </Button>
+            
+            <Button 
+              onClick={handleClearContractData} 
+              isLoading={isStorageClearing} 
+              size="sm" 
+              width="100%" 
+              colorScheme="orange"
+              variant="outline"
+            >
+              🧽 Clear Previous Contract Data
+            </Button>
+            
+            <Button 
+              onClick={handleForceStorageReset} 
+              isLoading={isStorageClearing} 
+              size="sm" 
+              width="100%" 
+              colorScheme="red"
+              variant="solid"
+            >
+              💥 Force Reset All Storage
+            </Button>
+            
+            <Text fontSize="xs" color="gray.400">
+              Contract: {ENTRYPOINT_ADDRESS.slice(0, 10)}...{ENTRYPOINT_ADDRESS.slice(-8)}
+            </Text>
+            <Text fontSize="xs" color="gray.400">
+              Manages contract-scoped storage and handles contract changes
             </Text>
           </VStack>
         </Box>

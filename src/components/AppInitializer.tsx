@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useGame } from '../hooks/game/useGame';
 import { useBattleNads } from '../hooks/game/useBattleNads';
@@ -9,14 +9,29 @@ import SessionKeyPrompt from './game/screens/SessionKeyPrompt';
 import GameContainer from './game/GameContainer';
 import DeathModal from './game/modals/DeathModal';
 import { isValidCharacterId } from '../utils/getCharacterLocalStorageKey';
+import { handleContractChange } from '../utils/contractChangeDetection';
 import NavBar from './NavBar';
-import { Box } from '@chakra-ui/react';
+import { Box, useToast } from '@chakra-ui/react';
 import { formatEther } from 'ethers';
+import { logger } from '../utils/logger';
 
 const AppInitializer: React.FC = () => {
   const game = useGame();
   const router = useRouter();
+  const toast = useToast();
   const zeroCharacterId = "0x0000000000000000000000000000000000000000000000000000000000000000";
+  
+  // State for contract change detection
+  const [contractChangeState, setContractChangeState] = useState<{
+    isChecking: boolean;
+    hasChecked: boolean;
+    changeDetected: boolean;
+    error?: string;
+  }>({
+    isChecking: false,
+    hasChecked: false,
+    changeDetected: false
+  });
 
   // Also get equipment names data from useBattleNads
   const { 
@@ -35,6 +50,56 @@ const AppInitializer: React.FC = () => {
     );
   };
 
+  // Effect for contract change detection (runs once on mount)
+  useEffect(() => {
+    const checkContractChange = async () => {
+      if (contractChangeState.hasChecked) return;
+      
+      setContractChangeState(prev => ({ ...prev, isChecking: true }));
+      
+      try {
+        const changeDetected = await handleContractChange();
+        
+        if (changeDetected) {
+          logger.info('[AppInitializer] Contract change detected and handled');
+          toast({
+            title: 'Contract Updated',
+            description: 'The game contract has been updated. Your previous data has been cleared for a fresh start.',
+            status: 'info',
+            duration: 8000,
+            isClosable: true,
+          });
+        }
+        
+        setContractChangeState(prev => ({
+          ...prev,
+          isChecking: false,
+          hasChecked: true,
+          changeDetected
+        }));
+      } catch (error) {
+        logger.error('[AppInitializer] Error during contract change detection', error);
+        setContractChangeState(prev => ({
+          ...prev,
+          isChecking: false,
+          hasChecked: true,
+          error: error instanceof Error ? error.message : 'Unknown error'
+        }));
+        
+        // Show error toast but don't block the app
+        toast({
+          title: 'Contract Check Warning',
+          description: 'Unable to verify contract version. The app will continue normally.',
+          status: 'warning',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    };
+
+    checkContractChange();
+  }, []); // Run only once on mount
+
   // Effect for redirection when no character exists
   useEffect(() => {
     // Only redirect if wallet is connected, initialized, not loading, no error, and character ID is zero
@@ -46,24 +111,29 @@ const AppInitializer: React.FC = () => {
 
   // --- State Rendering Logic (Corrected Order) --- 
 
-  // 0. Wait for Wallet Initialization
+  // 0. Wait for Contract Change Check (highest priority)
+  if (contractChangeState.isChecking) {
+    return renderWithNav(<LoadingScreen message="Checking contract version..." />, "Contract Check Loading");
+  }
+
+  // 1. Wait for Wallet Initialization
   if (!game.isInitialized) {
     return renderWithNav(<LoadingScreen message="Initializing Wallet..." />, "Wallet Init Loading");
   }
   
-  // 1. No Wallet Connected State (HIGHEST PRIORITY after init)
+  // 2. No Wallet Connected State (HIGHEST PRIORITY after init)
   if (!game.hasWallet) {
     return <Login />; 
   }
 
   // --- Wallet IS Connected States --- 
 
-  // 2. Loading State (Only relevant if wallet IS connected)
+  // 3. Loading State (Only relevant if wallet IS connected)
   if (game.isLoading) { 
     return renderWithNav(<LoadingScreen message="Initializing Game Data..." />, "Loading Screen");
   }
 
-  // 3. Error State
+  // 4. Error State
   if (game.error) {
     return renderWithNav(
       <ErrorScreen error={game.error?.message || 'An unknown error occurred'} retry={() => window.location.reload()} onGoToLogin={() => window.location.reload()} />,
@@ -71,12 +141,12 @@ const AppInitializer: React.FC = () => {
     );
   }
 
-  // 4. PRIORITY: No Character Found State (Wallet connected, not loading, no error)
+  // 5. PRIORITY: No Character Found State (Wallet connected, not loading, no error)
   if (game.hasWallet && game.characterId === zeroCharacterId) { 
     return renderWithNav(<LoadingScreen message="Redirecting to character creation..." />, "Redirecting");
   }
 
-  // 4.5. Character Death State (Check if character is dead)
+  // 6. Character Death State (Check if character is dead)
   const isValidChar = isValidCharacterId(game.characterId);
   if (game.hasWallet && 
       isValidChar && 

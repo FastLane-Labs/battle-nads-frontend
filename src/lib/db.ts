@@ -28,29 +28,40 @@ interface SerializedChatLog {
 
 // Interface for the data stored in Dexie table
 export interface StoredDataBlock {
-  // Compound primary key: [ownerAddress, blockNumberAsString]
+  // Compound primary key: [ownerAddress, contractAddress, blockNumberAsString]
   owner: string;        // Owner's address (part of primary key)
+  contract: string;     // Contract address (part of primary key)
   block: string;        // Block number as string (part of primary key)
   ts: number;           // Timestamp (milliseconds) when stored (for TTL)
   chats: SerializedChatLog[];
   events: SerializedEventLog[];
 }
 
+// Interface for character metadata storage
+export interface StoredCharacterMetadata {
+  owner: string;        // Owner's address (primary key)
+  characterId: string;  // Character ID for this owner
+}
+
 // Define the Dexie database instance
-// We use casting to provide type safety for our table
+// We use casting to provide type safety for our tables
 const db = new Dexie('BattleNadsFeedCache') as Dexie & {
   dataBlocks: EntityTable<
     StoredDataBlock,
-    'owner' // Use 'owner' or 'block' as the key *type* hint for TS
+    'owner' // Use 'owner' as the key *type* hint for TS
+  >;
+  characters: EntityTable<
+    StoredCharacterMetadata,
+    'owner' // Use 'owner' as the key *type* hint for TS
   >;
 };
 
-// Define schema version 3 (Incremented from 2)
-db.version(3).stores({
+// Define schema version 4 (Incremented to include contract address)
+db.version(4).stores({
   // Table name: dataBlocks
-  // Primary key: [owner+block] (compound key)
-  // Indexed properties: owner (for querying by user), ts (for TTL cleanup)
-  dataBlocks: '&[owner+block], owner, ts, [owner+ts]',
+  // Primary key: [owner+contract+block] (compound key with contract address)
+  // Indexed properties: owner (for querying by user), contract (for contract-specific queries), ts (for TTL cleanup)
+  dataBlocks: '&[owner+contract+block], owner, contract, ts, [owner+contract], [owner+ts]',
   // Store character metadata keyed by owner address
   // Currently stores last known character ID for an owner
   characters: '&owner, characterId',
