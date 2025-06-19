@@ -106,8 +106,8 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
                   // height={`${virtualRow.size}px`}
                   // transform={`translateY(${virtualRow.start}px)`}
                 >
-                  <Box borderRadius="md" fontSize="sm" className='flex py-[3px]'>
-                    <Text as="span" fontSize="sm" color="gray.400" className='tracking-tighter whitespace-nowrap my-auto'>
+                  <Box borderRadius="md" fontSize="sm" className='flex py-[3px] items-start'>
+                    <Text as="span" fontSize="sm" color="gray.400" className='tracking-tighter whitespace-nowrap'>
                       {new Date(chat.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </Text>
                     <Text as="span" fontWeight="bold" ml={1} color={isPlayerMessage ? "blue.300" : "yellow.300"}>
