@@ -131,6 +131,21 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       addLog(`Recent approach: ${recentEvents.length} feeds, ${recentEvents.reduce((sum: number, feed: any) => sum + (feed.logs?.length || 0), 0)} logs`);
       addLog(`All blocks approach: ${allEvents.length} feeds, ${allEvents.reduce((sum: number, feed: any) => sum + (feed.logs?.length || 0), 0)} logs`);
       
+      // Detailed logging for raw contract events
+      console.log('🔍 Detailed Raw Contract Event Logs (Recent Approach):');
+      recentEvents.forEach((feed: any, feedIndex: number) => {
+        (feed.logs || []).forEach((log: any, logIndex: number) => {
+          console.log(`  Feed ${feedIndex}, Log ${logIndex}: Type=${log.logType}, Val=${log.value?.toString()}, MainIdx=${log.mainPlayerIndex}, OtherIdx=${log.otherPlayerIndex}, Hit=${log.hit}, Died=${log.targetDied}`);
+        });
+      });
+
+      console.log('🔍 Detailed Raw Contract Event Logs (All Blocks Approach):');
+      allEvents.forEach((feed: any, feedIndex: number) => {
+        (feed.logs || []).forEach((log: any, logIndex: number) => {
+          console.log(`  Feed ${feedIndex}, Log ${logIndex}: Type=${log.logType}, Val=${log.value?.toString()}, MainIdx=${log.mainPlayerIndex}, OtherIdx=${log.otherPlayerIndex}, Hit=${log.hit}, Died=${log.targetDied}`);
+        });
+      });
+      
       // Step 3: Check cached data in IndexedDB
       addLog('Step 3: Checking cached historical data...');
       const cachedBlocks = await db.dataBlocks
