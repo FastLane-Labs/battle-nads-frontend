@@ -19,13 +19,10 @@ export default function CreatePage() {
   useEffect(() => {
     if (!game.isLoading) {
       if (!game.hasWallet) {
-        console.log("CreatePage: No wallet detected, redirecting to /...");
         router.push('/');
       } else if (game.error) {
-        console.log("CreatePage: Game error detected, redirecting to /...");
         router.push('/');
-      } else if (isValidCharacterId(game.characterId)) {
-        console.log("CreatePage: Character already exists, redirecting to /...");
+      } else if (isValidCharacterId(game.characterId) && game.character && !game.character.isDead) {
         router.push('/');
       }
     }
@@ -39,7 +36,7 @@ export default function CreatePage() {
     return <ErrorScreen error={game.error?.message || 'An unknown error occurred'} retry={() => window.location.reload()} onGoToLogin={() => router.push('/')} />;
   }
 
-  if (game.hasWallet && game.characterId === zeroCharacterId) {
+  if (game.hasWallet && (game.characterId === zeroCharacterId || (game.character && game.character.isDead))) {
     return (
       <Box className="min-h-screen bg-gray-900">
         <NavBar />
