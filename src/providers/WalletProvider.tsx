@@ -5,8 +5,6 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { usePrivy, useWallets, useSendTransaction, UnsignedTransactionRequest  } from '@privy-io/react-auth';
 import { ethers, TransactionRequest, TransactionResponse } from 'ethers';
 import { useQueryClient } from '@tanstack/react-query';
-import { getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKey';
-import { safeStringify } from '../utils/bigintSerializer';
 
 // Define wallet client types based on Privy's supported wallets
 type InjectedWalletClientType = 
@@ -74,19 +72,6 @@ const WalletContext = createContext<WalletContextType>({
   isInitialized: false,
 });
 
-interface InjectedWallet {
-  address: string;
-  provider: ethers.BrowserProvider;
-  signer: ethers.JsonRpcSigner;
-  walletType: InjectedWalletClientType;
-}
-
-interface EmbeddedWallet {
-  address: string;
-  provider: ethers.BrowserProvider;
-  signer: ethers.JsonRpcSigner;
-  walletType: string;
-}
 
 interface WalletProviderProps {
   children: ReactNode;
@@ -96,7 +81,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const { 
     ready: privyReady, 
     authenticated,
-    user,
     login,
     logout: privyLogout,
   } = usePrivy();
@@ -115,9 +99,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
   const {sendTransaction} = useSendTransaction();
   
-  // References for timers and wallet management
+  // References for wallet management
   const lastEmbeddedWalletRef = useRef<string | null>(null);
-  const fallbackTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const previousInjectedAddressRef = useRef<string | null>(null);
   const previousEmbeddedAddressRef = useRef<string | null>(null);
 
@@ -199,8 +182,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     let foundEmbeddedWallet: FoundWalletInfo | null = null;
     
     if (wallets && wallets.length > 0) {
-      // Find the MetaMask wallet first
-      const metamaskWallet = wallets.find((wallet: any) => wallet.walletClientType === 'metamask');
 
       // Store the embedded wallet address for resilience
       const embeddedWallet = wallets.find((wallet: any) => wallet.connectorType === 'embedded');
@@ -323,10 +304,6 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         });
         
         // Set session key to embedded wallet address
-        console.log('[WalletProvider] Setting embedded wallet and session key:', {
-          embeddedAddress: foundEmbeddedWallet.address,
-          injectedAddress: foundInjectedWallet?.address
-        });
         setSessionKey(foundEmbeddedWallet.address);
       } else {
         setEmbeddedWallet(null);
@@ -387,55 +364,30 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     const currentInjectedAddress = injectedWallet?.address || null;
     const currentEmbeddedAddress = embeddedWallet?.address || null;
     
-    // Only log if there are actual changes (not on every render)
-    const hasInjectedChange = previousInjectedAddressRef.current !== null && 
-                             previousInjectedAddressRef.current !== currentInjectedAddress;
-    const hasEmbeddedChange = previousEmbeddedAddressRef.current !== null && 
-                             previousEmbeddedAddressRef.current !== currentEmbeddedAddress;
-    
-    if (hasInjectedChange || hasEmbeddedChange) {
-      console.log('[WalletProvider] Wallet addresses changed:', {
-        injectedChanged: hasInjectedChange,
-        embeddedChanged: hasEmbeddedChange,
-        currentInjected: currentInjectedAddress,
-        currentEmbedded: currentEmbeddedAddress
-      });
-    }
     
     // Check if injected wallet address changed
     if (previousInjectedAddressRef.current !== null && 
         previousInjectedAddressRef.current !== currentInjectedAddress) {
       
-      console.log('[WalletProvider] Injected wallet address changed:', {
+      console.log('[WalletProvider] Injected wallet address changed - logging out from Privy to create fresh embedded wallet:', {
         previous: previousInjectedAddressRef.current,
         current: currentInjectedAddress
       });
       
-      // Invalidate React Query cache for the previous wallet
-      if (previousInjectedAddressRef.current) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['uiSnapshot', previousInjectedAddressRef.current] 
-        });
-      }
+      // Logout from Privy to force creation of new embedded wallet for new injected wallet
+      handleLogout().then(() => {
+        console.log('[WalletProvider] Privy logout completed due to wallet change');
+        // The user will need to reconnect, which will create a fresh embedded wallet
+      }).catch((error) => {
+        console.error('[WalletProvider] Failed to logout from Privy on wallet change:', error);
+      });
       
-      // Clear localStorage for the previous wallet if it exists
-      if (previousInjectedAddressRef.current) {
-        const prevStorageKey = getCharacterLocalStorageKey(previousInjectedAddressRef.current);
-        if (prevStorageKey) {
-          localStorage.removeItem(prevStorageKey);
-        }
-      }
+      return; // Exit early since we're logging out
     }
     
     // Check if embedded wallet address changed
     if (previousEmbeddedAddressRef.current !== null && 
         previousEmbeddedAddressRef.current !== currentEmbeddedAddress) {
-      
-      console.log('[WalletProvider] Embedded wallet address changed:', {
-        previous: previousEmbeddedAddressRef.current,
-        current: currentEmbeddedAddress
-      });
-      
       // Invalidate React Query cache for embedded wallet changes
       if (currentInjectedAddress) {
         queryClient.invalidateQueries({ 
@@ -452,13 +404,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
   const connectMetamask = async () => {
     if (privyReady && !authenticated) {
-      await login();
+      login();
     }
   };
 
   const connectPrivyEmbedded = async () => {
     if (privyReady && !authenticated) {
-      await login();
+      login();
     }
   };
 
