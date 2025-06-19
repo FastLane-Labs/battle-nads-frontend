@@ -140,7 +140,7 @@ const GameView: React.FC<GameViewProps> = ({
       </GridItem>
 
       {/* Event Feed */}
-      <GridItem area="feed" overflow="auto" maxH={{ base: '200px', md: '100%' }} className='min-h-72'>
+      <GridItem area="feed" maxH={{ base: '300px', md: '400px', lg: '350px' }}>
         <Box p={4} borderRadius="md" h="100%" className='card-bg'>
           <EventFeed 
             playerIndex={character.index} 

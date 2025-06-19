@@ -183,12 +183,28 @@ const EventFeed: React.FC<EventFeedProps> = ({
 
   return (
     <Box h="100%" display="flex" flexDirection="column">
-      <h1 className='copper-text text-2xl font-bold tracking-tight text-center mb-2'>Event Log</h1>
+      <h1 className='copper-text text-2xl font-bold tracking-tight text-center mb-3'>Event Log</h1>
       <Box 
         ref={parentRef}
         h="100%" 
-        overflowY="auto" 
-        className="bg-dark-brown rounded-lg border border-black/40 p-3 text-center"
+        overflowY="scroll" 
+        className="bg-dark-brown rounded-lg border border-black/40 px-3 py-2"
+        sx={{
+          '&::-webkit-scrollbar': {
+            width: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'rgba(0,0,0,0.1)',
+            borderRadius: '4px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(255,255,255,0.3)',
+            borderRadius: '4px',
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            background: 'rgba(255,255,255,0.5)',
+          },
+        }}
       >
         {isCacheLoading ? (
           <Center h="100%">
@@ -197,9 +213,9 @@ const EventFeed: React.FC<EventFeedProps> = ({
         ) : (
           <>
             <Box 
-              // height={`${rowVirtualizer.getTotalSize()}px`} 
+              height={`${rowVirtualizer.getTotalSize()}px`}
               width="100%" 
-              className='h-full min-h-full max-h-32'
+              position="relative"
             >
               {filteredEventLogs.length > 0 ? (
                 rowVirtualizer.getVirtualItems().map((virtualRow) => {
@@ -220,17 +236,25 @@ const EventFeed: React.FC<EventFeedProps> = ({
                   return (
                     <Box 
                       key={itemKey} 
-                      // top={0} 
-                      // left={0} 
+                      position="absolute"
+                      top={0} 
+                      left={0} 
                       width="100%" 
-                      // height={`${virtualRow.size}px`} 
-                      // transform={`translateY(${virtualRow.start}px)`}
-                      className='py-1'
+                      height={`${virtualRow.size}px`}
+                      transform={`translateY(${virtualRow.start}px)`}
+                      px={2}
+                      py={1}
                     >
                       <Box
-                        // bg={bgColor} 
+                        bg={isPlayerAction ? "rgba(59, 130, 246, 0.1)" : involvesCombatant ? "rgba(239, 68, 68, 0.1)" : "transparent"}
                         borderRadius="md" 
-                        h="100%"
+                        px={2}
+                        py={1}
+                        border={isPlayerAction ? "1px solid rgba(59, 130, 246, 0.2)" : involvesCombatant ? "1px solid rgba(239, 68, 68, 0.2)" : "1px solid transparent"}
+                        transition="all 0.2s"
+                        _hover={{
+                          bg: isPlayerAction ? "rgba(59, 130, 246, 0.15)" : involvesCombatant ? "rgba(239, 68, 68, 0.15)" : "rgba(255, 255, 255, 0.05)"
+                        }}
                       >
                         <EventLogItemRenderer 
                           event={event} 
