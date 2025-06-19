@@ -34,16 +34,47 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
   // Create a set of combatant IDs for efficient lookup
   const combatantIds = new Set(validCombatants.map(combatant => combatant.id));
   
+  // Debug logging
+  console.log('🔍 CombatTargets Debug:');
+  console.log('  Total combatants:', combatants.length);
+  console.log('  Valid combatants:', validCombatants.length);
+  console.log('  Combatant IDs:', Array.from(combatantIds));
+  console.log('  Total noncombatants:', noncombatants.length);
+  console.log('  Current player ID:', currentPlayerId);
+  
   // Filter out dead characters, current player, and anyone who is already a combatant
-  const validNoncombatants = noncombatants.filter(noncombatant => 
-    !noncombatant.isDead && 
-    noncombatant.id !== currentPlayerId &&
-    !combatantIds.has(noncombatant.id)
-  );
+  const validNoncombatants = noncombatants.filter(noncombatant => {
+    const isAlive = !noncombatant.isDead;
+    const isNotCurrentPlayer = noncombatant.id !== currentPlayerId;
+    const isNotCombatant = !combatantIds.has(noncombatant.id);
+    
+    console.log(`  Noncombatant ${noncombatant.id} (${noncombatant.name || 'unnamed'}):`, {
+      isAlive,
+      isNotCurrentPlayer,
+      isNotCombatant,
+      class: noncombatant.class,
+      included: isAlive && isNotCurrentPlayer && isNotCombatant
+    });
+    
+    return isAlive && isNotCurrentPlayer && isNotCombatant;
+  });
   
   // Split non-combatants into players and enemies based on character class
-  const playerNoncombatants = validNoncombatants.filter(character => isPlayerClass(character.class));
-  const enemyNoncombatants = validNoncombatants.filter(character => isEnemyClass(character.class));
+  const playerNoncombatants = validNoncombatants.filter(character => {
+    const isPlayer = isPlayerClass(character.class);
+    console.log(`  Character ${character.id} class ${character.class} isPlayer:`, isPlayer);
+    return isPlayer;
+  });
+  const enemyNoncombatants = validNoncombatants.filter(character => {
+    const isEnemy = isEnemyClass(character.class);
+    console.log(`  Character ${character.id} class ${character.class} isEnemy:`, isEnemy);
+    return isEnemy;
+  });
+  
+  console.log('  Final counts:');
+  console.log('    validNoncombatants:', validNoncombatants.length);
+  console.log('    playerNoncombatants:', playerNoncombatants.length);
+  console.log('    enemyNoncombatants:', enemyNoncombatants.length);
   
   // Get the character class name
   const getClassDisplayName = (classValue: domain.CharacterClass): string => {
@@ -181,9 +212,16 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
           {playerNoncombatants.length > 0 && (
             <Box p={2} borderRadius="md" mb={2} overflowY="auto" className='bg-dark-brown/50'>
               <Text className='text-gray-300 text-sm font-bold mb-2 uppercase tracking-wide'>Other Players</Text>
-              {playerNoncombatants.map((player, arrayIndex) => 
-                renderCharacterButton(player, arrayIndex, 'player')
-              )}
+              {playerNoncombatants.map((player, arrayIndex) => {
+                console.log(`🎮 Rendering player ${arrayIndex}:`, {
+                  id: player.id,
+                  name: player.name,
+                  index: player.index,
+                  arrayIndex,
+                  class: player.class
+                });
+                return renderCharacterButton(player, arrayIndex, 'player');
+              })}
             </Box>
           )}
           
