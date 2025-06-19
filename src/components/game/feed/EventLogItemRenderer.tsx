@@ -84,7 +84,9 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
   const generateDisplayMessage = (): string => {
     const getDisplayName = (participant: domain.EventParticipant | undefined): string => {
       if (!participant) return "Unknown";
-      if (playerIndex !== null && participant.index === playerIndex) {
+      
+      // Use Number() to ensure proper comparison between potentially mixed types
+      if (playerIndex !== null && Number(participant.index) === Number(playerIndex)) {
         return "You";
       }
       return participant.name || `Index ${participant.index}`;
