@@ -26,10 +26,13 @@ import { invalidateSnapshot } from '../hooks/utils';
 import { db } from '../lib/db';
 import { useStorageCleanup } from '../hooks/useStorageCleanup';
 import { ENTRYPOINT_ADDRESS } from '../config/env';
+import { domain } from '../types';
 
 interface DebugPanelProps {
   isVisible?: boolean;
 }
+
+type CharacterArray = any[];
 
 const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
   // State management
@@ -336,6 +339,289 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
     }
   };
   
+  // === CHARACTER DATA FUNCTIONS ===
+  
+  // Add this new function to handle the getBattleNad call
+  const handleGetBattleNad = async () => {
+    if (!fetchedCharacterId || !client) {
+      addLog('ERROR: No character ID or client available');
+      return;
+    }
+    
+    try {
+      addLog(`Fetching full character data for ID: ${fetchedCharacterId}`);
+      const character = await client.getBattleNad(fetchedCharacterId);
+      
+      // Add type assertion here
+      const characterArray = character as unknown as CharacterArray;
+      
+      // Log the raw data
+      console.log('[DebugPanel] Character data (raw):', character);
+      
+      // Create a labeled object from the array data
+      const labeledData = {
+        id: characterArray[0],
+        stats: {
+          class: Number(characterArray[1]?.[0] || 0),
+          buffs: Number(characterArray[1]?.[1] || 0),
+          debuffs: Number(characterArray[1]?.[2] || 0),
+          level: Number(characterArray[1]?.[3] || 0),
+          unspentAttributePoints: Number(characterArray[1]?.[4] || 0),
+          experience: Number(characterArray[1]?.[5] || 0),
+          strength: Number(characterArray[1]?.[6] || 0),
+          vitality: Number(characterArray[1]?.[7] || 0),
+          dexterity: Number(characterArray[1]?.[8] || 0),
+          quickness: Number(characterArray[1]?.[9] || 0),
+          sturdiness: Number(characterArray[1]?.[10] || 0),
+          luck: Number(characterArray[1]?.[11] || 0),
+          depth: Number(characterArray[1]?.[12] || 0),
+          x: Number(characterArray[1]?.[13] || 0),
+          y: Number(characterArray[1]?.[14] || 0),
+          index: Number(characterArray[1]?.[15] || 0),
+          weaponID: Number(characterArray[1]?.[16] || 0),
+          armorID: Number(characterArray[1]?.[17] || 0),
+          health: Number(characterArray[1]?.[18] || 0),
+          sumOfCombatantLevels: Number(characterArray[1]?.[19] || 0),
+          combatants: Number(characterArray[1]?.[20] || 0),
+          nextTargetIndex: Number(characterArray[1]?.[21] || 0),
+          combatantBitMap: characterArray[1]?.[22] || 0
+        },
+        maxHealth: Number(characterArray[2] || 0),
+        weapon: {
+          name: characterArray[3]?.[0] || '',
+          baseDamage: Number(characterArray[3]?.[1] || 0),
+          bonusDamage: Number(characterArray[3]?.[2] || 0),
+          accuracy: Number(characterArray[3]?.[3] || 0),
+          speed: Number(characterArray[3]?.[4] || 0)
+        },
+        armor: {
+          name: characterArray[4]?.[0] || '',
+          armorFactor: Number(characterArray[4]?.[1] || 0),
+          armorQuality: Number(characterArray[4]?.[2] || 0),
+          flexibility: Number(characterArray[4]?.[3] || 0),
+          weight: Number(characterArray[4]?.[4] || 0)
+        },
+        inventory: {
+          weaponBitmap: Number(characterArray[5]?.[0] || 0),
+          armorBitmap: Number(characterArray[5]?.[1] || 0),
+          balance: characterArray[5]?.[2] || 0
+        },
+        tracker: {
+          updateStats: Boolean(characterArray[6]?.[0] || false),
+          updateInventory: Boolean(characterArray[6]?.[1] || false),
+          updateActiveTask: Boolean(characterArray[6]?.[2] || false),
+          updateActiveAbility: Boolean(characterArray[6]?.[3] || false),
+          updateOwner: Boolean(characterArray[6]?.[4] || false),
+          classStatsAdded: Boolean(characterArray[6]?.[5] || false),
+          died: Boolean(characterArray[6]?.[6] || false)
+        },
+        activeTask: characterArray[7],
+        activeAbility: {
+          ability: Number(characterArray[8]?.[0] || 0),
+          stage: Number(characterArray[8]?.[1] || 0),
+          targetIndex: Number(characterArray[8]?.[2] || 0),
+          taskAddress: characterArray[8]?.[3] || '',
+          targetBlock: Number(characterArray[8]?.[4] || 0)
+        },
+        owner: characterArray[9],
+        name: characterArray[10]
+      };
+      
+      // Convert to JSON string with proper formatting
+      const jsonString = JSON.stringify(labeledData, null, 2);
+      
+      console.log('[DebugPanel] Character data (labeled):', labeledData);
+      console.log('[DebugPanel] Character data (JSON):', jsonString);
+      
+      addLog('Character data logged to console');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      addLog(`Error fetching character data: ${errorMsg}`);
+      console.error('[DebugPanel] Error:', err);
+    }
+  };
+  
+  // Add this new function to handle the getBattleNadLite call
+  const handleGetBattleNadLite = async () => {
+    if (!fetchedCharacterId || !client) {
+      addLog('ERROR: No character ID or client available');
+      return;
+    }
+    
+    try {
+      addLog(`Fetching lite character data for ID: ${fetchedCharacterId}`);
+      const character = await client.getBattleNadLite(fetchedCharacterId);
+      
+      // Add type assertion here
+      const characterArray = character as unknown as CharacterArray;
+      
+      // Log the raw data
+      console.log('[DebugPanel] Character Lite data (raw):', character);
+      
+      // Create a labeled object from the array data based on the shared structure
+      const labeledData = {
+        characterLite: {
+          id: characterArray[0],
+          class: Number(characterArray[1] || 0),
+          health: Number(characterArray[2] || 0),
+          maxHealth: Number(characterArray[3] || 0),
+          buffs: Number(characterArray[4] || 0),
+          debuffs: Number(characterArray[5] || 0),
+          level: Number(characterArray[6] || 0),
+          index: Number(characterArray[7] || 0),
+          combatantBitMap: characterArray[8] || 0,
+          ability: Number(characterArray[9] || 0),
+          abilityStage: Number(characterArray[10] || 0),
+          abilityTargetBlock: Number(characterArray[11] || 0),
+          name: characterArray[12] || '',
+          weaponName: characterArray[13] || '',
+          armorName: characterArray[14] || '',
+          isDead: Boolean(characterArray[15] || false)
+        }
+      };
+      
+      // Convert to JSON string with proper formatting
+      const jsonString = JSON.stringify(labeledData, null, 2);
+      
+      console.log('[DebugPanel] Character Lite data (labeled):', labeledData);
+      console.log('[DebugPanel] Character Lite data (JSON):', jsonString);
+      
+      addLog('Character Lite data logged to console');
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      addLog(`Error fetching character lite data: ${errorMsg}`);
+      console.error('[DebugPanel] Error:', err);
+    }
+  };
+
+  // Add this new function to handle getting raw combatants and non-combatants from contract
+  const handleGetCombatants = async () => {
+    if (!ownerAddress || !client) {
+      addLog('ERROR: No owner address or client available');
+      return;
+    }
+    
+    try {
+      addLog('Fetching raw combatants and non-combatants from contract...');
+      const rawData = await client.getUiSnapshot(ownerAddress, BigInt(0));
+      const dataAsAny = rawData as any;
+      
+      // Raw combatants are at index 3, non-combatants at index 4
+      const rawCombatants = dataAsAny[3] || [];
+      const rawNoncombatants = dataAsAny[4] || [];
+      
+      console.log('[DebugPanel] Raw Combatants (contract data):', rawCombatants);
+      console.log('[DebugPanel] Raw Non-combatants (contract data):', rawNoncombatants);
+      
+      // Parse and label the combatants data
+      const labeledCombatants = rawCombatants.map((combatant: any, index: number) => ({
+        arrayIndex: index,
+        id: combatant[0] || '',
+        class: Number(combatant[1] || 0),
+        health: Number(combatant[2] || 0),
+        maxHealth: Number(combatant[3] || 0),
+        buffs: Number(combatant[4] || 0),
+        debuffs: Number(combatant[5] || 0),
+        level: Number(combatant[6] || 0),
+        index: Number(combatant[7] || 0),
+        combatantBitMap: combatant[8] || 0,
+        ability: Number(combatant[9] || 0),
+        abilityStage: Number(combatant[10] || 0),
+        abilityTargetBlock: Number(combatant[11] || 0),
+        name: combatant[12] || '',
+        weaponName: combatant[13] || '',
+        armorName: combatant[14] || '',
+        isDead: Boolean(combatant[15] || false)
+      }));
+      
+      // Parse and label the non-combatants data
+      const labeledNoncombatants = rawNoncombatants.map((noncombatant: any, index: number) => ({
+        arrayIndex: index,
+        id: noncombatant[0] || '',
+        class: Number(noncombatant[1] || 0),
+        health: Number(noncombatant[2] || 0),
+        maxHealth: Number(noncombatant[3] || 0),
+        buffs: Number(noncombatant[4] || 0),
+        debuffs: Number(noncombatant[5] || 0),
+        level: Number(noncombatant[6] || 0),
+        index: Number(noncombatant[7] || 0),
+        combatantBitMap: noncombatant[8] || 0,
+        ability: Number(noncombatant[9] || 0),
+        abilityStage: Number(noncombatant[10] || 0),
+        abilityTargetBlock: Number(noncombatant[11] || 0),
+        name: noncombatant[12] || '',
+        weaponName: noncombatant[13] || '',
+        armorName: noncombatant[14] || '',
+        isDead: Boolean(noncombatant[15] || false)
+      }));
+      
+      console.log('[DebugPanel] Labeled Combatants:', labeledCombatants);
+      console.log('[DebugPanel] Labeled Non-combatants:', labeledNoncombatants);
+      
+      // Log summary
+      console.log('[DebugPanel] Combatants Summary:', {
+        totalCombatants: rawCombatants.length,
+        totalNoncombatants: rawNoncombatants.length,
+        combatantNames: labeledCombatants.map((c: any) => c.name),
+        noncombatantNames: labeledNoncombatants.map((c: any) => c.name)
+      });
+      
+      addLog(`Raw contract data: ${rawCombatants.length} combatants, ${rawNoncombatants.length} non-combatants logged to console`);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      addLog(`Error fetching combatants data: ${errorMsg}`);
+      console.error('[DebugPanel] Error:', err);
+    }
+  };
+
+  // Add this new function to handle getting processed combatants from game state
+  const handleGetGameStateCombatants = async () => {
+    if (!gameState) {
+      addLog('ERROR: No game state available');
+      return;
+    }
+    
+    try {
+      addLog('Logging processed combatants and non-combatants from game state...');
+      
+      const combatants = gameState.combatants || [];
+      const noncombatants = gameState.noncombatants || [];
+      
+      console.log('[DebugPanel] Game State Combatants (processed):', combatants);
+      console.log('[DebugPanel] Game State Non-combatants (processed):', noncombatants);
+      
+      // Log summary with more details
+      console.log('[DebugPanel] Game State Summary:', {
+        totalCombatants: combatants.length,
+        totalNoncombatants: noncombatants.length,
+                 combatantDetails: combatants.map((c: domain.CharacterLite) => ({
+           name: c.name,
+           id: c.id,
+           level: c.level,
+           health: `${c.health}/${c.maxHealth}`,
+           class: c.class,
+           isDead: c.isDead,
+           areaId: c.areaId?.toString()
+         })),
+         noncombatantDetails: noncombatants.map((c: domain.CharacterLite) => ({
+           name: c.name,
+           id: c.id,
+           level: c.level,
+           health: `${c.health}/${c.maxHealth}`,
+           class: c.class,
+           isDead: c.isDead,
+           areaId: c.areaId?.toString()
+         }))
+      });
+      
+      addLog(`Game state data: ${combatants.length} combatants, ${noncombatants.length} non-combatants logged to console`);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      addLog(`Error logging game state combatants: ${errorMsg}`);
+      console.error('[DebugPanel] Error:', err);
+    }
+  };
+
   // === CACHE MANAGEMENT FUNCTIONS ===
   
   const clearAllCache = async () => {
@@ -489,6 +775,64 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
                 <option value={5000}>Last 5000 blocks</option>
               </Select>
             </HStack>
+          </VStack>
+        </Box>
+        
+        {/* Character Data Tools */}
+        <Box p={2} bg="gray.800" borderRadius="md">
+          <Heading size="sm" mb={2}>Character Data</Heading>
+          <Text fontSize="xs" color="gray.400" mb={2}>
+            Fetch and log raw character data from smart contract
+          </Text>
+          
+          <VStack spacing={2} align="stretch">
+            {/* Character Data Buttons */}
+            <HStack spacing={2}>
+              <Button 
+                onClick={handleGetBattleNad} 
+                isDisabled={!fetchedCharacterId || !client}
+                colorScheme="purple"
+                size="sm"
+                flex="1"
+              >
+                Get Full Data
+              </Button>
+              <Button 
+                onClick={handleGetBattleNadLite} 
+                isDisabled={!fetchedCharacterId || !client}
+                colorScheme="blue"
+                size="sm"
+                flex="1"
+              >
+                Get Lite Data
+              </Button>
+            </HStack>
+            
+            {/* Combatants Data Buttons */}
+            <HStack spacing={2}>
+              <Button 
+                onClick={handleGetCombatants} 
+                isDisabled={!ownerAddress || !client}
+                colorScheme="green"
+                size="sm"
+                flex="1"
+              >
+                Raw Combatants
+              </Button>
+              <Button 
+                onClick={handleGetGameStateCombatants} 
+                isDisabled={!gameState}
+                colorScheme="teal"
+                size="sm"
+                flex="1"
+              >
+                Game State Data
+              </Button>
+            </HStack>
+            
+            <Text fontSize="xs" color="gray.400">
+              All data will be logged to console with detailed breakdowns
+            </Text>
           </VStack>
         </Box>
         
