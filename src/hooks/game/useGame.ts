@@ -38,11 +38,16 @@ export const useGame = () => {
     error: gameStateError, 
   } = useBattleNads(owner);
   
-  // Get historical cache data and loading state
-  const { historicalBlocks, isHistoryLoading: isCacheLoading } = useCachedDataFeed(owner);
-  
   // Character ID from game state
   const characterId = liveGameState?.character?.id || null;
+  
+  // Get historical cache data and loading state (now character-specific)
+  const { 
+    historicalBlocks, 
+    isHistoryLoading: isCacheLoading,
+    getAllCharactersForOwner,
+    getDataSummaryForOwner 
+  } = useCachedDataFeed(owner, characterId);
   
   // Session key management
   const { 

@@ -54,14 +54,15 @@ const FEED_TTL = 1000 * 60 * 60; // 1 hour in ms
 /**
  * Hook to manage cached data feed blocks using Dexie.
  * Loads initial historical blocks from Dexie ON MOUNT and handles purging.
+ * Enhanced to support character-specific data storage.
  */
-export const useCachedDataFeed = (owner: string | null) => {
+export const useCachedDataFeed = (owner: string | null, characterId: string | null) => {
   const [historicalBlocks, setHistoricalBlocks] = useState<CachedDataBlock[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
-    if (!owner) {
+    if (!owner || !characterId) {
       if (isMounted) {
         setHistoricalBlocks([]); 
         setIsHistoryLoading(false);
@@ -74,8 +75,11 @@ export const useCachedDataFeed = (owner: string | null) => {
       setIsHistoryLoading(true);
       try {
         const contractAddress = ENTRYPOINT_ADDRESS.toLowerCase();
+        
+        // Load character-specific data
         const recentStoredBlocks = await db.dataBlocks
-          .where('[owner+contract]').equals([owner, contractAddress])
+          .where('[owner+contract+characterId]')
+          .equals([owner, contractAddress, characterId])
           .toArray();
 
         recentStoredBlocks.sort((a, b) => parseInt(a.block, 10) - parseInt(b.block, 10));
@@ -92,20 +96,27 @@ export const useCachedDataFeed = (owner: string | null) => {
             setHistoricalBlocks(deserializedBlocks);
         }
 
-        // Purge expired blocks 
+        // Update character metadata with last active timestamp
+        await db.characters.put({
+          owner,
+          characterId,
+          lastActive: Date.now()
+        });
+
+        // Purge expired blocks (TTL-based cleanup)
         const now = Date.now();
         const expirationTime = now - FEED_TTL;
-        db.dataBlocks
-            .where('[owner+contract]').equals([owner, contractAddress]) // Scope purge to owner and contract
-            .and(item => item.ts < expirationTime)
-            .delete()
-            .then(deleteCount => {
-                if (deleteCount > 0) {
-                    // console.log(`[CachedDataFeed] Purged ${deleteCount} expired blocks for owner and contract.`);
-                }
-            }).catch(err => {
-                console.error("[CachedDataFeed] Error purging expired blocks:", err);
-            });
+        
+        // Purge expired blocks for this specific character
+        const deleteCount = await db.dataBlocks
+          .where('[owner+contract+characterId]')
+          .equals([owner, contractAddress, characterId])
+          .and(item => item.ts < expirationTime)
+          .delete();
+
+        if (deleteCount > 0) {
+          // console.log(`[CachedDataFeed] Purged ${deleteCount} expired blocks for character ${characterId}.`);
+        }
 
       } catch (error) {
         console.error('[CachedDataFeed] Error loading initial blocks from Dexie:', error);
@@ -124,12 +135,65 @@ export const useCachedDataFeed = (owner: string | null) => {
     return () => {
       isMounted = false;
     };
-  }, [owner]); 
+  }, [owner, characterId]); // Now depends on both owner and characterId
 
-  // Return the historical blocks and loading state.
+  // Utility function to get all characters for current owner
+  const getAllCharactersForOwner = useCallback(async (ownerAddress: string) => {
+    if (!ownerAddress) return [];
+    
+    try {
+      const characters = await db.characters
+        .where('owner')
+        .equals(ownerAddress)
+        .toArray();
+      
+      // Sort by lastActive in memory (most recent first)
+      return characters.sort((a, b) => b.lastActive - a.lastActive);
+    } catch (error) {
+      console.error('[CachedDataFeed] Error getting characters for owner:', error);
+      return [];
+    }
+  }, []);
+
+  // Utility function to get data summary for all characters of current owner
+  const getDataSummaryForOwner = useCallback(async (ownerAddress: string) => {
+    if (!ownerAddress) return {};
+    
+    try {
+      const contractAddress = ENTRYPOINT_ADDRESS.toLowerCase();
+      const summary: Record<string, { blockCount: number, lastActivity: number }> = {};
+      
+      // Get all data blocks for this owner across all characters
+      const allBlocks = await db.dataBlocks
+        .where('[owner+contract]')
+        .equals([ownerAddress, contractAddress])
+        .toArray();
+      
+      // Group by characterId
+      allBlocks.forEach(block => {
+        if (!summary[block.characterId]) {
+          summary[block.characterId] = { blockCount: 0, lastActivity: 0 };
+        }
+        summary[block.characterId].blockCount++;
+        summary[block.characterId].lastActivity = Math.max(
+          summary[block.characterId].lastActivity, 
+          block.ts
+        );
+      });
+      
+      return summary;
+    } catch (error) {
+      console.error('[CachedDataFeed] Error getting data summary:', error);
+      return {};
+    }
+  }, []);
+
+  // Return the historical blocks and loading state, plus utility functions
   return {
     historicalBlocks, // Return the state variable
     isHistoryLoading,
+    getAllCharactersForOwner, // For character switching UI
+    getDataSummaryForOwner,   // For showing data availability per character
   };
 };
 
@@ -233,6 +297,7 @@ export const processDataFeedsToCachedBlocks = (
 /**
  * Utility function to store feed data (can be called from useUiSnapshot)
  * @param owner - owner wallet address
+ * @param characterId - character ID to associate data with
  * @param dataFeeds - dataFeeds to store
  * @param combatantsContext - combatantsContext to store
  * @param nonCombatantsContext - nonCombatantsContext to store
@@ -242,14 +307,15 @@ export const processDataFeedsToCachedBlocks = (
  */
 export const storeFeedData = async (
   owner: string,
+  characterId: string,
   dataFeeds: contract.DataFeed[],
   combatantsContext: CharacterLite[] | undefined,
   nonCombatantsContext: CharacterLite[] | undefined,
   currentBlockNumber: bigint, // Add currentBlockNumber parameter
   fetchTimestamp: number // Add fetchTimestamp parameter
 ) => {
-  if (!owner || !dataFeeds || dataFeeds.length === 0) {
-    return; // No owner or data to store
+  if (!owner || !characterId || !dataFeeds || dataFeeds.length === 0) {
+    return; // No owner/character or data to store
   }
 
   // 1. Process the feeds using the new utility function
@@ -266,6 +332,7 @@ export const storeFeedData = async (
   const blocksToStore: StoredDataBlock[] = processedBlocks.map(block => ({
     owner: owner,
     contract: contractAddress,
+    characterId: characterId, // Include characterId in stored data
     block: block.blockNumber.toString(),
     ts: block.timestamp,
     chats: block.chats,

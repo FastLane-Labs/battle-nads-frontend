@@ -35,6 +35,12 @@ jest.mock('@/lib/db', () => ({
       delete: jest.fn().mockResolvedValue(0),
       bulkPut: jest.fn().mockResolvedValue(undefined),
     },
+    characters: {
+      where: jest.fn().mockReturnThis(),
+      equals: jest.fn().mockReturnThis(),
+      toArray: jest.fn().mockResolvedValue([]),
+      put: jest.fn().mockResolvedValue(undefined),
+    },
     transaction: jest.fn((mode: any, tables: any, fn: any) => fn()),
   }
 }));

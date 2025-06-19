@@ -87,7 +87,9 @@ jest.mock('../useCachedDataFeed', () => ({
   useCachedDataFeed: jest.fn().mockReturnValue({ 
     // Ensure the return shape matches the hook's actual return
     historicalBlocks: [], 
-    isHistoryLoading: false
+    isHistoryLoading: false,
+    getAllCharactersForOwner: jest.fn().mockResolvedValue([]),
+    getDataSummaryForOwner: jest.fn().mockResolvedValue({}),
   }),
   storeFeedData: jest.fn().mockResolvedValue(undefined) // Mock storeFeedData
 }));

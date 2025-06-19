@@ -29,9 +29,10 @@ interface SerializedChatLog {
 
 // Interface for the data stored in Dexie table
 export interface StoredDataBlock {
-  // Compound primary key: [ownerAddress, contractAddress, blockNumberAsString]
+  // Enhanced compound primary key: [ownerAddress, contractAddress, characterId, blockNumberAsString]
   owner: string;        // Owner's address (part of primary key)
   contract: string;     // Contract address (part of primary key)
+  characterId: string;  // Character ID (part of primary key) - allows character-specific data
   block: string;        // Block number as string (part of primary key)
   ts: number;           // Timestamp (milliseconds) when stored (for TTL)
   chats: SerializedChatLog[];
@@ -42,11 +43,13 @@ export interface StoredDataBlock {
 export interface StoredCharacterMetadata {
   owner: string;        // Owner's address (primary key)
   characterId: string;  // Character ID for this owner
+  lastActive: number;   // Timestamp of last activity (for switching back to recent character)
 }
 
 // Define the Dexie database instance
 // We use casting to provide type safety for our tables
-const db = new Dexie('BattleNadsFeedCache') as Dexie & {
+// Changed database name to force fresh start with character-specific schema
+const db = new Dexie('BattleNadsFeedCache_v2') as Dexie & {
   dataBlocks: EntityTable<
     StoredDataBlock,
     'owner' // Use 'owner' as the key *type* hint for TS
@@ -57,15 +60,18 @@ const db = new Dexie('BattleNadsFeedCache') as Dexie & {
   >;
 };
 
-// Define schema version 5 (Clean version with areaId support - no migration)
-db.version(5).stores({
+// Define schema version 1 for the new database (fresh start)
+// Character-specific data support from the beginning
+db.version(1).stores({
   // Table name: dataBlocks
-  // Primary key: [owner+contract+block] (compound key with contract address)
-  // Indexed properties: owner (for querying by user), contract (for contract-specific queries), ts (for TTL cleanup)
-  dataBlocks: '&[owner+contract+block], owner, contract, ts, [owner+contract], [owner+ts]',
-  // Store character metadata keyed by owner address
-  // Currently stores last known character ID for an owner
-  characters: '&owner, characterId',
+  // Primary key: [owner+contract+characterId+block] (4-part compound key)
+  // Additional indexes for efficient queries:
+  // - [owner+contract+characterId] for character-specific data
+  // - [owner+characterId] for cross-contract character data
+  // - ts for TTL cleanup
+  dataBlocks: '&[owner+contract+characterId+block], owner, contract, characterId, ts, [owner+contract+characterId], [owner+characterId], [owner+contract], [owner+ts]',
+  // Store character metadata with lastActive timestamp
+  characters: '&[owner+characterId], owner, characterId, lastActive',
 });
 
 export { db }; 

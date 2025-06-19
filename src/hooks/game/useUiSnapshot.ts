@@ -73,10 +73,11 @@ export const useUiSnapshot = (owner: string | null) => {
       const domainCombatantsContext = (mappedData.combatants || []).map(mapCharacterLite);
       const domainNonCombatantsContext = (mappedData.noncombatants || []).map(mapCharacterLite);
 
-      if (liveFeeds && liveFeeds.length > 0) {
+      if (liveFeeds && liveFeeds.length > 0 && mappedData.character?.id) {
         // Call storeFeedData with mapped context but DO NOT await it
         storeFeedData(
-          owner, 
+          owner,
+          mappedData.character.id, // Extract character ID from the fetched data
           liveFeeds, 
           domainCombatantsContext, 
           domainNonCombatantsContext, 
