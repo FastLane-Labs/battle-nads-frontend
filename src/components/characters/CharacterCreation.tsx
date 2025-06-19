@@ -1,24 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
-  Box, 
   Button, 
-  Center, 
   FormControl, 
   FormLabel, 
   Input, 
-  NumberInput,
-  NumberInputField,
-  NumberInputStepper,
-  NumberIncrementStepper,
-  NumberDecrementStepper,
-  VStack,
-  Text,
   Spinner,
   useToast,
-  Divider,
-  Image,
   useDisclosure,
   Modal, 
   ModalOverlay, 
@@ -27,10 +16,6 @@ import {
   ModalFooter, 
   ModalBody, 
   ModalCloseButton,
-  Select,
-  Alert,
-  AlertIcon,
-  AlertDescription
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import { useWallet } from '@/providers/WalletProvider';
@@ -38,9 +23,7 @@ import { isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
 import { useGame } from '@/hooks/game/useGame';
 import { useBattleNadsClient } from '@/hooks/contracts/useBattleNadsClient';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
-import { domain } from '@/types';
 import { ethers } from 'ethers';
-import { formatEther } from 'ethers';
 import { MAX_SESSION_KEY_VALIDITY_BLOCKS } from '@/config/env';
 
 // --- Constants for Stat Allocation ---
@@ -116,6 +99,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
   const [sturdiness, setSturdiness] = useState(MIN_STAT_VALUE);
   const [luck, setLuck] = useState(MIN_STAT_VALUE);
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
+  const [isNameInputFocused, setIsNameInputFocused] = useState(false);
   
   const router = useRouter();
   const toast = useToast();
@@ -124,7 +108,6 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
 
   const { client } = useBattleNadsClient();
   const { embeddedWallet, injectedWallet } = useWallet();
-  const { characterId: globalCharacterId } = useGame();
 
   const usedPoints = useMemo(() => 
     strength + vitality + dexterity + quickness + sturdiness + luck,
@@ -454,6 +437,8 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
               <input 
                 value={name} 
                 onChange={(e) => setName(e.target.value)} 
+                onFocus={() => setIsNameInputFocused(true)}
+                onBlur={() => setIsNameInputFocused(false)}
                 placeholder="Enter your character name"
                 disabled={createCharacterMutation.isPending}
                 className="w-full h-[60px] bg-transparent text-transparent text-[31px] px-6 py-3 
@@ -469,7 +454,14 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
               {/* Gold text overlay that shows the input value */}
               <div className="absolute inset-0 flex items-center px-6 pointer-events-none">
                 {name ? (
-                  <span className="gold-text text-3xl">{name}</span>
+                  <div className="flex items-center">
+                    <span className="gold-text text-3xl">{name}</span>
+                    {isNameInputFocused && (
+                      <span className="gold-text text-3xl ml-1 animate-[blink_1s_infinite]">|</span>
+                    )}
+                  </div>
+                ) : isNameInputFocused ? (
+                  <span className="gold-text text-3xl animate-[blink_1s_infinite]">|</span>
                 ) : (
                   <span className="text-gray-500 text-2xl">Enter your character name</span>
                 )}
@@ -614,4 +606,4 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
   );
 };
 
-export default CharacterCreation; 
+export default CharacterCreation;
