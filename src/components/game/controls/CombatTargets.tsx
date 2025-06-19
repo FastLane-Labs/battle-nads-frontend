@@ -31,9 +31,14 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
   // Filter out dead characters from combat targets to prevent targeting dead enemies
   const validCombatants = combatants.filter(combatant => !combatant.isDead);
   
-  // Filter out dead characters and current player from non-combatants
+  // Create a set of combatant IDs for efficient lookup
+  const combatantIds = new Set(validCombatants.map(combatant => combatant.id));
+  
+  // Filter out dead characters, current player, and anyone who is already a combatant
   const validNoncombatants = noncombatants.filter(noncombatant => 
-    !noncombatant.isDead && noncombatant.id !== currentPlayerId
+    !noncombatant.isDead && 
+    noncombatant.id !== currentPlayerId &&
+    !combatantIds.has(noncombatant.id)
   );
   
   // Split non-combatants into players and enemies based on character class
