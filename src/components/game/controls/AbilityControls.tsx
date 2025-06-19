@@ -14,6 +14,7 @@ interface AbilityControlsProps {
   onAttack?: (targetIndex: number) => Promise<void>;
   isAttacking?: boolean;
   combatants?: domain.CharacterLite[]; // Add combatants to validate target exists
+  noncombatants?: domain.CharacterLite[]; // Add noncombatants to validate target exists
 }
 
 export const AbilityControls: React.FC<AbilityControlsProps> = ({ 
@@ -22,7 +23,8 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
   selectedTargetIndex,
   onAttack,
   isAttacking = false,
-  combatants = []
+  combatants = [],
+  noncombatants = []
 }) => {
   const {
     abilities,
@@ -39,14 +41,29 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
   const toast = useToast();
 
   // Helper function to check if the selected target position index corresponds to a valid combatant
-  const isValidTarget = (positionIndex: number): boolean => {
+  const isValidCombatant = (positionIndex: number): boolean => {
     return combatants.some(combatant => combatant.index === positionIndex && !combatant.isDead);
+  };
+
+  // Helper function to check if the selected target position index corresponds to a valid non-combatant
+  const isValidNoncombatant = (positionIndex: number): boolean => {
+    return noncombatants.some(noncombatant => noncombatant.index === positionIndex && !noncombatant.isDead);
+  };
+
+  // Helper function to check if the selected target position index corresponds to any valid target
+  const isValidTarget = (positionIndex: number): boolean => {
+    return isValidCombatant(positionIndex) || isValidNoncombatant(positionIndex);
   };
 
   // Helper function to get target name for display
   const getTargetName = (positionIndex: number): string => {
-    const target = combatants.find(combatant => combatant.index === positionIndex);
-    return target?.name || `Position ${positionIndex}`;
+    const combatant = combatants.find(combatant => combatant.index === positionIndex);
+    if (combatant) return combatant.name || `Enemy #${positionIndex}`;
+    
+    const noncombatant = noncombatants.find(noncombatant => noncombatant.index === positionIndex);
+    if (noncombatant) return noncombatant.name || `Player #${positionIndex}`;
+    
+    return `Position ${positionIndex}`;
   };
 
   const handleAbilityClick = (abilityIndex: domain.Ability) => {
@@ -69,13 +86,27 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
   };
 
   const handleAttack = () => {
-    if (isValidTarget(selectedTargetIndex) && onAttack && !isAttacking && !isTransactionDisabled) {
+    const hasValidCombatant = isValidCombatant(selectedTargetIndex);
+    const hasValidNoncombatant = isValidNoncombatant(selectedTargetIndex);
+    
+    // Allow attack if: (in combat with valid combatant) OR (valid non-combatant regardless of combat state)
+    const canAttack = (isInCombat && hasValidCombatant) || hasValidNoncombatant;
+    
+    if (canAttack && onAttack && !isAttacking && !isTransactionDisabled) {
       // Pass the position index to the attack function
       onAttack(selectedTargetIndex);
     } else if (!isValidTarget(selectedTargetIndex)) {
       toast({
         title: "Target Required",
         description: "Please select a valid target to attack.",
+        status: "warning",
+        duration: 3000,
+        isClosable: true,
+      });
+    } else if (hasValidCombatant && !isInCombat) {
+      toast({
+        title: "Combat Required",
+        description: "You must be in combat to attack other combatants.",
         status: "warning",
         duration: 3000,
         isClosable: true,
@@ -96,17 +127,22 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
   }
 
   // Determine attack button state
+  const hasValidCombatant = isValidCombatant(selectedTargetIndex);
+  const hasValidNoncombatant = isValidNoncombatant(selectedTargetIndex);
   const hasValidTarget = isValidTarget(selectedTargetIndex);
-  const isAttackDisabled = !isInCombat || !hasValidTarget || isAttacking || !onAttack || isTransactionDisabled;
+  
+  // Allow attack if: (in combat with valid combatant) OR (valid non-combatant regardless of combat state)
+  const canAttack = (isInCombat && hasValidCombatant) || hasValidNoncombatant;
+  const isAttackDisabled = !canAttack || isAttacking || !onAttack || isTransactionDisabled;
   
   // Get target name for attack button
   const attackTargetName = hasValidTarget ? getTargetName(selectedTargetIndex) : undefined;
   
   // Get status message for attack button
-  const attackStatusMessage = !isInCombat 
-    ? "Cannot attack outside of combat"
-    : !hasValidTarget 
+  const attackStatusMessage = !hasValidTarget 
     ? "Select a valid target to attack"
+    : hasValidCombatant && !isInCombat
+    ? "Must be in combat to attack combatants"
     : isTransactionDisabled
     ? insufficientBalanceMessage || "Insufficient balance"
     : undefined;
