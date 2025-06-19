@@ -3,12 +3,8 @@ import {
   Box, 
   Text, 
   Flex, 
-  Badge, 
-  Stat, 
-  StatLabel, 
-  StatNumber, 
+  Badge,  
   Button,
-  Tooltip,
   Spinner,
   useToast
 } from '@chakra-ui/react';
@@ -181,12 +177,13 @@ const WalletBalances: React.FC = () => {
   const showDirectFunding = sessionKeyBalanceNum < LOW_SESSION_KEY_THRESHOLD;
   const sessionKeyAddress = gameState?.sessionKeyData?.key;
   
-  // Calculate funding amounts for display
+  // Calculate session key funding amounts for display
   const smallFundingAmount = (parseFloat(DIRECT_FUNDING_AMOUNT) * 0.5).toFixed(1);
   const largeFundingAmount = DIRECT_FUNDING_AMOUNT;
   
-  const shortfallNum = parseFloat(shortfallEth);
-  const safeReplenishAmount = (shortfallNum * 1.5).toFixed(4);
+  // committed balance replensish amounts
+  const shortfallNum = parseFloat(shortfallEth) * 3;
+  const safeReplenishAmount = (shortfallNum * 2).toFixed(4);
   
   return (
     <Box borderWidth="1px" borderRadius="md" color="white" className='px-3 pt-1 pb-2 flex flex-col gap-2 border-none'>
