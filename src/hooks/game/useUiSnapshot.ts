@@ -21,6 +21,7 @@ export const useUiSnapshot = (owner: string | null) => {
   // Only log when wallet addresses change or on first load
   const prevOwnerRef = React.useRef<string | null>(null);
   const prevEmbeddedRef = React.useRef<string | null>(null);
+  const lastSessionKeyDataRef = React.useRef<string>('');
   
   React.useEffect(() => {
     const embeddedAddress = embeddedWallet?.address ?? null;
@@ -91,14 +92,22 @@ export const useUiSnapshot = (owner: string | null) => {
         throw new Error(`Failed to map snapshot array: ${errorMessage}`);
       }
 
-      // Debug log the session key data
-      console.log('[useUiSnapshot] Session key data fetched:', {
-        owner,
-        embeddedWalletAddress: embeddedWallet?.address,
-        sessionKeyData: mappedData.sessionKeyData,
-        characterId: mappedData.character?.id,
-        endBlock: mappedData.endBlock
+      // Only log session key data if it's different from last fetch
+      const sessionKeyDataString = JSON.stringify({
+        key: mappedData.sessionKeyData?.key,
+        expiration: mappedData.sessionKeyData?.expiration
       });
+      
+      if (lastSessionKeyDataRef.current !== sessionKeyDataString) {
+        console.log('[useUiSnapshot] Session key data changed:', {
+          owner,
+          embeddedWalletAddress: embeddedWallet?.address,
+          sessionKeyData: mappedData.sessionKeyData,
+          characterId: mappedData.character?.id,
+          endBlock: mappedData.endBlock
+        });
+        lastSessionKeyDataRef.current = sessionKeyDataString;
+      }
 
       // Asynchronously store the newly fetched feeds
       const liveFeeds = mappedData.dataFeeds;
