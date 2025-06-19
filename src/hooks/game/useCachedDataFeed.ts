@@ -15,6 +15,7 @@ export interface SerializedEventLog {
   otherPlayerIndex: number;
   attackerName?: string;
   defenderName?: string;
+  areaId: string;
   hit: boolean;
   critical: boolean;
   damageDone: number;
@@ -147,10 +148,10 @@ export const processDataFeedsToCachedBlocks = (
   // Use the provided fetchTimestamp as the reference point
   const currentTimestamp = fetchTimestamp;
 
-  // Create lookup maps from context (index -> {id, name})
-  const characterLookup = new Map<number, { id: string; name: string }>();
-  (combatantsContext || []).forEach(c => characterLookup.set(c.index, { id: c.id, name: c.name }));
-  (nonCombatantsContext || []).forEach(c => characterLookup.set(c.index, { id: c.id, name: c.name }));
+  // Create lookup maps from context (index -> {id, name, areaId})
+  const characterLookup = new Map<number, { id: string; name: string; areaId: bigint }>();
+  (combatantsContext || []).forEach(c => characterLookup.set(c.index, { id: c.id, name: c.name, areaId: c.areaId }));
+  (nonCombatantsContext || []).forEach(c => characterLookup.set(c.index, { id: c.id, name: c.name, areaId: c.areaId }));
   
   const processedBlocks: CachedDataBlock[] = [];
 
@@ -184,6 +185,7 @@ export const processDataFeedsToCachedBlocks = (
         otherPlayerIndex: log.otherPlayerIndex,
         attackerName: attackerInfo?.name,
         defenderName: defenderInfo?.name,
+        areaId: String(attackerInfo?.areaId || defenderInfo?.areaId || 0n), // Store as string for IndexedDB
         hit: log.hit,
         critical: log.critical,
         damageDone: log.damageDone,

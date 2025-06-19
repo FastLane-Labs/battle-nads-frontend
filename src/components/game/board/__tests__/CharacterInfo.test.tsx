@@ -33,6 +33,7 @@ const mockCharacter: domain.Character = {
   weapon: { id: 1, name: 'Sword', baseDamage: 10, bonusDamage: 2, accuracy: 90, speed: 10 },
   armor: { id: 1, name: 'Leather Armor', armorFactor: 5, armorQuality: 5, flexibility: 8, weight: 10 },
   position: { x: 1, y: 1, depth: 1 },
+  areaId: 0x0000000000000000000000000000000000000000000000000000000000010101n,
   owner: '0x123',
   activeTask: '0x0',
   ability: { ability: domain.Ability.None, stage: 0, targetIndex: 0, taskAddress: '0x0', targetBlock: 0 },

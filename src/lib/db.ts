@@ -8,6 +8,7 @@ interface SerializedEventLog {
   index: number;
   mainPlayerIndex: number;
   otherPlayerIndex: number;
+  areaId: string;
   hit: boolean;
   critical: boolean;
   damageDone: number;
@@ -16,14 +17,14 @@ interface SerializedEventLog {
   lootedWeaponID: number;
   lootedArmorID: number;
   experience: number;
-  value: string; // Storing BigInt as string
+  value: string;
 }
 
 interface SerializedChatLog {
   content: string;
   timestamp: string;
-  senderId: string;   // Added
-  senderName: string; // Added
+  senderId: string;
+  senderName: string;
 }
 
 // Interface for the data stored in Dexie table
@@ -56,8 +57,8 @@ const db = new Dexie('BattleNadsFeedCache') as Dexie & {
   >;
 };
 
-// Define schema version 4 (Incremented to include contract address)
-db.version(4).stores({
+// Define schema version 5 (Clean version with areaId support - no migration)
+db.version(5).stores({
   // Table name: dataBlocks
   // Primary key: [owner+contract+block] (compound key with contract address)
   // Indexed properties: owner (for querying by user), contract (for contract-specific queries), ts (for TTL cleanup)

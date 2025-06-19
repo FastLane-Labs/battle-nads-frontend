@@ -109,6 +109,7 @@ export const useBattleNads = (owner: string | null) => {
                 type: log.logType as domain.LogType,
                 attacker: attackerInfo ? { id: attackerInfo.id, name: attackerInfo.name, index: Number(log.mainPlayerIndex) } : undefined,
                 defender: defenderInfo ? { id: defenderInfo.id, name: defenderInfo.name, index: Number(log.otherPlayerIndex) } : undefined,
+                areaId: attackerInfo?.areaId || defenderInfo?.areaId || 0n, // Use attacker's area, fallback to defender's area, default to 0n
                 isPlayerInitiated: isPlayerInitiated,
                 details: {
                     hit: log.hit,
@@ -271,6 +272,7 @@ export const useBattleNads = (owner: string | null) => {
               type: event.logType as domain.LogType,
               attacker: attacker, 
               defender: defender, 
+              areaId: BigInt(event.areaId), // Convert stored string back to bigint
               isPlayerInitiated: isPlayerInitiated,
               details: { hit: event.hit, critical: event.critical, damageDone: event.damageDone,
                          healthHealed: event.healthHealed, targetDied: event.targetDied, 

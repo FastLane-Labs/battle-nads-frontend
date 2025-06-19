@@ -35,6 +35,7 @@ const mockEventInstigatedCombat: domain.EventMessage = {
   type: domain.LogType.InstigatedCombat,
   attacker: mockPlayerAlice,
   defender: mockPlayerBob,
+  areaId: 0n, // Default area (origin)
   isPlayerInitiated: true, // Assuming Alice is the player
   details: { value: BigInt(0) },
   displayMessage: 'DEV: Mock Event - Alice initiated combat with Bob'
@@ -47,6 +48,7 @@ const mockEventCombatHit: domain.EventMessage = {
   type: domain.LogType.Combat,
   attacker: mockPlayerAlice,
   defender: mockPlayerBob,
+  areaId: 0n, // Default area (origin)
   isPlayerInitiated: true,
   details: { hit: true, critical: false, damageDone: 15, value: BigInt(0) },
   displayMessage: 'DEV: Mock Event - Alice hits Bob for 15 damage.'
@@ -59,6 +61,7 @@ const mockEventCombatCrit: domain.EventMessage = {
   type: domain.LogType.Combat,
   attacker: mockPlayerBob,
   defender: mockPlayerAlice,
+  areaId: 0n, // Default area (origin)
   isPlayerInitiated: false,
   details: { hit: true, critical: true, damageDone: 25, value: BigInt(0) },
   displayMessage: 'DEV: Mock Event - Bob crits Alice for 25 damage!'
@@ -71,6 +74,7 @@ const mockEventEnteredArea: domain.EventMessage = {
     type: domain.LogType.EnteredArea,
     attacker: mockPlayerCharlie, // Use 'attacker' for the participant
     defender: undefined,
+    areaId: 330241n, // Area (1,10,5)
     isPlayerInitiated: false,
     details: { value: BigInt(0) },
     displayMessage: 'DEV: Mock Event - Charlie entered area.'
@@ -83,6 +87,7 @@ const mockEventLeftArea: domain.EventMessage = {
     type: domain.LogType.LeftArea,
     attacker: mockPlayerAlice, // Use 'attacker' for the participant
     defender: undefined,
+    areaId: 0n, // Default area (origin)
     isPlayerInitiated: true,
     details: { value: BigInt(0) },
     displayMessage: 'DEV: Mock Event - Alice left area.'
@@ -95,6 +100,7 @@ const mockEventAbilityUsed: domain.EventMessage = {
     type: domain.LogType.Ability,
     attacker: mockPlayerBob, // Caster
     defender: mockPlayerAlice, // Target
+    areaId: 1644802n, // Area (2,25,25)
     isPlayerInitiated: false,
     details: { value: BigInt(9) /* Assuming value maps to Ability enum, e.g., Fireball */ },
     displayMessage: 'DEV: Mock Event - Bob used Ability Fireball on Alice.'
@@ -107,6 +113,7 @@ const mockEventCombatMiss: domain.EventMessage = {
   type: domain.LogType.Combat,
   attacker: mockPlayerAlice,
   defender: mockPlayerBob,
+  areaId: 0n, // Default area (origin)
   isPlayerInitiated: true,
   details: { hit: false, critical: false, damageDone: 0, value: BigInt(0) },
   displayMessage: 'DEV: Mock Event - Alice missed Bob.'
@@ -119,6 +126,7 @@ const mockEventAscend: domain.EventMessage = {
     type: domain.LogType.Ascend,
     attacker: mockPlayerBob,
     defender: undefined,
+    areaId: 0n, // Default area (origin)
     isPlayerInitiated: false,
     details: { targetDied: true, value: BigInt(0) },
     displayMessage: 'DEV: Mock Event - Bob ascended.'
@@ -132,6 +140,7 @@ const mockEventChat: domain.EventMessage = {
     type: 4, // Explicitly use 4 as emitted by contract for chat
     attacker: mockPlayerAlice, // Sender of the chat
     defender: undefined, 
+    areaId: 0n, // Default area (origin)
     isPlayerInitiated: true, // Assuming Alice is player
     // Simulate value holding the index of the corresponding chat log if applicable
     details: { value: BigInt(101) }, 
