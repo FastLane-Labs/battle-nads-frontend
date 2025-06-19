@@ -348,30 +348,38 @@ function findCharacterParticipantByIndex(
   noncombatants: contract.CharacterLite[],
   mainCharacter?: contract.Character | null
 ): domain.EventParticipant | null {
-  if (index <= 0) return null; // Index 0 usually means no participant
-
-  // First check if this is the main character
-  if (mainCharacter && Number(mainCharacter.stats.index) === index) {
-    return {
-      id: mainCharacter.id,
-      name: mainCharacter.name,
-      index: index
-    };
-  }
-
-  // Combine lists for easier lookup
-  const allCharacters = [...combatants, ...noncombatants];
-  // IMPORTANT: Contract CharacterLite.index is uint256, often large, need to compare safely
-  const character = allCharacters.find(c => BigInt(c.index) === BigInt(index)); 
   
-  if (character) {
+  // Check main character first if its index matches
+  if (mainCharacter && Number(mainCharacter.stats.index) === index) {
+    const char = mainCharacter;
     return {
-      id: character.id,
-      name: character.name,
-      index: index // Use the original index passed in
+      id: char.id,
+      name: char.name,
+      index: Number(char.stats.index)
     };
   }
-  return null; // Or return a default participant like { id: 'unknown', name: `Index ${index}`, index: index }
+
+  // Check combatants
+  const combatant = combatants.find(c => Number(c.index) === index);
+  if (combatant) {
+    return {
+      id: combatant.id,
+      name: combatant.name,
+      index: Number(combatant.index)
+    };
+  }
+
+  // Check non-combatants
+  const noncombatant = noncombatants.find(c => Number(c.index) === index);
+  if (noncombatant) {
+    return {
+      id: noncombatant.id,
+      name: noncombatant.name,
+      index: Number(noncombatant.index)
+    };
+  }
+  
+  return null;
 }
 
 /**
@@ -449,20 +457,31 @@ export function contractToWorldSnapshot(
     return null;
   }
 
+  // --- Determine snapshotAreaId once for all events in this snapshot ---
+  const snapshotAreaId: bigint = raw.character ? 
+    createAreaID(
+      Number(raw.character.stats.depth),
+      Number(raw.character.stats.x),
+      Number(raw.character.stats.y)
+    ) : 0n;
+
+  if (snapshotAreaId === 0n) {
+    if (raw.character) {
+      // This means createAreaID returned 0n even with character data (e.g., depth 0, x 0, y 0)
+      // This is a valid areaId (representing the "void" or an undefined area), but log if it might be unexpected.
+      console.log(`[contractToWorldSnapshot] Player character is at coordinates (Depth: ${raw.character.stats.depth}, X: ${raw.character.stats.x}, Y: ${raw.character.stats.y}), resulting in snapshotAreaId 0n for all events in this snapshot.`);
+    } else {
+      console.warn(`[contractToWorldSnapshot] Player character data not found in snapshot. Defaulting all event areaIds in this snapshot to 0n. This may impact event filtering if player context is crucial and missing.`);
+    }
+  }
+  // --- End snapshotAreaId determination ---
+
   // --- Process DataFeeds directly for Logs and Chat Messages ---
   const allChatMessages: domain.ChatMessage[] = [];
   const allEventLogs: domain.EventMessage[] = [];
   
   const combatants = raw.combatants || [];
   const noncombatants = raw.noncombatants || [];
-
-  // Calculate player's current area ID from position
-  const playerAreaId = raw.character ? 
-    createAreaID(
-      Number(raw.character.stats.depth),
-      Number(raw.character.stats.x),
-      Number(raw.character.stats.y)
-    ) : 0n;
 
   // Reference point for timestamp estimation - Use BigInt for block number
   const referenceBlockNumber = BigInt(raw.endBlock || 0);
@@ -484,6 +503,7 @@ export function contractToWorldSnapshot(
       const mainPlayerIdx = Number(log.mainPlayerIndex);
       const otherPlayerIdx = Number(log.otherPlayerIndex);
 
+      // --- Process each log type ---
       switch (logTypeNum) {
         case domain.LogType.Combat:
         case domain.LogType.InstigatedCombat: {
@@ -515,7 +535,7 @@ export function contractToWorldSnapshot(
             type: logTypeNum as domain.LogType,
             attacker: attacker || undefined,
             defender: defender || undefined,
-            areaId: playerAreaId, // Use player's current position
+            areaId: snapshotAreaId, // Use determined snapshotAreaId
             isPlayerInitiated: isPlayer, 
             details: { 
               hit: log.hit,
@@ -556,7 +576,7 @@ export function contractToWorldSnapshot(
               type: logTypeNum as domain.LogType,
               attacker: sender,
               defender: undefined,
-              areaId: playerAreaId, // Use player's current position
+              areaId: snapshotAreaId, // Use determined snapshotAreaId
               isPlayerInitiated: isPlayer,
               details: { value: messageContent }, 
               displayMessage: `Chat: ${sender.name}: ${messageContent}`
@@ -579,7 +599,7 @@ export function contractToWorldSnapshot(
             timestamp: estimatedTimestamp,
             type: logTypeNum as domain.LogType,
             attacker: participant || undefined,
-            areaId: playerAreaId, // Use player's current position
+            areaId: snapshotAreaId, // Use determined snapshotAreaId
             isPlayerInitiated: isPlayer, 
             details: { value: log.value }, 
             displayMessage: displayMessage 
@@ -602,7 +622,7 @@ export function contractToWorldSnapshot(
             type: logTypeNum as domain.LogType,
             attacker: caster || undefined,
             defender: target || undefined, 
-            areaId: playerAreaId, // Use player's current position
+            areaId: snapshotAreaId, // Use determined snapshotAreaId
             isPlayerInitiated: isPlayer, 
             details: { value: log.value }, 
             displayMessage: displayMessage 
@@ -620,13 +640,47 @@ export function contractToWorldSnapshot(
               timestamp: estimatedTimestamp,
               type: logTypeNum as domain.LogType,
               attacker: participant || undefined,
-              areaId: playerAreaId, // Use player's current position
+              areaId: snapshotAreaId, // Use determined snapshotAreaId
               isPlayerInitiated: isPlayer, 
               details: { value: log.value }, 
               displayMessage: displayMessage 
            };
            allEventLogs.push(newEventMessage);
            break;
+        }
+        default: {
+          // Handle unknown log types
+          console.warn(`[contractToWorldSnapshot] Encountered unknown log type: ${logTypeNum}`, log);
+          const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
+          const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
+          
+          const displayMessage = `Unknown event: type ${logTypeNum}, value ${log.value?.toString()}, mainIdx ${mainPlayerIdx}, otherIdx ${otherPlayerIdx}`;
+          
+          const newEventMessage: domain.EventMessage = {
+            logIndex: logIndex,
+            blocknumber: eventBlockNumber,
+            timestamp: estimatedTimestamp,
+            type: domain.LogType.Unknown, // Use the Unknown type
+            attacker: participant || undefined, // Assign main player as attacker for context
+            defender: findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character) || undefined,
+            areaId: snapshotAreaId, // Use determined snapshotAreaId
+            isPlayerInitiated: isPlayer,
+            details: { 
+              value: log.value,
+              // Include other raw details if they might be relevant for unknown types
+              hit: log.hit,
+              critical: log.critical,
+              damageDone: log.damageDone,
+              healthHealed: log.healthHealed,
+              targetDied: log.targetDied,
+              lootedWeaponID: log.lootedWeaponID,
+              lootedArmorID: log.lootedArmorID,
+              experience: log.experience
+            },
+            displayMessage: displayMessage,
+          };
+          allEventLogs.push(newEventMessage);
+          break;
         }
       }
     });
