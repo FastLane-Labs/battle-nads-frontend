@@ -14,6 +14,8 @@ interface EventFeedProps {
   equipableWeaponNames?: string[];
   equipableArmorIDs?: number[];
   equipableArmorNames?: string[];
+  // Add player character class for ability mapping
+  playerCharacterClass?: domain.CharacterClass;
 }
 
 const EventFeed: React.FC<EventFeedProps> = ({ 
@@ -24,7 +26,8 @@ const EventFeed: React.FC<EventFeedProps> = ({
   equipableWeaponIDs,
   equipableWeaponNames,
   equipableArmorIDs,
-  equipableArmorNames
+  equipableArmorNames,
+  playerCharacterClass
 }) => {
   
   const parentRef = useRef<HTMLDivElement>(null);
@@ -224,6 +227,7 @@ const EventFeed: React.FC<EventFeedProps> = ({
                           playerIndex={playerIndex}
                           getWeaponName={getWeaponName}
                           getArmorName={getArmorName}
+                          playerCharacterClass={playerCharacterClass}
                         />
                       </Box>
                     </Box>

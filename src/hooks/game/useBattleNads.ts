@@ -287,19 +287,20 @@ export const useBattleNads = (owner: string | null) => {
     const combinedEventLogsMap = new Map<string, domain.EventMessage>();
     const validRuntimeEventLogs = runtimeEventLogs.filter(event => event.blocknumber !== undefined && event.logIndex !== undefined);
     
-    // 1. Add historical logs
+    // Use a single key format for proper deduplication, prioritizing fresh snapshot events
+    // 1. Add historical logs first (lowest priority)
     historicalEventLogs.forEach(log => {
-        const key = `hist-${log.blocknumber}-${log.logIndex}`;
+        const key = `${log.blocknumber}-${log.logIndex}`;
         combinedEventLogsMap.set(key, log);
     });
-    // 2. Add runtime logs (from fresh contract data)
+    // 2. Add runtime logs (medium priority, may override historical)
     validRuntimeEventLogs.forEach(log => {
-        const key = `live-${log.blocknumber}-${log.logIndex}`;
+        const key = `${log.blocknumber}-${log.logIndex}`;
         combinedEventLogsMap.set(key, log);
     });
-    // 3. Add fresh logs from current snapshot (these have current participant mapping)
+    // 3. Add fresh logs from current snapshot (highest priority, will override historical/runtime)
     snapshotBase.eventLogs.forEach(log => {
-        const key = `snap-${log.blocknumber}-${log.logIndex}`;
+        const key = `${log.blocknumber}-${log.logIndex}`;
         combinedEventLogsMap.set(key, log);
     });
 
