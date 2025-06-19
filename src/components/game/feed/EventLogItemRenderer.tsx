@@ -2,21 +2,59 @@ import React from 'react';
 import { Box, Text, chakra, Tooltip } from '@chakra-ui/react';
 import { domain } from '@/types';
 
-// Removed UnifiedLogItem type
-
-// Original props interface
-interface EventLogItemRendererProps { 
-  event: domain.EventMessage; // Use the specific EventMessage type
-  // Change prop to playerIndex
-  playerIndex: number | null; 
-  // Add equipment name lookup functions - marked as optional for safety
-  getWeaponName?: ((weaponId: number | null | undefined) => string) | null;
-  getArmorName?: ((armorId: number | null | undefined) => string) | null;
+// Helper functions for ability mapping
+function getOffensiveAbilityForClass(characterClass: domain.CharacterClass): domain.Ability {
+  switch (characterClass) {
+    case domain.CharacterClass.Bard:
+      return domain.Ability.DoDance;
+    case domain.CharacterClass.Warrior:
+      return domain.Ability.ShieldBash;
+    case domain.CharacterClass.Rogue:
+      return domain.Ability.ApplyPoison;
+    case domain.CharacterClass.Monk:
+      return domain.Ability.Smite;
+    case domain.CharacterClass.Sorcerer:
+      return domain.Ability.Fireball;
+    default:
+      return domain.Ability.None;
+  }
 }
 
-// Helper to get color based on type
-const getEventColor = (type: domain.LogType | number) => { // Allow number type input
-  switch (Number(type)) { // Ensure comparison against numbers
+function getDefensiveAbilityForClass(characterClass: domain.CharacterClass): domain.Ability {
+  switch (characterClass) {
+    case domain.CharacterClass.Bard:
+      return domain.Ability.SingSong;
+    case domain.CharacterClass.Warrior:
+      return domain.Ability.ShieldWall;
+    case domain.CharacterClass.Rogue:
+      return domain.Ability.EvasiveManeuvers;
+    case domain.CharacterClass.Monk:
+      return domain.Ability.Pray;
+    case domain.CharacterClass.Sorcerer:
+      return domain.Ability.ChargeUp;
+    default:
+      return domain.Ability.None;
+  }
+}
+
+function getGlobalAbilityFromClassAndTarget(characterClass: domain.CharacterClass, hasTarget: boolean): domain.Ability {
+  if (hasTarget) {
+    return getOffensiveAbilityForClass(characterClass);
+  } else {
+    return getDefensiveAbilityForClass(characterClass);
+  }
+}
+
+interface EventLogItemRendererProps { 
+  event: domain.EventMessage;
+  playerIndex: number | null; 
+  getWeaponName?: ((weaponId: number | null | undefined) => string) | null;
+  getArmorName?: ((armorId: number | null | undefined) => string) | null;
+  playerCharacterClass?: domain.CharacterClass;
+}
+
+const getEventColor = (type: domain.LogType | number) => {
+  switch (Number(type)) {
     case domain.LogType.Combat:
     case domain.LogType.InstigatedCombat:
     case domain.LogType.Ascend:
@@ -26,107 +64,113 @@ const getEventColor = (type: domain.LogType | number) => { // Allow number type 
       return 'blue.400';
     case domain.LogType.Ability:
       return 'purple.400';
-    // --- Map contract value 4 to Chat color --- 
-    case 4: // Treat LogType 4 from contract as Chat
-    case domain.LogType.Chat: // Keep original enum mapping just in case
+    case domain.LogType.Chat:
       return 'green.400';
-    // -------------------------------------------
     case domain.LogType.Unknown:
     default:
-      return 'gray.400'; // Ensure default returns a value
+      return 'gray.400';
   }
-};
-
-// Helper to get the display name for the event type
-const getEventTypeName = (type: domain.LogType | number): string => {
-    switch (Number(type)) {
-        case 4: // Treat LogType 4 as Chat
-            return 'Chat';
-        // Use enum names for others
-        case domain.LogType.Combat: return 'Combat';
-        case domain.LogType.InstigatedCombat: return 'InstigatedCombat';
-        case domain.LogType.Ascend: return 'Ascend';
-        case domain.LogType.EnteredArea: return 'EnteredArea';
-        case domain.LogType.LeftArea: return 'LeftArea';
-        case domain.LogType.Ability: return 'Ability';
-        // case domain.LogType.Chat: return 'Chat'; // Covered by case 4
-        case domain.LogType.Unknown: return 'Unknown';
-        default: return `Event ${type}`; // Fallback for unexpected types
-    }
 };
 
 export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({ 
   event, 
   playerIndex, 
   getWeaponName, 
-  getArmorName 
+  getArmorName,
+  playerCharacterClass
 }) => {
 
-  // Use the helper function for the event type name
-  const eventTypeName = getEventTypeName(event.type);
+  // Generate display message based on event data
+  const generateDisplayMessage = (): string => {
+    const getDisplayName = (participant: domain.EventParticipant | undefined): string => {
+      if (!participant) return "Unknown";
+      if (playerIndex !== null && participant.index === playerIndex) {
+        return "You";
+      }
+      return participant.name || `Index ${participant.index}`;
+    };
 
-  // Determine display names, comparing participant index with playerIndex
-  const getDisplayName = (participant: domain.EventParticipant | undefined): string | undefined => {
-    if (!participant) return undefined;
-    // Check if participant index matches the player's index
-    if (playerIndex !== null && participant.index === playerIndex) {
-      return "You";
+    const attackerName = getDisplayName(event.attacker);
+    const defenderName = getDisplayName(event.defender);
+
+    const eventTypeNum = Number(event.type);
+
+    switch (eventTypeNum) {
+      case domain.LogType.Combat:
+        if (event.details?.hit) {
+          const damage = event.details.damageDone && Number(event.details.damageDone) > 0 
+            ? ` for ${event.details.damageDone} damage` : '';
+          const critical = event.details.critical ? ' (Critical!)' : '';
+          const weaponInfo = ' with their fists'; // Default for now
+          return `${attackerName} hits ${defenderName}${damage}${critical}${weaponInfo}.`;
+        } else {
+          return `${attackerName} misses ${defenderName}.`;
+        }
+      
+      case domain.LogType.Ability:
+        const hasTarget = !!event.defender;
+        let abilityName = 'an ability';
+        
+        const isPlayerAbility = playerIndex !== null && Number(event.attacker?.index) === Number(playerIndex);
+        
+        if (isPlayerAbility && playerCharacterClass !== undefined) {
+          const globalAbility = getGlobalAbilityFromClassAndTarget(playerCharacterClass, hasTarget);
+          abilityName = domain.Ability[globalAbility] || `Ability ${globalAbility}`;
+        } else {
+          abilityName = hasTarget ? 'an offensive ability' : 'a defensive ability';
+        }
+        
+        return hasTarget 
+          ? `${attackerName} used ${abilityName} on ${defenderName}.`
+          : `${attackerName} used ${abilityName}.`;
+      
+      case domain.LogType.InstigatedCombat:
+        return `${attackerName} started combat with ${defenderName}.`;
+      
+      case domain.LogType.EnteredArea:
+        return `${attackerName} entered the area.`;
+      
+      case domain.LogType.LeftArea:
+        return `${attackerName} left the area.`;
+      
+      case domain.LogType.Ascend:
+        return `${attackerName} died.`;
+      
+      default:
+        return `${attackerName} performed an action.`;
     }
-    // Otherwise, return the participant's name
-    return participant.name;
   };
 
-  const attackerName = getDisplayName(event.attacker);
-  const defenderName = getDisplayName(event.defender);
+  // For ability events, always generate our own message to get proper ability names
+  const displayMessage = (Number(event.type) === domain.LogType.Ability) 
+    ? generateDisplayMessage() 
+    : (event.displayMessage || generateDisplayMessage());
 
   return (
     <Box fontSize="sm">
       <Text color={getEventColor(event.type)} fontWeight="bold" display="inline">
-        {/* Use the resolved attacker name */} 
-        {attackerName && `${attackerName} `} 
-        {eventTypeName} 
-        {event.type !== domain.LogType.EnteredArea && 
-         event.type !== domain.LogType.LeftArea && 
-         event.type !== domain.LogType.Ascend && 
-         Number(event.type) !== 4 && 
-         // Use the resolved defender name
-         defenderName && 
-         ` on ${defenderName}`}
-      </Text>
-      
-      <Text display="inline">:
-        {event.type === domain.LogType.Ability && event.details?.value != null && !isNaN(Number(event.details.value)) && (
-          <chakra.span color="purple.300" mx={1}> 
-            [{domain.Ability[Number(event.details.value)] || `Ability ${event.details.value}`}]
-          </chakra.span>
-        )}
+        {displayMessage}
+        {/* Additional detailed information */}
         {event.count && event.count > 1 && (
-          <chakra.span fontWeight="bold" mr={1}>({event.count}x)</chakra.span>
-        )}
-        {event.details?.hit && (
-          <chakra.span color={event.details.critical ? "yellow.300" : "inherit"} fontWeight={event.details.critical ? "bold" : "normal"}> Hit{event.details.critical ? " (CRIT!) " : ". "}</chakra.span>
-        )}
-        {event.details && !event.details.hit && event.type === domain.LogType.Combat && (
-          <chakra.span> Miss. </chakra.span>
+          <chakra.span fontWeight="bold" ml={1}>({event.count}x)</chakra.span>
         )}
         {/* Damage dealt */}
         {event.details?.damageDone && !isNaN(Number(event.details.damageDone)) && Number(event.details.damageDone) > 0 && (
-          <chakra.span> [{Number(event.details.damageDone)} dmg]. </chakra.span>
+          <chakra.span color="red.300" ml={1}> [{Number(event.details.damageDone)} dmg]</chakra.span>
         )}
         {/* Health healed */}
         {event.details?.healthHealed && !isNaN(Number(event.details.healthHealed)) && Number(event.details.healthHealed) > 0 && (
-          <chakra.span> [{Number(event.details.healthHealed)} heal]. </chakra.span>
+          <chakra.span color="green.300" ml={1}> [{Number(event.details.healthHealed)} heal]</chakra.span>
         )}
         {/* Experience gained */}
         {event.details?.experience && !isNaN(Number(event.details.experience)) && Number(event.details.experience) > 0 && (
-          <chakra.span color="green.300">
-            {" "}
-            [+{Number(event.details.experience)} XP].{" "}
+          <chakra.span color="green.300" ml={1}>
+            [+{Number(event.details.experience)} XP]
           </chakra.span>
         )}
-        {/* Weapon looted - with comprehensive safety checks */}
+        {/* Weapon looted */}
         {event.details?.lootedWeaponID && !isNaN(Number(event.details.lootedWeaponID)) && Number(event.details.lootedWeaponID) > 0 && (
-          <chakra.span color="yellow.400">
+          <chakra.span color="yellow.400" ml={1}>
             [Weapon: {(() => {
               try {
                 const weaponId = Number(event.details.lootedWeaponID);
@@ -139,13 +183,12 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
                 console.warn('Error displaying weapon name:', error);
                 return 'Unknown Weapon';
               }
-            })()}]. 
+            })()}]
           </chakra.span>
         )}
-        
-        {/* Armor looted - with comprehensive safety checks */}
+        {/* Armor looted */}
         {event.details?.lootedArmorID && !isNaN(Number(event.details.lootedArmorID)) && Number(event.details.lootedArmorID) > 0 && (
-          <chakra.span color="yellow.400">
+          <chakra.span color="yellow.400" ml={1}>
             [Armor: {(() => {
               try {
                 const armorId = Number(event.details.lootedArmorID);
@@ -158,11 +201,11 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
                 console.warn('Error displaying armor name:', error);
                 return 'Unknown Armor';
               }
-            })()}]. 
+            })()}]
           </chakra.span>
         )}
         {event.details?.targetDied && (
-          <chakra.span color="red.500" fontWeight="bold"> Target Died! </chakra.span>
+          <chakra.span color="red.500" fontWeight="bold" ml={1}> [Target Died!]</chakra.span>
         )}
       </Text>
       

@@ -90,6 +90,61 @@ function isVerticalMovementAllowed(direction: 'up' | 'down', position: { x: numb
 }
 
 /**
+ * Gets the offensive (targeted) ability for a character class
+ */
+function getOffensiveAbilityForClass(characterClass: domain.CharacterClass): domain.Ability {
+  switch (characterClass) {
+    case domain.CharacterClass.Bard:
+      return domain.Ability.DoDance;
+    case domain.CharacterClass.Warrior:
+      return domain.Ability.ShieldBash;
+    case domain.CharacterClass.Rogue:
+      return domain.Ability.ApplyPoison;
+    case domain.CharacterClass.Monk:
+      return domain.Ability.Smite;
+    case domain.CharacterClass.Sorcerer:
+      return domain.Ability.Fireball;
+    default:
+      return domain.Ability.None;
+  }
+}
+
+/**
+ * Gets the defensive (self/no-target) ability for a character class
+ */
+function getDefensiveAbilityForClass(characterClass: domain.CharacterClass): domain.Ability {
+  switch (characterClass) {
+    case domain.CharacterClass.Bard:
+      return domain.Ability.SingSong;
+    case domain.CharacterClass.Warrior:
+      return domain.Ability.ShieldWall;
+    case domain.CharacterClass.Rogue:
+      return domain.Ability.EvasiveManeuvers;
+    case domain.CharacterClass.Monk:
+      return domain.Ability.Pray;
+    case domain.CharacterClass.Sorcerer:
+      return domain.Ability.ChargeUp;
+    default:
+      return domain.Ability.None;
+  }
+}
+
+/**
+ * Maps ability usage to global ability enum based on character class and target presence
+ * 
+ * Logic: Each class has exactly 2 abilities:
+ * - Defensive (no target): Self-buffs, area effects
+ * - Offensive (with target): Targeted attacks
+ */
+function getGlobalAbilityFromClassAndTarget(characterClass: domain.CharacterClass, hasTarget: boolean): domain.Ability {
+  if (hasTarget) {
+    return getOffensiveAbilityForClass(characterClass);
+  } else {
+    return getDefensiveAbilityForClass(characterClass);
+  }
+}
+
+/**
  * Safely maps a raw numeric or bigint class value from the contract to the domain enum.
  * Returns Bard (0) as a fallback for unknown values.
  */
@@ -510,21 +565,45 @@ export function contractToWorldSnapshot(
           const attacker = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
           const defender = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character);
           const isPlayer = !!ownerCharacterId && !!attacker && attacker.id === ownerCharacterId;
-          
+          const attackerName = isPlayer ? "You" : attacker?.name || `Index ${mainPlayerIdx}`;
+          const defenderName = defender?.name || `Index ${otherPlayerIdx}`;
+
           let displayMessage = '';
+
           if (logTypeNum === domain.LogType.InstigatedCombat) {
-            displayMessage = `${attacker?.name || `Index ${mainPlayerIdx}`} initiated combat with ${defender?.name || `Index ${otherPlayerIdx}`}.`;
+            displayMessage = `${attackerName} initiated combat with ${defenderName}.`;
           } else {
             // Regular combat event
             if (log.hit) {
+              // Find the full CharacterLite for the attacker to get weaponName and class
+              const attackerCharacter = [...combatants, ...noncombatants, ...(raw.character ? [mapCharacterToCharacterLite(raw.character)] : [])].find(c => c?.index === mainPlayerIdx);
+              const weaponName = attackerCharacter?.weaponName || 'their fists';
+              
+              // Get the offensive ability used for this attack
+              const attackerClass = attackerCharacter?.class || domain.CharacterClass.Null;
+              const offensiveAbility = getOffensiveAbilityForClass(attackerClass);
+              const abilityName = domain.Ability[offensiveAbility];
+
               const damage = log.damageDone > 0 ? ` for ${log.damageDone} damage` : '';
               const critical = log.critical ? ' (Critical!)' : '';
-              displayMessage = `${attacker?.name || `Index ${mainPlayerIdx}`} hits ${defender?.name || `Index ${otherPlayerIdx}`}${damage}${critical}.`;
+              
+              // Show both weapon and ability if available
+              let weaponInfo = '';
+              if (log.damageDone > 0) {
+                if (abilityName && abilityName !== 'None') {
+                  weaponInfo = ` with ${weaponName} using ${abilityName}`;
+                } else {
+                  weaponInfo = ` with ${weaponName}`;
+                }
+              }
+
+              displayMessage = `${attackerName} hits ${defenderName}${damage}${critical}${weaponInfo}.`;
+              
               if (log.targetDied) {
-                displayMessage += ` ${defender?.name || `Index ${otherPlayerIdx}`} died!`;
+                displayMessage += ` ${defenderName} died!`;
               }
             } else {
-              displayMessage = `${attacker?.name || `Index ${mainPlayerIdx}`} misses ${defender?.name || `Index ${otherPlayerIdx}`}.`;
+              displayMessage = `${attackerName} misses ${defenderName}.`;
             }
           }
           
@@ -611,10 +690,21 @@ export function contractToWorldSnapshot(
           const caster = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
           const target = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character);
           const isPlayer = !!ownerCharacterId && !!caster && caster.id === ownerCharacterId;
-          const abilityName = domain.Ability[Number(log.value)] || `Ability ${log.value}`;
-          let displayMessage = `${caster?.name || `Index ${mainPlayerIdx}`} used ${abilityName}`;
-          if (target) displayMessage += ` on ${target.name}`;
-          displayMessage += `.`; 
+          const casterName = isPlayer ? "You" : caster?.name || `Index ${mainPlayerIdx}`;
+          const targetName = target?.name;
+
+          const casterCharacter = [...combatants, ...noncombatants, ...(raw.character ? [mapCharacterToCharacterLite(raw.character)] : [])].find(c => c?.index === mainPlayerIdx);
+
+          // Map ability usage to global ability enum based on character class and target presence
+          const casterClass = casterCharacter?.class || domain.CharacterClass.Null;
+          const hasTarget = !!targetName;
+          const globalAbility = getGlobalAbilityFromClassAndTarget(casterClass, hasTarget);
+          const abilityName = domain.Ability[globalAbility] || `Unknown Ability (Class: ${domain.CharacterClass[casterClass]}, Target: ${hasTarget ? 'Yes' : 'No'})`;
+
+          let displayMessage = `${casterName} used ${abilityName}`;
+          if (targetName) displayMessage += ` on ${targetName}`;
+          displayMessage += `.`;
+          
           const newEventMessage: domain.EventMessage = {
             logIndex: logIndex,
             blocknumber: eventBlockNumber, 
@@ -622,18 +712,20 @@ export function contractToWorldSnapshot(
             type: logTypeNum as domain.LogType,
             attacker: caster || undefined,
             defender: target || undefined, 
-            areaId: snapshotAreaId, // Use determined snapshotAreaId
+            areaId: snapshotAreaId,
             isPlayerInitiated: isPlayer, 
             details: { value: log.value }, 
             displayMessage: displayMessage 
           };
+          
           allEventLogs.push(newEventMessage);
           break;
         }
         case domain.LogType.Ascend: {
            const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
            const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
-           const displayMessage = `${participant?.name || `Index ${mainPlayerIdx}`} died.`;
+           const participantName = isPlayer ? "You" : participant?.name || `Index ${mainPlayerIdx}`;
+           const displayMessage = `${participantName} died.`;
            const newEventMessage: domain.EventMessage = {
               logIndex: logIndex,
               blocknumber: eventBlockNumber, 
