@@ -97,6 +97,30 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
     console.warn('  ⚠️ IDs appearing in BOTH combatants and enemies:', combatantEnemyOverlap);
   }
   
+  // Check for duplicates within the same arrays
+  const playerIdCounts = {};
+  playerNoncombatants.forEach(player => {
+    playerIdCounts[player.id] = (playerIdCounts[player.id] || 0) + 1;
+  });
+  
+  const enemyIdCounts = {};
+  enemyNoncombatants.forEach(enemy => {
+    enemyIdCounts[enemy.id] = (enemyIdCounts[enemy.id] || 0) + 1;
+  });
+  
+  const duplicatePlayerIds = Object.entries(playerIdCounts).filter(([id, count]) => count > 1);
+  const duplicateEnemyIds = Object.entries(enemyIdCounts).filter(([id, count]) => count > 1);
+  
+  if (duplicatePlayerIds.length > 0) {
+    console.error('  🚨 DUPLICATE IDs within players:', duplicatePlayerIds);
+    console.log('  🔍 All player characters:', playerNoncombatants.map(p => ({ id: p.id, name: p.name, index: p.index })));
+  }
+  
+  if (duplicateEnemyIds.length > 0) {
+    console.error('  🚨 DUPLICATE IDs within enemies:', duplicateEnemyIds);
+    console.log('  🔍 All enemy characters:', enemyNoncombatants.map(e => ({ id: e.id, name: e.name, index: e.index })));
+  }
+  
   // Get the character class name
   const getClassDisplayName = (classValue: domain.CharacterClass): string => {
     return domain.CharacterClass[classValue] || 'Unknown';
@@ -128,7 +152,7 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
     
     return (
       <Button
-        key={`${characterType}-${character.id}`} // Use character type + ID for unique keys
+        key={`${characterType}-${character.id}-${arrayIndex}`} // Use character type + ID + index for truly unique keys
         size="sm"
         variant={isSelected ? "solid" : "ghost"}
         colorScheme={isSelected ? "whiteAlpha" : "gray"}
