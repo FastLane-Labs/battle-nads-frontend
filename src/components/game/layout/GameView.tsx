@@ -127,7 +127,7 @@ const GameView: React.FC<GameViewProps> = ({
       {/* Combat */}
       <GridItem area="combat">
           {/* Combat Panel */}
-            <Box borderRadius="md" className='h-full card-bg p-4 flex flex-col'>
+            <Box borderRadius="md" className='h-full card-bg p-4 flex flex-col overflow-auto'>
             <CombatTargets 
               combatants={combatants}
               noncombatants={noncombatants}
