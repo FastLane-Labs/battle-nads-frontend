@@ -80,16 +80,15 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
   playerCharacterClass
 }) => {
 
-  // Debug logging to understand the issue
-  console.log('[EventLogItemRenderer] Raw event data:', {
-    event,
-    attacker: event.attacker,
-    defender: event.defender,
-    type: event.type,
-    typeAsNumber: Number(event.type),
-    displayMessage: event.displayMessage,
-    details: event.details
-  });
+  // Debug logging - only log problematic events
+  if (!event.attacker || event.attacker.name === 'Unknown' || event.displayMessage?.includes('Unknown')) {
+    console.log('[EventLogItemRenderer] Problematic event:', {
+      attacker: event.attacker,
+      defender: event.defender,
+      type: Number(event.type),
+      originalMessage: event.displayMessage
+    });
+  }
 
   // Generate display message based on event data
   const generateDisplayMessage = (): string => {
@@ -110,12 +109,14 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
 
     const eventTypeNum = Number(event.type);
     
-    console.log('[EventLogItemRenderer] Name resolution:', {
-      attackerName,
-      defenderName,
-      eventTypeNum,
-      logTypeEnum: domain.LogType
-    });
+    // Only log name resolution for problematic events
+    if (attackerName === 'Unknown' || defenderName === 'Unknown') {
+      console.log('[EventLogItemRenderer] Name resolution issue:', {
+        attackerName,
+        defenderName,
+        eventTypeNum
+      });
+    }
 
     switch (eventTypeNum) {
       case domain.LogType.Combat:
@@ -159,21 +160,12 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
         return `${attackerName} died.`;
       
       default:
-        console.log('[EventLogItemRenderer] Hit default case - unhandled event type:', {
-          eventTypeNum,
-          hasDefender: !!event.defender,
-          attackerName,
-          defenderName
-        });
+        console.log('[EventLogItemRenderer] Unhandled event type:', eventTypeNum);
         // Handle events with defenders/targets
         if (event.defender) {
-          const message = `${attackerName} performed an action against ${defenderName}.`;
-          console.log('[EventLogItemRenderer] Default case with defender, returning:', message);
-          return message;
+          return `${attackerName} performed an action against ${defenderName}.`;
         }
-        const message = `${attackerName} performed an action.`;
-        console.log('[EventLogItemRenderer] Default case without defender, returning:', message);
-        return message;
+        return `${attackerName} performed an action.`;
     }
   };
 
@@ -184,13 +176,14 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
     ? generatedMessage 
     : (event.displayMessage || generatedMessage);
     
-  console.log('[EventLogItemRenderer] Final message selection:', {
-    isAbilityEvent,
-    hasOriginalDisplayMessage: !!event.displayMessage,
-    originalDisplayMessage: event.displayMessage,
-    generatedMessage,
-    finalDisplayMessage: displayMessage
-  });
+  // Only log final message for problematic events
+  if (displayMessage.includes('Unknown')) {
+    console.log('[EventLogItemRenderer] Final message contains Unknown:', {
+      originalDisplayMessage: event.displayMessage,
+      generatedMessage,
+      finalDisplayMessage: displayMessage
+    });
+  }
 
   return (
     <Box fontSize={{ base: "xs", md: "sm" }} textAlign="left" minH={{ base: "45px", md: "40px" }} py={1}>
