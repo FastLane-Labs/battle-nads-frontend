@@ -4,7 +4,6 @@ import { ReactNode } from 'react';
 import { PrivyAuthProvider } from './PrivyAuthProvider';
 import { WalletProvider } from './WalletProvider';
 import { ChakraProvider, ColorModeScript } from '@chakra-ui/react';
-import { RecoilRoot } from 'recoil';
 import theme from '../app/theme';
 
 export default function ClientProviders({ children }: { children: ReactNode }) {
@@ -13,11 +12,9 @@ export default function ClientProviders({ children }: { children: ReactNode }) {
       <ColorModeScript initialColorMode={theme.config.initialColorMode} />
       <PrivyAuthProvider>
         <WalletProvider>
-          <RecoilRoot>
-            <ChakraProvider theme={theme}>
-              {children}
-            </ChakraProvider>
-          </RecoilRoot>
+          <ChakraProvider theme={theme}>
+            {children}
+          </ChakraProvider>
         </WalletProvider>
       </PrivyAuthProvider>
     </>

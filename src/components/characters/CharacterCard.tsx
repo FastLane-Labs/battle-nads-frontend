@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Select, Button, Stat, StatLabel, StatNumber } from '@chakra-ui/react';
+import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Button, Stat, StatLabel, StatNumber } from '@chakra-ui/react';
 import { Character } from '@/types/domain/character';
 import { calculateMaxHealth } from '@/utils/calculateMaxHealth';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';

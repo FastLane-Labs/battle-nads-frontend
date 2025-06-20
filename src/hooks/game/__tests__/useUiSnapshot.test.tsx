@@ -71,14 +71,6 @@ Object.defineProperty(window, 'localStorage', {
   value: localStorageMock
 });
 
-// Mock localforage
-jest.mock('localforage', () => ({
-  config: jest.fn(),
-  getItem: jest.fn().mockResolvedValue(null),
-  setItem: jest.fn().mockResolvedValue(null),
-  removeItem: jest.fn().mockResolvedValue(null),
-  keys: jest.fn().mockResolvedValue([])
-}));
 
 // Mock useCachedDataFeed (NAMED export)
 jest.mock('../useCachedDataFeed', () => ({

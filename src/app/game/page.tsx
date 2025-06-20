@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useRouter, redirect } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useGame } from '@/hooks/game/useGame';
 import LoadingScreen from '@/components/game/screens/LoadingScreen';
 import ErrorScreen from '@/components/game/screens/ErrorScreen';
