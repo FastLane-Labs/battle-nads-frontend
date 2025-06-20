@@ -609,9 +609,15 @@ export function contractToWorldSnapshot(
               !combatants.find(c => Number(c.index) === mainPlayerIdx) && 
               !noncombatants.find(c => Number(c.index) === mainPlayerIdx)
             )) {
+              console.log('[Mapper] Using player character as fallback:', {
+                playerId: raw.character.id,
+                playerName: raw.character.name,
+                playerIndex: mainPlayerIdx,
+                originalPlayerIndex: Number(raw.character.stats.index)
+              });
               return {
                 id: raw.character.id,
-                name: raw.character.name || `Player`,
+                name: raw.character.name || "Player",
                 index: mainPlayerIdx
               };
             }
@@ -629,7 +635,11 @@ export function contractToWorldSnapshot(
             index: otherPlayerIdx
           } : undefined);
           
-          const isPlayer = !!ownerCharacterId && !!attackerParticipant && attackerParticipant.id === ownerCharacterId;
+          // Determine if this is the player - check both direct ID match and if we used player character data
+          const isPlayer = !!ownerCharacterId && !!attackerParticipant && (
+            attackerParticipant.id === ownerCharacterId ||
+            (raw.character && attackerParticipant.id === raw.character.id)
+          );
           
           console.log('[Mapper] Character resolution:', {
             originalAttacker: attacker,
