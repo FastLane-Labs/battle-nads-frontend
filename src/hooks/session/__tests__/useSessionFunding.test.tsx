@@ -5,7 +5,7 @@ import { useBattleNadsClient } from '../../contracts/useBattleNadsClient';
 import { useSessionKey } from '../useSessionKey';
 import { SessionKeyState } from '../../../machines/sessionKeyMachine';
 import { useWallet } from '../../../providers/WalletProvider';
-import { useBattleNads } from '../../game/useGameState';
+import { useGameState } from '../../game/useGameState';
 
 // Mock dependencies
 jest.mock('../../contracts/useBattleNadsClient');
@@ -54,8 +54,8 @@ jest.mock('@tanstack/react-query', () => {
 });
 // --- End Mock TanStack Query ---
 
-// --- Mock useBattleNads --- 
-const mockUseBattleNads = useBattleNads as jest.Mock;
+// --- Mock useGameState --- 
+const mockUseGameState = useGameState as jest.Mock;
 // -------------------------
 
 describe('useSessionFunding', () => {
@@ -107,7 +107,7 @@ describe('useSessionFunding', () => {
     (useSessionKey as jest.Mock).mockReturnValue(mockUseSessionKeyResult);
     (useWallet as jest.Mock).mockReturnValue(mockUseWalletResult);
     
-    mockUseBattleNads.mockReturnValue({
+    mockUseGameState.mockReturnValue({
       rawBalanceShortfall: 0n,
       isLoading: false,
       error: null,
@@ -122,7 +122,7 @@ describe('useSessionFunding', () => {
 
   it('reports funding needed when shortfall is positive', () => {
     const mockShortfall = 1000000000000000000n;
-    mockUseBattleNads.mockReturnValueOnce({
+    mockUseGameState.mockReturnValueOnce({
         rawBalanceShortfall: mockShortfall,
         isLoading: false,
         error: null,
@@ -135,7 +135,7 @@ describe('useSessionFunding', () => {
 
   it('successfully calls replenishBalance mutation', () => {
     const mockShortfall = 1000000000000000000n;
-    mockUseBattleNads.mockReturnValueOnce({
+    mockUseGameState.mockReturnValueOnce({
         rawBalanceShortfall: mockShortfall,
         isLoading: false,
         error: null,
@@ -175,7 +175,7 @@ describe('useSessionFunding', () => {
     const mockShortfall = 1000000000000000000n;
     const mockError = new Error('Funding failed');
     
-    mockUseBattleNads.mockReturnValue({
+    mockUseGameState.mockReturnValue({
         rawBalanceShortfall: mockShortfall,
         isLoading: false,
         error: null,
@@ -205,7 +205,7 @@ describe('useSessionFunding', () => {
   it('handles client error state from useBattleNadsClient', () => {
     const clientError = 'Client creation failed';
     (useBattleNadsClient as jest.Mock).mockReturnValue({ client: null, error: clientError });
-    mockUseBattleNads.mockReturnValueOnce({
+    mockUseGameState.mockReturnValueOnce({
         rawBalanceShortfall: 0n,
         isLoading: false,
         error: clientError,

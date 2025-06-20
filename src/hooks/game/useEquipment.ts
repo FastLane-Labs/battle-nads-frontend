@@ -2,7 +2,7 @@ import { useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
-import { useBattleNads } from './useGameState';
+import { useGameState } from './useGameState';
 import type { Weapon, Armor } from '@/types/domain';
 import { EquipmentSlot } from '@/types/domain';
 import { useGameMutation } from './useGameMutation';
@@ -27,7 +27,7 @@ export const useEquipment = (characterId: string | null) => {
     rawEquipableWeaponNames,
     rawEquipableArmorIDs,
     rawEquipableArmorNames,
-  } = useBattleNads(owner); 
+  } = useGameState(); 
   
   // Character ID from state
   const currentCharacterIdFromState = gameState?.character?.id || null;

@@ -1,7 +1,7 @@
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useSessionKey } from './useSessionKey';
 import { useWallet } from '../../providers/WalletProvider';
-import { useBattleNads } from '../game/useGameState';
+import { useGameState } from '../game/useGameState';
 import { useGameMutation } from '../game/useGameMutation';
 
 /**
@@ -14,7 +14,7 @@ export const useSessionFunding = (characterId: string | null) => {
   const { injectedWallet, embeddedWallet } = useWallet();
   const ownerAddress = injectedWallet?.address ?? null;
 
-  const { rawBalanceShortfall } = useBattleNads(ownerAddress);
+  const { rawBalanceShortfall } = useGameState();
   const balanceShortfall = rawBalanceShortfall ?? BigInt(0);
 
   // Mutation for replenishing gas balance

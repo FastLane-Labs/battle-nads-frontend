@@ -3,7 +3,7 @@ import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Button, Sta
 import { Character } from '@/types/domain/character';
 import { calculateMaxHealth } from '@/utils/calculateMaxHealth';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
-import { useGame } from '@/hooks/game/useGameState';
+import { useGameState } from '@/hooks/game/useGameState';
 
 interface CharacterCardProps {
   character: Character; // Corrected type name
@@ -40,7 +40,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
   const [currentStats, setCurrentStats] = useState<Character['stats'] | undefined>(character?.stats); // Corrected type name
   
   // Get game state and actions
-  const { worldSnapshot, allocatePoints, isAllocatingPoints } = useGame();
+  const { worldSnapshot, allocatePoints, isAllocatingPoints } = useGameState();
   
   // Update current stats when props change
   useEffect(() => {

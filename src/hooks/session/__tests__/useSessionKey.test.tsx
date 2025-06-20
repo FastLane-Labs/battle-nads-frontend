@@ -7,7 +7,7 @@ import { useWallet } from '../../../providers/WalletProvider';
 import { createTestWrapper } from '../../../test/helpers';
 import { sessionKeyMachine, SessionKeyState } from '../../../machines/sessionKeyMachine';
 import { contract } from '../../../types';
-import { useBattleNads } from '../../game/useGameState';
+import { useGameState } from '../../game/useGameState';
 import { mockSessionKeyData } from '@/test/helpers';
 
 // Mock dependencies
@@ -20,8 +20,8 @@ const ownerAddress = '0xOwnerAddress123';
 const embeddedAddress = '0xEmbeddedAddress456';
 const otherKeyAddress = '0xOtherKeyAddress789';
 
-// --- Mock useBattleNads --- 
-const mockUseBattleNads = useBattleNads as jest.Mock;
+// --- Mock useGameState --- 
+const mockUseGameState = useGameState as jest.Mock;
 // -------------------------
 
 // Type safety for mocks
@@ -81,8 +81,8 @@ describe('useSessionKey', () => {
     jest.clearAllMocks();
     queryClient.clear();
     
-    mockUseBattleNads.mockReset();
-    mockUseBattleNads.mockReturnValue(defaultUseBattleNadsReturn);
+    mockUseGameState.mockReset();
+    mockUseGameState.mockReturnValue(defaultUseBattleNadsReturn);
 
     (useWallet as jest.Mock).mockReturnValue(defaultUseWalletReturn);
 
@@ -91,14 +91,14 @@ describe('useSessionKey', () => {
   });
   
   it('should return IDLE state initially when loading', () => {
-    mockUseBattleNads.mockReturnValueOnce({ ...defaultUseBattleNadsReturn, isLoading: true });
+    mockUseGameState.mockReturnValueOnce({ ...defaultUseBattleNadsReturn, isLoading: true });
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
     expect(result.current.sessionKeyState).toBe(SessionKeyState.IDLE);
     expect(result.current.isLoading).toBe(true);
   });
 
   it('should show loading state initially and transition to MISSING', async () => {
-    mockUseBattleNads.mockReturnValue({ 
+    mockUseGameState.mockReturnValue({ 
       ...defaultUseBattleNadsReturn, 
       isLoading: false, 
       error: new Error('Snapshot Fetch Failed'), 
@@ -127,7 +127,7 @@ describe('useSessionKey', () => {
     const embeddedAddress = '0xValidSessionKey';
     const validKeyDataContract = mockSessionKeyData(false);
 
-    mockUseBattleNads.mockReturnValue({
+    mockUseGameState.mockReturnValue({
       ...defaultUseBattleNadsReturn,
       rawSessionKeyData: validKeyDataContract,
       rawEndBlock: 500n, 
@@ -156,7 +156,7 @@ describe('useSessionKey', () => {
   it('correctly identifies expired session key', async () => {
     const expiredKeyData = mockSessionKeyData(true); 
     const localSessionKeyAddress = expiredKeyData.key; 
-    mockUseBattleNads.mockReturnValue({
+    mockUseGameState.mockReturnValue({
       ...defaultUseBattleNadsReturn,
       rawSessionKeyData: expiredKeyData,
       rawEndBlock: 500n, 
@@ -181,7 +181,7 @@ describe('useSessionKey', () => {
   
   it('correctly identifies missing session key (zero address key)', async () => {
     const zeroKeyData = { ...mockSessionKeyData(false), key: ZeroAddress };
-    mockUseBattleNads.mockReturnValue({
+    mockUseGameState.mockReturnValue({
       ...defaultUseBattleNadsReturn,
       rawSessionKeyData: zeroKeyData,
       rawEndBlock: 500n,
@@ -206,7 +206,7 @@ describe('useSessionKey', () => {
   });
 
   it('correctly identifies missing session key (hook returns null/undefined data)', async () => {
-    mockUseBattleNads.mockReturnValueOnce({
+    mockUseGameState.mockReturnValueOnce({
       ...defaultUseBattleNadsReturn,
       rawSessionKeyData: undefined,
       rawEndBlock: 500n,
@@ -232,7 +232,7 @@ describe('useSessionKey', () => {
   
   it('correctly identifies mismatched session key', async () => {
     const mismatchKeyData = mockSessionKeyData(false);
-    mockUseBattleNads.mockReturnValue({
+    mockUseGameState.mockReturnValue({
       ...defaultUseBattleNadsReturn,
       rawSessionKeyData: mismatchKeyData,
       rawEndBlock: 500n,
@@ -262,8 +262,8 @@ describe('useSessionKey', () => {
         injectedWallet: null, 
         embeddedWallet: { address: embeddedAddress }
     });
-    // Mock useBattleNads to reflect its state when owner is null (likely idle/no data)
-    mockUseBattleNads.mockReturnValue({
+    // Mock useGameState to reflect its state when owner is null (likely idle/no data)
+    mockUseGameState.mockReturnValue({
         rawSessionKeyData: undefined,
         rawEndBlock: undefined,
         isLoading: false, // Assume it doesn't load if owner is null
@@ -284,9 +284,9 @@ describe('useSessionKey', () => {
   });
   
   it('handles missing client', async () => {
-    // Mock useBattleNads to simulate an error state (e.g., client missing upstream)
-    const mockError = new Error("Client unavailable in useBattleNads");
-    mockUseBattleNads.mockReturnValue({
+    // Mock useGameState to simulate an error state (e.g., client missing upstream)
+    const mockError = new Error("Client unavailable in useGameState");
+    mockUseGameState.mockReturnValue({
         rawSessionKeyData: undefined,
         rawEndBlock: undefined,
         isLoading: false, // Finished loading (with error)
@@ -315,7 +315,7 @@ describe('useSessionKey', () => {
 
   it('handles underlying snapshot error', async () => { 
     const mockError = new Error("Snapshot Fetch Failed");
-    mockUseBattleNads.mockReturnValue({
+    mockUseGameState.mockReturnValue({
         rawSessionKeyData: undefined,
         rawEndBlock: undefined,
         isLoading: false,

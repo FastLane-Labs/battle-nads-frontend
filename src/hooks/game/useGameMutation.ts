@@ -1,7 +1,6 @@
 import { useMutation, useQueryClient, UseMutationOptions } from '@tanstack/react-query';
 import { useToast } from '@chakra-ui/react';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
-import { useBattleNads } from '../game/useGameState';
 import { invalidateSnapshot } from '../utils';
 import { useWallet } from '@/providers/WalletProvider';
 
@@ -43,7 +42,7 @@ export interface TransactionMutationOptions<TData, TVariables> extends GameMutat
  */
 export function useGameTransactionMutation<TData extends { hash: string; wait: (confirmations?: number) => Promise<any> }, TVariables>(
   mutationFn: (variables: TVariables) => Promise<TData>,
-  options: TransactionMutationOptions<TData, TVariables> = {}
+  options: TransactionMutationOptions<TData, TVariables> & { characterId?: string | null } = {}
 ) {
   const {
     successMessage = 'Transaction completed successfully',
@@ -59,6 +58,7 @@ export function useGameTransactionMutation<TData extends { hash: string; wait: (
     successDuration = 4000,
     errorDuration = 7000,
     mutationKey,
+    characterId,
   } = options;
 
   const toast = useToast();
@@ -66,14 +66,13 @@ export function useGameTransactionMutation<TData extends { hash: string; wait: (
   const { client } = useBattleNadsClient();
   const { injectedWallet, embeddedWallet } = useWallet();
   const owner = injectedWallet?.address || null;
-  const { gameState } = useBattleNads(owner);
-  const characterId = gameState?.character?.id || null;
+  // Character ID passed from calling context to avoid circular dependency
 
   return useMutation<TData, Error, TVariables>({
     mutationKey,
     mutationFn: async (variables) => {
-      if (!client || !characterId) {
-        throw new Error('Client or character ID missing');
+      if (!client) {
+        throw new Error('Client missing');
       }
       return mutationFn(variables);
     },
@@ -180,7 +179,7 @@ export function useGameTransactionMutation<TData extends { hash: string; wait: (
  */
 export function useGameMutation<TData, TVariables>(
   mutationFn: (variables: TVariables) => Promise<TData>,
-  options: GameMutationOptions<TData, TVariables> = {}
+  options: GameMutationOptions<TData, TVariables> & { characterId?: string | null } = {}
 ) {
   const {
     successMessage = 'Operation completed successfully',
@@ -194,6 +193,7 @@ export function useGameMutation<TData, TVariables>(
     successDuration = 3000,
     errorDuration = 5000,
     mutationKey,
+    characterId,
   } = options;
 
   const toast = useToast();
@@ -201,14 +201,13 @@ export function useGameMutation<TData, TVariables>(
   const { client } = useBattleNadsClient();
   const { injectedWallet, embeddedWallet } = useWallet();
   const owner = injectedWallet?.address || null;
-  const { gameState } = useBattleNads(owner);
-  const characterId = gameState?.character?.id || null;
+  // Character ID passed from calling context to avoid circular dependency
 
   return useMutation<TData, Error, TVariables>({
     mutationKey,
     mutationFn: async (variables) => {
-      if (!client || !characterId) {
-        throw new Error('Client or character ID missing');
+      if (!client) {
+        throw new Error('Client missing');
       }
       return mutationFn(variables);
     },
