@@ -102,7 +102,7 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
             disabled={disabled}
             type="button"
             >
-            <span className={`gold-text font-bold ${textSize} ${withAnimation ? 'animate-pulse' : ''}`} style={{ lineHeight: 1 }}>
+            <span className={`gold-text font-bold text-nowrap ${textSize} ${withAnimation ? 'animate-pulse' : ''}`} style={{ lineHeight: 1 }}>
               {loading && loadingText ? loadingText : children}
             </span>
           </button>
