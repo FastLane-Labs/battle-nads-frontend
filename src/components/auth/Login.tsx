@@ -29,7 +29,7 @@ const Login: React.FC = () => {
           <h2 className="text-center text-2xl md:text-3xl font-semibold uppercase mb-4 gold-text tracking-wider leading-10 text-nowrap">
             Adventure Awaits
           </h2>
-          
+
           <GameButton
             variant="primary"
             onClick={handleLogin}
@@ -37,7 +37,8 @@ const Login: React.FC = () => {
             loading={!ready}
             loadingText="Connecting..."
             withAnimation={true}
-            className="mt-4"
+            hasGlow={true}
+            className="mt-4 relative"
           >
             {authenticated ? 'Connected' : 'Connect Wallet'}
           </GameButton>

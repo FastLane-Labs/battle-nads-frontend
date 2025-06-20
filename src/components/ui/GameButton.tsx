@@ -13,6 +13,7 @@ interface GameButtonProps extends Omit<ButtonProps, 'size' | 'variant'> {
   loading?: boolean;
   loadingText?: string;
   withAnimation?: boolean;
+  hasGlow?: boolean;
 }
 
 const sizeConfig: Record<GameButtonSize, { height: string; textSize: string; responsiveHeight?: string }> = {
@@ -36,6 +37,7 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
     loading = false,
     loadingText,
     withAnimation = false,
+    hasGlow = false,
     children,
     isDisabled,
     className = '',
@@ -77,6 +79,11 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
 
     return (
       <div className={`relative mt-4 group ${responsiveHeight || ''}`}>
+        {/* button glow animation */}
+        {hasGlow && (
+          <div className="absolute inset-0 -m-1 bg-yellow-500/10 rounded-md blur-md z-0 animate-pulse-slow"></div>
+      )}
+
         <img 
           src={bgImage}
           alt="" 
@@ -93,7 +100,7 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
           disabled={disabled}
           type="button"
         >
-          <span className={`gold-text ${textSize} ${withAnimation ? 'animate-pulse' : ''}`} style={{ lineHeight: 1 }}>
+          <span className={`gold-text font-bold ${textSize} ${withAnimation ? 'animate-pulse' : ''}`} style={{ lineHeight: 1 }}>
             {loading && loadingText ? loadingText : children}
           </span>
         </button>
