@@ -1,9 +1,8 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useSessionKey } from './useSessionKey';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from '../game/useBattleNads';
-import { invalidateSnapshot } from '../utils';
+import { useGameMutation } from '../game/useGameMutation';
 
 /**
  * Hook for managing session key funding and deactivation
@@ -11,7 +10,6 @@ import { invalidateSnapshot } from '../utils';
  */
 export const useSessionFunding = (characterId: string | null) => {
   const { client } = useBattleNadsClient();
-  const queryClient = useQueryClient();
   const { sessionKeyData } = useSessionKey(characterId);
   const { injectedWallet, embeddedWallet } = useWallet();
   const ownerAddress = injectedWallet?.address ?? null;
@@ -20,23 +18,23 @@ export const useSessionFunding = (characterId: string | null) => {
   const balanceShortfall = rawBalanceShortfall ?? BigInt(0);
 
   // Mutation for replenishing gas balance
-  const replenishBalanceMutation = useMutation({
-    mutationKey: ['replenishBalance', characterId, ownerAddress],
-    mutationFn: async (amount: bigint) => {
+  const replenishBalanceMutation = useGameMutation(
+    async (amount: bigint) => {
       if (!client) {
         throw new Error('Client missing');
       }
       return client.replenishGasBalance(amount);
     },
-    onSuccess: () => {
-      invalidateSnapshot(queryClient, ownerAddress, embeddedWallet?.address);
+    {
+      successMessage: 'Gas balance replenished successfully!',
+      errorMessage: (error) => `Failed to replenish gas balance: ${error.message}`,
+      mutationKey: ['replenishBalance', characterId || 'unknown', ownerAddress || 'unknown'],
     }
-  });
+  );
   
   // Mutation for deactivating session key
-  const deactivateKeyMutation = useMutation({
-    mutationKey: ['deactivateKey', characterId, sessionKeyData?.key, ownerAddress],
-    mutationFn: async () => {
+  const deactivateKeyMutation = useGameMutation(
+    async () => {
       const keyToDeactivate = sessionKeyData?.key;
       console.log('[useSessionFunding] Deactivating session key:', {
         ownerAddress,
@@ -50,11 +48,15 @@ export const useSessionFunding = (characterId: string | null) => {
       }
       return client.deactivateSessionKey(keyToDeactivate);
     },
-    onSuccess: () => {
-      console.log('[useSessionFunding] Session key deactivated successfully, invalidating snapshot for:', ownerAddress);
-      invalidateSnapshot(queryClient, ownerAddress, embeddedWallet?.address);
+    {
+      successMessage: 'Session key deactivated successfully!',
+      errorMessage: (error) => `Failed to deactivate session key: ${error.message}`,
+      mutationKey: ['deactivateKey', characterId || 'unknown', sessionKeyData?.key || 'unknown', ownerAddress || 'unknown'],
+      onSuccess: () => {
+        console.log('[useSessionFunding] Session key deactivated successfully, invalidating snapshot for:', ownerAddress);
+      }
     }
-  });
+  );
 
   return {
     balanceShortfall,

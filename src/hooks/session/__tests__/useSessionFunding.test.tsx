@@ -165,7 +165,7 @@ describe('useSessionFunding', () => {
     expect(result.current.sessionKeyAddress).toBe(mockSessionKeyAddress);
 
     act(() => { 
-      result.current.deactivateKey();
+      result.current.deactivateKey(undefined);
     });
 
     expect(deactivateMutateMock).toHaveBeenCalled(); 
