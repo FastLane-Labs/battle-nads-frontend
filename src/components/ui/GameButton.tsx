@@ -17,8 +17,8 @@ interface GameButtonProps extends Omit<ButtonProps, 'size' | 'variant'> {
 }
 
 const sizeConfig: Record<GameButtonSize, { height: string; textSize: string; responsiveHeight?: string }> = {
-  compact: { height: 'h-[45px]', textSize: 'text-base leading-7' },
-  default: { height: 'h-[60px]', textSize: 'text-lg leading-7' },
+  compact: { height: 'h-[45px]', textSize: 'text-base' },
+  default: { height: 'h-[60px]', textSize: 'text-lg' },
   large: { height: 'h-[75px]', textSize: 'text-2xl sm:text-3xl font-bold', responsiveHeight: 'sm:h-[85px]' },
 };
 
@@ -103,14 +103,14 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
         
         <button 
           ref={ref}
-          className={`relative ${height} w-full uppercase z-10 bg-transparent border-0 px-8
+          className={`relative ${height} w-full uppercase z-10 bg-transparent border-0 px-8 py-0
             flex items-center justify-center transition-transform duration-200 group-hover:scale-105 group-active:scale-95
             ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'} ${responsiveHeight || ''}`}
           onClick={props.onClick}
           disabled={disabled}
           type="button"
         >
-          <span className={`gold-text ${textSize} ${withAnimation ? 'animate-pulse' : ''}`}>
+          <span className={`gold-text ${textSize} leading-none ${withAnimation ? 'animate-pulse' : ''}`}>
             {loading && loadingText ? loadingText : children}
           </span>
         </button>
