@@ -5,7 +5,6 @@ import { PrivyAuthProvider } from '../providers/PrivyAuthProvider';
 import { WalletProvider } from '../providers/WalletProvider';
 import { ReactQueryProvider } from '../providers/ReactQueryProvider';
 import { ChakraProvider, ColorModeScript } from '@chakra-ui/react';
-import { RecoilRoot } from 'recoil';
 import ErrorBoundary from './ErrorBoundary';
 import theme from './theme';
 import './globals.css';
@@ -48,11 +47,9 @@ export default function RootLayout({
             <ReactQueryProvider>
               <PrivyAuthProvider>
                 <WalletProvider>
-                  <RecoilRoot>
-                    <ChakraProvider theme={theme} toastOptions={{ defaultOptions: { position: 'bottom-right' } }} >
-                      {children}
-                    </ChakraProvider>
-                  </RecoilRoot>
+                  <ChakraProvider theme={theme} toastOptions={{ defaultOptions: { position: 'bottom-right' } }} >
+                    {children}
+                  </ChakraProvider>
                 </WalletProvider>
               </PrivyAuthProvider>
             </ReactQueryProvider>

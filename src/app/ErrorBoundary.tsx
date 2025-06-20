@@ -2,7 +2,7 @@
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { logger } from '@/utils/logger';
-import { Button, Box, Heading, Text, VStack, Code, useColorModeValue } from '@chakra-ui/react';
+import { Button, Box, Heading, Text, VStack } from '@chakra-ui/react';
 
 interface Props {
   children: ReactNode;

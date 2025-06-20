@@ -20,7 +20,6 @@ import {
 import { useRouter } from 'next/navigation';
 import { useWallet } from '@/providers/WalletProvider';
 import { isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
-import { useGame } from '@/hooks/game/useGame';
 import { useBattleNadsClient } from '@/hooks/contracts/useBattleNadsClient';
 import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import { ethers } from 'ethers';

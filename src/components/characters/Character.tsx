@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Box, Heading, Flex, Spinner, Text } from '@chakra-ui/react';
+import React, { useState } from 'react';
+import { Box, Heading, Flex, Text } from '@chakra-ui/react';
 import { useWallet } from '../../providers/WalletProvider';
 import { CharacterCard } from './CharacterCard';
 import { CharacterList } from './CharacterList';

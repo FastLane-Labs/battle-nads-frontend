@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Box, VStack, Text, Flex, Badge, Button, Heading, Spinner } from '@chakra-ui/react';
-import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNadsClient } from '../../hooks/contracts/useBattleNadsClient'; // Import client hook
 import { domain } from '../../types'; // Import domain types
