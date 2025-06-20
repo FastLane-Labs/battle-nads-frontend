@@ -8,9 +8,9 @@ import { useToast } from '@chakra-ui/react';
 import { MAX_SESSION_KEY_VALIDITY_BLOCKS } from '../../config/env';
 import { TransactionResponse } from 'ethers';
 import { mapSessionKeyData } from '../../mappers/contractToDomain';
-import { contractToWorldSnapshot, mapCharacterLite, processChatFeedsToDomain, mapCharacterToCharacterLite } from '@/mappers';
+import { contractToWorldSnapshot, mapCharacterLite, processChatFeedsToDomain } from '@/mappers';
 import { createAreaID } from '@/utils/areaId';
-import { useCachedDataFeed, SerializedChatLog, CachedDataBlock, SerializedEventLog, storeFeedData } from './useCachedDataFeed';
+import { useCachedDataFeed, CachedDataBlock, storeFeedData } from './useCachedDataFeed';
 import { useUiSnapshot } from './useUiSnapshot';
 import { AVG_BLOCK_TIME_MS } from '@/config/gas';
 import { useGameMutation } from './useGameMutation';
@@ -160,8 +160,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         (uiSnapshot.combatants || []).map(c => mapCharacterLite(c)),
         (uiSnapshot.noncombatants || []).map(c => mapCharacterLite(c)),
         uiSnapshot.endBlock,
-        uiSnapshot.fetchTimestamp,
-        uiSnapshot.character // CRITICAL FIX: Pass player character for name resolution
+        uiSnapshot.fetchTimestamp
       );
     }
   }, [characterLookup, includeHistory, owner, characterId, estimateBlockTimestamp]);
