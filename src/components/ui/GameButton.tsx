@@ -84,26 +84,29 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
           <div className="absolute inset-0 -m-1 bg-yellow-500/10 rounded-md blur-md z-0 animate-pulse-slow"></div>
       )}
 
-        <img 
-          src={bgImage}
-          alt="" 
-          className={`absolute inset-0 w-full ${height} object-fill z-0 transition-all duration-200 
+        <div className={`relative ${withAnimation ? 'animate-float' : ''}`}>
+
+          <img 
+            src={bgImage}
+            alt="" 
+            className={`absolute inset-0 w-full ${height} object-fill z-0 transition-all duration-200 
             group-hover:brightness-125 group-hover:scale-[1.02] group-active:brightness-90 group-active:scale-[0.98]`}
-        />
-        
-        <button 
-          ref={ref}
-          className={`relative ${height} w-full uppercase z-10 bg-transparent border-0 px-8 py-0
+            />
+          
+          <button 
+            ref={ref}
+            className={`relative ${height} w-full uppercase z-10 bg-transparent border-0 px-8 py-0
             flex items-center justify-center transition-transform duration-200 group-hover:scale-105 group-active:scale-95
             ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
-          onClick={props.onClick}
-          disabled={disabled}
-          type="button"
-        >
-          <span className={`gold-text font-bold ${textSize} ${withAnimation ? 'animate-pulse' : ''}`} style={{ lineHeight: 1 }}>
-            {loading && loadingText ? loadingText : children}
-          </span>
-        </button>
+            onClick={props.onClick}
+            disabled={disabled}
+            type="button"
+            >
+            <span className={`gold-text font-bold ${textSize} ${withAnimation ? 'animate-pulse' : ''}`} style={{ lineHeight: 1 }}>
+              {loading && loadingText ? loadingText : children}
+            </span>
+          </button>
+        </div>
       </div>
     );
   }
