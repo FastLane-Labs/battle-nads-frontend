@@ -508,6 +508,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             loading={createCharacterMutation.isPending}
             loadingText="Creating..."
             className="mt-6"
+            hasGlow={true}
           >
             Create Character
           </GameButton>
