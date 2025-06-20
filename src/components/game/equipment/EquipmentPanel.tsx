@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { Box, Text, Tooltip, HStack, Button, VStack, useDisclosure, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Divider, Spinner, SimpleGrid } from '@chakra-ui/react';
+import { Box, Text, Tooltip, HStack, VStack, useDisclosure, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Divider, Spinner, SimpleGrid } from '@chakra-ui/react';
 import { useEquipment, useEquipmentDetails } from '@/hooks/game/useEquipment';
 import { EquipmentCard } from './EquipmentCard';
-import Image from 'next/image';
 import type { Weapon, Armor } from '@/types/domain';
 import { useTransactionBalance } from '@/hooks/game/useTransactionBalance';
 // Remove direct imports

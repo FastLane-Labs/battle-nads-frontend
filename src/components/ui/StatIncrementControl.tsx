@@ -1,8 +1,7 @@
 'use client';
 
 import React from 'react';
-import { HStack } from '@chakra-ui/react';
-import Image from 'next/image';
+import { HStack, Image } from '@chakra-ui/react';
 
 type StatIncrementSize = 'small' | 'large';
 
@@ -76,10 +75,9 @@ export const StatIncrementControl: React.FC<StatIncrementControlProps> = ({
         <Image
           src="/assets/buttons/-.webp"
           alt="-"
-          width={size === 'large' ? 50 : 30}
-          height={size === 'large' ? 50 : 30}
+          width={size === 'large' ? '50px' : '30px'}
+          height={size === 'large' ? '50px' : '30px'}
           className="w-full h-full object-contain"
-          priority
         />
         
         {/* Hover Overlay */}
@@ -113,10 +111,9 @@ export const StatIncrementControl: React.FC<StatIncrementControlProps> = ({
         <Image
           src="/assets/buttons/+.webp"
           alt="+"
-          width={size === 'large' ? 50 : 30}
-          height={size === 'large' ? 50 : 30}
+          width={size === 'large' ? '50px' : '30px'}
+          height={size === 'large' ? '50px' : '30px'}
           className="w-full h-full object-contain"
-          priority
         />
         
         {/* Hover Overlay */}
