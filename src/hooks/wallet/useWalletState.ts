@@ -274,3 +274,4 @@ export function useTransactionBalance() {
     insufficientBalanceMessage: walletState.insufficientBalanceMessage,
   };
 }
+
