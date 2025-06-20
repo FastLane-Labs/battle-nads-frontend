@@ -19,7 +19,7 @@ interface GameButtonProps extends Omit<ButtonProps, 'size' | 'variant'> {
 const sizeConfig: Record<GameButtonSize, { height: string; textSize: string; responsiveHeight?: string }> = {
   compact: { height: 'h-[45px]', textSize: 'text-base leading-7' },
   default: { height: 'h-[60px]', textSize: 'text-lg leading-7' },
-  large: { height: 'h-[75px]', textSize: 'text-xl leading-7', responsiveHeight: 'sm:h-[85px]' },
+  large: { height: 'h-[75px]', textSize: 'text-2xl sm:text-3xl font-bold', responsiveHeight: 'sm:h-[85px]' },
 };
 
 const variantConfig: Record<GameButtonVariant, { backgroundImage: string; size: GameButtonSize }> = {
@@ -76,13 +76,16 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
       'pointer-events-none',
     ].filter(Boolean).join(' ');
     
-    // Glow effect (optional)
+    // Glow effect (optional) - for create-character variant, always visible
+    const isCreateCharacter = variant === 'create-character';
     const glowElement = withGlow && (
-      <Box
-        className="absolute inset-0 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+      <div
+        className={`absolute inset-0 rounded-lg transition-opacity duration-300 ${
+          isCreateCharacter ? 'opacity-50' : 'opacity-0 group-hover:opacity-100'
+        }`}
         style={{
-          background: 'radial-gradient(circle at center, rgba(212, 175, 55, 0.3), transparent 70%)',
-          filter: 'blur(20px)',
+          background: 'radial-gradient(circle at center, rgba(212, 175, 55, 0.4), transparent 70%)',
+          filter: 'blur(25px)',
           animation: 'pulse 2s ease-in-out infinite',
         }}
       />
@@ -100,7 +103,7 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
         
         <button 
           ref={ref}
-          className={`relative ${height} w-full ${textSize} font-bold uppercase z-10 bg-transparent border-0 px-8
+          className={`relative ${height} w-full uppercase z-10 bg-transparent border-0 px-8
             flex items-center justify-center transition-transform duration-200 group-hover:scale-105 group-active:scale-95
             ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'} ${responsiveHeight || ''}`}
           onClick={props.onClick}
