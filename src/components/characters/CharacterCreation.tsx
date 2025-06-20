@@ -507,6 +507,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             isDisabled={unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0) || isLoadingBlock || !currentBlock}
             loading={createCharacterMutation.isPending}
             loadingText="Creating..."
+            withGlow={true}
             className="mt-6"
           >
             Create Character
