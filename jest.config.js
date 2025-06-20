@@ -22,6 +22,9 @@ const customJestConfig = {
     "^jose/(.*)$": "<rootDir>/node_modules/jose/dist/node/cjs/$1.js"
   },
   testEnvironment: 'jest-environment-jsdom',
+  testEnvironmentOptions: {
+    customExportConditions: ['node', 'node-addons'],
+  },
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/'],
   transform: {
     // Use babel-jest to transpile tests with the next/babel preset
@@ -29,8 +32,16 @@ const customJestConfig = {
   },
   // By default, node_modules are ignored—whitelist ESM packages that need transpiling
   transformIgnorePatterns: [
-    '/node_modules/(?!(@privy-io/react-auth|@privy-io/js-sdk-core|viem|ofetch)/)'
+    '/node_modules/(?!(@privy-io/react-auth|@privy-io/js-sdk-core|viem|ofetch|ethers)/)'
   ],
+  // Add Node.js globals for ethers.js compatibility
+  globals: {
+    'process.env': {
+      NODE_ENV: 'test'
+    }
+  },
+  // Increase timeout for async tests
+  testTimeout: 10000,
 };
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
