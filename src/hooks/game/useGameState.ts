@@ -703,7 +703,7 @@ export const useBattleNads = (_owner: string | null) => {
   const result = useGameState({ 
     includeActions: false, 
     includeHistory: true, 
-    includeSessionKey: false 
+    includeSessionKey: true 
   });
   
   return {
