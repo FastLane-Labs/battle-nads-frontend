@@ -636,6 +636,8 @@ export function contractToWorldSnapshot(
             originalDefender: defender,
             finalAttackerParticipant: attackerParticipant,
             finalDefenderParticipant: defenderParticipant,
+            attackerName: isPlayer ? "You" : attackerParticipant?.name || "Unknown",
+            defenderName: defenderParticipant?.name || "Unknown",
             isPlayer,
             ownerCharacterId
           });
