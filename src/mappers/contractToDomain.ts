@@ -566,6 +566,17 @@ export function contractToWorldSnapshot(
       const mainPlayerIdx = Number(log.mainPlayerIndex);
       const otherPlayerIdx = Number(log.otherPlayerIndex);
 
+      console.log('[Mapper] Processing log:', {
+        rawLogType: log.logType,
+        logTypeNum,
+        mainPlayerIdx,
+        otherPlayerIdx,
+        hasHealing: !!log.healthHealed && Number(log.healthHealed) > 0,
+        healingAmount: log.healthHealed ? Number(log.healthHealed) : 0,
+        hit: log.hit,
+        damageDone: log.damageDone
+      });
+
       // --- Process each log type ---
       switch (logTypeNum) {
         case domain.LogType.Combat:
@@ -577,18 +588,40 @@ export function contractToWorldSnapshot(
             log,
             combatantsCount: combatants.length,
             noncombatantsCount: noncombatants.length,
-            hasCharacter: !!raw.character
+            hasCharacter: !!raw.character,
+            playerCharacterIndex: raw.character ? Number(raw.character.stats.index) : null,
+            playerCharacterName: raw.character?.name,
+            playerCharacterId: raw.character?.id,
+            ownerCharacterId
           });
           
           const attacker = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
           const defender = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character);
           
           // If we can't find participants in current data, create fallback participants with the indices we have
-          const attackerParticipant: domain.EventParticipant | undefined = attacker || (mainPlayerIdx !== 0 ? {
-            id: `unknown-${mainPlayerIdx}`,
-            name: `Character ${mainPlayerIdx}`,
-            index: mainPlayerIdx
-          } : undefined);
+          // Special handling for player character - if this might be the player, try to use player data
+          const attackerParticipant: domain.EventParticipant | undefined = attacker || (() => {
+            if (mainPlayerIdx === 0) return undefined; // Index 0 usually means no character
+            
+            // If this event is player-initiated and we have character data, it's likely the player
+            if (raw.character && (
+              Number(raw.character.stats.index) === mainPlayerIdx || 
+              !combatants.find(c => Number(c.index) === mainPlayerIdx) && 
+              !noncombatants.find(c => Number(c.index) === mainPlayerIdx)
+            )) {
+              return {
+                id: raw.character.id,
+                name: raw.character.name || `Player`,
+                index: mainPlayerIdx
+              };
+            }
+            
+            return {
+              id: `unknown-${mainPlayerIdx}`,
+              name: `Character ${mainPlayerIdx}`,
+              index: mainPlayerIdx
+            };
+          })();
           
           const defenderParticipant: domain.EventParticipant | undefined = defender || (otherPlayerIdx !== 0 ? {
             id: `unknown-${otherPlayerIdx}`,
