@@ -404,6 +404,13 @@ function findCharacterParticipantByIndex(
   mainCharacter?: contract.Character | null
 ): domain.EventParticipant | null {
   
+  console.log('[findCharacterParticipantByIndex] Searching for index:', {
+    searchIndex: index,
+    mainCharacterIndex: mainCharacter ? Number(mainCharacter.stats.index) : null,
+    combatantIndices: combatants.map(c => ({ index: Number(c.index), name: c.name, id: c.id })),
+    noncombatantIndices: noncombatants.map(c => ({ index: Number(c.index), name: c.name, id: c.id }))
+  });
+  
   // Check main character first if its index matches
   if (mainCharacter && Number(mainCharacter.stats.index) === index) {
     const char = mainCharacter;
@@ -434,6 +441,7 @@ function findCharacterParticipantByIndex(
     };
   }
   
+  console.log('[findCharacterParticipantByIndex] No character found for index:', index);
   return null;
 }
 
@@ -562,9 +570,26 @@ export function contractToWorldSnapshot(
       switch (logTypeNum) {
         case domain.LogType.Combat:
         case domain.LogType.InstigatedCombat: {
+          console.log('[Mapper] Processing Combat event:', {
+            logTypeNum,
+            mainPlayerIdx,
+            otherPlayerIdx,
+            log,
+            combatantsCount: combatants.length,
+            noncombatantsCount: noncombatants.length,
+            hasCharacter: !!raw.character
+          });
+          
           const attacker = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
           const defender = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character);
           const isPlayer = !!ownerCharacterId && !!attacker && attacker.id === ownerCharacterId;
+          
+          console.log('[Mapper] Character resolution:', {
+            attacker,
+            defender,
+            isPlayer,
+            ownerCharacterId
+          });
           
           // Enhanced fallback for missing character names
           const attackerName = isPlayer ? "You" : attacker?.name || `Character (Index ${mainPlayerIdx})`;
