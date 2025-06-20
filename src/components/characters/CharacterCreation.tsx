@@ -456,11 +456,11 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
                   <div className="flex items-center">
                     <span className="gold-text text-3xl">{name}</span>
                     {isNameInputFocused && (
-                      <span className="gold-text text-3xl ml-1 animate-[blink_1s_infinite]">|</span>
+                      <span className="gold-text text-3xl ml-1 animate-[cursor-blink_1s_infinite]">|</span>
                     )}
                   </div>
                 ) : isNameInputFocused ? (
-                  <span className="gold-text text-3xl animate-[blink_1s_infinite]">|</span>
+                  <span className="gold-text text-3xl animate-[cursor-blink_1s_infinite]">|</span>
                 ) : (
                   <span className="text-gray-500 text-2xl">Enter your character name</span>
                 )}
