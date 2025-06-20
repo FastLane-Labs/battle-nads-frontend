@@ -1,7 +1,7 @@
 import { useMemo, useEffect } from 'react';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
-import { useBattleNads } from './useBattleNads';
+import { useBattleNads } from './useGameState';
 import { useSessionKey } from '../session/useSessionKey';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { domain, contract } from '@/types';
