@@ -562,6 +562,7 @@ export function contractToWorldSnapshot(
       const mainPlayerIdx = Number(log.mainPlayerIndex);
       const otherPlayerIdx = Number(log.otherPlayerIndex);
 
+
       // --- Process each log type ---
       switch (logTypeNum) {
         case domain.LogType.Combat:
@@ -612,6 +613,7 @@ export function contractToWorldSnapshot(
           
           const attackerParticipant = createParticipant(mainPlayerIdx);
           const defenderParticipant = createParticipant(otherPlayerIdx);
+          
           
           // Simple player detection: if participant has same ID as player character
           const playerCharacterId = raw.character?.id;

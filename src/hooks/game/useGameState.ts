@@ -148,62 +148,8 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         Number(uiSnapshot.character.stats.y)
       ) : BigInt(0);
 
-    // Process fresh event logs using the same pattern as useBattleNads
-    const newlyConfirmedEventLogs: domain.EventMessage[] = [];
-    (uiSnapshot.dataFeeds || []).forEach((feed, feedIndex) => {
-      const blockNumberBigInt = feed.blockNumber ? BigInt(feed.blockNumber) : undefined;
-      const estimatedTimestamp = blockNumberBigInt ? estimateBlockTimestamp(blockNumberBigInt) : Date.now();
-      
-      (feed.logs || []).forEach((log, logIndexInFeed) => {
-        // Only process non-chat logs as events (chat is handled above)
-        if (log.logType !== domain.LogType.Chat) {
-          const attackerInfo = characterLookup.get(Number(log.mainPlayerIndex));
-          const defenderInfo = characterLookup.get(Number(log.otherPlayerIndex));
-          
-          const event: domain.EventMessage = {
-            logIndex: typeof log.index === 'bigint' ? Number(log.index) : log.index,
-            blocknumber: blockNumberBigInt || BigInt(0),
-            timestamp: estimatedTimestamp,
-            type: log.logType as domain.LogType,
-            attacker: attackerInfo ? { 
-              id: attackerInfo.id, 
-              name: attackerInfo.name, 
-              index: Number(log.mainPlayerIndex) 
-            } : undefined,
-            defender: defenderInfo ? { 
-              id: defenderInfo.id, 
-              name: defenderInfo.name, 
-              index: Number(log.otherPlayerIndex) 
-            } : undefined,
-            areaId: snapshotAreaId,
-            isPlayerInitiated: true, // Assume true for game events
-            details: {
-              hit: log.hit,
-              critical: log.critical,
-              damageDone: Number(log.damageDone),
-              healthHealed: Number(log.healthHealed),
-              targetDied: log.targetDied,
-              lootedWeaponID: Number(log.lootedWeaponID),
-              lootedArmorID: Number(log.lootedArmorID),
-              experience: Number(log.experience),
-              value: log.value
-            },
-            displayMessage: `${attackerInfo?.name || 'Unknown'} performed action against ${defenderInfo?.name || 'Unknown'}`
-          };
-          
-          newlyConfirmedEventLogs.push(event);
-        }
-      });
-    });
-
-    // Add newly confirmed event logs
-    setRuntimeEventLogs(prev => {
-      const existingKeys = new Set(prev.map(log => `conf-${log.blocknumber}-${log.logIndex}`));
-      const newLogs = newlyConfirmedEventLogs.filter(log => 
-        !existingKeys.has(`conf-${log.blocknumber}-${log.logIndex}`)
-      );
-      return [...prev, ...newLogs];
-    });
+    // NOTE: Event processing is now handled entirely by contractToWorldSnapshot
+    // This eliminates duplicate processing and the "Unknown performed action" issue
 
     // Store the feed data in cache if includeHistory is enabled (let the original useBattleNads flow handle this)
     if (includeHistory && owner && characterId && uiSnapshot.dataFeeds?.length) {
@@ -215,7 +161,8 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         (uiSnapshot.combatants || []).map(c => mapCharacterLite(c)),
         (uiSnapshot.noncombatants || []).map(c => mapCharacterLite(c)),
         uiSnapshot.endBlock,
-        uiSnapshot.fetchTimestamp
+        uiSnapshot.fetchTimestamp,
+        uiSnapshot.character // CRITICAL FIX: Pass player character for name resolution
       );
     }
   }, [characterLookup, includeHistory, owner, characterId, estimateBlockTimestamp]);

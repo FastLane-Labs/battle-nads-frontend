@@ -5,6 +5,7 @@ import { LogType } from '@/types/domain/enums'; // Import LogType
 import { CharacterLite } from '@/types/domain'; // Import CharacterLite
 import { estimateBlockTimestamp } from '@/utils/blockUtils'; // Import the new utility function
 import { ENTRYPOINT_ADDRESS } from '../../config/env'; // Import contract address
+import { createAreaID } from '@/utils/areaId'; // Import area ID calculation
 
 // Define SerializedEventLog based on contract.Log, converting BigInts
 // Export needed types
@@ -202,7 +203,8 @@ export const processDataFeedsToCachedBlocks = (
   combatantsContext: CharacterLite[] | undefined,
   nonCombatantsContext: CharacterLite[] | undefined,
   currentBlockNumber: bigint, // Add currentBlockNumber parameter
-  fetchTimestamp: number // Add fetchTimestamp parameter
+  fetchTimestamp: number, // Add fetchTimestamp parameter
+  playerCharacter?: contract.Character | null // Add player character for lookup
 ): CachedDataBlock[] => {
   if (!dataFeeds || dataFeeds.length === 0) {
     return [];
@@ -217,6 +219,29 @@ export const processDataFeedsToCachedBlocks = (
   (combatantsContext || []).forEach(c => characterLookup.set(c.index, { id: c.id, name: c.name, areaId: c.areaId }));
   (nonCombatantsContext || []).forEach(c => characterLookup.set(c.index, { id: c.id, name: c.name, areaId: c.areaId }));
   
+  // CRITICAL FIX: Add player character to lookup so it can be resolved when storing events
+  if (playerCharacter) {
+    const playerIndex = Number(playerCharacter.stats.index);
+    // Calculate proper area ID from player position
+    const playerAreaId = createAreaID(
+      Number(playerCharacter.stats.depth),
+      Number(playerCharacter.stats.x),
+      Number(playerCharacter.stats.y)
+    );
+    characterLookup.set(playerIndex, { 
+      id: playerCharacter.id, 
+      name: playerCharacter.name, 
+      areaId: playerAreaId 
+    });
+  }
+  
+  // Calculate snapshot area ID once for all events (they all happen in player's current area)
+  const snapshotAreaId = playerCharacter ? createAreaID(
+    Number(playerCharacter.stats.depth),
+    Number(playerCharacter.stats.x),
+    Number(playerCharacter.stats.y)
+  ) : BigInt(0);
+
   const processedBlocks: CachedDataBlock[] = [];
 
   for (const feed of dataFeeds) {
@@ -249,7 +274,7 @@ export const processDataFeedsToCachedBlocks = (
         otherPlayerIndex: log.otherPlayerIndex,
         attackerName: attackerInfo?.name,
         defenderName: defenderInfo?.name,
-        areaId: String(attackerInfo?.areaId || defenderInfo?.areaId || 0n), // Store as string for IndexedDB
+        areaId: String(snapshotAreaId), // Use calculated snapshot area ID for all events
         hit: log.hit,
         critical: log.critical,
         damageDone: log.damageDone,
@@ -312,7 +337,8 @@ export const storeFeedData = async (
   combatantsContext: CharacterLite[] | undefined,
   nonCombatantsContext: CharacterLite[] | undefined,
   currentBlockNumber: bigint, // Add currentBlockNumber parameter
-  fetchTimestamp: number // Add fetchTimestamp parameter
+  fetchTimestamp: number, // Add fetchTimestamp parameter
+  playerCharacter?: contract.Character | null // Add player character for lookup
 ) => {
   if (!owner || !characterId || !dataFeeds || dataFeeds.length === 0) {
     return; // No owner/character or data to store
@@ -324,7 +350,8 @@ export const storeFeedData = async (
     combatantsContext,
     nonCombatantsContext,
     currentBlockNumber, 
-    fetchTimestamp
+    fetchTimestamp,
+    playerCharacter
   );
 
   // 2. Transform processed blocks into the format needed for Dexie (StoredDataBlock)
