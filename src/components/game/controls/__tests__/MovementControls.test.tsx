@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import MovementControls from '../MovementControls';
 
 // Mock the useTransactionBalance hook
-jest.mock('@/hooks/game/useTransactionBalance', () => ({
+jest.mock('@/hooks/wallet/useWalletState', () => ({
   useTransactionBalance: () => ({
     isTransactionDisabled: false,
     insufficientBalanceMessage: null,

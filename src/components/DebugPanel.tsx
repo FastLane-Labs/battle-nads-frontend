@@ -19,7 +19,7 @@ import {
   Divider
 } from '@chakra-ui/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useBattleNads } from '../hooks/game/useBattleNads';
+import { useBattleNads } from '../hooks/game/useGameState';
 import { useWallet } from '../providers/WalletProvider';
 import { useBattleNadsClient } from '../hooks/contracts/useBattleNadsClient';
 import { invalidateSnapshot } from '../hooks/utils';
@@ -197,7 +197,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       // Step 6: Check for specific event filtering issues
       addLog('Step 6: Checking event filtering...');
       if (gameState?.eventLogs && gameState.eventLogs.length > 0) {
-        const eventTypes = gameState.eventLogs.reduce((acc: any, event) => {
+        const eventTypes = gameState.eventLogs.reduce((acc: any, event: any) => {
           acc[event.type] = (acc[event.type] || 0) + 1;
           return acc;
         }, {});
@@ -307,7 +307,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       console.log(`📊 Total events in game state: ${allEvents.length}`);
       
       // Group events by area ID
-      const eventsByArea = allEvents.reduce((acc: any, event) => {
+      const eventsByArea = allEvents.reduce((acc: any, event: any) => {
         const areaKey = event.areaId?.toString() || 'undefined';
         acc[areaKey] = (acc[areaKey] || 0) + 1;
         return acc;
@@ -316,7 +316,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       console.log('📍 Events by Area ID:', eventsByArea);
       
       // Check for events with missing area IDs
-      const eventsWithoutArea = allEvents.filter(event => !event.areaId);
+      const eventsWithoutArea = allEvents.filter((event: any) => !event.areaId);
       if (eventsWithoutArea.length > 0) {
         console.warn(`⚠️ ${eventsWithoutArea.length} events missing area ID`);
         addLog(`⚠️ Found ${eventsWithoutArea.length} events without area ID`);
@@ -324,7 +324,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       
              // Test current area filtering (if character has position)
        if (gameState?.character?.areaId) {
-         const currentAreaEvents = allEvents.filter(event => event.areaId === gameState.character?.areaId);
+         const currentAreaEvents = allEvents.filter((event: any) => event.areaId === gameState.character?.areaId);
          console.log(`🎯 Events in current area (${gameState.character.areaId}): ${currentAreaEvents.length}`);
          addLog(`Current area has ${currentAreaEvents.length} events`);
        }

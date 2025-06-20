@@ -5,13 +5,13 @@ import { useBattleNadsClient } from '../../contracts/useBattleNadsClient';
 import { useSessionKey } from '../useSessionKey';
 import { SessionKeyState } from '../../../machines/sessionKeyMachine';
 import { useWallet } from '../../../providers/WalletProvider';
-import { useBattleNads } from '../../game/useBattleNads';
+import { useBattleNads } from '../../game/useGameState';
 
 // Mock dependencies
 jest.mock('../../contracts/useBattleNadsClient');
 jest.mock('../useSessionKey');
 jest.mock('../../../providers/WalletProvider');
-jest.mock('../../game/useBattleNads');
+jest.mock('../../game/useGameState');
 
 // --- Mock Mutation Helpers (Keep for now, may need adjustment later) ---
 const mockMutationStates: Record<string, { isPending: boolean, error: Error | null, mutate?: jest.Mock }> = {};

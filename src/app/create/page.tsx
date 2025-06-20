@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { Box } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
-import { useGame } from '@/hooks/game/useGame';
+import { useGame } from '@/hooks/game/useGameState';
 import { isValidCharacterId } from '../../utils/getCharacterLocalStorageKey';
 
 import NavBar from '@/components/NavBar';

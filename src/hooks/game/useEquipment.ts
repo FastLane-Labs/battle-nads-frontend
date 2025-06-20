@@ -2,7 +2,7 @@ import { useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
-import { useBattleNads } from './useBattleNads';
+import { useBattleNads } from './useGameState';
 import type { Weapon, Armor } from '@/types/domain';
 import { EquipmentSlot } from '@/types/domain';
 import { useGameMutation } from './useGameMutation';
@@ -45,7 +45,7 @@ export const useEquipment = (characterId: string | null) => {
   // Available equipment
   const equipableWeapons = useMemo(() => {
     if (!rawEquipableWeaponIDs) return [];
-    return rawEquipableWeaponIDs.map((id, index) => ({
+    return rawEquipableWeaponIDs.map((id: any, index: any) => ({
       id: Number(id), // Ensure ID is number
       name: rawEquipableWeaponNames?.[index] || `Weapon ${id}`
     })) || [];
@@ -53,7 +53,7 @@ export const useEquipment = (characterId: string | null) => {
   
   const equipableArmors = useMemo(() => {
     if (!rawEquipableArmorIDs) return [];
-    return rawEquipableArmorIDs.map((id, index) => ({
+    return rawEquipableArmorIDs.map((id: any, index: any) => ({
       id: Number(id), // Ensure ID is number
       name: rawEquipableArmorNames?.[index] || `Armor ${id}`
     })) || [];

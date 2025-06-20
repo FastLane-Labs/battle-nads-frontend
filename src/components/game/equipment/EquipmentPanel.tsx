@@ -1,12 +1,8 @@
 import React, { useState } from 'react';
 import { Box, Text, Tooltip, HStack, VStack, useDisclosure, Modal, ModalOverlay, ModalContent, ModalHeader, ModalBody, ModalCloseButton, Divider, Spinner, SimpleGrid } from '@chakra-ui/react';
 import { useEquipment, useEquipmentDetails } from '@/hooks/game/useEquipment';
-import { EquipmentCard } from './EquipmentCard';
 import type { Weapon, Armor } from '@/types/domain';
-import { useTransactionBalance } from '@/hooks/game/useTransactionBalance';
-// Remove direct imports
-// import WeaponIcon from 'public/assets/buttons/weapon.png';
-// import ArmorIcon from 'public/assets/buttons/armor.png';
+import { useTransactionBalance } from '@/hooks/wallet/useWalletState';
 
 interface EquipmentPanelProps {
   characterId: string | null;
@@ -303,7 +299,7 @@ export const EquipmentPanel: React.FC<EquipmentPanelProps> = ({ characterId }) =
           <ModalCloseButton />
           <ModalBody pb={6}>
             <SimpleGrid columns={{ base: 1, md: 2 }} spacing={4}>
-              {availableEquipment.map((item) => (
+              {availableEquipment.map((item: any) => (
                 <EquipmentOptionCard
                   key={item.id}
                   slot={selectedSlot!}

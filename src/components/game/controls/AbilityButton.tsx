@@ -15,7 +15,7 @@ import { AbilityStage } from '@/types/domain/enums';
 import { AbilityStatus } from '@/hooks/game/useAbilityCooldowns';
 import { domain } from '@/types';
 import { getAbilityMetadata } from '@/data/abilities';
-import { useTransactionBalance } from '@/hooks/game/useTransactionBalance';
+import { useTransactionBalance } from '@/hooks/wallet/useWalletState';
 import { GameTooltip } from '../../ui';
 
 interface AbilityButtonProps {

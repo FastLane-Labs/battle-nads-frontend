@@ -3,7 +3,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useGame } from '@/hooks/game/useGame';
+import { useGame } from '@/hooks/game/useGameState';
 import LoadingScreen from '@/components/game/screens/LoadingScreen';
 import ErrorScreen from '@/components/game/screens/ErrorScreen';
 import SessionKeyPrompt from '@/components/game/screens/SessionKeyPrompt';

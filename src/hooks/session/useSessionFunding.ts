@@ -1,7 +1,7 @@
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useSessionKey } from './useSessionKey';
 import { useWallet } from '../../providers/WalletProvider';
-import { useBattleNads } from '../game/useBattleNads';
+import { useBattleNads } from '../game/useGameState';
 import { useGameMutation } from '../game/useGameMutation';
 
 /**

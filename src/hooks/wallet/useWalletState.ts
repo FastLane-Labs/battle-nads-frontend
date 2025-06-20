@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ethers } from 'ethers';
 import { useWallet } from '../../providers/WalletProvider';
-import { useBattleNads } from '../game/useBattleNads';
+import { useUiSnapshot } from '../game/useUiSnapshot';
 import { RPC } from '@/config/env';
 import { 
   BALANCE_REFRESH_INTERVAL, 
@@ -76,8 +76,8 @@ export function useWalletState(options: UseWalletStateOptions = {}): WalletBalan
   const ownerAddress = injectedWallet?.address ?? null;
   const sessionKeyAddress = embeddedWallet?.address ?? null;
   
-  // Get game state from useBattleNads (includes session key data)
-  const { gameState, isLoading: isGameLoading } = useBattleNads(ownerAddress);
+  // Get session key and balance data directly from UI snapshot
+  const { data: rawData, isLoading: isSnapshotLoading } = useUiSnapshot(ownerAddress);
   
   // Owner balance state (fetched via direct RPC)
   const [ownerBalance, setOwnerBalance] = useState<string>('0');
@@ -109,30 +109,30 @@ export function useWalletState(options: UseWalletStateOptions = {}): WalletBalan
 
   // Session key data validation
   const hasValidSessionKeyData = useMemo((): boolean => {
-    return Boolean(gameState && 
-           gameState.sessionKeyData && 
-           gameState.sessionKeyData.key !== '0x0000000000000000000000000000000000000000');
-  }, [gameState]);
+    return Boolean(rawData && 
+           rawData.sessionKeyData && 
+           rawData.sessionKeyData.key !== '0x0000000000000000000000000000000000000000');
+  }, [rawData]);
 
   // Extract and format session key balance data
   const sessionKeyBalanceBigInt = useMemo(() => {
-    if (!hasValidSessionKeyData || !gameState?.sessionKeyData?.balance) return BigInt(0);
-    return BigInt(gameState.sessionKeyData.balance);
-  }, [hasValidSessionKeyData, gameState]);
+    if (!hasValidSessionKeyData || !rawData?.sessionKeyData?.balance) return BigInt(0);
+    return BigInt(rawData.sessionKeyData.balance);
+  }, [hasValidSessionKeyData, rawData]);
 
   const bondedBalanceBigInt = useMemo(() => {
-    if (!hasValidSessionKeyData || !gameState?.sessionKeyData?.ownerCommittedAmount) return BigInt(0);
-    return BigInt(gameState.sessionKeyData.ownerCommittedAmount);
-  }, [hasValidSessionKeyData, gameState]);
+    if (!hasValidSessionKeyData || !rawData?.sessionKeyData?.ownerCommittedAmount) return BigInt(0);
+    return BigInt(rawData.sessionKeyData.ownerCommittedAmount);
+  }, [hasValidSessionKeyData, rawData]);
 
   const targetBalanceBigInt = useMemo(() => {
-    if (!hasValidSessionKeyData || !gameState?.sessionKeyData?.targetBalance) return BigInt(0);
-    return BigInt(gameState.sessionKeyData.targetBalance);
-  }, [hasValidSessionKeyData, gameState]);
+    if (!hasValidSessionKeyData || !rawData?.sessionKeyData?.targetBalance) return BigInt(0);
+    return BigInt(rawData.sessionKeyData.targetBalance);
+  }, [hasValidSessionKeyData, rawData]);
 
   const shortfall = useMemo(() => {
-    return hasValidSessionKeyData && gameState ? (gameState.balanceShortfall || BigInt(0)) : BigInt(0);
-  }, [hasValidSessionKeyData, gameState]);
+    return hasValidSessionKeyData && rawData ? (rawData.balanceShortfall || BigInt(0)) : BigInt(0);
+  }, [hasValidSessionKeyData, rawData]);
 
   // Format balance values
   const sessionKeyBalance = useMemo(() => {
@@ -169,7 +169,7 @@ export function useWalletState(options: UseWalletStateOptions = {}): WalletBalan
   }, [hasValidSessionKeyData, shortfall]);
 
   // Loading states
-  const isLoading = isGameLoading || isOwnerBalanceLoading;
+  const isLoading = isSnapshotLoading || isOwnerBalanceLoading;
   
   // Transaction disabled state
   const isTransactionDisabled = useMemo(() => {

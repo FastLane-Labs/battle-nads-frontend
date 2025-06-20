@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { SessionKeyState, sessionKeyMachine } from '../../machines/sessionKeyMachine';
 import { useWallet } from '../../providers/WalletProvider';
-import { useBattleNads } from '../game/useBattleNads';
+import { useUiSnapshot } from '../game/useUiSnapshot';
 import { ZeroAddress } from 'ethers';
 import { contract } from '../../types';
 
@@ -36,13 +36,16 @@ export const useSessionKey = (characterId: string | null) => {
     }
   }, [ownerAddress, embeddedWallet?.address]);
   
-  // Get snapshot data from useBattleNads
+  // Get snapshot data directly from useUiSnapshot to avoid circular dependency
   const { 
-    rawSessionKeyData, // Use the raw data exposed by useBattleNads
-    rawEndBlock,       // Use the raw endBlock exposed by useBattleNads
+    data: snapshotData,
     isLoading: isSnapshotLoading, 
     error: snapshotError, 
-  } = useBattleNads(ownerAddress); // Pass owner address (now guaranteed string | null)
+  } = useUiSnapshot(ownerAddress); // Pass owner address (now guaranteed string | null)
+
+  // Extract session key data from snapshot
+  const rawSessionKeyData = snapshotData?.sessionKeyData;
+  const rawEndBlock = snapshotData?.endBlock;
 
   // Local state for the derived validation state
   const [sessionKeyState, setSessionKeyState] = useState<SessionKeyState>(SessionKeyState.IDLE);

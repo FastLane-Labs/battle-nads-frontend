@@ -31,7 +31,7 @@ export interface UseGameStateOptions {
  * Consolidated game state hook that combines functionality from useBattleNads and useGame
  * Provides configurable options for different use cases
  */
-export const useGameState = (options: UseGameStateOptions = {}) => {
+export const useGameState = (options: UseGameStateOptions = {}): any => {
   const {
     includeActions = true,
     includeHistory = true,
@@ -677,6 +677,12 @@ export const useGameState = (options: UseGameStateOptions = {}) => {
     // Error states
     error: snapshotError,
     
+    // Equipment data from raw snapshot
+    rawEquipableWeaponIDs: rawData?.equipableWeaponIDs,
+    rawEquipableWeaponNames: rawData?.equipableWeaponNames,
+    rawEquipableArmorIDs: rawData?.equipableArmorIDs,
+    rawEquipableArmorNames: rawData?.equipableArmorNames,
+    
     // Historical data functions (if enabled)
     ...(includeHistory && {
       getAllCharactersForOwner,
@@ -686,5 +692,92 @@ export const useGameState = (options: UseGameStateOptions = {}) => {
     
     // Actions (if enabled)
     ...gameActions,
+  };
+};
+
+/**
+ * Legacy compatibility wrapper for useBattleNads
+ * @deprecated Use useGameState instead
+ */
+export const useBattleNads = (_owner: string | null) => {
+  const result = useGameState({ 
+    includeActions: false, 
+    includeHistory: true, 
+    includeSessionKey: false 
+  });
+  
+  return {
+    gameState: result.gameState,
+    addOptimisticChatMessage: result.addOptimisticChatMessage,
+    rawSessionKeyData: result.rawSessionKeyData,
+    rawEndBlock: result.rawEndBlock,
+    rawBalanceShortfall: result.balanceShortfall,
+    isLoading: result.isLoading,
+    isSnapshotLoading: result.isSnapshotLoading,
+    isHistoryLoading: result.isCacheLoading,
+    error: result.error,
+    rawEquipableWeaponIDs: result.rawEquipableWeaponIDs,
+    rawEquipableWeaponNames: result.rawEquipableWeaponNames,
+    rawEquipableArmorIDs: result.rawEquipableArmorIDs,
+    rawEquipableArmorNames: result.rawEquipableArmorNames,
+  };
+};
+
+/**
+ * Legacy compatibility wrapper for useGame
+ * @deprecated Use useGameState instead
+ */
+export const useGame = () => {
+  const result = useGameState({ 
+    includeActions: true, 
+    includeHistory: true, 
+    includeSessionKey: true 
+  }) as any; // Type assertion needed due to conditional properties
+  
+  return {
+    // State properties
+    worldSnapshot: result.worldSnapshot,
+    isLoading: result.isLoading,
+    isCacheLoading: result.isCacheLoading,
+    error: result.error,
+    isInitialized: result.isWalletInitialized,
+    
+    // Wallet properties
+    owner: result.owner,
+    connectWallet: result.connectWallet,
+    hasWallet: result.hasWallet,
+    
+    // Session key properties  
+    sessionKeyData: result.sessionKeyData,
+    sessionKeyState: result.sessionKeyState,
+    needsSessionKeyUpdate: result.needsSessionKeyUpdate,
+    updateSessionKey: result.updateSessionKey,
+    isUpdatingSessionKey: result.isUpdatingSessionKey,
+    
+    // Character properties
+    character: result.character,
+    characterId: result.characterId,
+    position: result.position,
+    
+    // Combat state
+    isInCombat: result.isInCombat,
+    
+    // Actions
+    moveCharacter: result.moveCharacter,
+    isMoving: result.isMoving,
+    attack: result.attack,
+    isAttacking: result.isAttacking,
+    allocatePoints: result.allocatePoints,
+    isAllocatingPoints: result.isAllocatingPoints,
+    sendChatMessage: result.sendChatMessage,
+    addOptimisticChatMessage: result.addOptimisticChatMessage,
+    isSendingChat: result.isSendingChat,
+    
+    // Logs
+    chatLogs: result.chatLogs,
+    eventLogs: result.eventLogs,
+    
+    // Other characters
+    others: result.others,
   };
 };
