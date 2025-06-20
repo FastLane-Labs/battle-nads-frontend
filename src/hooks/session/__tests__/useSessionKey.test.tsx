@@ -7,33 +7,30 @@ import { useWallet } from '../../../providers/WalletProvider';
 import { createTestWrapper } from '../../../test/helpers';
 import { sessionKeyMachine, SessionKeyState } from '../../../machines/sessionKeyMachine';
 import { contract } from '../../../types';
-import { useGameState } from '../../game/useGameState';
+import { useUiSnapshot } from '../../game/useUiSnapshot';
 import { mockSessionKeyData } from '@/test/helpers';
 
 // Mock dependencies
-jest.mock('../../game/useGameState');
+jest.mock('../../game/useUiSnapshot');
 jest.mock('../../../providers/WalletProvider');
-jest.mock('../../../machines/sessionKeyMachine');
 
 // Define default values
 const ownerAddress = '0xOwnerAddress123';
 const embeddedAddress = '0xEmbeddedAddress456';
 const otherKeyAddress = '0xOtherKeyAddress789';
 
-// --- Mock useGameState --- 
-const mockUseGameState = useGameState as jest.Mock;
+// --- Mock useUiSnapshot --- 
+const mockUseUiSnapshot = useUiSnapshot as jest.Mock;
 // -------------------------
 
 // Type safety for mocks
 const mockUseWallet = useWallet as jest.Mock; 
 
 // Default mock return values (can be overridden in tests)
-const defaultUseBattleNadsReturn = {
-  rawSessionKeyData: undefined,
-  rawEndBlock: 0n,
+const defaultUiSnapshotReturn = {
+  data: undefined,
   isLoading: false, 
   error: null,
-  refetch: jest.fn(),
 };
 
 const defaultUseWalletReturn = {
@@ -46,7 +43,7 @@ const defaultUseWalletReturn = {
 describe('useSessionKey', () => {
   let queryClient: QueryClient;
   let wrapper: ({ children }: { children: React.ReactNode }) => JSX.Element;
-  let mockValidate: jest.Mock;
+  let originalValidate: typeof sessionKeyMachine.validate;
 
   const characterId = 'char1';
   const sessionKeyAddress = '0xSessionKey';
@@ -70,6 +67,53 @@ describe('useSessionKey', () => {
     expiration,
   });
 
+  // Helper to create mock snapshot data
+  const createMockSnapshotData = (sessionKeyData?: contract.SessionKeyData, endBlock: bigint = 500n): contract.PollFrontendDataReturn => ({
+    characterID: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+    sessionKeyData: sessionKeyData as any, // Cast to any to handle undefined case
+    character: {
+      id: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+      name: 'TestCharacter',
+      stats: {
+        class: 1,
+        buffs: 0,
+        debuffs: 0,
+        maxHealth: 100,
+        level: 5,
+        health: 85,
+        unspentAttributePoints: 0,
+        experience: 0,
+        strength: 10,
+        vitality: 10,
+        dexterity: 10,
+        quickness: 10,
+        sturdiness: 10,
+        luck: 10,
+        depth: 1,
+        x: 0,
+        y: 0,
+        index: 0,
+        weaponID: 0,
+        armorID: 0,
+        sumOfCombatantLevels: 0,
+        combatants: 0,
+        nextTargetIndex: 0,
+        combatantBitMap: 0n,
+      } as any
+    } as any,
+    combatants: [],
+    noncombatants: [],
+    equipableWeaponIDs: [],
+    equipableWeaponNames: [],
+    equipableArmorIDs: [],
+    equipableArmorNames: [],
+    dataFeeds: [],
+    balanceShortfall: 0n,
+    unallocatedAttributePoints: 0n,
+    endBlock,
+    fetchTimestamp: Date.now(),
+  });
+
   // -------------------------
   
   beforeEach(() => {
@@ -81,36 +125,56 @@ describe('useSessionKey', () => {
     jest.clearAllMocks();
     queryClient.clear();
     
-    mockUseGameState.mockReset();
-    mockUseGameState.mockReturnValue(defaultUseBattleNadsReturn);
+    mockUseUiSnapshot.mockReset();
+    mockUseUiSnapshot.mockReturnValue(defaultUiSnapshotReturn);
 
     (useWallet as jest.Mock).mockReturnValue(defaultUseWalletReturn);
 
-    mockValidate = sessionKeyMachine.validate as jest.Mock;
-    mockValidate.mockReturnValue(SessionKeyState.IDLE);
+    // Store original validate function
+    originalValidate = sessionKeyMachine.validate.bind(sessionKeyMachine);
+    
+    // Mock the validate function with proper logic
+    jest.spyOn(sessionKeyMachine, 'validate').mockImplementation((sessionKey, embeddedAddress, expiration, currentBlock) => {
+      // Mock the validation logic based on test scenarios
+      if (!sessionKey || sessionKey === ZeroAddress) {
+        return SessionKeyState.MISSING;
+      }
+      if (sessionKey.toLowerCase() !== embeddedAddress.toLowerCase()) {
+        return SessionKeyState.MISMATCH;
+      }
+      if (expiration < currentBlock) {
+        return SessionKeyState.EXPIRED;
+      }
+      return SessionKeyState.VALID;
+    });
+  });
+
+  afterEach(() => {
+    // Restore original validate function
+    if (originalValidate) {
+      sessionKeyMachine.validate = originalValidate;
+    }
   });
   
   it('should return IDLE state initially when loading', () => {
-    mockUseGameState.mockReturnValueOnce({ ...defaultUseBattleNadsReturn, isLoading: true });
+    mockUseUiSnapshot.mockReturnValueOnce({ ...defaultUiSnapshotReturn, isLoading: true });
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
     expect(result.current.sessionKeyState).toBe(SessionKeyState.IDLE);
     expect(result.current.isLoading).toBe(true);
   });
 
   it('should show loading state initially and transition to MISSING', async () => {
-    mockUseGameState.mockReturnValue({ 
-      ...defaultUseBattleNadsReturn, 
+    mockUseUiSnapshot.mockReturnValue({ 
+      ...defaultUiSnapshotReturn, 
       isLoading: false, 
       error: new Error('Snapshot Fetch Failed'), 
-      rawSessionKeyData: undefined, 
-      rawEndBlock: 0n,
+      data: undefined,
     });
     mockUseWallet.mockReturnValue({
       injectedWallet: { address: '0xOwner' },
       embeddedWallet: { address: '0xEmbedded' },
       isInitialized: true,
     });
-    mockValidate.mockReturnValue(SessionKeyState.IDLE);
 
     const { result } = renderHook(() => useSessionKey('char1'), { wrapper });
 
@@ -125,12 +189,11 @@ describe('useSessionKey', () => {
   it('should return valid state and data when queries succeed', async () => {
     const ownerAddress = '0xValidOwner';
     const embeddedAddress = '0xValidSessionKey';
-    const validKeyDataContract = mockSessionKeyData(false);
+    const validKeyDataContract = { ...mockSessionKeyData(false), key: embeddedAddress };
 
-    mockUseGameState.mockReturnValue({
-      ...defaultUseBattleNadsReturn,
-      rawSessionKeyData: validKeyDataContract,
-      rawEndBlock: 500n, 
+    mockUseUiSnapshot.mockReturnValue({
+      ...defaultUiSnapshotReturn,
+      data: createMockSnapshotData(validKeyDataContract, 500n),
       isLoading: false,
       error: null,
     });
@@ -139,7 +202,6 @@ describe('useSessionKey', () => {
         embeddedWallet: { address: embeddedAddress }, 
         isInitialized: true,
     });
-    mockValidate.mockReturnValue(SessionKeyState.VALID);
 
     const { result } = renderHook(() => useSessionKey('char1'), { wrapper });
 
@@ -154,21 +216,18 @@ describe('useSessionKey', () => {
   });
   
   it('correctly identifies expired session key', async () => {
-    const expiredKeyData = mockSessionKeyData(true); 
-    const localSessionKeyAddress = expiredKeyData.key; 
-    mockUseGameState.mockReturnValue({
-      ...defaultUseBattleNadsReturn,
-      rawSessionKeyData: expiredKeyData,
-      rawEndBlock: 500n, 
+    const expiredKeyData = { ...mockSessionKeyData(true), key: embeddedAddress }; 
+    mockUseUiSnapshot.mockReturnValue({
+      ...defaultUiSnapshotReturn,
+      data: createMockSnapshotData(expiredKeyData, 500n),
       isLoading: false,
       error: null,
     });
     mockUseWallet.mockReturnValue({
         injectedWallet: { address: ownerAddress }, 
-        embeddedWallet: { address: localSessionKeyAddress }, 
+        embeddedWallet: { address: embeddedAddress }, 
         isInitialized: true,
     });
-    mockValidate.mockReturnValue(SessionKeyState.EXPIRED);
 
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
 
@@ -181,10 +240,9 @@ describe('useSessionKey', () => {
   
   it('correctly identifies missing session key (zero address key)', async () => {
     const zeroKeyData = { ...mockSessionKeyData(false), key: ZeroAddress };
-    mockUseGameState.mockReturnValue({
-      ...defaultUseBattleNadsReturn,
-      rawSessionKeyData: zeroKeyData,
-      rawEndBlock: 500n,
+    mockUseUiSnapshot.mockReturnValue({
+      ...defaultUiSnapshotReturn,
+      data: createMockSnapshotData(zeroKeyData, 500n),
       isLoading: false,
       error: null,
     });
@@ -193,7 +251,6 @@ describe('useSessionKey', () => {
         embeddedWallet: { address: embeddedAddress }, 
         isInitialized: true,
     });
-    mockValidate.mockReturnValue(SessionKeyState.MISSING);
 
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
 
@@ -206,10 +263,9 @@ describe('useSessionKey', () => {
   });
 
   it('correctly identifies missing session key (hook returns null/undefined data)', async () => {
-    mockUseGameState.mockReturnValueOnce({
-      ...defaultUseBattleNadsReturn,
-      rawSessionKeyData: undefined,
-      rawEndBlock: 500n,
+    mockUseUiSnapshot.mockReturnValueOnce({
+      ...defaultUiSnapshotReturn,
+      data: createMockSnapshotData(undefined, 500n),
       isLoading: false,
       error: null,
     });
@@ -232,10 +288,9 @@ describe('useSessionKey', () => {
   
   it('correctly identifies mismatched session key', async () => {
     const mismatchKeyData = mockSessionKeyData(false);
-    mockUseGameState.mockReturnValue({
-      ...defaultUseBattleNadsReturn,
-      rawSessionKeyData: mismatchKeyData,
-      rawEndBlock: 500n,
+    mockUseUiSnapshot.mockReturnValue({
+      ...defaultUiSnapshotReturn,
+      data: createMockSnapshotData(mismatchKeyData, 500n),
       isLoading: false,
       error: null,
     });
@@ -244,7 +299,6 @@ describe('useSessionKey', () => {
       embeddedWallet: { address: '0xDifferentEmbeddedAddress' },
       isInitialized: true,
     });
-    mockValidate.mockReturnValue(SessionKeyState.MISMATCH);
 
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
 
@@ -262,13 +316,11 @@ describe('useSessionKey', () => {
         injectedWallet: null, 
         embeddedWallet: { address: embeddedAddress }
     });
-    // Mock useGameState to reflect its state when owner is null (likely idle/no data)
-    mockUseGameState.mockReturnValue({
-        rawSessionKeyData: undefined,
-        rawEndBlock: undefined,
+    // Mock useUiSnapshot to reflect its state when owner is null (likely idle/no data)
+    mockUseUiSnapshot.mockReturnValue({
+        data: undefined,
         isLoading: false, // Assume it doesn't load if owner is null
         error: null,
-        refetch: jest.fn(),
     });
 
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
@@ -284,14 +336,12 @@ describe('useSessionKey', () => {
   });
   
   it('handles missing client', async () => {
-    // Mock useGameState to simulate an error state (e.g., client missing upstream)
+    // Mock useUiSnapshot to simulate an error state (e.g., client missing upstream)
     const mockError = new Error("Client unavailable in useGameState");
-    mockUseGameState.mockReturnValue({
-        rawSessionKeyData: undefined,
-        rawEndBlock: undefined,
+    mockUseUiSnapshot.mockReturnValue({
+        data: undefined,
         isLoading: false, // Finished loading (with error)
-        error: mockError.message, // Set error state
-        refetch: jest.fn(),
+        error: mockError, // Set error state
     });
 
     // Mock useWallet to provide valid addresses
@@ -309,30 +359,28 @@ describe('useSessionKey', () => {
 
     expect(result.current.sessionKeyData).toBeUndefined();
     expect(result.current.isLoading).toBe(false); 
-    expect(result.current.error).toBe(mockError.message); // Check error is passed through
+    expect(result.current.error).toBe(mockError); // Check error is passed through
     expect(result.current.needsUpdate).toBe(true); // Needs update because state is MISSING
   });
 
   it('handles underlying snapshot error', async () => { 
     const mockError = new Error("Snapshot Fetch Failed");
-    mockUseGameState.mockReturnValue({
-        rawSessionKeyData: undefined,
-        rawEndBlock: undefined,
+    mockUseUiSnapshot.mockReturnValue({
+        data: undefined,
         isLoading: false,
-        error: mockError.message,
-        refetch: jest.fn(),
+        error: mockError,
     });
 
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
 
     await waitFor(() => {
-      expect(result.current.error).toBe(mockError.message);
+      expect(result.current.error).toBe(mockError);
       expect(result.current.sessionKeyState).toBe(SessionKeyState.MISSING);
     });
 
     expect(result.current.isLoading).toBe(false); 
     expect(result.current.sessionKeyData).toBeUndefined();
-    expect(result.current.error).toBe(mockError.message);
+    expect(result.current.error).toBe(mockError);
     expect(result.current.sessionKeyState).toBe(SessionKeyState.MISSING); 
     expect(result.current.needsUpdate).toBe(true);
   });
