@@ -582,18 +582,34 @@ export function contractToWorldSnapshot(
           
           const attacker = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
           const defender = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character);
-          const isPlayer = !!ownerCharacterId && !!attacker && attacker.id === ownerCharacterId;
+          
+          // If we can't find participants in current data, create fallback participants with the indices we have
+          const attackerParticipant: domain.EventParticipant | undefined = attacker || (mainPlayerIdx !== 0 ? {
+            id: `unknown-${mainPlayerIdx}`,
+            name: `Character ${mainPlayerIdx}`,
+            index: mainPlayerIdx
+          } : undefined);
+          
+          const defenderParticipant: domain.EventParticipant | undefined = defender || (otherPlayerIdx !== 0 ? {
+            id: `unknown-${otherPlayerIdx}`,
+            name: `Character ${otherPlayerIdx}`,
+            index: otherPlayerIdx
+          } : undefined);
+          
+          const isPlayer = !!ownerCharacterId && !!attackerParticipant && attackerParticipant.id === ownerCharacterId;
           
           console.log('[Mapper] Character resolution:', {
-            attacker,
-            defender,
+            originalAttacker: attacker,
+            originalDefender: defender,
+            finalAttackerParticipant: attackerParticipant,
+            finalDefenderParticipant: defenderParticipant,
             isPlayer,
             ownerCharacterId
           });
           
-          // Enhanced fallback for missing character names
-          const attackerName = isPlayer ? "You" : attacker?.name || `Character (Index ${mainPlayerIdx})`;
-          const defenderName = defender?.name || `Character (Index ${otherPlayerIdx})`;
+          // Use the resolved participant names for display
+          const attackerName = isPlayer ? "You" : attackerParticipant?.name || "Unknown";
+          const defenderName = defenderParticipant?.name || "Unknown";
 
           let displayMessage = '';
 
@@ -639,8 +655,8 @@ export function contractToWorldSnapshot(
             blocknumber: eventBlockNumber, 
             timestamp: estimatedTimestamp,
             type: logTypeNum as domain.LogType,
-            attacker: attacker || undefined,
-            defender: defender || undefined,
+            attacker: attackerParticipant,
+            defender: defenderParticipant,
             areaId: snapshotAreaId, // Use determined snapshotAreaId
             isPlayerInitiated: isPlayer, 
             details: { 
