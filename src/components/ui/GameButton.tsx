@@ -1,7 +1,7 @@
 'use client';
 
 import React, { forwardRef } from 'react';
-import { Box, Button, ButtonProps } from '@chakra-ui/react';
+import { ButtonProps } from '@chakra-ui/react';
 
 type GameButtonVariant = 'primary' | 'compact' | 'large' | 'create-character';
 type GameButtonSize = 'compact' | 'default' | 'large';
@@ -16,10 +16,10 @@ interface GameButtonProps extends Omit<ButtonProps, 'size' | 'variant'> {
   hasGlow?: boolean;
 }
 
-const sizeConfig: Record<GameButtonSize, { height: string; textSize: string; responsiveHeight?: string }> = {
+const sizeConfig: Record<GameButtonSize, { height: string; textSize: string;}> = {
   compact: { height: 'h-[45px]', textSize: 'text-lg' },
   default: { height: 'h-[60px]', textSize: 'text-xl' },
-  large: { height: 'h-[75px]', textSize: 'text-2xl sm:text-4xl font-bold', responsiveHeight: 'sm:h-[85px]' },
+  large: { height: 'h-[75px] sm:h-[85px]', textSize: 'text-2xl sm:text-4xl font-bold' },
 };
 
 const variantConfig: Record<GameButtonVariant, { backgroundImage: string; size: GameButtonSize }> = {
@@ -45,7 +45,7 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
   }, ref) => {
     // Determine size from variant or explicit size prop
     const effectiveSize = size || variantConfig[variant].size;
-    const { height, textSize, responsiveHeight } = sizeConfig[effectiveSize];
+    const { height, textSize } = sizeConfig[effectiveSize];
     
     // Determine background image
     const bgImage = backgroundImage || variantConfig[variant].backgroundImage;
@@ -78,7 +78,7 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
     
 
     return (
-      <div className={`relative mt-4 group ${responsiveHeight || ''}`}>
+      <div className={`relative mt-4 group ${height}`}>
         {/* button glow animation */}
         {hasGlow && (
           <div className="absolute inset-0 -m-1 bg-yellow-500/10 rounded-md blur-md z-0 animate-pulse-slow"></div>
@@ -95,7 +95,7 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
           ref={ref}
           className={`relative ${height} w-full uppercase z-10 bg-transparent border-0 px-8 py-0
             flex items-center justify-center transition-transform duration-200 group-hover:scale-105 group-active:scale-95
-            ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'} ${responsiveHeight || ''}`}
+            ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'}`}
           onClick={props.onClick}
           disabled={disabled}
           type="button"
