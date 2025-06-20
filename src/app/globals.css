@@ -619,11 +619,20 @@ button:hover:not(:disabled) {
     transform: translateY(0);
   }
   50% {
-    transform: translateY(-3px);
+    transform: translateY(-6px);
   }
 }
 
 @keyframes pulse-text {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.5);
+  }
+}
+
+@keyframes cursor-blink {
   0%, 50% {
     opacity: 1;
   }
