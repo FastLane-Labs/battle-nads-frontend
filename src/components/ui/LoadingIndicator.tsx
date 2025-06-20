@@ -13,6 +13,7 @@ interface LoadingIndicatorProps {
   showBackground?: boolean;
   backgroundImage?: string;
   className?: string;
+  children?: React.ReactNode;
 }
 
 const sizeConfig: Record<LoadingSize, {
@@ -32,10 +33,11 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
   showBackground = true,
   backgroundImage,
   className = '',
+  children,
 }) => {
   const { spinnerSize, textSize, spacing } = sizeConfig[size];
 
-  // Base content (spinner + text)
+  // Base content (spinner + text + children)
   const content = (
     <div className={`flex flex-col items-center ${spacing}`}>
       <Spinner 
@@ -52,6 +54,7 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
           {message}
         </Text>
       )}
+      {children}
     </div>
   );
 
