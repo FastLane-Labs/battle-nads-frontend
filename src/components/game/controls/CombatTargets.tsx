@@ -192,7 +192,7 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
           
           {/* Other Players Section */}
           {playerNoncombatants.length > 0 && (
-            <Box p={2} borderRadius="md" mb={2} overflowY="auto" className='bg-dark-brown/50'>
+            <Box p={2} borderRadius="md" mb={2} className='bg-dark-brown/50'>
               <Text className='text-gray-300 text-sm font-bold mb-2 uppercase tracking-wide'>Other Players</Text>
               {playerNoncombatants.map((player, arrayIndex) => 
                 renderCharacterButton(player, arrayIndex, 'player')

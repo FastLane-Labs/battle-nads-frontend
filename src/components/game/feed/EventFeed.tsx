@@ -182,7 +182,7 @@ const EventFeed: React.FC<EventFeedProps> = ({
   }, [equipableArmorIDs, equipableArmorNames]);
 
   return (
-    <Box h="100%" display="flex" flexDirection="column">
+    <Box h="100%" display="flex" flexDirection="column" className='min-h-[200px]'>
       <h1 className='copper-text text-2xl font-bold tracking-tight text-center mb-3'>Event Log</h1>
       <Box 
         ref={parentRef}
