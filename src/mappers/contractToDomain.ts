@@ -567,64 +567,13 @@ export function contractToWorldSnapshot(
       switch (logTypeNum) {
         case domain.LogType.Combat:
         case domain.LogType.InstigatedCombat: {
+          const attacker = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
+          const defender = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character);
+          const isPlayer = !!ownerCharacterId && !!attacker && attacker.id === ownerCharacterId;
           
-          // Create participants with proper names based on index
-          const createParticipant = (index: number): domain.EventParticipant | undefined => {
-            if (index === 0) return undefined;
-            
-            // Check if this is the player 
-            if (raw.character && Number(raw.character.stats.index) === index) {
-              return {
-                id: raw.character.id,
-                name: raw.character.name || "Player",
-                index: index
-              };
-            }
-            
-            // Check combatants
-            const combatant = combatants.find(c => Number(c.index) === index);
-            if (combatant) {
-              return {
-                id: combatant.id,
-                name: combatant.name,
-                index: index
-              };
-            }
-            
-            // Check noncombatants
-            const noncombatant = noncombatants.find(c => Number(c.index) === index);
-            if (noncombatant) {
-              return {
-                id: noncombatant.id,
-                name: noncombatant.name,
-                index: index
-              };
-            }
-            
-            // Fallback - create unknown participant with more descriptive name
-            // Since monsters often have high indices, try to give a better name
-            const unknownName = index > 10 ? "Monster" : `Character ${index}`;
-            return {
-              id: `unknown-${index}`,
-              name: unknownName,
-              index: index
-            };
-          };
-          
-          const attackerParticipant = createParticipant(mainPlayerIdx);
-          const defenderParticipant = createParticipant(otherPlayerIdx);
-          
-          
-          // Simple player detection: if participant has same ID as player character
-          const playerCharacterId = raw.character?.id;
-          const isPlayerAttacker = !!(playerCharacterId && attackerParticipant?.id === playerCharacterId);
-          const isPlayerDefender = !!(playerCharacterId && defenderParticipant?.id === playerCharacterId);
-          
-          // Display names with "You" for player
-          const attackerName = isPlayerAttacker ? "You" : (attackerParticipant?.name || "Unknown");
-          const defenderName = isPlayerDefender ? "You" : (defenderParticipant?.name || "Unknown");
-          
-          const isPlayer = isPlayerAttacker || isPlayerDefender;
+          // Enhanced fallback for missing character names
+          const attackerName = isPlayer ? "You" : attacker?.name || `Character (Index ${mainPlayerIdx})`;
+          const defenderName = defender?.name || `Character (Index ${otherPlayerIdx})`;
 
           let displayMessage = '';
 
@@ -670,8 +619,8 @@ export function contractToWorldSnapshot(
             blocknumber: eventBlockNumber, 
             timestamp: estimatedTimestamp,
             type: logTypeNum as domain.LogType,
-            attacker: attackerParticipant,
-            defender: defenderParticipant,
+            attacker: attacker || undefined,
+            defender: defender || undefined,
             areaId: snapshotAreaId, // Use determined snapshotAreaId
             isPlayerInitiated: isPlayer, 
             details: { 
