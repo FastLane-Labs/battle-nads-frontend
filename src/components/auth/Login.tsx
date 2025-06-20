@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { usePrivy } from '@privy-io/react-auth';
+import { GameButton } from '../ui';
 
 const Login: React.FC = () => {
   const { login, ready, authenticated } = usePrivy();
@@ -29,32 +30,18 @@ const Login: React.FC = () => {
             Adventure Awaits
           </h2>
           
-          <div className="relative mt-4 group">
-            {/* Animated glow effect */}
-            <div className="absolute inset-0 -m-1 bg-yellow-500/10 rounded-md blur-md z-0 animate-pulse-slow"></div>
-            
-            {/* Button */}
-            <div className="relative animate-float">
-              <img 
-                src="/assets/buttons/primary-button.webp" 
-                alt="" 
-                className="w-full h-[60px] object-fill transition-all duration-200 
-                  group-hover:brightness-125 group-hover:scale-[1.02] group-active:brightness-90 group-active:scale-[0.98]" 
-              />
-              
-              <button 
-                className={`absolute inset-0 h-[60px] w-full text-xl font-bold uppercase bg-transparent border-0 px-8
-                  transition-transform duration-200 group-hover:scale-105 group-active:scale-95 flex items-center justify-center
-                  ${(!ready || authenticated) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                onClick={handleLogin}
-                disabled={!ready || authenticated}
-              >
-                <p className='gold-text animate-pulse-text'>
-                  {!ready ? 'Connecting...' : authenticated ? 'Connected' : 'Connect Wallet'}
-                </p>
-              </button>
-            </div>
-          </div>
+          <GameButton
+            variant="primary"
+            onClick={handleLogin}
+            isDisabled={!ready || authenticated}
+            loading={!ready}
+            loadingText="Connecting..."
+            withAnimation={true}
+            withGlow={true}
+            className="mt-4"
+          >
+            {authenticated ? 'Connected' : 'Connect Wallet'}
+          </GameButton>
           
           <p className="text-gray-300/95 text-center mt-3 max-w-md">
             Connect your wallet to enter the world of Battle Nads and begin your adventure

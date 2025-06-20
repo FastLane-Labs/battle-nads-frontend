@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { GameButton, StatIncrementControl } from '../ui';
 import { 
   Button, 
   FormControl, 
@@ -51,35 +52,15 @@ const AttributeInput: React.FC<AttributeInputProps> = ({
   <div className="flex w-full items-center justify-between mb-2">
     <span className="gold-text font-bold flex-1">{label}</span>
     <div className="flex space-x-1 flex-1 justify-end items-center">
-      <button 
-        className={`relative flex items-center justify-center w-[50px] h-[50px] ${isDisabled || value <= min ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 transition-transform duration-200'}`}
-        onClick={() => value > min && onChange(value - 1)}
-        disabled={isDisabled || value <= min}
-      >
-        <img 
-          src="/assets/buttons/-.webp" 
-          alt="-" 
-          className="w-full h-full object-contain"
-        />
-        <div className="absolute inset-0 rounded-md bg-red-400/20 filter blur-sm opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
-      </button>
-      <div className='bg-black/85 px-4 pt-1 pb-2 min-w-[68px] sm:min-w-[80px] rounded-md border-2 border-zinc-400/25 shadow-[0_0_8px_rgba(100,100,100,0.3)] flex items-center justify-center'>
-        <div className="gold-text text-3xl sm:text-4xl font-bold leading-none">
-          {value}
-        </div>
-      </div>
-      <button 
-        className={`relative flex items-center justify-center w-[50px] h-[50px] ${isDisabled || value >= max ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 transition-transform duration-200'}`}
-        onClick={() => value < max && onChange(value + 1)}
-        disabled={isDisabled || value >= max}
-      >
-        <img 
-          src="/assets/buttons/+.webp" 
-          alt="+" 
-          className="w-full h-full object-contain"
-        />
-        <div className="absolute inset-0 rounded-md bg-teal-400/20 filter blur-sm opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
-      </button>
+      <StatIncrementControl
+        value={value}
+        onIncrement={() => onChange(value + 1)}
+        onDecrement={() => onChange(value - 1)}
+        canIncrement={value < max}
+        canDecrement={value > min}
+        size="large"
+        isDisabled={isDisabled}
+      />
     </div>
   </div>
 );
@@ -527,28 +508,16 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             />
           </div>
           
-          <div className="relative mt-6 group">
-            {/* Background image - Create Character Button */}
-            <img 
-              src="/assets/buttons/create-character.webp" 
-              alt="" 
-              className="absolute inset-0 w-full h-[75px] sm:h-[85px] object-fill z-0 transition-all duration-200 
-                group-hover:brightness-125 group-hover:scale-[1.02] group-active:brightness-90 group-active:scale-[0.98]" 
-            />
-            
-            <button 
-              className={`relative h-[75px] sm:h-[85px] w-full text-2xl sm:text-4xl font-bold uppercase z-[2] bg-transparent border-0
-                ${(unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0) || isLoadingBlock || !currentBlock) 
-                  ? 'opacity-50 cursor-not-allowed' 
-                  : ''}`}
-              onClick={handleCreateCharacter}
-              disabled={unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0) || isLoadingBlock || !currentBlock}
-            >
-              <p className='gold-text transition-transform duration-200 group-hover:scale-105 group-active:scale-95'>
-                {createCharacterMutation.isPending ? 'Creating...' : 'Create Character'}
-              </p>
-            </button>
-          </div>
+          <GameButton
+            variant="create-character"
+            onClick={handleCreateCharacter}
+            isDisabled={unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0) || isLoadingBlock || !currentBlock}
+            loading={createCharacterMutation.isPending}
+            loadingText="Creating..."
+            className="mt-6"
+          >
+            Create Character
+          </GameButton>
           
           <button
             className={`border border-gray-600 text-gray-300 py-2 rounded 

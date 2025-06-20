@@ -1,6 +1,7 @@
 import React, { useState, memo, useCallback } from 'react';
 import { VStack, Text, Flex } from '@chakra-ui/react';
 import { domain } from '@/types';
+import { GameButton, StatIncrementControl } from '../../ui';
 
 // Memoized StatRow component to prevent re-renders
 const StatRow = memo<{
@@ -29,31 +30,16 @@ const StatRow = memo<{
           </span>
         )}
         {hasPointsToAllocate && !isInCombat && (
-          <div className="flex gap-1 ml-2">
-            <button 
-              className={`relative flex items-center justify-center w-[30px] h-[30px] ${allocation <= 0 ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 transition-transform duration-200'}`}
-              onClick={handleDecrement}
-              disabled={allocation <= 0}
-            >
-              <img 
-                src="/assets/buttons/-.webp" 
-                alt="-" 
-                className="w-full h-full object-contain"
-              />
-              <div className="absolute inset-0 rounded-md bg-red-400/20 filter blur-sm opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
-            </button>
-            <button 
-              className={`relative flex items-center justify-center w-[30px] h-[30px] ${pointsUsed >= unallocatedAttributePoints ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105 transition-transform duration-200'}`}
-              onClick={handleIncrement}
-              disabled={pointsUsed >= unallocatedAttributePoints}
-            >
-              <img 
-                src="/assets/buttons/+.webp" 
-                alt="+" 
-                className="w-full h-full object-contain"
-              />
-              <div className="absolute inset-0 rounded-md bg-teal-400/20 filter blur-sm opacity-0 hover:opacity-100 transition-opacity duration-200"></div>
-            </button>
+          <div className="ml-2">
+            <StatIncrementControl
+              value={allocation}
+              onIncrement={handleIncrement}
+              onDecrement={handleDecrement}
+              canIncrement={pointsUsed < unallocatedAttributePoints}
+              canDecrement={allocation > 0}
+              size="small"
+              isDisabled={false}
+            />
           </div>
         )}
       </div>
@@ -224,35 +210,19 @@ export const StatDisplay = memo<StatDisplayProps>(({ stats, unallocatedAttribute
             </Text>
           )}
           
-          <div className="relative w-full group">
-            {/* Background image - Confirm Allocation Button */}
-            <img 
-              src="/assets/buttons/primary-button.webp" 
-              alt="" 
-              className="absolute inset-0 w-full h-[45px] object-fill z-0 transition-all duration-200 
-                group-hover:brightness-125 group-hover:scale-[1.02] group-active:brightness-90 group-active:scale-[0.98]" 
-            />
-            
-            <button 
-              className={`relative h-[45px] w-full text-lg font-bold uppercase z-[2] bg-transparent border-0
-                ${(pointsUsed === 0 || isAllocatingPoints || isInCombat || isTransactionDisabled) 
-                  ? 'opacity-50 cursor-not-allowed' 
-                  : ''}`}
-              onClick={handleAllocatePoints}
-              disabled={pointsUsed === 0 || isAllocatingPoints || isInCombat || isTransactionDisabled}
-              style={{ transform: 'translateZ(0)' }}
-            >
-              <p className='gold-text transition-transform duration-200 group-hover:scale-[1.02] group-active:scale-95'>
-                {isInCombat 
-                  ? 'Combat Active' 
-                  : isTransactionDisabled
-                    ? 'Insufficient Balance'
-                    : isAllocatingPoints 
-                      ? 'Allocating...' 
-                      : 'Confirm Allocation'}
-              </p>
-            </button>
-          </div>
+          <GameButton
+            variant="compact"
+            onClick={handleAllocatePoints}
+            isDisabled={pointsUsed === 0 || isAllocatingPoints || isInCombat || isTransactionDisabled}
+            loading={isAllocatingPoints}
+            loadingText="Allocating..."
+          >
+            {isInCombat 
+              ? 'Combat Active' 
+              : isTransactionDisabled
+                ? 'Insufficient Balance'
+                : 'Confirm Allocation'}
+          </GameButton>
         </VStack>
       )}
     </VStack>

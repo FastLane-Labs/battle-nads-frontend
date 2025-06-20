@@ -1,4 +1,5 @@
 import React from 'react';
+import { GameButton } from '../../ui';
 
 interface SessionKeyPromptProps {
   sessionKeyState: string;
@@ -45,25 +46,16 @@ const SessionKeyPrompt: React.FC<SessionKeyPromptProps> = ({
             </div>
           </div>
           
-          <div className="relative mt-4 group">
-            <img 
-              src="/assets/buttons/primary-button.webp" 
-              alt="" 
-              className="absolute inset-0 w-full h-[60px] object-fill z-0 transition-all duration-200 
-                group-hover:brightness-125 group-hover:scale-[1.02] group-active:brightness-90 group-active:scale-[0.98]" 
-            />
-            
-            <button 
-              className="relative h-[60px] w-full text-xl font-bold uppercase z-10 bg-transparent border-0 px-8
-                transition-transform duration-200 group-hover:scale-105 group-active:scale-95"
-              onClick={onUpdate}
-              disabled={isUpdating}
-            >
-              <p className='gold-text'>
-                {isUpdating ? 'Updating...' : 'Update Session Key'}
-              </p>
-            </button>
-          </div>
+          <GameButton
+            variant="primary"
+            onClick={onUpdate}
+            isDisabled={isUpdating}
+            loading={isUpdating}
+            loadingText="Updating..."
+            className="mt-4"
+          >
+            Update Session Key
+          </GameButton>
         </div>
       </div>
     </div>
