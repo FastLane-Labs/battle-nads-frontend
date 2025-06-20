@@ -107,7 +107,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
   }, [rawData]);
 
   /* ---------- Session key management (optional) ---------- */
-  const sessionKeyHook = useSessionKey(includeSessionKey ? owner : null);
+  const sessionKeyHook = useSessionKey(includeSessionKey ? characterId : null);
   const sessionKeyData = sessionKeyHook?.sessionKeyData || null;
   const sessionKeyState = sessionKeyHook?.sessionKeyState || null;
 
