@@ -2,7 +2,6 @@
 
 import React, { forwardRef } from 'react';
 import { Box, Button, ButtonProps } from '@chakra-ui/react';
-import Image from 'next/image';
 
 type GameButtonVariant = 'primary' | 'compact' | 'large' | 'create-character';
 type GameButtonSize = 'compact' | 'default' | 'large';
@@ -18,9 +17,9 @@ interface GameButtonProps extends Omit<ButtonProps, 'size' | 'variant'> {
 }
 
 const sizeConfig: Record<GameButtonSize, { height: string; textSize: string; responsiveHeight?: string }> = {
-  compact: { height: '45px', textSize: 'text-lg' },
-  default: { height: '60px', textSize: 'text-xl sm:text-2xl' },
-  large: { height: '75px', textSize: 'text-2xl sm:text-3xl', responsiveHeight: 'sm:h-[85px]' },
+  compact: { height: 'h-[45px]', textSize: 'text-base leading-7' },
+  default: { height: 'h-[60px]', textSize: 'text-lg leading-7' },
+  large: { height: 'h-[75px]', textSize: 'text-xl leading-7', responsiveHeight: 'sm:h-[85px]' },
 };
 
 const variantConfig: Record<GameButtonVariant, { backgroundImage: string; size: GameButtonSize }> = {
@@ -61,11 +60,8 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
       className,
     ].filter(Boolean).join(' ');
     
-    // Image container classes
+    // Image classes
     const imageClasses = [
-      'relative w-full',
-      height,
-      responsiveHeight,
       'transition-all duration-200',
       'group-hover:brightness-125 group-hover:scale-[1.02]',
       'group-active:brightness-90 group-active:scale-[0.98]',
@@ -74,7 +70,7 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
     
     // Text classes
     const textClasses = [
-      'absolute inset-0 flex items-center justify-center',
+      'absolute inset-0 flex items-center justify-center z-10',
       'transition-transform duration-200',
       'group-hover:scale-105 group-active:scale-95',
       'pointer-events-none',
@@ -93,39 +89,30 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
     );
 
     return (
-      <Button
-        ref={ref}
-        as="button"
-        onClick={props.onClick}
-        isDisabled={disabled}
-        className={containerClasses}
-        w="full"
-        h="auto"
-        p={0}
-        bg="transparent"
-        _hover={{ bg: 'transparent' }}
-        _active={{ bg: 'transparent' }}
-        _focus={{ boxShadow: 'none' }}
-        _disabled={{ cursor: 'not-allowed' }}
-        {...props}
-      >
-        {glowElement}
-        <Box className={imageClasses}>
-          <Image
-            src={bgImage}
-            alt=""
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="object-contain"
-            priority
-          />
-        </Box>
-        <Box className={textClasses}>
+      <div className={`relative mt-4 group ${responsiveHeight || ''}`}>
+        <img 
+          src={bgImage}
+          alt="" 
+          className={`absolute inset-0 w-full ${height} object-fill z-0 transition-all duration-200 
+            group-hover:brightness-125 group-hover:scale-[1.02] group-active:brightness-90 group-active:scale-[0.98]
+            ${disabled ? 'opacity-50' : ''}`}
+        />
+        
+        <button 
+          ref={ref}
+          className={`relative ${height} w-full ${textSize} font-bold uppercase z-10 bg-transparent border-0 px-8
+            flex items-center justify-center transition-transform duration-200 group-hover:scale-105 group-active:scale-95
+            ${disabled ? 'cursor-not-allowed' : 'cursor-pointer'} ${responsiveHeight || ''}`}
+          onClick={props.onClick}
+          disabled={disabled}
+          type="button"
+        >
           <span className={`gold-text ${textSize} ${withAnimation ? 'animate-pulse' : ''}`}>
             {loading && loadingText ? loadingText : children}
           </span>
-        </Box>
-      </Button>
+        </button>
+        {glowElement}
+      </div>
     );
   }
 );

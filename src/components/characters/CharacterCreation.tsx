@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { GameButton, StatIncrementControl } from '../ui';
+import { GameButton, StatIncrementControl, LoadingIndicator, GameModal } from '../ui';
 import { 
   Button, 
   FormControl, 
@@ -10,13 +10,6 @@ import {
   Spinner,
   useToast,
   useDisclosure,
-  Modal, 
-  ModalOverlay, 
-  ModalContent, 
-  ModalHeader, 
-  ModalFooter, 
-  ModalBody, 
-  ModalCloseButton,
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import { useWallet } from '@/providers/WalletProvider';
@@ -377,17 +370,17 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
   const isPageLoading = createCharacterMutation.isPending || isLoadingBuyIn || isLoadingBlock;
 
   if (isPageLoading) {
+    const loadingMessage = createCharacterMutation.isPending ? 'Creating character...' : 
+                           isLoadingBlock ? 'Getting current block...' : 
+                           'Fetching creation cost...';
+    
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-black">
-        <div className="flex flex-col items-center space-y-4">
-          <Spinner size="xl" color="gold" />
-          <p className="text-yellow-500">
-            {createCharacterMutation.isPending ? 'Creating character...' : 
-             isLoadingBlock ? 'Getting current block...' : 
-             'Fetching creation cost...'}
-          </p>
-        </div>
-      </div>
+      <LoadingIndicator
+        message={loadingMessage}
+        size="large"
+        variant="fullscreen"
+        showBackground={true}
+      />
     );
   }
   
@@ -530,25 +523,13 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
         </div>
       </div>
       
-      <Modal isOpen={isOpen} onClose={onClose}>
-        <ModalOverlay />
-        <ModalContent bg="gray.900" borderColor="gray.700" borderWidth={1}>
-          <ModalHeader color="gold">Look Up Character by Transaction</ModalHeader>
-          <ModalCloseButton color="white" />
-          <ModalBody pb={6}>
-            <FormControl>
-              <FormLabel color="gold">Transaction Hash</FormLabel>
-              <Input
-                placeholder="0x..."
-                value={transactionHash || ''}
-                onChange={(e) => setTransactionHash(e.target.value)}
-                bg="gray.800"
-                color="white"
-                borderColor="gray.600"
-              />
-            </FormControl>
-          </ModalBody>
-          <ModalFooter>
+      <GameModal 
+        isOpen={isOpen} 
+        onClose={onClose}
+        variant="transaction"
+        title="Look Up Character by Transaction"
+        footer={
+          <>
             <Button 
               bg="rgba(139, 69, 19, 0.8)"
               color="gold"
@@ -567,9 +548,21 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             >
               Cancel
             </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </>
+        }
+      >
+        <FormControl>
+          <FormLabel color="gold">Transaction Hash</FormLabel>
+          <Input
+            placeholder="0x..."
+            value={transactionHash || ''}
+            onChange={(e) => setTransactionHash(e.target.value)}
+            bg="gray.800"
+            color="white"
+            borderColor="gray.600"
+          />
+        </FormControl>
+      </GameModal>
     </div>
   );
 };

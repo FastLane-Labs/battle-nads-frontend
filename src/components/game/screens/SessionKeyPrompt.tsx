@@ -46,16 +46,18 @@ const SessionKeyPrompt: React.FC<SessionKeyPromptProps> = ({
             </div>
           </div>
           
-          <GameButton
-            variant="primary"
-            onClick={onUpdate}
-            isDisabled={isUpdating}
-            loading={isUpdating}
-            loadingText="Updating..."
-            className="mt-4"
-          >
-            Update Session Key
-          </GameButton>
+          <div className="w-auto max-w-[300px] mx-auto">
+            <GameButton
+              variant="primary"
+              onClick={onUpdate}
+              isDisabled={isUpdating}
+              loading={isUpdating}
+              loadingText="Updating..."
+              className="mt-4"
+            >
+              Update Session Key
+            </GameButton>
+          </div>
         </div>
       </div>
     </div>

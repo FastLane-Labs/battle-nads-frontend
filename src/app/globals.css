@@ -664,4 +664,84 @@ button:hover:not(:disabled) {
 
 .animate-spin-slow {
   animation: spin-slow 8s linear infinite;
+}
+
+/* Common UI Component Patterns */
+@layer components {
+  /* Game Button Hover Effects */
+  .game-button-hover {
+    @apply transition-all duration-200 
+           hover:brightness-125 hover:scale-[1.02] 
+           active:brightness-90 active:scale-[0.98];
+  }
+  
+  /* Game Card Background */
+  .game-card-bg {
+    @apply bg-black/60 border border-amber-900/50 rounded-lg 
+           backdrop-filter backdrop-blur-sm;
+  }
+  
+  /* Dark Game Card Background */
+  .game-card-bg-dark {
+    @apply bg-black/85 border-2 border-zinc-400/25 rounded-md 
+           shadow-[0_0_8px_rgba(100,100,100,0.3)];
+  }
+  
+  /* Common Modal Styles */
+  .game-modal-overlay {
+    @apply bg-black/80;
+  }
+  
+  .game-modal-content {
+    @apply bg-gray-900 border border-gray-700 rounded-lg;
+  }
+  
+  /* Common Loading Styles */
+  .game-loading-container {
+    @apply h-screen w-full flex items-center justify-center bg-black;
+  }
+  
+  .game-loading-content {
+    @apply flex flex-col items-center space-y-4;
+  }
+  
+  /* Common Tooltip Styles */
+  .game-tooltip {
+    @apply mx-2 !bg-dark-brown border rounded-md border-amber-400/30 !text-white;
+  }
+  
+  /* Button State Classes */
+  .button-disabled {
+    @apply opacity-50 cursor-not-allowed;
+  }
+  
+  .button-loading {
+    @apply opacity-75 cursor-wait;
+  }
+  
+  /* Text Hierarchy */
+  .text-title {
+    @apply text-center text-3xl font-semibold uppercase mb-4 
+           gold-text tracking-wider leading-10;
+  }
+  
+  .text-subtitle {
+    @apply text-xl font-semibold gold-text-light;
+  }
+  
+  .text-body {
+    @apply text-white;
+  }
+  
+  .text-error {
+    @apply text-red-300;
+  }
+  
+  .text-warning {
+    @apply text-yellow-300;
+  }
+  
+  .text-success {
+    @apply text-green-300;
+  }
 } 
