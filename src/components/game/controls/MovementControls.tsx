@@ -3,12 +3,12 @@ import {
   Box, 
   Grid,
   GridItem, 
-  Tooltip,
   Image,
   Text
 } from '@chakra-ui/react';
 import { MovementOptions } from '@/types/domain';
 import { useTransactionBalance } from '@/hooks/game/useTransactionBalance';
+import { GameTooltip } from '../../ui';
 
 interface MovementControlsProps {
   onMove: (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => Promise<void>;
@@ -130,7 +130,11 @@ const MovementControls: React.FC<MovementControlsProps> = ({
           maxW="224px"
           >
         <GridItem area="north" mb="-12px">
-          <Tooltip label={getTooltipLabel('north')} placement="top" hasArrow>
+          <GameTooltip 
+            customLabel={getTooltipLabel('north')} 
+            variant="simple" 
+            placement="top"
+          >
             <Box
               as="button"
               onClick={() => onMove('north')}
@@ -149,11 +153,15 @@ const MovementControls: React.FC<MovementControlsProps> = ({
                 height="100%"
                 />
             </Box>
-          </Tooltip>
+          </GameTooltip>
         </GridItem>
 
         <GridItem area="west">
-          <Tooltip label={getTooltipLabel('west')} placement="left" hasArrow>
+          <GameTooltip 
+            customLabel={getTooltipLabel('west')} 
+            variant="simple" 
+            placement="left"
+          >
             <Box
               as="button"
               onClick={() => onMove('west')}
@@ -172,11 +180,15 @@ const MovementControls: React.FC<MovementControlsProps> = ({
                 height="100%"
                 />
             </Box>
-          </Tooltip>
+          </GameTooltip>
         </GridItem>
 
         <GridItem area="east">
-          <Tooltip label={getTooltipLabel('east')} placement="right" hasArrow>
+          <GameTooltip 
+            customLabel={getTooltipLabel('east')} 
+            variant="simple" 
+            placement="right"
+          >
             <Box
               as="button"
               onClick={() => onMove('east')}
@@ -195,11 +207,15 @@ const MovementControls: React.FC<MovementControlsProps> = ({
                 height="100%"
                 />
             </Box>
-          </Tooltip>
+          </GameTooltip>
         </GridItem>
 
         <GridItem area="south" mt="-13px">
-          <Tooltip label={getTooltipLabel('south')} placement="bottom" hasArrow>
+          <GameTooltip 
+            customLabel={getTooltipLabel('south')} 
+            variant="simple" 
+            placement="bottom"
+          >
             <Box
               as="button"
               onClick={() => onMove('south')}
@@ -218,11 +234,15 @@ const MovementControls: React.FC<MovementControlsProps> = ({
                 height="100%"
                 />
             </Box>
-          </Tooltip>
+          </GameTooltip>
         </GridItem>
 
         <GridItem area="up" mr="10px">
-        <Tooltip label={getTooltipLabel('up')} placement="bottom" hasArrow>
+        <GameTooltip 
+          customLabel={getTooltipLabel('up')} 
+          variant="simple" 
+          placement="bottom"
+        >
           <Box
               as="button"
               onClick={() => onMove('up')} 
@@ -241,11 +261,15 @@ const MovementControls: React.FC<MovementControlsProps> = ({
                 height="100%"
                 />
             </Box>
-          </Tooltip>
+          </GameTooltip>
         </GridItem>
         
         <GridItem area="down" ml="10px">
-        <Tooltip label={getTooltipLabel('down')} placement="bottom" hasArrow>
+        <GameTooltip 
+          customLabel={getTooltipLabel('down')} 
+          variant="simple" 
+          placement="bottom"
+        >
         <Box
               as="button"
               onClick={() => onMove('down')} 
@@ -264,7 +288,7 @@ const MovementControls: React.FC<MovementControlsProps> = ({
                 height="100%"
                 />
             </Box>
-          </Tooltip>
+          </GameTooltip>
         </GridItem>
 
       </Grid>

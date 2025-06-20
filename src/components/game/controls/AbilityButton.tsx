@@ -9,7 +9,6 @@ import {
   Icon,
   Badge,
   Image,
-  VStack,
 } from '@chakra-ui/react';
 import { WarningIcon } from '@chakra-ui/icons';
 import { AbilityStage } from '@/types/domain/enums';
@@ -17,6 +16,7 @@ import { AbilityStatus } from '@/hooks/game/useAbilityCooldowns';
 import { domain } from '@/types';
 import { getAbilityMetadata } from '@/data/abilities';
 import { useTransactionBalance } from '@/hooks/game/useTransactionBalance';
+import { GameTooltip } from '../../ui';
 
 interface AbilityButtonProps {
   status: AbilityStatus;
@@ -117,36 +117,28 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
   // Get ability metadata for description
   const abilityMetadata = getAbilityMetadata(status.ability);
   
-  // Create enhanced tooltip content
-  const createTooltipLabel = () => {
-    return (
-      <VStack align="start" spacing={0} p={1}>
-        <Text fontWeight="bold" className="gold-text-light">{abilityMetadata.name}</Text>
-        <Text fontSize="xs" className="text-white" mt={1}>{abilityMetadata.description}</Text>
-        {(!status.isReady || isActionDisabled || isTransactionDisabled) && (
-          <Text fontSize="xs" className="text-red-300" mt={2}>
-            {!status.isReady 
-              ? `Status: ${status.description}` 
-              : isTransactionDisabled
-              ? insufficientBalanceMessage
-              : 'Cannot use outside combat'
-            }
-          </Text>
-        )}
-      </VStack>
-    );
+  // Determine tooltip status message
+  const getTooltipStatus = (): string | undefined => {
+    if (!status.isReady) {
+      return `Status: ${status.description}`;
+    }
+    if (isTransactionDisabled) {
+      return insufficientBalanceMessage || 'Insufficient balance';
+    }
+    if (isActionDisabled) {
+      return 'Cannot use outside combat';
+    }
+    return undefined;
   };
 
-  const tooltipLabel = createTooltipLabel();
-
   return (
-    <Tooltip 
-      label={tooltipLabel} 
-      placement="top" 
-      hasArrow
-      className="mx-2 !bg-dark-brown border rounded-md border-amber-400/30 !text-white"
+    <GameTooltip
+      title={abilityMetadata.name}
+      description={abilityMetadata.description}
+      status={getTooltipStatus()}
+      statusType="error"
+      placement="top"
     >
-      <Box position="relative" display="inline-block">
         <Box
           as="button"
           onClick={onClick}
@@ -294,7 +286,6 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
              </Badge>
           )}
         </Box>
-      </Box>
-    </Tooltip>
+    </GameTooltip>
   );
 }; 

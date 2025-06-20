@@ -1,5 +1,6 @@
 import React from "react";
-import { Box, Text, Tooltip, CircularProgress, Image, VStack } from "@chakra-ui/react";
+import { Box, Text, CircularProgress, Image } from "@chakra-ui/react";
+import { GameTooltip } from '../../ui';
 
 interface AttackButtonProps {
   onClick: () => void;
@@ -16,32 +17,13 @@ export const AttackButton: React.FC<AttackButtonProps> = ({
   targetName,
   statusMessage,
 }) => {
-  // Create enhanced tooltip content
-  const createTooltipLabel = () => {
-    return (
-      <VStack align="start" spacing={0} p={1}>
-        <Text fontWeight="bold" className="gold-text-light">
-          {targetName ? `Attack ${targetName}` : "Attack"}
-        </Text>
-        {statusMessage && (
-          <Text fontSize="xs" className="text-red-300" mt={2}>
-            {statusMessage}
-          </Text>
-        )}
-      </VStack>
-    );
-  };
-
-  const tooltipLabel = createTooltipLabel();
-
   return (
-    <Tooltip 
-      label={tooltipLabel} 
-      placement="top" 
-      hasArrow
-      className="mx-2 !bg-dark-brown border rounded-md border-amber-400/30 !text-white"
+    <GameTooltip
+      title={targetName ? `Attack ${targetName}` : "Attack"}
+      status={statusMessage}
+      statusType="error"
+      placement="top"
     >
-      <Box position="relative" display="inline-block">
         <Box
           as="button"
           onClick={onClick}
@@ -84,7 +66,6 @@ export const AttackButton: React.FC<AttackButtonProps> = ({
             </Box>
           )}
         </Box>
-      </Box>
-    </Tooltip>
+    </GameTooltip>
   );
 };
