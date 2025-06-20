@@ -80,15 +80,7 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
   playerCharacterClass
 }) => {
 
-  // Debug logging - only log problematic events
-  if (!event.attacker || event.attacker.name === 'Unknown' || event.displayMessage?.includes('Unknown')) {
-    console.log('[EventLogItemRenderer] Problematic event:', {
-      attacker: event.attacker,
-      defender: event.defender,
-      type: Number(event.type),
-      originalMessage: event.displayMessage
-    });
-  }
+  // Removed constant logging - too much noise during rerenders
 
   // Generate display message based on event data
   const generateDisplayMessage = (): string => {
@@ -109,14 +101,7 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
 
     const eventTypeNum = Number(event.type);
     
-    // Only log name resolution for problematic events
-    if (attackerName === 'Unknown' || defenderName === 'Unknown') {
-      console.log('[EventLogItemRenderer] Name resolution issue:', {
-        attackerName,
-        defenderName,
-        eventTypeNum
-      });
-    }
+    // Removed constant logging - too much noise
 
     switch (eventTypeNum) {
       case domain.LogType.Combat:
@@ -160,7 +145,6 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
         return `${attackerName} died.`;
       
       default:
-        console.log('[EventLogItemRenderer] Unhandled event type:', eventTypeNum);
         // Handle events with defenders/targets
         if (event.defender) {
           return `${attackerName} performed an action against ${defenderName}.`;
@@ -176,14 +160,7 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
     ? generatedMessage 
     : (event.displayMessage || generatedMessage);
     
-  // Only log final message for problematic events
-  if (displayMessage.includes('Unknown')) {
-    console.log('[EventLogItemRenderer] Final message contains Unknown:', {
-      originalDisplayMessage: event.displayMessage,
-      generatedMessage,
-      finalDisplayMessage: displayMessage
-    });
-  }
+  // Removed constant logging - too much noise
 
   return (
     <Box fontSize={{ base: "xs", md: "sm" }} textAlign="left" minH={{ base: "45px", md: "40px" }} py={1}>
