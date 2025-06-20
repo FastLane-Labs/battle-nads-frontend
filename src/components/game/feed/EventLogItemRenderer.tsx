@@ -80,6 +80,17 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
   playerCharacterClass
 }) => {
 
+  // Debug logging to understand the issue
+  console.log('[EventLogItemRenderer] Raw event data:', {
+    event,
+    attacker: event.attacker,
+    defender: event.defender,
+    type: event.type,
+    typeAsNumber: Number(event.type),
+    displayMessage: event.displayMessage,
+    details: event.details
+  });
+
   // Generate display message based on event data
   const generateDisplayMessage = (): string => {
     const getDisplayName = (participant: domain.EventParticipant | undefined): string => {
@@ -89,13 +100,31 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
       if (playerIndex !== null && Number(participant.index) === Number(playerIndex)) {
         return "You";
       }
-      return participant.name || `Index ${participant.index}`;
+      
+      // Clean up the name and index display
+      const name = participant.name?.trim();
+      const index = Number(participant.index);
+      
+      // If we have a valid name, use it
+      if (name && name !== "0" && name !== "") {
+        return name;
+      }
+      
+      // Fall back to index, but format it properly
+      return `Character ${index}`;
     };
 
     const attackerName = getDisplayName(event.attacker);
     const defenderName = getDisplayName(event.defender);
 
     const eventTypeNum = Number(event.type);
+    
+    console.log('[EventLogItemRenderer] Name resolution:', {
+      attackerName,
+      defenderName,
+      eventTypeNum,
+      logTypeEnum: domain.LogType
+    });
 
     switch (eventTypeNum) {
       case domain.LogType.Combat:
@@ -139,14 +168,38 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
         return `${attackerName} died.`;
       
       default:
-        return `${attackerName} performed an action.`;
+        console.log('[EventLogItemRenderer] Hit default case - unhandled event type:', {
+          eventTypeNum,
+          hasDefender: !!event.defender,
+          attackerName,
+          defenderName
+        });
+        // Handle events with defenders/targets
+        if (event.defender) {
+          const message = `${attackerName} performed an action against ${defenderName}.`;
+          console.log('[EventLogItemRenderer] Default case with defender, returning:', message);
+          return message;
+        }
+        const message = `${attackerName} performed an action.`;
+        console.log('[EventLogItemRenderer] Default case without defender, returning:', message);
+        return message;
     }
   };
 
   // For ability events, always generate our own message to get proper ability names
-  const displayMessage = (Number(event.type) === domain.LogType.Ability) 
-    ? generateDisplayMessage() 
-    : (event.displayMessage || generateDisplayMessage());
+  const isAbilityEvent = Number(event.type) === domain.LogType.Ability;
+  const generatedMessage = generateDisplayMessage();
+  const displayMessage = isAbilityEvent 
+    ? generatedMessage 
+    : (event.displayMessage || generatedMessage);
+    
+  console.log('[EventLogItemRenderer] Final message selection:', {
+    isAbilityEvent,
+    hasOriginalDisplayMessage: !!event.displayMessage,
+    originalDisplayMessage: event.displayMessage,
+    generatedMessage,
+    finalDisplayMessage: displayMessage
+  });
 
   return (
     <Box fontSize={{ base: "xs", md: "sm" }} textAlign="left" minH={{ base: "45px", md: "40px" }} py={1}>
