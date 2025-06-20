@@ -81,12 +81,11 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
     const glowElement = withGlow && (
       <div
         className={`absolute inset-0 rounded-lg transition-opacity duration-300 ${
-          isCreateCharacter ? 'opacity-50' : 'opacity-0 group-hover:opacity-100'
+          isCreateCharacter ? 'opacity-20' : 'opacity-0 group-hover:opacity-100'
         }`}
         style={{
           background: 'radial-gradient(circle at center, rgba(212, 175, 55, 0.4), transparent 70%)',
           filter: 'blur(25px)',
-          animation: 'pulse 2s ease-in-out infinite',
         }}
       />
     );
