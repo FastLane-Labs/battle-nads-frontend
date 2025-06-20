@@ -13,7 +13,6 @@ interface GameButtonProps extends Omit<ButtonProps, 'size' | 'variant'> {
   loading?: boolean;
   loadingText?: string;
   withAnimation?: boolean;
-  withGlow?: boolean;
 }
 
 const sizeConfig: Record<GameButtonSize, { height: string; textSize: string; responsiveHeight?: string }> = {
@@ -37,7 +36,6 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
     loading = false,
     loadingText,
     withAnimation = false,
-    withGlow = false,
     children,
     isDisabled,
     className = '',
@@ -76,8 +74,6 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
       'pointer-events-none',
     ].filter(Boolean).join(' ');
     
-    // Glow effect disabled
-    const glowElement = null;
 
     return (
       <div className={`relative mt-4 group ${responsiveHeight || ''}`}>
@@ -101,7 +97,6 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
             {loading && loadingText ? loadingText : children}
           </span>
         </button>
-        {glowElement}
       </div>
     );
   }
