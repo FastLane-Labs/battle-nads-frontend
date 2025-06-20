@@ -76,19 +76,8 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
       'pointer-events-none',
     ].filter(Boolean).join(' ');
     
-    // Glow effect (optional) - for create-character variant, always visible
-    const isCreateCharacter = variant === 'create-character';
-    const glowElement = withGlow && (
-      <div
-        className={`absolute inset-0 rounded-lg transition-opacity duration-300 ${
-          isCreateCharacter ? 'opacity-20' : 'opacity-0 group-hover:opacity-100'
-        }`}
-        style={{
-          background: 'radial-gradient(circle at center, rgba(212, 175, 55, 0.4), transparent 70%)',
-          filter: 'blur(25px)',
-        }}
-      />
-    );
+    // Glow effect disabled
+    const glowElement = null;
 
     return (
       <div className={`relative mt-4 group ${responsiveHeight || ''}`}>
@@ -96,8 +85,7 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
           src={bgImage}
           alt="" 
           className={`absolute inset-0 w-full ${height} object-fill z-0 transition-all duration-200 
-            group-hover:brightness-125 group-hover:scale-[1.02] group-active:brightness-90 group-active:scale-[0.98]
-            ${disabled ? 'opacity-50' : ''}`}
+            group-hover:brightness-125 group-hover:scale-[1.02] group-active:brightness-90 group-active:scale-[0.98]`}
         />
         
         <button 
