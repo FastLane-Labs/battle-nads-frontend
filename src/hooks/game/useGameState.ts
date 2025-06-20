@@ -256,19 +256,20 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     if (!includeHistory || !historicalBlocks || historicalBlocks.length === 0) return [];
     
     const messages: domain.EventMessage[] = [];
+    const currentPlayerIndex = rawData?.character ? Number(rawData.character.stats.index) : null;
     
     historicalBlocks.forEach((block: CachedDataBlock) => {
       block.events?.forEach((event, index) => {
-        // Create event participant info from stored data
+        // Create event participant info from stored data with player substitution
         const attacker: domain.EventParticipant | undefined = event.mainPlayerIndex > 0 ? {
           id: `index_${event.mainPlayerIndex}`,
-          name: event.attackerName || `Index ${event.mainPlayerIndex}`,
+          name: currentPlayerIndex === event.mainPlayerIndex ? "You" : (event.attackerName || `Index ${event.mainPlayerIndex}`),
           index: event.mainPlayerIndex
         } : undefined;
         
         const defender: domain.EventParticipant | undefined = event.otherPlayerIndex > 0 ? {
           id: `index_${event.otherPlayerIndex}`,
-          name: event.defenderName || `Index ${event.otherPlayerIndex}`,
+          name: currentPlayerIndex === event.otherPlayerIndex ? "You" : (event.defenderName || `Index ${event.otherPlayerIndex}`),
           index: event.otherPlayerIndex
         } : undefined;
         
@@ -297,7 +298,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       });
     });
     return messages;
-  }, [includeHistory, historicalBlocks]);
+  }, [includeHistory, historicalBlocks, rawData]);
 
   /* ---------- Combined chat/event logs ---------- */
   const allChatMessages = useMemo(() => {
@@ -351,9 +352,9 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       const combinedEventLogsMap = new Map<string, domain.EventMessage>();
       const validRuntimeEventLogs = runtimeEventLogs.filter(log => log.blocknumber !== undefined && log.logIndex !== undefined);
 
-      // 1. Add historical event logs
+      // 1. Add historical event logs (lowest priority)
       historicalEventMessages.forEach(log => {
-        const key = `hist-${log.blocknumber}-${log.logIndex}`;
+        const key = `${log.blocknumber}-${log.logIndex}`;
         combinedEventLogsMap.set(key, log);
       });
       // 2. Add runtime logs (medium priority, may override historical)

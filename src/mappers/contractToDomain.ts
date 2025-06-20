@@ -567,11 +567,11 @@ export function contractToWorldSnapshot(
         case domain.LogType.Combat:
         case domain.LogType.InstigatedCombat: {
           
-          // Simple approach: create participants with proper names based on index
+          // Create participants with proper names based on index
           const createParticipant = (index: number): domain.EventParticipant | undefined => {
             if (index === 0) return undefined;
             
-            // Check if this is the player (we know player is index 6)
+            // Check if this is the player 
             if (raw.character && Number(raw.character.stats.index) === index) {
               return {
                 id: raw.character.id,
@@ -600,10 +600,12 @@ export function contractToWorldSnapshot(
               };
             }
             
-            // Fallback - create unknown participant
+            // Fallback - create unknown participant with more descriptive name
+            // Since monsters often have high indices, try to give a better name
+            const unknownName = index > 10 ? "Monster" : `Character ${index}`;
             return {
               id: `unknown-${index}`,
-              name: `Character ${index}`,
+              name: unknownName,
               index: index
             };
           };
