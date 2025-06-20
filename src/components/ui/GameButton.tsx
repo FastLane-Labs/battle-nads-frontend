@@ -18,7 +18,7 @@ interface GameButtonProps extends Omit<ButtonProps, 'size' | 'variant'> {
 const sizeConfig: Record<GameButtonSize, { height: string; textSize: string; responsiveHeight?: string }> = {
   compact: { height: 'h-[45px]', textSize: 'text-lg' },
   default: { height: 'h-[60px]', textSize: 'text-xl' },
-  large: { height: 'h-[75px]', textSize: 'text-3xl sm:text-4xl font-bold', responsiveHeight: 'sm:h-[85px]' },
+  large: { height: 'h-[75px]', textSize: 'text-2xl sm:text-4xl font-bold', responsiveHeight: 'sm:h-[85px]' },
 };
 
 const variantConfig: Record<GameButtonVariant, { backgroundImage: string; size: GameButtonSize }> = {
