@@ -101,17 +101,8 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
         return "You";
       }
       
-      // Clean up the name and index display
-      const name = participant.name?.trim();
-      const index = Number(participant.index);
-      
-      // If we have a valid name, use it
-      if (name && name !== "0" && name !== "") {
-        return name;
-      }
-      
-      // Fall back to index, but format it properly
-      return `Character ${index}`;
+      // Since participants are now resolved at event creation time, we can trust the stored name
+      return participant.name || `Character ${participant.index}`;
     };
 
     const attackerName = getDisplayName(event.attacker);
