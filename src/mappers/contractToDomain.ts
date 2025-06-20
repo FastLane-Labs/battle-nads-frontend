@@ -404,12 +404,9 @@ function findCharacterParticipantByIndex(
   mainCharacter?: contract.Character | null
 ): domain.EventParticipant | null {
   
-  console.log('[findCharacterParticipantByIndex] Searching for index:', {
-    searchIndex: index,
-    mainCharacterIndex: mainCharacter ? Number(mainCharacter.stats.index) : null,
-    combatantIndices: combatants.map(c => ({ index: Number(c.index), name: c.name, id: c.id })),
-    noncombatantIndices: noncombatants.map(c => ({ index: Number(c.index), name: c.name, id: c.id }))
-  });
+  if (index === 0) {
+    return null; // Index 0 usually means no character
+  }
   
   // Check main character first if its index matches
   if (mainCharacter && Number(mainCharacter.stats.index) === index) {
@@ -441,7 +438,6 @@ function findCharacterParticipantByIndex(
     };
   }
   
-  console.log('[findCharacterParticipantByIndex] No character found for index:', index);
   return null;
 }
 
@@ -566,95 +562,65 @@ export function contractToWorldSnapshot(
       const mainPlayerIdx = Number(log.mainPlayerIndex);
       const otherPlayerIdx = Number(log.otherPlayerIndex);
 
-      console.log('[Mapper] Processing log:', {
-        rawLogType: log.logType,
-        logTypeNum,
-        mainPlayerIdx,
-        otherPlayerIdx,
-        hasHealing: !!log.healthHealed && Number(log.healthHealed) > 0,
-        healingAmount: log.healthHealed ? Number(log.healthHealed) : 0,
-        hit: log.hit,
-        damageDone: log.damageDone
-      });
-
       // --- Process each log type ---
       switch (logTypeNum) {
         case domain.LogType.Combat:
         case domain.LogType.InstigatedCombat: {
-          console.log('[Mapper] Processing Combat event:', {
-            logTypeNum,
-            mainPlayerIdx,
-            otherPlayerIdx,
-            log,
-            combatantsCount: combatants.length,
-            noncombatantsCount: noncombatants.length,
-            hasCharacter: !!raw.character,
-            playerCharacterIndex: raw.character ? Number(raw.character.stats.index) : null,
-            playerCharacterName: raw.character?.name,
-            playerCharacterId: raw.character?.id,
-            ownerCharacterId
-          });
           
-          const attacker = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
-          const defender = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character);
-          
-          // If we can't find participants in current data, create fallback participants with the indices we have
-          // Special handling for player character - if this might be the player, try to use player data
-          const attackerParticipant: domain.EventParticipant | undefined = attacker || (() => {
-            if (mainPlayerIdx === 0) return undefined; // Index 0 usually means no character
+          // Simple approach: create participants with proper names based on index
+          const createParticipant = (index: number): domain.EventParticipant | undefined => {
+            if (index === 0) return undefined;
             
-            // If this event is player-initiated and we have character data, it's likely the player
-            if (raw.character && (
-              Number(raw.character.stats.index) === mainPlayerIdx || 
-              !combatants.find(c => Number(c.index) === mainPlayerIdx) && 
-              !noncombatants.find(c => Number(c.index) === mainPlayerIdx)
-            )) {
-              console.log('[Mapper] Using player character as fallback:', {
-                playerId: raw.character.id,
-                playerName: raw.character.name,
-                playerIndex: mainPlayerIdx,
-                originalPlayerIndex: Number(raw.character.stats.index)
-              });
+            // Check if this is the player (we know player is index 6)
+            if (raw.character && Number(raw.character.stats.index) === index) {
               return {
                 id: raw.character.id,
                 name: raw.character.name || "Player",
-                index: mainPlayerIdx
+                index: index
               };
             }
             
+            // Check combatants
+            const combatant = combatants.find(c => Number(c.index) === index);
+            if (combatant) {
+              return {
+                id: combatant.id,
+                name: combatant.name,
+                index: index
+              };
+            }
+            
+            // Check noncombatants
+            const noncombatant = noncombatants.find(c => Number(c.index) === index);
+            if (noncombatant) {
+              return {
+                id: noncombatant.id,
+                name: noncombatant.name,
+                index: index
+              };
+            }
+            
+            // Fallback - create unknown participant
             return {
-              id: `unknown-${mainPlayerIdx}`,
-              name: `Character ${mainPlayerIdx}`,
-              index: mainPlayerIdx
+              id: `unknown-${index}`,
+              name: `Character ${index}`,
+              index: index
             };
-          })();
+          };
           
-          const defenderParticipant: domain.EventParticipant | undefined = defender || (otherPlayerIdx !== 0 ? {
-            id: `unknown-${otherPlayerIdx}`,
-            name: `Character ${otherPlayerIdx}`,
-            index: otherPlayerIdx
-          } : undefined);
+          const attackerParticipant = createParticipant(mainPlayerIdx);
+          const defenderParticipant = createParticipant(otherPlayerIdx);
           
-          // Determine if this is the player - check both direct ID match and if we used player character data
-          const isPlayer = !!ownerCharacterId && !!attackerParticipant && (
-            attackerParticipant.id === ownerCharacterId ||
-            (raw.character && attackerParticipant.id === raw.character.id)
-          );
+          // Simple player detection: if participant has same ID as player character
+          const playerCharacterId = raw.character?.id;
+          const isPlayerAttacker = playerCharacterId && attackerParticipant?.id === playerCharacterId;
+          const isPlayerDefender = playerCharacterId && defenderParticipant?.id === playerCharacterId;
           
-          console.log('[Mapper] Character resolution:', {
-            originalAttacker: attacker,
-            originalDefender: defender,
-            finalAttackerParticipant: attackerParticipant,
-            finalDefenderParticipant: defenderParticipant,
-            attackerName: isPlayer ? "You" : attackerParticipant?.name || "Unknown",
-            defenderName: defenderParticipant?.name || "Unknown",
-            isPlayer,
-            ownerCharacterId
-          });
+          // Display names with "You" for player
+          const attackerName = isPlayerAttacker ? "You" : (attackerParticipant?.name || "Unknown");
+          const defenderName = isPlayerDefender ? "You" : (defenderParticipant?.name || "Unknown");
           
-          // Use the resolved participant names for display
-          const attackerName = isPlayer ? "You" : attackerParticipant?.name || "Unknown";
-          const defenderName = defenderParticipant?.name || "Unknown";
+          const isPlayer = isPlayerAttacker || isPlayerDefender;
 
           let displayMessage = '';
 
@@ -705,14 +671,14 @@ export function contractToWorldSnapshot(
             areaId: snapshotAreaId, // Use determined snapshotAreaId
             isPlayerInitiated: isPlayer, 
             details: { 
-              hit: log.hit,
-              critical: log.critical,
-              damageDone: log.damageDone,
-              healthHealed: log.healthHealed,
-              targetDied: log.targetDied,
-              lootedWeaponID: log.lootedWeaponID,
-              lootedArmorID: log.lootedArmorID,
-              experience: log.experience,
+              hit: Boolean(log.hit),
+              critical: Boolean(log.critical),
+              damageDone: Number(log.damageDone),
+              healthHealed: Number(log.healthHealed),
+              targetDied: Boolean(log.targetDied),
+              lootedWeaponID: Number(log.lootedWeaponID),
+              lootedArmorID: Number(log.lootedArmorID),
+              experience: Number(log.experience),
               value: log.value 
             }, 
             displayMessage: displayMessage 

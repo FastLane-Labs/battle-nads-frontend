@@ -261,13 +261,13 @@ export const useGame = () => {
     // Remove duplicates (preferring live/optimistic ones)
     const uniqueChatLogs = combinedChatLogs.reduce((acc, current) => {
       const key = `${current.timestamp}-${current.sender.id}-${current.message}`;
-      if (!acc.find(item => `${item.timestamp}-${item.sender.id}-${item.message}` === key)) {
+      if (!acc.find((item: domain.ChatMessage) => `${item.timestamp}-${item.sender.id}-${item.message}` === key)) {
         acc.push(current);
       }
       return acc;
     }, [] as domain.ChatMessage[]);
     
-    uniqueChatLogs.sort((a, b) => a.timestamp - b.timestamp); // Sort by timestamp
+    uniqueChatLogs.sort((a: domain.ChatMessage, b: domain.ChatMessage) => a.timestamp - b.timestamp); // Sort by timestamp
 
     return {
       // Combine data from liveGameState and sessionKey
