@@ -37,7 +37,6 @@ const Login: React.FC = () => {
             loading={!ready}
             loadingText="Connecting..."
             withAnimation={true}
-            withGlow={true}
             className="mt-4"
           >
             {authenticated ? 'Connected' : 'Connect Wallet'}
