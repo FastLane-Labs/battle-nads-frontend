@@ -4,7 +4,7 @@
  */
 
 // Contract addresses
-export const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || '0xC44B3E101d86E647398a8012a34b61a0d0E5956e'; // Policy 34
+export const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || '0x9bEedC741f313533dAD8A9ad4abfc61646285b9C'; // Policy 34
 
 //'0x6a5b12B54921d023d3537caa210dCfFEB2f4A253'; // Policy 30
 
