@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Box, Button, HStack, Text, Spinner, Center, Tooltip } from '@chakra-ui/react';
 import { domain } from '@/types';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useTransactionBalance } from '@/hooks/game/useTransactionBalance';
+import { useTransactionBalance } from '@/hooks/wallet/useWalletState';
 
 interface ChatPanelProps {
   characterId: string;

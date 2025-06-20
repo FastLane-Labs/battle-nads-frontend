@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useGame } from '../hooks/game/useGame';
-import { useBattleNads } from '../hooks/game/useBattleNads';
+import { useGame, useBattleNads } from '../hooks/game/useGameState';
 import Login from './auth/Login';
 import LoadingScreen from './game/screens/LoadingScreen';
 import ErrorScreen from './game/screens/ErrorScreen';
@@ -216,7 +215,7 @@ const AppInitializer: React.FC = () => {
            gameState={{
              ...game.worldSnapshot,
              // Filter out dead combatants to prevent issues with "Unnamed the Initiate"
-             combatants: game.worldSnapshot.combatants.filter(combatant => !combatant.isDead)
+             combatants: game.worldSnapshot.combatants.filter((combatant: any) => !combatant.isDead)
            }}
            moveCharacter={moveCharacter}
            attack={attack}

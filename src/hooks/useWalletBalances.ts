@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
-import { useBattleNads } from './game/useBattleNads';
+import { useBattleNads } from './game/useGameState';
 import { RPC } from '@/config/env';
 import { BALANCE_REFRESH_INTERVAL } from '@/config/wallet';
 

@@ -7,7 +7,7 @@ import {
   Text
 } from '@chakra-ui/react';
 import { MovementOptions } from '@/types/domain';
-import { useTransactionBalance } from '@/hooks/game/useTransactionBalance';
+import { useTransactionBalance } from '@/hooks/wallet/useWalletState';
 import { GameTooltip } from '../../ui';
 
 interface MovementControlsProps {

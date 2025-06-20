@@ -3,7 +3,7 @@ import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Button, Sta
 import { Character } from '@/types/domain/character';
 import { calculateMaxHealth } from '@/utils/calculateMaxHealth';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
-import { useGame } from '@/hooks/game/useGame';
+import { useGame } from '@/hooks/game/useGameState';
 
 interface CharacterCardProps {
   character: Character; // Corrected type name

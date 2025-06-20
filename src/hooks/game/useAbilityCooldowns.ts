@@ -2,7 +2,7 @@ import { useMemo, useCallback, useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { domain } from '@/types';
 import { AbilityStage } from '@/types/domain/enums';
-import { useBattleNads } from './useBattleNads';
+import { useBattleNads } from './useGameState';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '@/providers/WalletProvider';
 import { useToast } from '@chakra-ui/react';

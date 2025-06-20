@@ -1,6 +1,5 @@
 // Game hooks
-export * from './game/useBattleNads';
-export * from './game/useGame';
+export * from './game/useGameState'; // Exports useGameState, useBattleNads (deprecated), useGame (deprecated)
 export * from './game/useEquipment';
 export * from './game/useUiSnapshot';
 

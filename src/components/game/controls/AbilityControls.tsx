@@ -5,7 +5,7 @@ import { AbilityButton } from './AbilityButton';
 import { AttackButton } from './AttackButton';
 import { domain } from '@/types';
 import { abilityRequiresTarget } from '@/data/abilities';
-import { useTransactionBalance } from '@/hooks/game/useTransactionBalance';
+import { useTransactionBalance } from '@/hooks/wallet/useWalletState';
 
 interface AbilityControlsProps {
   characterId: string | null;

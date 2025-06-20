@@ -12,8 +12,8 @@ import {
 import { domain } from '@/types';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
 import { StatDisplay } from './StatDisplay';
-import { useGame } from '@/hooks/game/useGame';
-import { useTransactionBalance } from '@/hooks/game/useTransactionBalance';
+import { useGame } from '@/hooks/game/useGameState';
+import { useTransactionBalance } from '@/hooks/wallet/useWalletState';
 
 // Constants from the smart contract
 const EXP_BASE = 100; // Base experience points required per level

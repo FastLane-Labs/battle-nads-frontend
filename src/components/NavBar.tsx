@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from '@/providers/WalletProvider';
-import { useGame } from '@/hooks/game/useGame';
+import { useGame } from '@/hooks/game/useGameState';
 import { isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
 import { useSessionFunding } from '@/hooks/session/useSessionFunding';
 

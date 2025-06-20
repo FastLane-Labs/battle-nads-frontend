@@ -4,10 +4,10 @@ import { ChakraProvider } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import CharacterInfo from '../CharacterInfo';
 import { domain } from '@/types'; // Assuming types are exported from domain
-import { useGame } from '@/hooks/game/useGame'; // Import the hook
+import { useGame } from '@/hooks/game/useGameState'; // Import the hook
 
 // Mock the useGame hook that CharacterInfo now uses
-jest.mock('@/hooks/game/useGame', () => ({
+jest.mock('@/hooks/game/useGameState', () => ({
   useGame: jest.fn(),
 }));
 

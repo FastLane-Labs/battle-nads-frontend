@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient, UseMutationOptions } from '@tanstack/react-query';
 import { useToast } from '@chakra-ui/react';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
-import { useBattleNads } from '../game/useBattleNads';
+import { useBattleNads } from '../game/useGameState';
 import { invalidateSnapshot } from '../utils';
 import { useWallet } from '@/providers/WalletProvider';
 

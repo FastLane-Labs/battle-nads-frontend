@@ -10,9 +10,9 @@ import {
 } from '@chakra-ui/react';
 import { ethers } from 'ethers';
 import { useWallet } from '@/providers/WalletProvider';
-import { useWalletBalances } from '@/hooks/useWalletBalances';
+import { useWalletBalances } from '@/hooks/wallet/useWalletState';
 import { useBattleNadsClient } from '@/hooks/contracts/useBattleNadsClient';
-import { useBattleNads } from '@/hooks/game/useBattleNads';
+import { useBattleNads } from '@/hooks/game/useGameState';
 import { 
   DIRECT_FUNDING_AMOUNT, 
   LOW_SESSION_KEY_THRESHOLD,

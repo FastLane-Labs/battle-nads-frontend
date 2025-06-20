@@ -7,11 +7,11 @@ import { useWallet } from '../../../providers/WalletProvider';
 import { createTestWrapper } from '../../../test/helpers';
 import { sessionKeyMachine, SessionKeyState } from '../../../machines/sessionKeyMachine';
 import { contract } from '../../../types';
-import { useBattleNads } from '../../game/useBattleNads';
+import { useBattleNads } from '../../game/useGameState';
 import { mockSessionKeyData } from '@/test/helpers';
 
 // Mock dependencies
-jest.mock('../../game/useBattleNads');
+jest.mock('../../game/useGameState');
 jest.mock('../../../providers/WalletProvider');
 jest.mock('../../../machines/sessionKeyMachine');
 
