@@ -2,7 +2,7 @@ import { useMemo, useCallback, useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { domain } from '@/types';
 import { AbilityStage } from '@/types/domain/enums';
-import { useBattleNads } from './useGameState';
+import { useGameState } from './useGameState';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '@/providers/WalletProvider';
 import { useToast } from '@chakra-ui/react';
@@ -49,9 +49,9 @@ export const useAbilityCooldowns = (characterId: string | null) => {
     gameState,
     isLoading: isGameLoading,
     error: gameError,
-    rawBalanceShortfall,
+    balanceShortfall: rawBalanceShortfall,
     rawEndBlock,
-  } = useBattleNads(owner);
+  } = useGameState({ includeActions: false, includeHistory: false });
 
   // Current block from the snapshot
   const currentBlock = useMemo(() => Number(rawEndBlock || 0), [rawEndBlock]);

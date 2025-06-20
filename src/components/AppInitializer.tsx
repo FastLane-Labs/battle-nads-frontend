@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useGame, useBattleNads } from '../hooks/game/useGameState';
+import { useGameState } from '../hooks/game/useGameState';
 import Login from './auth/Login';
 import LoadingScreen from './game/screens/LoadingScreen';
 import ErrorScreen from './game/screens/ErrorScreen';
@@ -15,7 +15,7 @@ import { formatEther } from 'ethers';
 import { logger } from '../utils/logger';
 
 const AppInitializer: React.FC = () => {
-  const game = useGame();
+  const game = useGameState();
   const router = useRouter();
   const toast = useToast();
   const zeroCharacterId = "0x0000000000000000000000000000000000000000000000000000000000000000";
@@ -32,13 +32,13 @@ const AppInitializer: React.FC = () => {
     changeDetected: false
   });
 
-  // Also get equipment names data from useBattleNads
+  // Equipment data is already available in the game state
   const { 
     rawEquipableWeaponIDs,
     rawEquipableWeaponNames,
     rawEquipableArmorIDs,
     rawEquipableArmorNames 
-  } = useBattleNads(game.owner);
+  } = game;
 
   const renderWithNav = (content: React.ReactNode, label?: string) => {
     return (

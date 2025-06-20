@@ -4,11 +4,11 @@ import { ChakraProvider } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import CharacterInfo from '../CharacterInfo';
 import { domain } from '@/types'; // Assuming types are exported from domain
-import { useGame } from '@/hooks/game/useGameState'; // Import the hook
+import { useGameState } from '@/hooks/game/useGameState'; // Import the hook
 
-// Mock the useGame hook that CharacterInfo now uses
+// Mock the useGameState hook that CharacterInfo now uses
 jest.mock('@/hooks/game/useGameState', () => ({
-  useGame: jest.fn(),
+  useGameState: jest.fn(),
 }));
 
 // Mock the EquipmentPanel component since it's not the focus of this test
@@ -43,9 +43,9 @@ const mockCharacter: domain.Character = {
   isDead: false,
 };
 
-// Helper function to setup useGame mock
-const setupMockUseGame = (unallocatedAttributePoints: number = 0, isInCombat: boolean = false) => {
-  (useGame as jest.Mock).mockReturnValue({
+// Helper function to setup useGameState mock
+const setupMockUseGameState = (unallocatedAttributePoints: number = 0, isInCombat: boolean = false) => {
+  (useGameState as jest.Mock).mockReturnValue({
     worldSnapshot: {
       unallocatedAttributePoints,
       // Add other properties that might be needed
@@ -53,7 +53,7 @@ const setupMockUseGame = (unallocatedAttributePoints: number = 0, isInCombat: bo
     allocatePoints: jest.fn().mockResolvedValue({}),
     isAllocatingPoints: false,
     isInCombat,
-    // Add other properties returned by useGame that might be needed
+    // Add other properties returned by useGameState that might be needed
     character: mockCharacter,
     combatants: [],
     isLoading: false,
@@ -80,7 +80,7 @@ const renderWithProvider = (component: React.ReactElement) => {
 
 describe('CharacterInfo Component', () => {
   beforeEach(() => {
-    setupMockUseGame();
+    setupMockUseGameState();
   });
 
   it('should render character details correctly', () => {
@@ -122,7 +122,7 @@ describe('CharacterInfo Component', () => {
 
   it('should display stat allocation UI when unallocated points are available', () => {
     // Setup mock with unallocated points
-    setupMockUseGame(5);
+    setupMockUseGameState(5);
     
     renderWithProvider(<CharacterInfo character={mockCharacter} combatants={[]} />);
 
@@ -145,7 +145,7 @@ describe('CharacterInfo Component', () => {
 
   it('should not display stat allocation UI when no unallocated points are available', () => {
     // Setup mock with no unallocated points
-    setupMockUseGame(0);
+    setupMockUseGameState(0);
     
     renderWithProvider(<CharacterInfo character={mockCharacter} combatants={[]} />);
 

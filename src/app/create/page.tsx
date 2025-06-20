@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react';
 import { Box } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
-import { useGame } from '@/hooks/game/useGameState';
+import { useGameState } from '@/hooks/game/useGameState';
 import { isValidCharacterId } from '../../utils/getCharacterLocalStorageKey';
 
 import NavBar from '@/components/NavBar';
@@ -12,7 +12,7 @@ import ErrorScreen from '@/components/game/screens/ErrorScreen';
 import CharacterCreation from '@/components/characters/CharacterCreation';
 
 export default function CreatePage() {
-  const game = useGame();
+  const game = useGameState();
   const router = useRouter();
   const zeroCharacterId = "0x0000000000000000000000000000000000000000000000000000000000000000";
 

@@ -436,6 +436,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         successMessage: 'Character moved successfully',
         errorMessage: 'Failed to move character',
         mutationKey: ['moveCharacter', characterId || 'unknown', owner || 'unknown'],
+        characterId,
       }
     );
 
@@ -451,6 +452,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         successMessage: 'Attack successful',
         errorMessage: 'Attack failed',
         mutationKey: ['attack', characterId || 'unknown', owner || 'unknown'],
+        characterId,
       }
     );
 
@@ -474,6 +476,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         successMessage: 'Points allocated successfully',
         errorMessage: 'Failed to allocate points',
         mutationKey: ['allocatePoints', characterId || 'unknown', owner || 'unknown'],
+        characterId,
       }
     );
 
@@ -490,6 +493,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         errorMessage: 'Failed to send message',
         showSuccessToast: false, // Don't show toast for chat
         mutationKey: ['sendChat', characterId || 'unknown', owner || 'unknown'],
+        characterId,
         onSuccess: (_, variables) => {
           addOptimisticChatMessage(variables.message);
         }
@@ -615,6 +619,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     owner,
     hasWallet: Boolean(injectedWallet),
     connectWallet: connectMetamask,
+    isInitialized: isWalletInitialized,
     isWalletInitialized,
     
     // Chat and events
@@ -626,7 +631,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     others: gameState?.combatants.filter(c => c.id !== characterId) || [],
     
     // Combat state
-    isInCombat: gameState ? gameState.combatants.some(c => c.id === characterId) : false,
+    isInCombat: Boolean(rawData?.character?.stats.combatantBitMap),
     
     // Loading states
     isLoading,
@@ -654,90 +659,4 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
   };
 };
 
-/**
- * Legacy compatibility wrapper for useBattleNads
- * @deprecated Use useGameState instead
- */
-export const useBattleNads = (_owner: string | null) => {
-  const result = useGameState({ 
-    includeActions: false, 
-    includeHistory: true, 
-    includeSessionKey: true 
-  });
-  
-  return {
-    gameState: result.gameState,
-    addOptimisticChatMessage: result.addOptimisticChatMessage,
-    rawSessionKeyData: result.rawSessionKeyData,
-    rawEndBlock: result.rawEndBlock,
-    rawBalanceShortfall: result.balanceShortfall,
-    isLoading: result.isLoading,
-    isSnapshotLoading: result.isSnapshotLoading,
-    isHistoryLoading: result.isCacheLoading,
-    error: result.error,
-    rawEquipableWeaponIDs: result.rawEquipableWeaponIDs,
-    rawEquipableWeaponNames: result.rawEquipableWeaponNames,
-    rawEquipableArmorIDs: result.rawEquipableArmorIDs,
-    rawEquipableArmorNames: result.rawEquipableArmorNames,
-  };
-};
-
-/**
- * Legacy compatibility wrapper for useGame
- * @deprecated Use useGameState instead
- */
-export const useGame = () => {
-  const result = useGameState({ 
-    includeActions: true, 
-    includeHistory: true, 
-    includeSessionKey: true 
-  }) as any; // Type assertion needed due to conditional properties
-  
-  return {
-    // State properties
-    worldSnapshot: result.worldSnapshot,
-    isLoading: result.isLoading,
-    isCacheLoading: result.isCacheLoading,
-    error: result.error,
-    isInitialized: result.isWalletInitialized,
-    
-    // Wallet properties
-    owner: result.owner,
-    connectWallet: result.connectWallet,
-    hasWallet: result.hasWallet,
-    
-    // Session key properties  
-    sessionKeyData: result.sessionKeyData,
-    sessionKeyState: result.sessionKeyState,
-    needsSessionKeyUpdate: result.needsSessionKeyUpdate,
-    updateSessionKey: result.updateSessionKey,
-    isUpdatingSessionKey: result.isUpdatingSessionKey,
-    
-    // Character properties
-    character: result.character,
-    characterId: result.characterId,
-    position: result.position,
-    
-    // Combat state
-    isInCombat: result.isInCombat,
-    
-    // Actions
-    moveCharacter: result.moveCharacter,
-    isMoving: result.isMoving,
-    attack: result.attack,
-    isAttacking: result.isAttacking,
-    allocatePoints: result.allocatePoints,
-    isAllocatingPoints: result.isAllocatingPoints,
-    sendChatMessage: result.sendChatMessage,
-    addOptimisticChatMessage: result.addOptimisticChatMessage,
-    isSendingChat: result.isSendingChat,
-    
-    // Logs
-    chatLogs: result.chatLogs,
-    eventLogs: result.eventLogs,
-    
-    // Other characters
-    others: result.others,
-  };
-};
 
