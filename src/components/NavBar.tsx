@@ -230,7 +230,7 @@ const NavBar: React.FC = () => {
                   hasArrow
                 >
                   <MenuItem 
-                    onClick={() => deactivateKey()} 
+                    onClick={() => deactivateKey(undefined)} 
                     isDisabled={!canDeactivate || isDeactivating}
                     closeOnSelect={false}
                     className='!bg-transparent'

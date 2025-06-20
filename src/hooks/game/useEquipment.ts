@@ -1,11 +1,11 @@
 import { useMemo, useCallback } from 'react';
-import { useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { useBattleNads } from './useBattleNads';
 import type { Weapon, Armor } from '@/types/domain';
-import { useToast } from '@chakra-ui/react';
 import { EquipmentSlot } from '@/types/domain';
+import { useGameMutation } from './useGameMutation';
 
 /**
  * Hook for equipment management
@@ -14,8 +14,6 @@ import { EquipmentSlot } from '@/types/domain';
 export const useEquipment = (characterId: string | null) => {
   const { injectedWallet } = useWallet();
   const { client } = useBattleNadsClient();
-  const queryClient = useQueryClient();
-  const toast = useToast();
   
   // Owner address
   const owner = injectedWallet?.address || null;
@@ -61,9 +59,9 @@ export const useEquipment = (characterId: string | null) => {
     })) || [];
   }, [rawEquipableArmorIDs, rawEquipableArmorNames]);
   
-  // Mutation for equipping items
-  const mutation = useMutation<void, Error, { slot: EquipmentSlot; itemId: number }>({
-    mutationFn: async ({ slot, itemId }: { slot: EquipmentSlot; itemId: number }) => {
+  // Mutation for equipping items using useGameMutation
+  const mutation = useGameMutation(
+    async ({ slot, itemId }: { slot: EquipmentSlot; itemId: number }) => {
       if (!client || !characterId) {
         throw new Error('Client or Character ID not available for equipping.');
       }
@@ -76,27 +74,12 @@ export const useEquipment = (characterId: string | null) => {
         throw new Error(`Invalid equipment slot: ${slot}`);
       }
     },
-    onSuccess: (_, variables) => {
-      toast({
-        title: 'Success',
-        description: `${variables.slot} equipped successfully.`,
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-      // Invalidate queries to refetch game state
-      queryClient.invalidateQueries({ queryKey: ['uiSnapshot', owner] });
-    },
-    onError: (error: Error, variables) => {
-      toast({
-        title: `Error equipping ${variables.slot}`,
-        description: error.message || 'An unknown error occurred',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
-    },
-  });
+    {
+      successMessage: (_, variables) => `${variables.slot} equipped successfully.`,
+      errorMessage: (error, variables) => `Error equipping ${variables.slot}: ${error.message || 'An unknown error occurred'}`,
+      mutationKey: ['equipItem', characterId || 'unknown', owner || 'unknown'],
+    }
+  );
   
   // Specific equip functions using the mutation
   const equipWeapon = useCallback((itemId: number) => {

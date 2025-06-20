@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useState, useEffect } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { domain } from '@/types';
 import { AbilityStage } from '@/types/domain/enums';
 import { useBattleNads } from './useBattleNads';
@@ -7,6 +7,7 @@ import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '@/providers/WalletProvider';
 import { useToast } from '@chakra-ui/react';
 import { AVG_BLOCK_TIME_MS } from '@/config/gas';
+import { useGameMutation } from './useGameMutation';
 
 // Define the cooldown timeout period in blocks
 const ABILITY_TIMEOUT_BLOCKS = 200;
@@ -38,7 +39,6 @@ export interface AbilityStatus {
 export const useAbilityCooldowns = (characterId: string | null) => {
   const { injectedWallet } = useWallet();
   const { client } = useBattleNadsClient();
-  const queryClient = useQueryClient();
   const toast = useToast();
   
   // Owner address
@@ -193,39 +193,28 @@ export const useAbilityCooldowns = (characterId: string | null) => {
   }, [abilitiesFromGameState, optimisticallyUsedAbility]);
 
   // Mutation for using an ability
-  const abilityMutation = useMutation({
-    mutationFn: async ({ abilityIndex, targetIndex }: { abilityIndex: domain.Ability, targetIndex: number }) => {
+  const abilityMutation = useGameMutation(
+    async ({ abilityIndex, targetIndex }: { abilityIndex: domain.Ability, targetIndex: number }) => {
       if (!client || !characterId) {
         throw new Error('Client or Character ID not available for using ability');
       }
       console.log(`[useAbilityCooldowns] Using ability ${abilityIndex} on target ${targetIndex} for char ${characterId}`);
       return client.useAbility(characterId, abilityIndex, targetIndex);
     },
-    onSuccess: (data, variables) => {
-      console.log(`[useAbilityCooldowns] Ability ${variables.abilityIndex} used successfully. Tx:`, data?.hash);
-      setOptimisticallyUsedAbility(variables.abilityIndex); // Set optimistic flag
-      setBlockOfOptimisticUse(currentBlock); // Capture current block at time of use
-      toast({
-        title: 'Ability Used',
-        description: 'Your ability has been activated!',
-        status: 'success',
-        duration: 3000,
-        isClosable: true,
-      });
-      // Invalidate queries to refetch game state after success
-      queryClient.invalidateQueries({ queryKey: ['uiSnapshot', owner] });
-    },
-    onError: (error: Error, variables) => {
-      console.error(`[useAbilityCooldowns] Error using ability ${variables.abilityIndex}:`, error);
-      toast({
-        title: 'Ability Failed',
-        description: error.message || 'Failed to use ability',
-        status: 'error',
-        duration: 5000,
-        isClosable: true,
-      });
+    {
+      successMessage: 'Your ability has been activated!',
+      errorMessage: (error) => error.message || 'Failed to use ability',
+      mutationKey: ['useAbility', characterId || 'unknown', owner || 'unknown'],
+      onSuccess: (data, variables) => {
+        console.log(`[useAbilityCooldowns] Ability ${variables.abilityIndex} used successfully. Tx:`, data?.hash);
+        setOptimisticallyUsedAbility(variables.abilityIndex); // Set optimistic flag
+        setBlockOfOptimisticUse(currentBlock); // Capture current block at time of use
+      },
+      onError: (error: Error, variables) => {
+        console.error(`[useAbilityCooldowns] Error using ability ${variables.abilityIndex}:`, error);
+      }
     }
-  });
+  );
 
   // Function to use an ability
   const useAbility = useCallback((abilityIndex: domain.Ability, targetIndex: number = 0) => {
@@ -238,13 +227,16 @@ export const useAbilityCooldowns = (characterId: string | null) => {
     
     if (!abilityStatus) {
        console.error(`[useAbilityCooldowns] Status not found for ability ${abilityIndex}`);
-       toast({ title: 'Error', description: `Could not find status for ability ${domain.Ability[abilityIndex]}.`, status: 'error', isClosable: true });
+       // Let useGameMutation handle the error toast
+       abilityMutation.mutate({ abilityIndex, targetIndex });
        return;
     }
 
     // Use the calculated isReady flag
     if (!abilityStatus.isReady) { 
       console.warn(`[useAbilityCooldowns] Ability ${abilityIndex} is not ready.`);
+      // For ability not ready, we still show a custom warning toast
+      // since this is a validation error, not a mutation error
       toast({
         title: 'Ability Not Ready',
         description: `This ability is currently ${getStageDescription(abilityStatus.stage)}. ${abilityStatus.secondsLeft.toFixed(0)}s remaining.`,
