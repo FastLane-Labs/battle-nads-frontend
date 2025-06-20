@@ -1,6 +1,5 @@
 // Barrel file for game hooks
-export * from './useBattleNads';
-export * from './useGame';
+export * from './useGameState'; // Now exports both new useGameState and legacy useBattleNads/useGame
 export * from './useEquipment';
 export * from './useUiSnapshot';
 export * from './useCachedDataFeed';

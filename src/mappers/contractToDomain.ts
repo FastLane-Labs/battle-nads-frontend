@@ -613,8 +613,8 @@ export function contractToWorldSnapshot(
           
           // Simple player detection: if participant has same ID as player character
           const playerCharacterId = raw.character?.id;
-          const isPlayerAttacker = playerCharacterId && attackerParticipant?.id === playerCharacterId;
-          const isPlayerDefender = playerCharacterId && defenderParticipant?.id === playerCharacterId;
+          const isPlayerAttacker = !!(playerCharacterId && attackerParticipant?.id === playerCharacterId);
+          const isPlayerDefender = !!(playerCharacterId && defenderParticipant?.id === playerCharacterId);
           
           // Display names with "You" for player
           const attackerName = isPlayerAttacker ? "You" : (attackerParticipant?.name || "Unknown");
@@ -671,14 +671,14 @@ export function contractToWorldSnapshot(
             areaId: snapshotAreaId, // Use determined snapshotAreaId
             isPlayerInitiated: isPlayer, 
             details: { 
-              hit: Boolean(log.hit),
-              critical: Boolean(log.critical),
-              damageDone: Number(log.damageDone),
-              healthHealed: Number(log.healthHealed),
-              targetDied: Boolean(log.targetDied),
-              lootedWeaponID: Number(log.lootedWeaponID),
-              lootedArmorID: Number(log.lootedArmorID),
-              experience: Number(log.experience),
+              hit: log.hit,
+              critical: log.critical,
+              damageDone: log.damageDone,
+              healthHealed: log.healthHealed,
+              targetDied: log.targetDied,
+              lootedWeaponID: log.lootedWeaponID,
+              lootedArmorID: log.lootedArmorID,
+              experience: log.experience,
               value: log.value 
             }, 
             displayMessage: displayMessage 
