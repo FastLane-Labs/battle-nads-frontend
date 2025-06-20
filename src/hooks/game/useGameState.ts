@@ -7,14 +7,13 @@ import { domain, contract } from '@/types';
 import { useToast } from '@chakra-ui/react';
 import { MAX_SESSION_KEY_VALIDITY_BLOCKS } from '../../config/env';
 import { TransactionResponse } from 'ethers';
-import { safeStringify } from '../../utils/bigintSerializer';
 import { mapSessionKeyData } from '../../mappers/contractToDomain';
 import { contractToWorldSnapshot, mapCharacterLite, processChatFeedsToDomain, mapCharacterToCharacterLite } from '@/mappers';
+import { createAreaID } from '@/utils/areaId';
 import { useCachedDataFeed, SerializedChatLog, CachedDataBlock, SerializedEventLog, storeFeedData } from './useCachedDataFeed';
 import { useUiSnapshot } from './useUiSnapshot';
 import { AVG_BLOCK_TIME_MS } from '@/config/gas';
 import { useGameMutation } from './useGameMutation';
-import { createAreaID } from '@/utils/areaId';
 
 export interface UseGameStateOptions {
   /** Whether to include action mutations and wallet integration (default: true) */
@@ -205,8 +204,20 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     const messages: domain.EventMessage[] = [];
     const currentPlayerIndex = rawData?.character ? Number(rawData.character.stats.index) : null;
     
+    // Calculate current player's area ID for filtering
+    const currentAreaId = rawData?.character ? 
+      createAreaID(
+        Number(rawData.character.stats.depth),
+        Number(rawData.character.stats.x),
+        Number(rawData.character.stats.y)
+      ) : BigInt(0);
+    
     historicalBlocks.forEach((block: CachedDataBlock) => {
       block.events?.forEach((event, index) => {
+        // Filter out events from different areas (skip old cached events with areaId "0")
+        if (event.areaId !== "0" && BigInt(event.areaId) !== currentAreaId) {
+          return;
+        }
         // Create event participant info from stored data with player substitution
         const attacker: domain.EventParticipant | undefined = event.mainPlayerIndex > 0 ? {
           id: `index_${event.mainPlayerIndex}`,
