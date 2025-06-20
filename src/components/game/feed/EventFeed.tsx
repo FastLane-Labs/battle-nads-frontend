@@ -1,5 +1,5 @@
-import React, { useMemo, useRef } from 'react';
-import { Box, Heading, Text, Spinner, Center } from '@chakra-ui/react';
+import React, { useMemo, useRef, useState, useEffect } from 'react';
+import { Box, Text, Spinner, Center } from '@chakra-ui/react';
 import { domain } from '@/types';
 import { EventLogItemRenderer } from './EventLogItemRenderer';
 import { useVirtualizer } from '@tanstack/react-virtual';
@@ -63,11 +63,75 @@ const EventFeed: React.FC<EventFeedProps> = ({
     });
   }, [eventLogs]);
 
+  // Track window width for responsive sizing
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // More accurate sizing estimation - much more conservative
+  const getEstimatedRowSize = useMemo(() => {
+    return (index: number) => {
+      const event = filteredEventLogs[index];
+      if (!event) return 35;
+      
+      // Base sizes adjusted to prevent cropping
+      const isMobile = windowWidth < 770; // Match your breakpoint
+      const baseSize = isMobile ? 70 : 60; // Significantly increased base sizes
+      
+      // Extra height calculation for details
+      let extraHeight = 0;
+      
+      // Add sufficient height for details row
+      if (event.details) {
+        const hasDetails = Boolean(
+          event.details.damageDone || 
+          event.details.healthHealed || 
+          event.details.experience || 
+          event.details.lootedWeaponID || 
+          event.details.lootedArmorID || 
+          event.details.targetDied
+        );
+        if (hasDetails) {
+          extraHeight += isMobile ? 18 : 16; // Increased to prevent cropping
+        }
+      }
+      
+      // Much more conservative height calculation for message wrapping
+      const messageLength = event.displayMessage?.length || 0;
+      if (isMobile) {
+        // On mobile, be more precise about wrapping
+        if (messageLength > 80) {
+          extraHeight += 12; // Long message
+        } else if (messageLength > 60) {
+          extraHeight += 8;  // Medium-long message
+        } else if (messageLength > 40) {
+          extraHeight += 4;  // Slightly longer message
+        }
+      } else {
+        // On desktop, messages wrap less frequently
+        if (messageLength > 100) {
+          extraHeight += 8; // Long message
+        } else if (messageLength > 70) {
+          extraHeight += 4; // Medium message
+        }
+      }
+      
+      return baseSize + extraHeight;
+    };
+  }, [filteredEventLogs, windowWidth]);
+
   const rowVirtualizer = useVirtualizer({ 
     count: filteredEventLogs?.length || 0,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 60,
-    overscan: 5,
+    estimateSize: getEstimatedRowSize,
+    overscan: 3, // Reduced overscan for better performance
+    scrollMargin: 0, // Remove default scroll margin
   });
   
   // Handle undefined/null combatants array safely
@@ -224,8 +288,6 @@ const EventFeed: React.FC<EventFeedProps> = ({
 
                   const itemKey = `${event.timestamp}-${event.logIndex}-${virtualRow.index}`;
                   
-                  let bgColor = "gray.700";
-                  
                   // Check if event involves the player directly (as attacker or defender)
                   const isPlayerAttacker = !!playerIndex && Number(event.attacker?.index) === Number(playerIndex);
                   const isPlayerDefender = !!playerIndex && Number(event.defender?.index) === Number(playerIndex);
@@ -244,13 +306,6 @@ const EventFeed: React.FC<EventFeedProps> = ({
                   // 1. Blue: Player-initiated actions (highest priority)
                   // 2. Red: Combat involving player's current combatants
                   // 3. Orange: Any other combat events (NPC vs NPC fights)
-                  if (involvesPlayer) {
-                    bgColor = "blue.900"; // Player involved (highest priority)
-                  } else if (involvesCombatant) {
-                    bgColor = "red.900"; // Current combatants involved
-                  } else if (isCombatEvent) {
-                    bgColor = "orange.900"; // Any other combat
-                  }
 
                   return (
                     <Box 
@@ -261,8 +316,10 @@ const EventFeed: React.FC<EventFeedProps> = ({
                       width="100%" 
                       height={`${virtualRow.size}px`}
                       transform={`translateY(${virtualRow.start}px)`}
-                      px={2}
-                      py={1}
+                      px={1}
+                      py={0.5}
+                      display="flex"
+                      alignItems="stretch"
                     >
                       <Box
                         bg={involvesPlayer ? "rgba(59, 130, 246, 0.1)" : involvesCombatant ? "rgba(239, 68, 68, 0.1)" : isCombatEvent ? "rgba(251, 146, 60, 0.1)" : "transparent"}
@@ -271,6 +328,8 @@ const EventFeed: React.FC<EventFeedProps> = ({
                         py={1}
                         border={involvesPlayer ? "1px solid rgba(59, 130, 246, 0.2)" : involvesCombatant ? "1px solid rgba(239, 68, 68, 0.2)" : isCombatEvent ? "1px solid rgba(251, 146, 60, 0.2)" : "1px solid transparent"}
                         transition="all 0.2s"
+                        width="100%"
+                        overflow="hidden" // Prevent content overflow
                         _hover={{
                           bg: involvesPlayer ? "rgba(59, 130, 246, 0.15)" : involvesCombatant ? "rgba(239, 68, 68, 0.15)" : isCombatEvent ? "rgba(251, 146, 60, 0.15)" : "rgba(255, 255, 255, 0.05)"
                         }}

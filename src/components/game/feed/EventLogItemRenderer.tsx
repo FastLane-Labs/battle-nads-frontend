@@ -149,10 +149,17 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
     : (event.displayMessage || generateDisplayMessage());
 
   return (
-    <Box fontSize="sm" textAlign="left">
-      <Flex alignItems="flex-start" justifyContent="space-between" gap={2}>
+    <Box fontSize={{ base: "xs", md: "sm" }} textAlign="left" minH={{ base: "45px", md: "40px" }} py={1}>
+      <Flex alignItems="flex-start" justifyContent="space-between" gap={2} h="100%">
         <Box flex="1" minW="0">
-          <Text color={getEventColor(event.type)} fontWeight="medium" lineHeight="1.4">
+          <Text 
+            color={getEventColor(event.type)} 
+            fontWeight="medium" 
+            lineHeight="1.3"
+            wordBreak="break-word"
+            overflowWrap="break-word"
+            mb={1}
+          >
             {displayMessage}
             {/* Additional detailed information */}
             {event.count && event.count > 1 && (
@@ -161,28 +168,28 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
           </Text>
           
           {/* Details row */}
-          <Flex flexWrap="wrap" gap={1} mt={1}>
+          <Flex flexWrap="wrap" gap={1}>
             {/* Damage dealt */}
             {event.details?.damageDone && !isNaN(Number(event.details.damageDone)) && Number(event.details.damageDone) > 0 && (
-              <chakra.span color="red.300" fontSize="xs" bg="rgba(239, 68, 68, 0.1)" px={1} borderRadius="sm">
+              <chakra.span color="red.300" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(239, 68, 68, 0.1)" px={1} borderRadius="sm">
                 {Number(event.details.damageDone)} dmg
               </chakra.span>
             )}
             {/* Health healed */}
             {event.details?.healthHealed && !isNaN(Number(event.details.healthHealed)) && Number(event.details.healthHealed) > 0 && (
-              <chakra.span color="green.300" fontSize="xs" bg="rgba(34, 197, 94, 0.1)" px={1} borderRadius="sm">
+              <chakra.span color="green.300" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(34, 197, 94, 0.1)" px={1} borderRadius="sm">
                 +{Number(event.details.healthHealed)} heal
               </chakra.span>
             )}
             {/* Experience gained */}
             {event.details?.experience && !isNaN(Number(event.details.experience)) && Number(event.details.experience) > 0 && (
-              <chakra.span color="green.300" fontSize="xs" bg="rgba(34, 197, 94, 0.1)" px={1} borderRadius="sm">
+              <chakra.span color="green.300" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(34, 197, 94, 0.1)" px={1} borderRadius="sm">
                 +{Number(event.details.experience)} XP
               </chakra.span>
             )}
             {/* Weapon looted */}
             {event.details?.lootedWeaponID && !isNaN(Number(event.details.lootedWeaponID)) && Number(event.details.lootedWeaponID) > 0 && (
-              <chakra.span color="yellow.400" fontSize="xs" bg="rgba(251, 191, 36, 0.1)" px={1} borderRadius="sm">
+              <chakra.span color="yellow.400" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(251, 191, 36, 0.1)" px={1} borderRadius="sm">
                 Weapon: {(() => {
                   try {
                     const weaponId = Number(event.details.lootedWeaponID);
@@ -200,7 +207,7 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
             )}
             {/* Armor looted */}
             {event.details?.lootedArmorID && !isNaN(Number(event.details.lootedArmorID)) && Number(event.details.lootedArmorID) > 0 && (
-              <chakra.span color="yellow.400" fontSize="xs" bg="rgba(251, 191, 36, 0.1)" px={1} borderRadius="sm">
+              <chakra.span color="yellow.400" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(251, 191, 36, 0.1)" px={1} borderRadius="sm">
                 Armor: {(() => {
                   try {
                     const armorId = Number(event.details.lootedArmorID);
@@ -217,7 +224,7 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
               </chakra.span>
             )}
             {event.details?.targetDied && (
-              <chakra.span color="red.500" fontWeight="bold" fontSize="xs" bg="rgba(239, 68, 68, 0.2)" px={1} borderRadius="sm">
+              <chakra.span color="red.500" fontWeight="bold" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(239, 68, 68, 0.2)" px={1} borderRadius="sm">
                 Target Died!
               </chakra.span>
             )}
@@ -225,7 +232,7 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
         </Box>
         
         <Tooltip label={`Block: ${event.blocknumber}, Idx: ${event.logIndex}`} fontSize="xs" hasArrow>
-          <Text fontSize="xs" color="gray.500" whiteSpace="nowrap" mt={0.5}>
+          <Text fontSize={{ base: "2xs", md: "xs" }} color="gray.500" whiteSpace="nowrap" mt={0.5}>
             {new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </Text>
         </Tooltip>
