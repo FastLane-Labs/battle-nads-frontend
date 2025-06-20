@@ -95,8 +95,14 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({
 
   return (
     <Box
-      className={`h-screen w-full flex items-center justify-center ${showBackground ? 'bg-black' : ''} ${className}`}
+      position="fixed"
+      top="0"
+      left="0"
+      right="0"
+      bottom="0"
+      className={`w-full flex items-center justify-center ${showBackground ? 'bg-black' : ''} ${className}`}
       style={backgroundStyle}
+      overflow="hidden"
     >
       {showBackground && backgroundImage && (
         <Box
