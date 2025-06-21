@@ -201,7 +201,8 @@ export const processDataFeedsToCachedBlocks = (
   combatantsContext: CharacterLite[] | undefined,
   nonCombatantsContext: CharacterLite[] | undefined,
   currentBlockNumber: bigint, // Add currentBlockNumber parameter
-  fetchTimestamp: number // Add fetchTimestamp parameter
+  fetchTimestamp: number, // Add fetchTimestamp parameter
+  playerAreaId?: bigint // Add player's current areaId
 ): CachedDataBlock[] => {
   if (!dataFeeds || dataFeeds.length === 0) {
     return [];
@@ -248,7 +249,7 @@ export const processDataFeedsToCachedBlocks = (
         otherPlayerIndex: log.otherPlayerIndex,
         attackerName: attackerInfo?.name,
         defenderName: defenderInfo?.name,
-        areaId: String(attackerInfo?.areaId || defenderInfo?.areaId || 0n), // Store as string for IndexedDB
+        areaId: String(playerAreaId || 0n), // Use player's current areaId
         hit: log.hit,
         critical: log.critical,
         damageDone: log.damageDone,
@@ -311,7 +312,8 @@ export const storeFeedData = async (
   combatantsContext: CharacterLite[] | undefined,
   nonCombatantsContext: CharacterLite[] | undefined,
   currentBlockNumber: bigint, // Add currentBlockNumber parameter
-  fetchTimestamp: number // Add fetchTimestamp parameter
+  fetchTimestamp: number, // Add fetchTimestamp parameter
+  playerAreaId?: bigint // Add player's current areaId
 ) => {
   if (!owner || !characterId || !dataFeeds || dataFeeds.length === 0) {
     return; // No owner/character or data to store
@@ -323,7 +325,8 @@ export const storeFeedData = async (
     combatantsContext,
     nonCombatantsContext,
     currentBlockNumber, 
-    fetchTimestamp
+    fetchTimestamp,
+    playerAreaId
   );
 
   // 2. Transform processed blocks into the format needed for Dexie (StoredDataBlock)
