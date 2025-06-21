@@ -10,7 +10,7 @@ import { TransactionResponse } from 'ethers';
 import { mapSessionKeyData } from '../../mappers/contractToDomain';
 import { contractToWorldSnapshot, mapCharacterLite } from '@/mappers';
 import { createAreaID } from '@/utils/areaId';
-import { useCachedDataFeed, CachedDataBlock, storeEventData } from './useCachedDataFeed';
+import { useCachedDataFeed, CachedDataBlock, storeEventData, storeChatMessagesDirectly } from './useCachedDataFeed';
 import { useUiSnapshot } from './useUiSnapshot';
 import { useGameMutation } from './useGameMutation';
 
@@ -72,8 +72,12 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     includeHistory ? characterId : null
   );
 
+  // Chat and event state management
+  const [optimisticChatMessages, setOptimisticChatMessages] = useState<domain.ChatMessage[]>([]);
+
   /* ---------- Previous state preservation ---------- */
   const previousGameStateRef = useRef<domain.WorldSnapshot | null>(null);
+  const previousEndBlockRef = useRef<number | null>(null);
 
   // Extract session key data and end block before mapping to UI state
   const rawSessionKeyData = useMemo(() => rawData?.sessionKeyData, [rawData]);
@@ -88,6 +92,14 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
   /* ---------- Runtime logs processing ---------- */
   const processAndMergeRuntimeLogs = useCallback((uiSnapshot: contract.PollFrontendDataReturn) => {
     // NOTE: Chat processing is now handled entirely by contractToWorldSnapshot
+    // This eliminates duplicate processing and character lookup issues
+    
+    // Update previous endBlock for continuity tracking
+    if (uiSnapshot.dataFeeds?.length > 0) {
+      const endBlock = Number(uiSnapshot.endBlock || 0);
+      previousEndBlockRef.current = endBlock;
+    }
+    
     
     // Store new feed data using event-level deduplication
     if (includeHistory && owner && characterId && uiSnapshot.dataFeeds?.length) {
@@ -115,6 +127,22 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       ).catch(error => {
         console.error('[useGameState] Error storing event data:', error);
       });
+    }
+    
+    // Also check if contractToWorldSnapshot found any chat messages that need to be stored
+    if (includeHistory && owner && characterId) {
+      const freshSnapshot = contractToWorldSnapshot(uiSnapshot, owner, characterId);
+      if (freshSnapshot?.chatLogs && freshSnapshot.chatLogs.length > 0) {
+        
+        // Store fresh chat messages directly to ensure they're persisted
+        storeChatMessagesDirectly(
+          owner,
+          characterId,
+          freshSnapshot.chatLogs
+        ).catch((error: unknown) => {
+          console.error('[useGameState] Error storing fresh chat messages:', error);
+        });
+      }
     }
   }, [includeHistory, owner, characterId]);
 
@@ -206,6 +234,21 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     return messages;
   }, [includeHistory, historicalBlocks, rawData]);
 
+  /* ---------- Combined chat/event logs ---------- */
+  const allChatMessages = useMemo(() => {
+    const combined = [
+      ...historicalChatMessages,
+      ...optimisticChatMessages
+    ];
+    
+    // Sort by block number, then by log index
+    return combined.sort((a, b) => {
+      const blockDiff = Number(a.blocknumber - b.blocknumber);
+      if (blockDiff !== 0) return blockDiff;
+      return a.logIndex - b.logIndex;
+    });
+  }, [historicalChatMessages, optimisticChatMessages]);
+
   /* ---------- Core game state mapping ---------- */
   const gameState = useMemo<domain.WorldSnapshot | null>(() => {
     if (!rawData) {
@@ -257,11 +300,55 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         const key = `${log.blocknumber}-${log.logIndex}`;
         combinedChatLogsMap.set(key, log);
       });
+      
       // 2. Add fresh chat logs from current snapshot (will override others if same key)
       snapshotBase.chatLogs.forEach(log => {
         const key = `${log.blocknumber}-${log.logIndex}`;
         combinedChatLogsMap.set(key, log);
       });
+      
+      
+      // 3. Add optimistic chat messages (but skip if we have a confirmed version)
+      optimisticChatMessages.forEach((optimistic) => {
+        // Check if we already have a confirmed version of this message
+        const confirmedInHistorical = historicalChatMessages.some(confirmed => 
+          confirmed.sender.index === optimistic.sender.index && 
+          confirmed.message === optimistic.message &&
+          Math.abs(confirmed.timestamp - optimistic.timestamp) <= 30000
+        );
+        
+        const confirmedInFresh = snapshotBase.chatLogs.some(confirmed => 
+          confirmed.sender.index === optimistic.sender.index && 
+          confirmed.message === optimistic.message &&
+          Math.abs(confirmed.timestamp - optimistic.timestamp) <= 30000
+        );
+        
+        const hasConfirmedVersion = Array.from(combinedChatLogsMap.values()).some(confirmed => {
+          // Must be from the same player
+          const isSamePlayer = confirmed.sender.index === optimistic.sender.index ||
+                              confirmed.sender.id === optimistic.sender.id;
+          
+          if (!isSamePlayer) return false;
+          
+          // Must have the same message content
+          const sameContent = confirmed.message === optimistic.message;
+          if (!sameContent) return false;
+          
+          // Must be within reasonable time window (30 seconds)
+          const timeDiff = Math.abs(confirmed.timestamp - optimistic.timestamp);
+          const withinTimeWindow = timeDiff <= 30000;
+          
+          
+          return sameContent && isSamePlayer && withinTimeWindow;
+        });
+        
+        // Only add optimistic if no confirmed version exists
+        if (!hasConfirmedVersion) {
+          const key = `optimistic-${optimistic.timestamp}-${optimistic.sender.index}`;
+          combinedChatLogsMap.set(key, optimistic);
+        }
+      });
+
 
       const finalChatLogs = Array.from(combinedChatLogsMap.values())
                               .sort((a, b) => a.timestamp - b.timestamp);
@@ -283,7 +370,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       console.error('[useGameState] Error mapping contract data to domain:', error);
       return previousGameStateRef.current;
     }
-  }, [rawData, includeHistory, historicalEventMessages, historicalChatMessages, owner, characterId]);
+  }, [rawData, includeHistory, historicalEventMessages, historicalChatMessages, optimisticChatMessages, owner, characterId]);
 
   /* ---------- Unified world snapshot with session data ---------- */
   const worldSnapshot = useMemo<domain.WorldSnapshot | null>(() => {
@@ -298,6 +385,55 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       sessionKeyData: mapSessionKeyData(sessionKeyData, owner)
     };
   }, [gameState, sessionKeyData, includeSessionKey]);
+
+  /* ---------- Optimistic chat management ---------- */
+  const addOptimisticChatMessage = useCallback((message: string) => {
+    if (!rawData?.character || !gameState) return;
+
+    // Check if this message already exists in the game state (confirmed)
+    const messageAlreadyExists = gameState.chatLogs.some(chat => {
+      // Must be from the same player
+      const isSamePlayer = chat.sender.id === rawData.character.id.toString() ||
+                          chat.sender.index === Number(rawData.character.stats.index);
+      
+      if (!isSamePlayer) return false;
+      
+      // Must have the same message content
+      const sameContent = chat.message === message;
+      if (!sameContent) return false;
+      
+      // Must be recent (within 30 seconds) to match deduplication window
+      const isRecent = Date.now() - chat.timestamp <= 30000;
+      
+      return sameContent && isSamePlayer && isRecent;
+    });
+
+    if (messageAlreadyExists) {
+      return;
+    }
+
+    const optimisticMessage: domain.ChatMessage = {
+      sender: {
+        id: rawData.character.id.toString(),
+        name: rawData.character.name,
+        index: Number(rawData.character.stats.index)
+      },
+      message,
+      blocknumber: rawData.endBlock,
+      timestamp: Date.now(),
+      logIndex: 9999,
+      isOptimistic: true
+    };
+
+    setOptimisticChatMessages(prev => [...prev, optimisticMessage]);
+
+    // Remove optimistic message after 30 seconds
+    setTimeout(() => {
+      setOptimisticChatMessages(prev => 
+        prev.filter(msg => msg !== optimisticMessage)
+      );
+    }, 30000);
+  }, [rawData, gameState]);
 
   /* ---------- Loading states ---------- */
   const isLoading = isSnapshotLoading || (includeHistory && isCacheHistoryLoading);
@@ -376,6 +512,9 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         showSuccessToast: false, // Don't show toast for chat
         mutationKey: ['sendChat', characterId || 'unknown', owner || 'unknown'],
         characterId,
+        onSuccess: (_, variables) => {
+          addOptimisticChatMessage(variables.message);
+        }
       }
     );
 
@@ -502,7 +641,8 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     isWalletInitialized,
     
     // Chat and events
-    chatLogs: gameState?.chatLogs || [],
+    addOptimisticChatMessage,
+    chatLogs: allChatMessages,
     eventLogs: gameState?.eventLogs || [],
     
     // Other characters in area

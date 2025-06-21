@@ -176,10 +176,9 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
           eventLogs={gameState?.eventLogs || []}
           onMove={handleMovement}
           onAttack={handleAttack}
+          onSendChatMessage={handleSendChatMessage}
           isMoving={isMoving}
           isAttacking={isAttacking}
-          onSendChatMessage={handleSendChatMessage}
-          addOptimisticChatMessage={addOptimisticChatMessage}
           isInCombat={isInCombat}
           isCacheLoading={isCacheLoading}
           equipableWeaponIDs={equipableWeaponIDs}
