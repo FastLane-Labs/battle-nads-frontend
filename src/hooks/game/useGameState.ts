@@ -10,7 +10,7 @@ import { TransactionResponse } from 'ethers';
 import { mapSessionKeyData } from '../../mappers/contractToDomain';
 import { contractToWorldSnapshot, mapCharacterLite, processChatFeedsToDomain } from '@/mappers';
 import { createAreaID } from '@/utils/areaId';
-import { useCachedDataFeed, CachedDataBlock, storeFeedData } from './useCachedDataFeed';
+import { useCachedDataFeed, CachedDataBlock, storeEventData } from './useCachedDataFeed';
 import { useUiSnapshot } from './useUiSnapshot';
 import { useGameMutation } from './useGameMutation';
 
@@ -64,11 +64,9 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
   // Historical data (optional) - conditionally disable by passing null
   const { 
     historicalBlocks, 
-    processedBlocks,
     isHistoryLoading: isCacheHistoryLoading,
     getAllCharactersForOwner,
-    getDataSummaryForOwner,
-    addNewEvents
+    getDataSummaryForOwner
   } = useCachedDataFeed(
     includeHistory ? owner : null, 
     includeHistory ? characterId : null
@@ -147,8 +145,8 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     // NOTE: Event processing is now handled entirely by contractToWorldSnapshot
     // This eliminates duplicate processing and the "Unknown performed action" issue
 
-    // Store new feed data using block deduplication
-    if (includeHistory && owner && characterId && uiSnapshot.dataFeeds?.length && processedBlocks) {
+    // Store new feed data using event-level deduplication
+    if (includeHistory && owner && characterId && uiSnapshot.dataFeeds?.length) {
       
       // Calculate current player's areaId
       const playerAreaId = uiSnapshot.character ? 
@@ -158,8 +156,8 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
           Number(uiSnapshot.character.stats.y)
         ) : BigInt(0);
       
-      // Store only new blocks with full context for name resolution
-      storeFeedData(
+      // Store individual events with full context for name resolution
+      storeEventData(
         owner,
         characterId, 
         uiSnapshot.dataFeeds,
@@ -167,16 +165,19 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         (uiSnapshot.noncombatants || []).map(c => mapCharacterLite(c)),
         uiSnapshot.endBlock,
         uiSnapshot.fetchTimestamp,
-        processedBlocks,
-        addNewEvents,
-        uiSnapshot.endBlock, // Pass endBlock for absolute block calculation
         playerAreaId,
-        uiSnapshot.character // Pass main player character for name lookup
-      ).catch(error => {
-        console.error('[useGameState] Error storing feed data:', error);
+        uiSnapshot.character, // Pass main player character for name lookup
+        uiSnapshot.endBlock // Pass endBlock for absolute block calculation
+      ).then(({ storedEvents, storedChatMessages }) => {
+        if (storedEvents > 0 || storedChatMessages > 0) {
+          console.log(`[useGameState] Stored ${storedEvents} events and ${storedChatMessages} chat messages`);
+          // Note: We no longer need addNewEvents since event-level storage loads fresh data on each mount
+        }
+      }).catch(error => {
+        console.error('[useGameState] Error storing event data:', error);
       });
     }
-  }, [characterLookup, includeHistory, owner, characterId, processedBlocks, addNewEvents]);
+  }, [characterLookup, includeHistory, owner, characterId]);
 
   // Process runtime logs when raw data changes
   useEffect(() => {
