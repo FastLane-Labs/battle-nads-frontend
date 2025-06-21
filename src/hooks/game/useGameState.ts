@@ -64,9 +64,11 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
   // Historical data (optional) - conditionally disable by passing null
   const { 
     historicalBlocks, 
+    processedBlocks,
     isHistoryLoading: isCacheHistoryLoading,
     getAllCharactersForOwner,
-    getDataSummaryForOwner 
+    getDataSummaryForOwner,
+    addNewEvents
   } = useCachedDataFeed(
     includeHistory ? owner : null, 
     includeHistory ? characterId : null
@@ -145,8 +147,8 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     // NOTE: Event processing is now handled entirely by contractToWorldSnapshot
     // This eliminates duplicate processing and the "Unknown performed action" issue
 
-    // Store the feed data in cache if includeHistory is enabled (let the original useBattleNads flow handle this)
-    if (includeHistory && owner && characterId && uiSnapshot.dataFeeds?.length) {
+    // Store new feed data using block deduplication
+    if (includeHistory && owner && characterId && uiSnapshot.dataFeeds?.length && processedBlocks) {
       // Calculate current player's areaId
       const playerAreaId = uiSnapshot.character ? 
         createAreaID(
@@ -155,7 +157,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
           Number(uiSnapshot.character.stats.y)
         ) : BigInt(0);
       
-      // Use the original storeFeedData function with correct parameters
+      // Store only new blocks with full context for name resolution
       storeFeedData(
         owner,
         characterId, 
@@ -164,11 +166,15 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         (uiSnapshot.noncombatants || []).map(c => mapCharacterLite(c)),
         uiSnapshot.endBlock,
         uiSnapshot.fetchTimestamp,
+        processedBlocks,
+        addNewEvents,
         playerAreaId,
         uiSnapshot.character // Pass main player character for name lookup
-      );
+      ).catch(error => {
+        console.error('[useGameState] Error storing feed data:', error);
+      });
     }
-  }, [characterLookup, includeHistory, owner, characterId]);
+  }, [characterLookup, includeHistory, owner, characterId, processedBlocks, addNewEvents]);
 
   // Process runtime logs when raw data changes
   useEffect(() => {
@@ -297,19 +303,22 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         return snapshotBase;
       }
 
-      // Combine historical and fresh event data
+      // Use historical events as the primary source (fully resolved names)
+      // and supplement with any fresh events not yet in cache
       const combinedEventLogsMap = new Map<string, domain.EventMessage>();
 
-      // 1. Add fresh logs from current snapshot first (lower priority)
-      snapshotBase.eventLogs.forEach(log => {
-        const key = `${log.blocknumber}-${log.logIndex}`;
-        combinedEventLogsMap.set(key, log);
-      });
-      // 2. Add historical event logs (higher priority, will override fresh events)
-      // Historical events have already been processed with complete character information
+      // 1. Add historical event logs first (highest priority - fully resolved)
       historicalEventMessages.forEach(log => {
         const key = `${log.blocknumber}-${log.logIndex}`;
         combinedEventLogsMap.set(key, log);
+      });
+      
+      // 2. Add fresh logs only if not already in historical (fallback for very new events)
+      snapshotBase.eventLogs.forEach(log => {
+        const key = `${log.blocknumber}-${log.logIndex}`;
+        if (!combinedEventLogsMap.has(key)) {
+          combinedEventLogsMap.set(key, log);
+        }
       });
 
       const finalEventLogs = Array.from(combinedEventLogsMap.values())

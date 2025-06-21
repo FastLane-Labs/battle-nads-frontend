@@ -4,14 +4,12 @@ import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { contract } from '../../types';
 import { POLL_INTERVAL, INITIAL_SNAPSHOT_LOOKBACK_BLOCKS } from '../../config/env';
-import { storeFeedData } from './useCachedDataFeed';
 import { mapCharacterLite } from '@/mappers';
 
 /**
  * Hook for polling UI snapshot data from the blockchain
  * Uses React-Query for caching and deduplication of requests
  * Returns raw contract data including dataFeeds directly from the poll.
- * Asynchronously stores fetched feeds to Dexie via storeFeedData utility.
  */
 export const useUiSnapshot = (owner: string | null) => {
   const { client } = useBattleNadsClient();
@@ -109,27 +107,8 @@ export const useUiSnapshot = (owner: string | null) => {
         lastSessionKeyDataRef.current = sessionKeyDataString;
       }
 
-      // Asynchronously store the newly fetched feeds
-      const liveFeeds = mappedData.dataFeeds;
-      // Pass combatants/noncombatants context needed for sender mapping
-      const domainCombatantsContext = (mappedData.combatants || []).map(mapCharacterLite);
-      const domainNonCombatantsContext = (mappedData.noncombatants || []).map(mapCharacterLite);
-
-      if (liveFeeds && liveFeeds.length > 0 && mappedData.character?.id) {
-        // Call storeFeedData with mapped context but DO NOT await it
-        storeFeedData(
-          owner,
-          mappedData.character.id, // Extract character ID from the fetched data
-          liveFeeds, 
-          domainCombatantsContext, 
-          domainNonCombatantsContext, 
-          mappedData.endBlock, 
-          mappedData.fetchTimestamp
-        )
-          .catch(storageError => {
-            console.error("[useUiSnapshot] Background feed storage failed:", storageError);
-          });
-      }
+      // Note: Feed storage is now handled by useGameState with proper block deduplication
+      // useUiSnapshot focuses only on fetching fresh contract data
       
       return mappedData;
     },
