@@ -274,10 +274,6 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     });
   }, [historicalChatMessages, runtimeConfirmedLogs, optimisticChatMessages]);
 
-  const allEventMessages = useMemo(() => {
-    // Only use historical messages - current events come from gameState.eventLogs
-    return historicalEventMessages;
-  }, [historicalEventMessages]);
 
   /* ---------- Core game state mapping ---------- */
   const gameState = useMemo<domain.WorldSnapshot | null>(() => {
@@ -614,7 +610,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     // Chat and events
     addOptimisticChatMessage,
     chatLogs: allChatMessages,
-    eventLogs: allEventMessages,
+    eventLogs: gameState?.eventLogs || [],
     
     // Other characters in area
     others: gameState?.combatants.filter(c => c.id !== characterId) || [],
