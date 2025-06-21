@@ -130,14 +130,38 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
 
     // Remove optimistic messages that match newly confirmed messages
     if (newlyConfirmedChatLogs.length > 0) {
+      console.log(`[useGameState] Found ${newlyConfirmedChatLogs.length} newly confirmed chat messages`);
       setOptimisticChatMessages(prev => {
-        return prev.filter(optimistic => {
+        const filteredMessages = prev.filter(optimistic => {
+          // Try multiple matching strategies since sender ID formats might differ
+          const isMatchByContent = newlyConfirmedChatLogs.some(confirmed => {
+            const contentMatch = confirmed.message === optimistic.message;
+            const senderIdMatch = confirmed.sender.id === optimistic.sender.id;
+            const senderNameMatch = confirmed.sender.name === optimistic.sender.name;
+            const senderIndexMatch = confirmed.sender.index === optimistic.sender.index;
+            
+            // Log matching attempts for debugging
+            if (contentMatch) {
+              console.log(`[useGameState] Content match found for message: "${optimistic.message}"`);
+              console.log(`[useGameState] Sender ID match: ${senderIdMatch}, Name match: ${senderNameMatch}, Index match: ${senderIndexMatch}`);
+              console.log(`[useGameState] Optimistic sender: ${JSON.stringify(optimistic.sender)}`);
+              console.log(`[useGameState] Confirmed sender: ${JSON.stringify(confirmed.sender)}`);
+            }
+            
+            // Match if content matches and any sender identifier matches
+            return contentMatch && (senderIdMatch || senderNameMatch || senderIndexMatch);
+          });
+          
+          if (isMatchByContent) {
+            console.log(`[useGameState] Removing optimistic message: "${optimistic.message}"`);
+          }
+          
           // Keep optimistic message if no confirmed message matches it
-          return !newlyConfirmedChatLogs.some(confirmed => 
-            confirmed.message === optimistic.message && 
-            confirmed.sender.id === optimistic.sender.id
-          );
+          return !isMatchByContent;
         });
+        
+        console.log(`[useGameState] Filtered optimistic messages: ${prev.length} -> ${filteredMessages.length}`);
+        return filteredMessages;
       });
     }
 
@@ -168,12 +192,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         playerAreaId,
         uiSnapshot.character, // Pass main player character for name lookup
         uiSnapshot.endBlock // Pass endBlock for absolute block calculation
-      ).then(({ storedEvents, storedChatMessages }) => {
-        if (storedEvents > 0 || storedChatMessages > 0) {
-          console.log(`[useGameState] Stored ${storedEvents} events and ${storedChatMessages} chat messages`);
-          // Note: We no longer need addNewEvents since event-level storage loads fresh data on each mount
-        }
-      }).catch(error => {
+      ).catch(error => {
         console.error('[useGameState] Error storing event data:', error);
       });
     }
