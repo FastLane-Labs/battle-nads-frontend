@@ -21,6 +21,7 @@ interface SerializedEventLog {
 }
 
 interface SerializedChatLog {
+  logIndex: number;
   content: string;
   timestamp: string;
   senderId: string;

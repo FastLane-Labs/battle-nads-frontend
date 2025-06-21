@@ -487,12 +487,43 @@ export const storeFeedData = async (
     events: block.events
   }));
 
-  // 5. Store in Dexie (persistence)
+  // 5. Store in Dexie (persistence) - Use add() instead of put() to prevent overwriting
   try {
     await db.transaction('rw', db.dataBlocks, async () => {
-      await db.dataBlocks.bulkPut(blocksToStore);
+      // Use add() to prevent overwriting existing blocks, or merge if they exist
+      for (const blockToStore of blocksToStore) {
+        const existingBlock = await db.dataBlocks
+          .where('[owner+contract+characterId+block]')
+          .equals([blockToStore.owner, blockToStore.contract, blockToStore.characterId, blockToStore.block])
+          .first();
+
+        if (existingBlock) {
+          // Merge chats and events instead of overwriting
+          const mergedChats = [...(existingBlock.chats || []), ...(blockToStore.chats || [])];
+          const mergedEvents = [...(existingBlock.events || []), ...(blockToStore.events || [])];
+          
+          // Deduplicate by logIndex
+          const uniqueChats = Array.from(
+            new Map(mergedChats.map(chat => [`${chat.logIndex}`, chat])).values()
+          );
+          const uniqueEvents = Array.from(
+            new Map(mergedEvents.map(event => [`${event.index}`, event])).values()
+          );
+
+          await db.dataBlocks.put({
+            ...existingBlock,
+            chats: uniqueChats,
+            events: uniqueEvents,
+            ts: Math.max(existingBlock.ts, blockToStore.ts) // Keep latest timestamp
+          });
+          console.log(`[storeFeedData] Merged block ${blockToStore.block}: ${uniqueChats.length} chats, ${uniqueEvents.length} events`);
+        } else {
+          await db.dataBlocks.add(blockToStore);
+          console.log(`[storeFeedData] Added new block ${blockToStore.block}: ${blockToStore.chats.length} chats, ${blockToStore.events.length} events`);
+        }
+      }
     });
-    console.log(`[storeFeedData] Successfully stored ${blocksToStore.length} new blocks to Dexie`);
+    console.log(`[storeFeedData] Successfully processed ${blocksToStore.length} blocks in Dexie`);
   } catch (txError) {
      console.error("[storeFeedData] Dexie transaction failed:", txError);
   }
