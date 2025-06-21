@@ -56,17 +56,10 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     data: rawData, 
     isLoading: isSnapshotLoading, 
     error: snapshotError, 
-  } = useUiSnapshot(owner) as {
-    data: contract.PollFrontendDataReturn | undefined;
-    isLoading: boolean;
-    error: Error | null;
-  };
+  } = useUiSnapshot(owner);
 
   // Character ID extraction for cache management
-  const characterId = useMemo(() => {
-    if (!rawData || !rawData.character) return null;
-    return rawData.character.id || null;
-  }, [rawData]);
+  const characterId = useMemo(() => rawData?.character?.id || null, [rawData]);
   
   // Historical data (optional) - conditionally disable by passing null
   const { 
