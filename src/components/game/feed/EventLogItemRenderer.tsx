@@ -136,7 +136,7 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
         return `${attackerName} started combat with ${defenderName}.`;
       
       case domain.LogType.EnteredArea:
-        return `${attackerName} entered the area.`;
+        return `${attackerName} entered the area (${event.areaId}).`;
       
       case domain.LogType.LeftArea:
         return `${attackerName} left the area.`;

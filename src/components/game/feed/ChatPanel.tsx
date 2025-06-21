@@ -9,19 +9,34 @@ interface ChatPanelProps {
   onSendChatMessage: (message: string) => Promise<void>;
   chatLogs: domain.ChatMessage[];
   isCacheLoading: boolean;
+  currentAreaId?: bigint;
 }
 
 const ChatPanel: React.FC<ChatPanelProps> = ({ 
   characterId, 
   onSendChatMessage, 
   chatLogs,
-  isCacheLoading
+  isCacheLoading,
+  currentAreaId
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  // Track previous area ID for change detection
+  const prevAreaIdRef = useRef<bigint | undefined>(currentAreaId);
+  
   // Transaction balance validation
   const { isTransactionDisabled, insufficientBalanceMessage } = useTransactionBalance();
+  
+  // Detect area ID changes and log when condition is met
+  useEffect(() => {
+    if (currentAreaId !== undefined && prevAreaIdRef.current !== undefined && 
+        currentAreaId !== prevAreaIdRef.current) {
+      console.log(`[ChatPanel] Area ID changed from ${prevAreaIdRef.current} to ${currentAreaId} - Chat reload condition met`);
+      // TODO: Implement chat reload logic here when needed
+    }
+    prevAreaIdRef.current = currentAreaId;
+  }, [currentAreaId]);
   
   const parentRef = useRef<HTMLDivElement>(null);
   
