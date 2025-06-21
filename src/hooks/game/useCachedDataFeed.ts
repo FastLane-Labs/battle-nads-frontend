@@ -498,6 +498,7 @@ export const storeEventData = async (
     endBlock
   );
 
+  
   let storedEvents = 0;
   let storedChatMessages = 0;
 
