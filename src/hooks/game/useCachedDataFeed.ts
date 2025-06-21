@@ -250,14 +250,16 @@ export const processDataFeedsToCachedBlocks = (
   // 4. Add main player character to lookup (most important for name resolution)
   if (mainPlayerCharacter) {
     const mainPlayerLite = mapCharacterToCharacterLite(mainPlayerCharacter);
-    const charData = { 
-      id: mainPlayerLite.id, 
-      name: mainPlayerLite.name, 
-      areaId: mainPlayerLite.areaId 
-    };
-    characterLookup.set(mainPlayerLite.index, charData);
-    // Update cache with main player data
-    characterNameCache.set(mainPlayerLite.index, charData);
+    if (mainPlayerLite) {
+      const charData = { 
+        id: mainPlayerLite.id, 
+        name: mainPlayerLite.name, 
+        areaId: mainPlayerLite.areaId 
+      };
+      characterLookup.set(mainPlayerLite.index, charData);
+      // Update cache with main player data
+      characterNameCache.set(mainPlayerLite.index, charData);
+    }
   }
   
   const processedBlocks: CachedDataBlock[] = [];
