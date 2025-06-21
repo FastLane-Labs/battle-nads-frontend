@@ -12,7 +12,6 @@ import { contractToWorldSnapshot, mapCharacterLite, processChatFeedsToDomain } f
 import { createAreaID } from '@/utils/areaId';
 import { useCachedDataFeed, CachedDataBlock, storeFeedData } from './useCachedDataFeed';
 import { useUiSnapshot } from './useUiSnapshot';
-import { AVG_BLOCK_TIME_MS } from '@/config/gas';
 import { useGameMutation } from './useGameMutation';
 
 export interface UseGameStateOptions {
@@ -76,7 +75,6 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
   // Chat and event state management
   const [optimisticChatMessages, setOptimisticChatMessages] = useState<domain.ChatMessage[]>([]);
   const [runtimeConfirmedLogs, setRuntimeConfirmedLogs] = useState<domain.ChatMessage[]>([]);
-  const [runtimeEventLogs, setRuntimeEventLogs] = useState<domain.EventMessage[]>([]);
 
   /* ---------- Previous state preservation ---------- */
   const previousGameStateRef = useRef<domain.WorldSnapshot | null>(null);
@@ -110,15 +108,6 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
   const sessionKeyData = sessionKeyHook?.sessionKeyData || null;
   const sessionKeyState = sessionKeyHook?.sessionKeyState || null;
 
-  /* ---------- Block timestamp estimation ---------- */
-  const estimateBlockTimestamp = useCallback((blockNumber: bigint): number => {
-    if (!rawData?.endBlock) return Date.now();
-    
-    const currentBlockBigInt = rawData.endBlock;
-    const blockDifference = Number(blockNumber - currentBlockBigInt);
-    const estimatedMs = blockDifference * AVG_BLOCK_TIME_MS;
-    return Date.now() + estimatedMs;
-  }, [rawData?.endBlock]);
 
   /* ---------- Runtime logs processing ---------- */
   const processAndMergeRuntimeLogs = useCallback((uiSnapshot: contract.PollFrontendDataReturn) => {
@@ -139,13 +128,19 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       return [...prev, ...newLogs];
     });
 
-    // Calculate snapshot area ID from player position (like contractToWorldSnapshot does)
-    const snapshotAreaId = uiSnapshot.character ? 
-      createAreaID(
-        Number(uiSnapshot.character.stats.depth),
-        Number(uiSnapshot.character.stats.x),
-        Number(uiSnapshot.character.stats.y)
-      ) : BigInt(0);
+    // Remove optimistic messages that match newly confirmed messages
+    if (newlyConfirmedChatLogs.length > 0) {
+      setOptimisticChatMessages(prev => {
+        return prev.filter(optimistic => {
+          // Keep optimistic message if no confirmed message matches it
+          return !newlyConfirmedChatLogs.some(confirmed => 
+            confirmed.message === optimistic.message && 
+            confirmed.sender.id === optimistic.sender.id
+          );
+        });
+      });
+    }
+
 
     // NOTE: Event processing is now handled entirely by contractToWorldSnapshot
     // This eliminates duplicate processing and the "Unknown performed action" issue
@@ -163,14 +158,14 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         uiSnapshot.fetchTimestamp
       );
     }
-  }, [characterLookup, includeHistory, owner, characterId, estimateBlockTimestamp]);
+  }, [characterLookup, includeHistory, owner, characterId]);
 
   // Process runtime logs when raw data changes
   useEffect(() => {
     if (rawData) {
       processAndMergeRuntimeLogs(rawData);
     }
-  }, [rawData, processAndMergeRuntimeLogs]);
+  }, [rawData]);
 
   /* ---------- Historical chat processing ---------- */
   const historicalChatMessages = useMemo<domain.ChatMessage[]>(() => {
@@ -212,7 +207,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       ) : BigInt(0);
     
     historicalBlocks.forEach((block: CachedDataBlock) => {
-      block.events?.forEach((event, index) => {
+      block.events?.forEach((event) => {
         // Filter out events from different areas (skip old cached events with areaId "0")
         if (event.areaId !== "0" && BigInt(event.areaId) !== currentAreaId) {
           return;
@@ -274,14 +269,9 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
   }, [historicalChatMessages, runtimeConfirmedLogs, optimisticChatMessages]);
 
   const allEventMessages = useMemo(() => {
-    const combined = [...historicalEventMessages, ...runtimeEventLogs];
-    
-    return combined.sort((a, b) => {
-      const blockDiff = Number(a.blocknumber - b.blocknumber);
-      if (blockDiff !== 0) return blockDiff;
-      return a.logIndex - b.logIndex;
-    });
-  }, [historicalEventMessages, runtimeEventLogs]);
+    // Only use historical messages - current events come from gameState.eventLogs
+    return historicalEventMessages;
+  }, [historicalEventMessages]);
 
   /* ---------- Core game state mapping ---------- */
   const gameState = useMemo<domain.WorldSnapshot | null>(() => {
@@ -305,21 +295,15 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         return snapshotBase;
       }
 
-      // Combine historical, runtime, and fresh data like the original useBattleNads
+      // Combine historical and fresh event data
       const combinedEventLogsMap = new Map<string, domain.EventMessage>();
-      const validRuntimeEventLogs = runtimeEventLogs.filter(log => log.blocknumber !== undefined && log.logIndex !== undefined);
 
-      // 1. Add historical event logs (lowest priority)
+      // 1. Add historical event logs (lower priority)
       historicalEventMessages.forEach(log => {
         const key = `${log.blocknumber}-${log.logIndex}`;
         combinedEventLogsMap.set(key, log);
       });
-      // 2. Add runtime logs (medium priority, may override historical)
-      validRuntimeEventLogs.forEach(log => {
-        const key = `${log.blocknumber}-${log.logIndex}`;
-        combinedEventLogsMap.set(key, log);
-      });
-      // 3. Add fresh logs from current snapshot (highest priority, will override historical/runtime)
+      // 2. Add fresh logs from current snapshot (higher priority, will override historical)
       snapshotBase.eventLogs.forEach(log => {
         const key = `${log.blocknumber}-${log.logIndex}`;
         combinedEventLogsMap.set(key, log);
@@ -332,24 +316,24 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       const combinedChatLogsMap = new Map<string, domain.ChatMessage>();
       const validRuntimeChatLogs = runtimeConfirmedLogs.filter(chat => chat.blocknumber !== undefined && chat.logIndex !== undefined);
 
-      // 1. Add historical chat logs
+      // 1. Add historical chat logs (use consistent key format)
       historicalChatMessages.forEach(log => {
-        const key = `hist-${log.blocknumber}-${log.logIndex}`;
+        const key = `${log.blocknumber}-${log.logIndex}`;
         combinedChatLogsMap.set(key, log);
       });
-      // 2. Add runtime confirmed chat logs 
+      // 2. Add runtime confirmed chat logs (will override historical if same key)
       validRuntimeChatLogs.forEach(log => {
-        const key = `live-${log.blocknumber}-${log.logIndex}`; 
+        const key = `${log.blocknumber}-${log.logIndex}`; 
         combinedChatLogsMap.set(key, log);
       });
-      // 3. Add fresh chat logs from current snapshot
+      // 3. Add fresh chat logs from current snapshot (will override others if same key)
       snapshotBase.chatLogs.forEach(log => {
-        const key = `snap-${log.blocknumber}-${log.logIndex}`;
+        const key = `${log.blocknumber}-${log.logIndex}`;
         combinedChatLogsMap.set(key, log);
       });
-      // 4. Add optimistic chat messages
-      optimisticChatMessages.forEach(log => {
-        const key = `opt-${log.timestamp}-${log.sender.id}-${log.message.slice(0,10)}`;
+      // 4. Add optimistic chat messages (these have unique keys since they're not from blockchain yet)
+      optimisticChatMessages.forEach((log, index) => {
+        const key = `optimistic-${log.timestamp}-${index}`;
         combinedChatLogsMap.set(key, log);
       });
 
@@ -373,7 +357,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       console.error('[useGameState] Error mapping contract data to domain:', error);
       return previousGameStateRef.current;
     }
-  }, [rawData, includeHistory, historicalEventMessages, runtimeEventLogs, historicalChatMessages, runtimeConfirmedLogs, optimisticChatMessages, owner, characterId]);
+  }, [rawData, includeHistory, historicalEventMessages, historicalChatMessages, runtimeConfirmedLogs, optimisticChatMessages, owner, characterId]);
 
   /* ---------- Unified world snapshot with session data ---------- */
   const worldSnapshot = useMemo<domain.WorldSnapshot | null>(() => {
