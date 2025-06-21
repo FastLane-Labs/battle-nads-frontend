@@ -302,6 +302,7 @@ describe('storeFeedData', () => {
       Date.now(),
       processedBlocks,
       addNewEvents,
+      1000n, // endBlock
       123n
     );
 
@@ -323,7 +324,8 @@ describe('storeFeedData', () => {
       1000n,
       Date.now(),
       processedBlocks,
-      addNewEvents
+      addNewEvents,
+      1000n // endBlock
     );
 
     expect(result).toHaveLength(0);
@@ -369,7 +371,8 @@ describe('storeFeedData', () => {
       1000n,
       Date.now(),
       processedBlocks,
-      addNewEvents
+      addNewEvents,
+      1000n // endBlock
     );
 
     expect(result).toHaveLength(1);

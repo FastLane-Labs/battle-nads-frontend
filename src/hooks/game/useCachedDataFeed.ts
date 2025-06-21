@@ -253,11 +253,22 @@ export const processDataFeedsToCachedBlocks = (
   currentBlockNumber: bigint, // Add currentBlockNumber parameter
   fetchTimestamp: number, // Add fetchTimestamp parameter
   playerAreaId?: bigint, // Add player's current areaId
-  mainPlayerCharacter?: contract.Character // Add main player character for name lookup
+  mainPlayerCharacter?: contract.Character, // Add main player character for name lookup
+  endBlock?: bigint // Add endBlock to calculate absolute block numbers
 ): CachedDataBlock[] => {
   if (!dataFeeds || dataFeeds.length === 0) {
     return [];
   }
+
+  // Calculate the base block number for absolute block calculation
+  // DataFeed.blockNumber is relative to the query range
+  const maxRelativeBlock = dataFeeds.reduce((max, feed) => {
+    const feedBlock = feed.blockNumber ? Number(feed.blockNumber) : 0;
+    return Math.max(max, feedBlock);
+  }, 0);
+  
+  const baseBlock = endBlock ? Number(endBlock) - maxRelativeBlock : 0;
+  console.log(`[processDataFeedsToCachedBlocks] Calculated baseBlock: ${baseBlock}, maxRelativeBlock: ${maxRelativeBlock}, endBlock: ${endBlock}`);
 
   // Get the current timestamp once for the whole batch processing
   // Use the provided fetchTimestamp as the reference point
@@ -305,8 +316,14 @@ export const processDataFeedsToCachedBlocks = (
   const processedBlocks: CachedDataBlock[] = [];
 
   for (const feed of dataFeeds) {
-    const blockNumberBigInt = feed.blockNumber ? BigInt(feed.blockNumber) : undefined;
-    if (blockNumberBigInt === undefined) continue; 
+    const relativeBlockNumber = feed.blockNumber ? Number(feed.blockNumber) : undefined;
+    if (relativeBlockNumber === undefined) continue;
+    
+    // Calculate absolute block number: baseBlock + relative offset
+    const absoluteBlockNumber = baseBlock + relativeBlockNumber;
+    const blockNumberBigInt = BigInt(absoluteBlockNumber);
+    
+    console.log(`[processDataFeedsToCachedBlocks] Feed relative block: ${relativeBlockNumber}, absolute: ${absoluteBlockNumber}`); 
 
     const estimatedBlockTimestamp = estimateBlockTimestamp(
       currentBlockNumber, // lastBlock (reference block)
@@ -418,6 +435,7 @@ export const storeFeedData = async (
   fetchTimestamp: number,
   processedBlocks: Set<string>,
   addNewEvents: (blocks: CachedDataBlock[]) => void,
+  endBlock: bigint, // Add endBlock parameter
   playerAreaId?: bigint,
   mainPlayerCharacter?: contract.Character
 ): Promise<CachedDataBlock[]> => {
@@ -446,7 +464,8 @@ export const storeFeedData = async (
     currentBlockNumber, 
     fetchTimestamp,
     playerAreaId,
-    mainPlayerCharacter
+    mainPlayerCharacter,
+    endBlock // Pass the actual endBlock from the UI snapshot
   );
 
   if (processedNewBlocks.length === 0) {
