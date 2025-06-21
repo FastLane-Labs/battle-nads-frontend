@@ -68,6 +68,7 @@ const FEED_TTL = 1000 * 60 * 60; // 1 hour in ms
 export const useCachedDataFeed = (owner: string | null, characterId: string | null) => {
   const [historicalBlocks, setHistoricalBlocks] = useState<CachedDataBlock[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   useEffect(() => {
     let isMounted = true;
@@ -144,7 +145,7 @@ export const useCachedDataFeed = (owner: string | null, characterId: string | nu
     return () => {
       isMounted = false;
     };
-  }, [owner, characterId]); // Now depends on both owner and characterId
+  }, [owner, characterId, refreshTrigger]); // Now depends on refresh trigger too
 
   // Utility function to get all characters for current owner
   const getAllCharactersForOwner = useCallback(async (ownerAddress: string) => {
@@ -197,12 +198,18 @@ export const useCachedDataFeed = (owner: string | null, characterId: string | nu
     }
   }, []);
 
+  // Function to refresh cached data
+  const refreshCachedData = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
+
   // Return the historical blocks and loading state, plus utility functions
   return {
     historicalBlocks, // Return the state variable
     isHistoryLoading,
     getAllCharactersForOwner, // For character switching UI
     getDataSummaryForOwner,   // For showing data availability per character
+    refreshCachedData, // For triggering refresh after new data is stored
   };
 };
 
