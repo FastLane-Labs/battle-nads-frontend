@@ -5,13 +5,13 @@ import { CharacterLite } from '@/types/domain'; // Import CharacterLite
 import { estimateBlockTimestamp } from '@/utils/blockUtils'; // Import the new utility function
 import { ENTRYPOINT_ADDRESS } from '../../config/env'; // Import contract address
 
-// Define SerializedEventLog based on contract.Log, converting BigInts
+// Define SerializedEventLog based on contract.Log, converting BigInts to numbers
 // Export needed types
 export interface SerializedEventLog {
   logType: number;
   index: number;
-  mainPlayerIndex: number;
-  otherPlayerIndex: number;
+  mainPlayerIndex: number; // Converted from BigInt to number
+  otherPlayerIndex: number; // Converted from BigInt to number
   attackerName?: string;
   defenderName?: string;
   areaId: string;
@@ -240,13 +240,15 @@ export const processDataFeedsToCachedBlocks = (
       const logTypeNum = Number(log.logType);
 
       // Process Event Log (always)
-      const attackerInfo = characterLookup.get(Number(log.mainPlayerIndex));
-      const defenderInfo = characterLookup.get(Number(log.otherPlayerIndex));
+      const mainPlayerIndexNum = Number(log.mainPlayerIndex);
+      const otherPlayerIndexNum = Number(log.otherPlayerIndex);
+      const attackerInfo = characterLookup.get(mainPlayerIndexNum);
+      const defenderInfo = characterLookup.get(otherPlayerIndexNum);
       serializedEventsForBlock.push({
         logType: log.logType,
         index: logIndexNum,
-        mainPlayerIndex: log.mainPlayerIndex,
-        otherPlayerIndex: log.otherPlayerIndex,
+        mainPlayerIndex: mainPlayerIndexNum,
+        otherPlayerIndex: otherPlayerIndexNum,
         attackerName: attackerInfo?.name,
         defenderName: defenderInfo?.name,
         areaId: String(playerAreaId || 0n), // Use player's current areaId
