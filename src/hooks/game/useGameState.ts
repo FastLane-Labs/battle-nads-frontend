@@ -300,13 +300,14 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       // Combine historical and fresh event data
       const combinedEventLogsMap = new Map<string, domain.EventMessage>();
 
-      // 1. Add historical event logs (lower priority)
-      historicalEventMessages.forEach(log => {
+      // 1. Add fresh logs from current snapshot first (lower priority)
+      snapshotBase.eventLogs.forEach(log => {
         const key = `${log.blocknumber}-${log.logIndex}`;
         combinedEventLogsMap.set(key, log);
       });
-      // 2. Add fresh logs from current snapshot (higher priority, will override historical)
-      snapshotBase.eventLogs.forEach(log => {
+      // 2. Add historical event logs (higher priority, will override fresh events)
+      // Historical events have already been processed with complete character information
+      historicalEventMessages.forEach(log => {
         const key = `${log.blocknumber}-${log.logIndex}`;
         combinedEventLogsMap.set(key, log);
       });
