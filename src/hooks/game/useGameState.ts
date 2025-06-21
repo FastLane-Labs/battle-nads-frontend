@@ -148,9 +148,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     // This eliminates duplicate processing and the "Unknown performed action" issue
 
     // Store new feed data using block deduplication
-    // Only store when we have adequate character context to resolve names
-    if (includeHistory && owner && characterId && uiSnapshot.dataFeeds?.length && processedBlocks && 
-        (uiSnapshot.combatants?.length || uiSnapshot.noncombatants?.length || uiSnapshot.character)) {
+    if (includeHistory && owner && characterId && uiSnapshot.dataFeeds?.length && processedBlocks) {
       
       // Calculate current player's areaId
       const playerAreaId = uiSnapshot.character ? 
