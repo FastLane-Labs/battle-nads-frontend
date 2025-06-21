@@ -208,10 +208,6 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     
     historicalBlocks.forEach((block: CachedDataBlock) => {
       block.events?.forEach((event) => {
-        // Filter out events from different areas (skip old cached events with areaId "0")
-        if (event.areaId !== "0" && BigInt(event.areaId) !== currentAreaId) {
-          return;
-        }
         // Create event participant info from stored data with player substitution
         const attacker: domain.EventParticipant | undefined = event.mainPlayerIndex > 0 ? {
           id: `index_${event.mainPlayerIndex}`,
@@ -232,7 +228,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
           type: event.logType as domain.LogType,
           attacker: attacker,
           defender: defender,
-          areaId: BigInt(event.areaId),
+          areaId: currentAreaId,
           isPlayerInitiated: false,
           details: {
             hit: event.hit,
