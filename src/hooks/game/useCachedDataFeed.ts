@@ -329,25 +329,21 @@ export const processDataFeedsToCachedBlocks = (
       const otherPlayerIndexNum = Number(log.otherPlayerIndex);
       const attackerInfo = characterLookup.get(mainPlayerIndexNum);
       const defenderInfo = characterLookup.get(otherPlayerIndexNum);
-      // Generate better fallback names when character info is not available
-      const getCharacterFallbackName = (playerIndex: number, isAttacker: boolean): string => {
-        if (playerIndex <= 0) return 'Unknown';
-        
-        // Try to determine if it's likely a player or NPC based on index range
-        if (playerIndex < 100) {
-          return isAttacker ? `Player ${playerIndex}` : `Character ${playerIndex}`;
-        } else {
-          return isAttacker ? `Creature ${playerIndex}` : `Enemy ${playerIndex}`;
-        }
-      };
+      
+      // Skip storing events if we don't have proper character names resolved
+      // This prevents storing "Character X" fallback names in localStorage
+      if (!attackerInfo?.name || !defenderInfo?.name) {
+        console.log(`[processDataFeedsToCachedBlocks] Skipping event storage - missing character names for indices ${mainPlayerIndexNum}/${otherPlayerIndexNum}`);
+        return; // Skip this event, don't store it
+      }
 
       serializedEventsForBlock.push({
         logType: log.logType,
         index: logIndexNum,
         mainPlayerIndex: mainPlayerIndexNum,
         otherPlayerIndex: otherPlayerIndexNum,
-        attackerName: attackerInfo?.name || getCharacterFallbackName(mainPlayerIndexNum, true),
-        defenderName: defenderInfo?.name || getCharacterFallbackName(otherPlayerIndexNum, false),
+        attackerName: attackerInfo.name,
+        defenderName: defenderInfo.name,
         areaId: String(playerAreaId || 0n), // Use player's current areaId
         hit: log.hit,
         critical: log.critical,
