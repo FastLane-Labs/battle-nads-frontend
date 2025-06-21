@@ -3,6 +3,7 @@ import { Box, Text, Spinner, Center } from '@chakra-ui/react';
 import { domain } from '@/types';
 import { EventLogItemRenderer } from './EventLogItemRenderer';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { filterEventsByArea } from '@/utils/eventFiltering';
 
 interface EventFeedProps {
   playerIndex: number | null;
@@ -16,6 +17,8 @@ interface EventFeedProps {
   equipableArmorNames?: string[];
   // Add player character class for ability mapping
   playerCharacterClass?: domain.CharacterClass;
+  // Add current player area ID for filtering
+  currentAreaId?: bigint;
 }
 
 const EventFeed: React.FC<EventFeedProps> = ({ 
@@ -27,12 +30,13 @@ const EventFeed: React.FC<EventFeedProps> = ({
   equipableWeaponNames,
   equipableArmorIDs,
   equipableArmorNames,
-  playerCharacterClass
+  playerCharacterClass,
+  currentAreaId
 }) => {
   
   const parentRef = useRef<HTMLDivElement>(null);
 
-  // Filter out chat messages (type 4) from event logs
+  // Filter events by area and exclude chat messages
   // Also filter out combat events with dead players
   const filteredEventLogs = useMemo(() => {
     // Handle undefined/null eventLogs array
@@ -40,7 +44,13 @@ const EventFeed: React.FC<EventFeedProps> = ({
       return [];
     }
     
-    return eventLogs.filter(event => {
+    // First filter by area if currentAreaId is provided
+    const areaFilteredEvents = currentAreaId !== undefined 
+      ? filterEventsByArea(eventLogs, currentAreaId)
+      : eventLogs;
+    
+    // Then apply other filters
+    return areaFilteredEvents.filter(event => {
       // Skip events without proper structure
       if (!event || typeof event.type === 'undefined') {
         return false;
@@ -61,7 +71,7 @@ const EventFeed: React.FC<EventFeedProps> = ({
       // Keep all other events
       return true;
     });
-  }, [eventLogs]);
+  }, [eventLogs, currentAreaId]);
 
   // Track window width for responsive sizing
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
