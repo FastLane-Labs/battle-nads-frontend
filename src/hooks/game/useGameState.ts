@@ -8,7 +8,7 @@ import { useToast } from '@chakra-ui/react';
 import { MAX_SESSION_KEY_VALIDITY_BLOCKS } from '../../config/env';
 import { TransactionResponse } from 'ethers';
 import { mapSessionKeyData } from '../../mappers/contractToDomain';
-import { contractToWorldSnapshot, mapCharacterLite, processChatFeedsToDomain } from '@/mappers';
+import { contractToWorldSnapshot, mapCharacterLite } from '@/mappers';
 import { createAreaID } from '@/utils/areaId';
 import { useCachedDataFeed, CachedDataBlock, storeEventData } from './useCachedDataFeed';
 import { useUiSnapshot } from './useUiSnapshot';
@@ -72,10 +72,6 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     includeHistory ? characterId : null
   );
 
-  // Chat and event state management
-  const [optimisticChatMessages, setOptimisticChatMessages] = useState<domain.ChatMessage[]>([]);
-  const [runtimeConfirmedLogs, setRuntimeConfirmedLogs] = useState<domain.ChatMessage[]>([]);
-
   /* ---------- Previous state preservation ---------- */
   const previousGameStateRef = useRef<domain.WorldSnapshot | null>(null);
 
@@ -84,102 +80,15 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
   const rawEndBlock = useMemo(() => rawData?.endBlock, [rawData]);
   const balanceShortfall = useMemo(() => rawData?.balanceShortfall, [rawData]);
 
-  // Character lookup map
-  const characterLookup = useMemo<Map<number, domain.CharacterLite>>(() => {
-    const map = new Map<number, domain.CharacterLite>();
-    if (rawData) {
-      // Add current combatants from fresh contract data
-      (rawData.combatants || []).forEach(c => {
-        const mapped = mapCharacterLite(c);
-        map.set(Number(c.index), mapped);
-      });
-      
-      // Add current noncombatants from fresh contract data
-      (rawData.noncombatants || []).forEach(c => {
-        const mapped = mapCharacterLite(c);
-        map.set(Number(c.index), mapped);
-      });
-    }
-    return map;
-  }, [rawData]);
-
   /* ---------- Session key management (optional) ---------- */
   const sessionKeyHook = useSessionKey(includeSessionKey ? characterId : null);
   const sessionKeyData = sessionKeyHook?.sessionKeyData || null;
   const sessionKeyState = sessionKeyHook?.sessionKeyState || null;
 
-
   /* ---------- Runtime logs processing ---------- */
   const processAndMergeRuntimeLogs = useCallback((uiSnapshot: contract.PollFrontendDataReturn) => {
-    // Process fresh chat logs using the same pattern as useBattleNads
-    const newlyConfirmedChatLogs = processChatFeedsToDomain(
-      uiSnapshot.dataFeeds,
-      characterLookup,
-      BigInt(uiSnapshot.endBlock || 0),
-      uiSnapshot.fetchTimestamp
-    );
-
-    // Add newly confirmed chat logs
-    setRuntimeConfirmedLogs(prev => {
-      const existingKeys = new Set(prev.map(log => `conf-${log.blocknumber}-${log.logIndex}`));
-      const newLogs = newlyConfirmedChatLogs.filter(log => 
-        !existingKeys.has(`conf-${log.blocknumber}-${log.logIndex}`)
-      );
-      return [...prev, ...newLogs];
-    });
-
-    // Remove optimistic messages that match newly confirmed messages
-    if (newlyConfirmedChatLogs.length > 0) {
-      setOptimisticChatMessages(prev => {
-        const currentTime = Date.now();
-        
-        return prev.filter(optimistic => {
-          // Only check for matches from the current player within 5 seconds
-          const isOwnMessage = optimistic.sender.id === rawData?.character?.id.toString() ||
-                              optimistic.sender.index === Number(rawData?.character?.stats.index);
-          
-          if (!isOwnMessage) {
-            // Keep all optimistic messages that aren't from the current player
-            return true;
-          }
-          
-          // For own messages, check if there's a matching confirmed message
-          const hasMatchingConfirmed = newlyConfirmedChatLogs.some(confirmed => {
-            // Must be from the same player
-            const isSamePlayer = confirmed.sender.index === optimistic.sender.index ||
-                                confirmed.sender.id === optimistic.sender.id;
-            
-            if (!isSamePlayer) return false;
-            
-            // Must have the same message content
-            const sameContent = confirmed.message === optimistic.message;
-            if (!sameContent) return false;
-            
-            // Must be within 5 seconds of the optimistic message
-            const timeDiff = Math.abs(confirmed.timestamp - optimistic.timestamp);
-            const withinTimeWindow = timeDiff <= 5000;
-            
-            if (sameContent && isSamePlayer) {
-              console.log(`[useGameState] Deduplication check: "${optimistic.message}" - timeDiff: ${timeDiff}ms, withinWindow: ${withinTimeWindow}`);
-            }
-            
-            return withinTimeWindow;
-          });
-          
-          // Remove optimistic message if we found a matching confirmed message
-          if (hasMatchingConfirmed) {
-            console.log(`[useGameState] Removing optimistic message: "${optimistic.message}"`);
-          }
-          
-          return !hasMatchingConfirmed;
-        });
-      });
-    }
-
-
-    // NOTE: Event processing is now handled entirely by contractToWorldSnapshot
-    // This eliminates duplicate processing and the "Unknown performed action" issue
-
+    // NOTE: Chat processing is now handled entirely by contractToWorldSnapshot
+    
     // Store new feed data using event-level deduplication
     if (includeHistory && owner && characterId && uiSnapshot.dataFeeds?.length) {
       
@@ -207,7 +116,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         console.error('[useGameState] Error storing event data:', error);
       });
     }
-  }, [characterLookup, includeHistory, owner, characterId]);
+  }, [includeHistory, owner, characterId]);
 
   // Process runtime logs when raw data changes
   useEffect(() => {
@@ -297,23 +206,6 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     return messages;
   }, [includeHistory, historicalBlocks, rawData]);
 
-  /* ---------- Combined chat/event logs ---------- */
-  const allChatMessages = useMemo(() => {
-    const combined = [
-      ...historicalChatMessages,
-      ...runtimeConfirmedLogs,
-      ...optimisticChatMessages
-    ];
-    
-    // Sort by block number, then by log index
-    return combined.sort((a, b) => {
-      const blockDiff = Number(a.blocknumber - b.blocknumber);
-      if (blockDiff !== 0) return blockDiff;
-      return a.logIndex - b.logIndex;
-    });
-  }, [historicalChatMessages, runtimeConfirmedLogs, optimisticChatMessages]);
-
-
   /* ---------- Core game state mapping ---------- */
   const gameState = useMemo<domain.WorldSnapshot | null>(() => {
     if (!rawData) {
@@ -359,26 +251,15 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       
       // --- Combine Historical + Runtime Chat Logs --- 
       const combinedChatLogsMap = new Map<string, domain.ChatMessage>();
-      const validRuntimeChatLogs = runtimeConfirmedLogs.filter(chat => chat.blocknumber !== undefined && chat.logIndex !== undefined);
 
       // 1. Add historical chat logs (use consistent key format)
       historicalChatMessages.forEach(log => {
         const key = `${log.blocknumber}-${log.logIndex}`;
         combinedChatLogsMap.set(key, log);
       });
-      // 2. Add runtime confirmed chat logs (will override historical if same key)
-      validRuntimeChatLogs.forEach(log => {
-        const key = `${log.blocknumber}-${log.logIndex}`; 
-        combinedChatLogsMap.set(key, log);
-      });
-      // 3. Add fresh chat logs from current snapshot (will override others if same key)
+      // 2. Add fresh chat logs from current snapshot (will override others if same key)
       snapshotBase.chatLogs.forEach(log => {
         const key = `${log.blocknumber}-${log.logIndex}`;
-        combinedChatLogsMap.set(key, log);
-      });
-      // 4. Add optimistic chat messages (these have unique keys since they're not from blockchain yet)
-      optimisticChatMessages.forEach((log, index) => {
-        const key = `optimistic-${log.timestamp}-${index}`;
         combinedChatLogsMap.set(key, log);
       });
 
@@ -402,7 +283,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       console.error('[useGameState] Error mapping contract data to domain:', error);
       return previousGameStateRef.current;
     }
-  }, [rawData, includeHistory, historicalEventMessages, historicalChatMessages, runtimeConfirmedLogs, optimisticChatMessages, owner, characterId]);
+  }, [rawData, includeHistory, historicalEventMessages, historicalChatMessages, owner, characterId]);
 
   /* ---------- Unified world snapshot with session data ---------- */
   const worldSnapshot = useMemo<domain.WorldSnapshot | null>(() => {
@@ -417,33 +298,6 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       sessionKeyData: mapSessionKeyData(sessionKeyData, owner)
     };
   }, [gameState, sessionKeyData, includeSessionKey]);
-
-  /* ---------- Optimistic chat management ---------- */
-  const addOptimisticChatMessage = useCallback((message: string) => {
-    if (!rawData?.character) return;
-
-    const optimisticMessage: domain.ChatMessage = {
-      sender: {
-        id: rawData.character.id.toString(),
-        name: rawData.character.name,
-        index: Number(rawData.character.stats.index)
-      },
-      message,
-      blocknumber: rawData.endBlock,
-      timestamp: Date.now(),
-      logIndex: 9999,
-      isOptimistic: true
-    };
-
-    setOptimisticChatMessages(prev => [...prev, optimisticMessage]);
-
-    // Remove optimistic message after 30 seconds
-    setTimeout(() => {
-      setOptimisticChatMessages(prev => 
-        prev.filter(msg => msg !== optimisticMessage)
-      );
-    }, 30000);
-  }, [rawData]);
 
   /* ---------- Loading states ---------- */
   const isLoading = isSnapshotLoading || (includeHistory && isCacheHistoryLoading);
@@ -522,9 +376,6 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         showSuccessToast: false, // Don't show toast for chat
         mutationKey: ['sendChat', characterId || 'unknown', owner || 'unknown'],
         characterId,
-        onSuccess: (_, variables) => {
-          addOptimisticChatMessage(variables.message);
-        }
       }
     );
 
@@ -651,8 +502,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     isWalletInitialized,
     
     // Chat and events
-    addOptimisticChatMessage,
-    chatLogs: allChatMessages,
+    chatLogs: gameState?.chatLogs || [],
     eventLogs: gameState?.eventLogs || [],
     
     // Other characters in area

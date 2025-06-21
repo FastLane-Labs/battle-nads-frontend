@@ -132,3 +132,14 @@ This updated roadmap reflects the team's discussion about prioritizing the core 
   - Added death detection in `AppInitializer` to show modal when player character's `isDead` flag is true
   - Provides "Create New Character" button that clears localStorage and redirects to character creation
   - Modal is non-dismissible (cannot be closed with ESC or overlay click) to ensure proper flow
+
+## Recent Updates
+
+### Chat Caching Simplification (Latest)
+- **Unified Character Lookup**: All chat and event processing now uses the same `findCharacterParticipantByIndex` helper in `contractToWorldSnapshot`
+- **Removed Duplicate Processing**: Eliminated `processChatFeedsToDomain` - all chat processing happens in one place
+- **Removed Optimistic Chat Updates**: With 500ms polling, optimistic updates were unnecessary overhead
+- **Fixed Main Character Messages**: Main character is now properly included in character lookups, fixing the issue where their messages were skipped
+- **Simplified Data Flow**: Contract → `contractToWorldSnapshot` → UI with no intermediate processing
+
+## Active Development

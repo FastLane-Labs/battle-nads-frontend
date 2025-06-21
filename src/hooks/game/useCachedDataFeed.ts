@@ -316,6 +316,17 @@ export const processDataFeedsToEvents = (
   if (!dataFeeds || dataFeeds.length === 0) {
     return { events: [], chatMessages: [] };
   }
+  
+  console.log(`[processDataFeedsToEvents] Processing ${dataFeeds.length} data feeds`);
+  
+  // Log the structure of the first data feed for debugging
+  if (dataFeeds.length > 0) {
+    const firstFeed = dataFeeds[0];
+    console.log(`[processDataFeedsToEvents] First feed: block ${firstFeed.blockNumber}, logs: ${firstFeed.logs?.length || 0}, chatLogs: ${firstFeed.chatLogs?.length || 0}`);
+    if (firstFeed.logs && firstFeed.logs.length > 0) {
+      console.log(`[processDataFeedsToEvents] First log type: ${firstFeed.logs[0].logType}`);
+    }
+  }
 
   const contractAddress = ENTRYPOINT_ADDRESS.toLowerCase();
   const storeTimestamp = Date.now();
@@ -436,12 +447,14 @@ export const processDataFeedsToEvents = (
 
       // Process chat message if log type is Chat (4)
       if (logTypeNum === 4) {
+        console.log(`[processDataFeedsToEvents] Found chat log type 4, chatLogArrayIndex: ${chatLogArrayIndex}, chatLogs length: ${feed.chatLogs?.length || 0}`);
         const senderInfo = attackerInfo;
         const messageContent = feed.chatLogs?.[chatLogArrayIndex];
         chatLogArrayIndex++;
         
         if (messageContent) {
           const messageKey = `${absoluteBlockNumber}-${logIndexNum}`;
+          console.log(`[processDataFeedsToEvents] Adding chat message: "${messageContent}" with key: ${messageKey}`);
           chatMessages.push({
             owner,
             contract: contractAddress,
@@ -456,11 +469,14 @@ export const processDataFeedsToEvents = (
             storeTimestamp,
             isConfirmed: true
           });
+        } else {
+          console.log(`[processDataFeedsToEvents] Chat log type 4 found but no message content at index ${chatLogArrayIndex - 1}`);
         }
       }
     });
   }
 
+  console.log(`[processDataFeedsToEvents] Finished processing: ${events.length} events, ${chatMessages.length} chat messages`);
   return { events, chatMessages };
 };
 
