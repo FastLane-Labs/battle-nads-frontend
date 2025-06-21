@@ -5,7 +5,6 @@ import {
   Flex, 
   Badge,  
   Button,
-  Spinner,
   useToast
 } from '@chakra-ui/react';
 import { ethers } from 'ethers';
@@ -155,17 +154,7 @@ const WalletBalances: React.FC = () => {
     }
   };
 
-  // Show loading state if data is not ready
-  if (isLoading) {
-    return (
-      <Box p={4} borderWidth="1px" borderRadius="lg" color="white">
-        <Flex justify="center" align="center" minH="100px">
-          <Spinner mr={3} />
-          <Text>Loading wallet balances...</Text>
-        </Flex>
-      </Box>
-    );
-  }
+  // Note: Removed loading spinner - balances update in background
   
   // Handle error state
   if (gameStateError) {
