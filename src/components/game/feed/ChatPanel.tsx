@@ -7,7 +7,6 @@ import { useTransactionBalance } from '@/hooks/wallet/useWalletState';
 interface ChatPanelProps {
   characterId: string;
   onSendChatMessage: (message: string) => Promise<void>;
-  addOptimisticChatMessage: (message: string) => void;
   chatLogs: domain.ChatMessage[];
   isCacheLoading: boolean;
 }
@@ -15,7 +14,6 @@ interface ChatPanelProps {
 const ChatPanel: React.FC<ChatPanelProps> = ({ 
   characterId, 
   onSendChatMessage, 
-  addOptimisticChatMessage,
   chatLogs,
   isCacheLoading
 }) => {
@@ -47,7 +45,6 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
       setIsSubmitting(true);
       
       try {
-        addOptimisticChatMessage(messageToSend);
         await onSendChatMessage(messageToSend);
         setInputValue('');
       } catch (error) {

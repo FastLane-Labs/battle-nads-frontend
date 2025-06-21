@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { contract } from '../../types';
+import { contract, domain } from '../../types';
 import { db, StoredEvent, StoredChatMessage } from '../../lib/db'; // Import Dexie db instance
 import { CharacterLite } from '@/types/domain'; // Import CharacterLite
 import { estimateBlockTimestamp } from '@/utils/blockUtils'; // Import the new utility function
@@ -557,4 +557,60 @@ export const storeEventData = async (
   }
 
   return { storedEvents, storedChatMessages };
+};
+
+/**
+ * Store chat messages directly when they appear in snapshot but not in data feeds
+ * This ensures messages aren't lost when polling windows move past their block
+ */
+export const storeChatMessagesDirectly = async (
+  owner: string,
+  characterId: string,
+  chatMessages: domain.ChatMessage[]
+): Promise<number> => {
+  if (!owner || !characterId || !chatMessages || chatMessages.length === 0) {
+    return 0;
+  }
+
+  const contractAddress = ENTRYPOINT_ADDRESS.toLowerCase();
+  const storeTimestamp = Date.now();
+  let storedCount = 0;
+
+  try {
+    await db.transaction('rw', db.chatMessages, async () => {
+      for (const chat of chatMessages) {
+        const messageKey = `${chat.blocknumber}-${chat.logIndex}`;
+        
+        // Check if message already exists
+        const existingMessage = await db.chatMessages
+          .where('[owner+contract+characterId+messageKey]')
+          .equals([owner, contractAddress, characterId, messageKey])
+          .first();
+
+        if (!existingMessage && !chat.isOptimistic) {
+          // Store the message
+          await db.chatMessages.add({
+            owner,
+            contract: contractAddress,
+            characterId,
+            messageKey,
+            blockNumber: chat.blocknumber.toString(),
+            logIndex: chat.logIndex,
+            content: chat.message,
+            senderId: chat.sender.id,
+            senderName: chat.sender.name,
+            timestamp: chat.timestamp,
+            storeTimestamp,
+            isConfirmed: true
+          });
+          storedCount++;
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('[storeChatMessagesDirectly] Error storing chat messages:', error);
+  }
+
+  return storedCount;
 };

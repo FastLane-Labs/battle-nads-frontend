@@ -20,7 +20,6 @@ interface GameViewProps {
   onMove: (direction: 'north' | 'south' | 'east' | 'west' | 'up' | 'down') => Promise<void>;
   onAttack: (targetIndex: number) => Promise<void>;
   onSendChatMessage: (message: string) => Promise<void>;
-  addOptimisticChatMessage: (message: string) => void;
   isMoving: boolean;
   isAttacking: boolean;
   isInCombat: boolean;
@@ -41,7 +40,6 @@ const GameView: React.FC<GameViewProps> = ({
   onMove,
   onAttack,
   onSendChatMessage,
-  addOptimisticChatMessage,
   isMoving,
   isAttacking,
   isInCombat,
@@ -165,10 +163,9 @@ const GameView: React.FC<GameViewProps> = ({
         {/* Chat Panel - will grow to fill available space */}
         <Box pt={4} pb={1} borderRadius="md" className='flex-grow overflow-auto'>
           <ChatPanel 
-            characterId={character.id} 
-            chatLogs={finalChatLogs}
+            characterId={character.id}
+            chatLogs={chatLogs}
             onSendChatMessage={onSendChatMessage}
-            addOptimisticChatMessage={addOptimisticChatMessage}
             isCacheLoading={isCacheLoading}
           />
         </Box>

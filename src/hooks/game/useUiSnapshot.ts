@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { contract } from '../../types';
-import { POLL_INTERVAL, INITIAL_SNAPSHOT_LOOKBACK_BLOCKS } from '../../config/env';
+import { POLL_INTERVAL, INITIAL_SNAPSHOT_LOOKBACK_BLOCKS, POLL_LOOKBEHIND_BLOCKS } from '../../config/env';
 import { mapCharacterLite } from '@/mappers';
 
 /**
@@ -50,8 +50,9 @@ export const useUiSnapshot = (owner: string | null) => {
       const previousData = queryClient.getQueryData<contract.PollFrontendDataReturn>(['uiSnapshot', owner, embeddedWallet?.address]);
       
       const startBlock = previousData?.endBlock 
-        ? previousData.endBlock + 1n 
+        ? previousData.endBlock - BigInt(POLL_LOOKBEHIND_BLOCKS)
         : (await client.getLatestBlockNumber()) - BigInt(INITIAL_SNAPSHOT_LOOKBACK_BLOCKS);
+      
       
       const rawArrayData = await client.getUiSnapshot(owner, startBlock);
 
@@ -89,6 +90,7 @@ export const useUiSnapshot = (owner: string | null) => {
         const errorMessage = mappingError instanceof Error ? mappingError.message : String(mappingError);
         throw new Error(`Failed to map snapshot array: ${errorMessage}`);
       }
+
 
       // Only log session key data if it's different from last fetch
       const sessionKeyDataString = JSON.stringify({
