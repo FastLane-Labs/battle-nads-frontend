@@ -4,7 +4,6 @@ import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { contract } from '../../types';
 import { POLL_INTERVAL, INITIAL_SNAPSHOT_LOOKBACK_BLOCKS, POLL_LOOKBEHIND_BLOCKS } from '../../config/env';
-import { mapCharacterLite } from '@/mappers';
 
 /**
  * Hook for polling UI snapshot data from the blockchain
@@ -45,7 +44,7 @@ export const useUiSnapshot = (owner: string | null) => {
     }
   }, [owner, embeddedWallet?.address]);
 
-  return useQuery<contract.PollFrontendDataReturn, Error>({
+  const result = useQuery<contract.PollFrontendDataReturn, Error>({
     queryKey: ['uiSnapshot', owner, embeddedWallet?.address],
     enabled: !!owner && !!client && consecutiveFailuresRef.current < maxConsecutiveFailures,
     staleTime: POLL_INTERVAL,
@@ -63,7 +62,6 @@ export const useUiSnapshot = (owner: string | null) => {
       return failureCount < 3;
     },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    refetchOnError: false, // Don't refetch on error
     
     queryFn: async () => {
       if (!client || !owner) throw new Error('Missing client or owner');
@@ -139,12 +137,37 @@ export const useUiSnapshot = (owner: string | null) => {
       return mappedData;
     },
     refetchOnWindowFocus: true,
-    structuralSharing: false,
-    onError: (error) => {
-      console.error('[useUiSnapshot] Query failed:', error.message);
+    structuralSharing: false
+  });
+
+  // Handle error logging and user notification
+  React.useEffect(() => {
+    if (result.error) {
+      console.error('[useUiSnapshot] Query failed:', result.error.message);
       if (consecutiveFailuresRef.current >= maxConsecutiveFailures) {
-        console.warn('[useUiSnapshot] Too many consecutive failures, polling disabled. Please refresh the page or check contract deployment.');
+        console.warn('[useUiSnapshot] Too many consecutive failures, polling disabled.');
+        
+        // Show user-friendly message
+        const message = '⚠️ Connection to the game failed. Please refresh the page to try again.';
+        
+        // Try to show a toast notification if available, otherwise use alert
+        if (typeof window !== 'undefined') {
+          // Check if there's a toast system available (like Chakra UI toast)
+          const event = new CustomEvent('show-error-toast', { 
+            detail: { message, title: 'Connection Lost' } 
+          });
+          window.dispatchEvent(event);
+          
+          // Fallback to console and setTimeout alert
+          setTimeout(() => {
+            if (consecutiveFailuresRef.current >= maxConsecutiveFailures) {
+              alert(message);
+            }
+          }, 2000);
+        }
       }
     }
-  });
+  }, [result.error, maxConsecutiveFailures]);
+
+  return result;
 };
