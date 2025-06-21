@@ -4,6 +4,7 @@ import { db, StoredDataBlock } from '../../lib/db'; // Import Dexie db instance
 import { CharacterLite } from '@/types/domain'; // Import CharacterLite
 import { estimateBlockTimestamp } from '@/utils/blockUtils'; // Import the new utility function
 import { ENTRYPOINT_ADDRESS } from '../../config/env'; // Import contract address
+import { mapCharacterToCharacterLite } from '@/mappers/contractToDomain'; // Import mapper function
 
 // Define SerializedEventLog based on contract.Log, converting BigInts to numbers
 // Export needed types
@@ -202,7 +203,8 @@ export const processDataFeedsToCachedBlocks = (
   nonCombatantsContext: CharacterLite[] | undefined,
   currentBlockNumber: bigint, // Add currentBlockNumber parameter
   fetchTimestamp: number, // Add fetchTimestamp parameter
-  playerAreaId?: bigint // Add player's current areaId
+  playerAreaId?: bigint, // Add player's current areaId
+  mainPlayerCharacter?: contract.Character // Add main player character for name lookup
 ): CachedDataBlock[] => {
   if (!dataFeeds || dataFeeds.length === 0) {
     return [];
@@ -216,6 +218,16 @@ export const processDataFeedsToCachedBlocks = (
   const characterLookup = new Map<number, { id: string; name: string; areaId: bigint }>();
   (combatantsContext || []).forEach(c => characterLookup.set(c.index, { id: c.id, name: c.name, areaId: c.areaId }));
   (nonCombatantsContext || []).forEach(c => characterLookup.set(c.index, { id: c.id, name: c.name, areaId: c.areaId }));
+  
+  // Add main player character to lookup (most important for name resolution)
+  if (mainPlayerCharacter) {
+    const mainPlayerLite = mapCharacterToCharacterLite(mainPlayerCharacter);
+    characterLookup.set(mainPlayerLite.index, { 
+      id: mainPlayerLite.id, 
+      name: mainPlayerLite.name, 
+      areaId: mainPlayerLite.areaId 
+    });
+  }
   
   const processedBlocks: CachedDataBlock[] = [];
 
@@ -315,7 +327,8 @@ export const storeFeedData = async (
   nonCombatantsContext: CharacterLite[] | undefined,
   currentBlockNumber: bigint, // Add currentBlockNumber parameter
   fetchTimestamp: number, // Add fetchTimestamp parameter
-  playerAreaId?: bigint // Add player's current areaId
+  playerAreaId?: bigint, // Add player's current areaId
+  mainPlayerCharacter?: contract.Character // Add main player character for name lookup
 ) => {
   if (!owner || !characterId || !dataFeeds || dataFeeds.length === 0) {
     return; // No owner/character or data to store
@@ -328,7 +341,8 @@ export const storeFeedData = async (
     nonCombatantsContext,
     currentBlockNumber, 
     fetchTimestamp,
-    playerAreaId
+    playerAreaId,
+    mainPlayerCharacter
   );
 
   // 2. Transform processed blocks into the format needed for Dexie (StoredDataBlock)
