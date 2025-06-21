@@ -8,7 +8,7 @@ import {
   ContractCallError,
   ContractTransactionError 
 } from '../../errors';
-import { sessionKeyMachine } from '../../machines/gameStateMachine';
+import { validateSessionKey } from '../../utils/sessionKeyValidation';
 
 interface BattleNadsClientOptions {
   read: BattleNadsAdapter;
@@ -126,8 +126,8 @@ export class BattleNadsClient {
       // Get current block number instead of timestamp for correct validation
       const currentBlock = await this.readAdapter.getLatestBlockNumber();
       
-      // Use the session key validation logic from the state machine
-      return sessionKeyMachine.validate(domainSessionKey, owner, Number(currentBlock));
+      // Use the session key validation utility
+      return validateSessionKey(domainSessionKey, owner, Number(currentBlock));
     } catch (error) {
       throw new ContractCallError(`Failed to validate session key: ${(error as Error).message}`);
     }
