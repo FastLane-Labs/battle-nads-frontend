@@ -185,7 +185,7 @@ const WalletBalances: React.FC = () => {
         <div className='flex w-full justify-between gap-2'>
           <Flex align="center" gap={1}>
             <h2 className='text-sm font-medium gold-text-light'>Session Key</h2>
-            <Badge colorScheme="yellow" size="xs">MON</Badge>
+            <Badge colorScheme="purple" size="xs">MON</Badge>
           </Flex>
           <div className='font-semibold text-amber-300 text-sm'>
           {parseFloat(sessionKeyBalance).toFixed(4)}
