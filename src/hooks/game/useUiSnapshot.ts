@@ -16,6 +16,10 @@ export const useUiSnapshot = (owner: string | null) => {
   const { embeddedWallet } = useWallet();
   const queryClient = useQueryClient();
 
+  // Track consecutive failures to stop polling when contract is broken
+  const consecutiveFailuresRef = React.useRef(0);
+  const maxConsecutiveFailures = 3;
+
   // Only log when wallet addresses change or on first load
   const prevOwnerRef = React.useRef<string | null>(null);
   const prevEmbeddedRef = React.useRef<string | null>(null);
@@ -24,6 +28,9 @@ export const useUiSnapshot = (owner: string | null) => {
   React.useEffect(() => {
     const embeddedAddress = embeddedWallet?.address ?? null;
     if (prevOwnerRef.current !== owner || prevEmbeddedRef.current !== embeddedAddress) {
+      // Reset failure count on wallet change
+      consecutiveFailuresRef.current = 0;
+      
       // Only log if not the initial render
       if (prevOwnerRef.current !== null || prevEmbeddedRef.current !== null) {
         console.log('[useUiSnapshot] Wallet change detected:', {
@@ -40,9 +47,23 @@ export const useUiSnapshot = (owner: string | null) => {
 
   return useQuery<contract.PollFrontendDataReturn, Error>({
     queryKey: ['uiSnapshot', owner, embeddedWallet?.address],
-    enabled: !!owner && !!client,
+    enabled: !!owner && !!client && consecutiveFailuresRef.current < maxConsecutiveFailures,
     staleTime: POLL_INTERVAL,
-    refetchInterval: POLL_INTERVAL,
+    refetchInterval: consecutiveFailuresRef.current < maxConsecutiveFailures ? POLL_INTERVAL : false,
+    retry: (failureCount, error) => {
+      // Don't retry on specific contract errors that indicate fundamental issues
+      if (error.message.includes('missing revert data') || 
+          error.message.includes('CALL_EXCEPTION') ||
+          error.message.includes('execution reverted')) {
+        console.warn('[useUiSnapshot] Contract call failed, stopping retries:', error.message);
+        consecutiveFailuresRef.current++;
+        return false;
+      }
+      // Retry up to 3 times for other errors
+      return failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    refetchOnError: false, // Don't refetch on error
     
     queryFn: async () => {
       if (!client || !owner) throw new Error('Missing client or owner');
@@ -112,9 +133,18 @@ export const useUiSnapshot = (owner: string | null) => {
       // Note: Feed storage is now handled by useGameState with proper block deduplication
       // useUiSnapshot focuses only on fetching fresh contract data
       
+      // Reset failure counter on successful call
+      consecutiveFailuresRef.current = 0;
+      
       return mappedData;
     },
     refetchOnWindowFocus: true,
-    structuralSharing: false
+    structuralSharing: false,
+    onError: (error) => {
+      console.error('[useUiSnapshot] Query failed:', error.message);
+      if (consecutiveFailuresRef.current >= maxConsecutiveFailures) {
+        console.warn('[useUiSnapshot] Too many consecutive failures, polling disabled. Please refresh the page or check contract deployment.');
+      }
+    }
   });
 };
