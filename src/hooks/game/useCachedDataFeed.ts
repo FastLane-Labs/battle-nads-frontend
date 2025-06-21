@@ -6,6 +6,15 @@ import { estimateBlockTimestamp } from '@/utils/blockUtils'; // Import the new u
 import { ENTRYPOINT_ADDRESS } from '../../config/env'; // Import contract address
 import { mapCharacterToCharacterLite } from '@/mappers/contractToDomain'; // Import mapper function
 
+// In-memory character cache to remember names of characters we've seen
+// This persists during the session but clears on page reload
+const characterNameCache = new Map<number, { id: string; name: string; areaId: bigint }>();
+
+// Export function to clear character cache (useful for debugging or when switching characters)
+export const clearCharacterNameCache = () => {
+  characterNameCache.clear();
+};
+
 // Define SerializedEventLog based on contract.Log, converting BigInts to numbers
 // Export needed types
 export interface SerializedEventLog {
@@ -216,17 +225,39 @@ export const processDataFeedsToCachedBlocks = (
 
   // Create lookup maps from context (index -> {id, name, areaId})
   const characterLookup = new Map<number, { id: string; name: string; areaId: bigint }>();
-  (combatantsContext || []).forEach(c => characterLookup.set(c.index, { id: c.id, name: c.name, areaId: c.areaId }));
-  (nonCombatantsContext || []).forEach(c => characterLookup.set(c.index, { id: c.id, name: c.name, areaId: c.areaId }));
   
-  // Add main player character to lookup (most important for name resolution)
+  // 1. Start with cached characters (from previous encounters)
+  characterNameCache.forEach((char, index) => {
+    characterLookup.set(index, char);
+  });
+  
+  // 2. Add/update current combatants (will override cache if different)
+  (combatantsContext || []).forEach(c => {
+    const charData = { id: c.id, name: c.name, areaId: c.areaId };
+    characterLookup.set(c.index, charData);
+    // Update cache with current data
+    characterNameCache.set(c.index, charData);
+  });
+  
+  // 3. Add/update current noncombatants (will override cache if different)
+  (nonCombatantsContext || []).forEach(c => {
+    const charData = { id: c.id, name: c.name, areaId: c.areaId };
+    characterLookup.set(c.index, charData);
+    // Update cache with current data
+    characterNameCache.set(c.index, charData);
+  });
+  
+  // 4. Add main player character to lookup (most important for name resolution)
   if (mainPlayerCharacter) {
     const mainPlayerLite = mapCharacterToCharacterLite(mainPlayerCharacter);
-    characterLookup.set(mainPlayerLite.index, { 
+    const charData = { 
       id: mainPlayerLite.id, 
       name: mainPlayerLite.name, 
       areaId: mainPlayerLite.areaId 
-    });
+    };
+    characterLookup.set(mainPlayerLite.index, charData);
+    // Update cache with main player data
+    characterNameCache.set(mainPlayerLite.index, charData);
   }
   
   const processedBlocks: CachedDataBlock[] = [];
@@ -256,13 +287,25 @@ export const processDataFeedsToCachedBlocks = (
       const otherPlayerIndexNum = Number(log.otherPlayerIndex);
       const attackerInfo = characterLookup.get(mainPlayerIndexNum);
       const defenderInfo = characterLookup.get(otherPlayerIndexNum);
+      // Generate better fallback names when character info is not available
+      const getCharacterFallbackName = (playerIndex: number, isAttacker: boolean): string => {
+        if (playerIndex <= 0) return 'Unknown';
+        
+        // Try to determine if it's likely a player or NPC based on index range
+        if (playerIndex < 100) {
+          return isAttacker ? `Player ${playerIndex}` : `Character ${playerIndex}`;
+        } else {
+          return isAttacker ? `Creature ${playerIndex}` : `Enemy ${playerIndex}`;
+        }
+      };
+
       serializedEventsForBlock.push({
         logType: log.logType,
         index: logIndexNum,
         mainPlayerIndex: mainPlayerIndexNum,
         otherPlayerIndex: otherPlayerIndexNum,
-        attackerName: attackerInfo?.name,
-        defenderName: defenderInfo?.name,
+        attackerName: attackerInfo?.name || getCharacterFallbackName(mainPlayerIndexNum, true),
+        defenderName: defenderInfo?.name || getCharacterFallbackName(otherPlayerIndexNum, false),
         areaId: String(playerAreaId || 0n), // Use player's current areaId
         hit: log.hit,
         critical: log.critical,
