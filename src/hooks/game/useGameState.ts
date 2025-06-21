@@ -147,6 +147,14 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
 
     // Store the feed data in cache if includeHistory is enabled (let the original useBattleNads flow handle this)
     if (includeHistory && owner && characterId && uiSnapshot.dataFeeds?.length) {
+      // Calculate current player's areaId
+      const playerAreaId = uiSnapshot.character ? 
+        createAreaID(
+          Number(uiSnapshot.character.stats.depth),
+          Number(uiSnapshot.character.stats.x),
+          Number(uiSnapshot.character.stats.y)
+        ) : BigInt(0);
+      
       // Use the original storeFeedData function with correct parameters
       storeFeedData(
         owner,
@@ -155,7 +163,8 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         (uiSnapshot.combatants || []).map(c => mapCharacterLite(c)),
         (uiSnapshot.noncombatants || []).map(c => mapCharacterLite(c)),
         uiSnapshot.endBlock,
-        uiSnapshot.fetchTimestamp
+        uiSnapshot.fetchTimestamp,
+        playerAreaId
       );
     }
   }, [characterLookup, includeHistory, owner, characterId]);
