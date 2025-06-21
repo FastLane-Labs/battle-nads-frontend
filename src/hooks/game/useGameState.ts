@@ -130,38 +130,49 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
 
     // Remove optimistic messages that match newly confirmed messages
     if (newlyConfirmedChatLogs.length > 0) {
-      console.log(`[useGameState] Found ${newlyConfirmedChatLogs.length} newly confirmed chat messages`);
       setOptimisticChatMessages(prev => {
-        const filteredMessages = prev.filter(optimistic => {
-          // Try multiple matching strategies since sender ID formats might differ
-          const isMatchByContent = newlyConfirmedChatLogs.some(confirmed => {
-            const contentMatch = confirmed.message === optimistic.message;
-            const senderIdMatch = confirmed.sender.id === optimistic.sender.id;
-            const senderNameMatch = confirmed.sender.name === optimistic.sender.name;
-            const senderIndexMatch = confirmed.sender.index === optimistic.sender.index;
+        const currentTime = Date.now();
+        
+        return prev.filter(optimistic => {
+          // Only check for matches from the current player within 5 seconds
+          const isOwnMessage = optimistic.sender.id === rawData?.character?.id.toString() ||
+                              optimistic.sender.index === Number(rawData?.character?.stats.index);
+          
+          if (!isOwnMessage) {
+            // Keep all optimistic messages that aren't from the current player
+            return true;
+          }
+          
+          // For own messages, check if there's a matching confirmed message
+          const hasMatchingConfirmed = newlyConfirmedChatLogs.some(confirmed => {
+            // Must be from the same player
+            const isSamePlayer = confirmed.sender.index === optimistic.sender.index ||
+                                confirmed.sender.id === optimistic.sender.id;
             
-            // Log matching attempts for debugging
-            if (contentMatch) {
-              console.log(`[useGameState] Content match found for message: "${optimistic.message}"`);
-              console.log(`[useGameState] Sender ID match: ${senderIdMatch}, Name match: ${senderNameMatch}, Index match: ${senderIndexMatch}`);
-              console.log(`[useGameState] Optimistic sender: ${JSON.stringify(optimistic.sender)}`);
-              console.log(`[useGameState] Confirmed sender: ${JSON.stringify(confirmed.sender)}`);
+            if (!isSamePlayer) return false;
+            
+            // Must have the same message content
+            const sameContent = confirmed.message === optimistic.message;
+            if (!sameContent) return false;
+            
+            // Must be within 5 seconds of the optimistic message
+            const timeDiff = Math.abs(confirmed.timestamp - optimistic.timestamp);
+            const withinTimeWindow = timeDiff <= 5000;
+            
+            if (sameContent && isSamePlayer) {
+              console.log(`[useGameState] Deduplication check: "${optimistic.message}" - timeDiff: ${timeDiff}ms, withinWindow: ${withinTimeWindow}`);
             }
             
-            // Match if content matches and any sender identifier matches
-            return contentMatch && (senderIdMatch || senderNameMatch || senderIndexMatch);
+            return withinTimeWindow;
           });
           
-          if (isMatchByContent) {
+          // Remove optimistic message if we found a matching confirmed message
+          if (hasMatchingConfirmed) {
             console.log(`[useGameState] Removing optimistic message: "${optimistic.message}"`);
           }
           
-          // Keep optimistic message if no confirmed message matches it
-          return !isMatchByContent;
+          return !hasMatchingConfirmed;
         });
-        
-        console.log(`[useGameState] Filtered optimistic messages: ${prev.length} -> ${filteredMessages.length}`);
-        return filteredMessages;
       });
     }
 
