@@ -169,6 +169,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         uiSnapshot.fetchTimestamp,
         processedBlocks,
         addNewEvents,
+        uiSnapshot.endBlock, // Pass endBlock for absolute block calculation
         playerAreaId,
         uiSnapshot.character // Pass main player character for name lookup
       ).catch(error => {
