@@ -317,16 +317,6 @@ export const processDataFeedsToEvents = (
     return { events: [], chatMessages: [] };
   }
   
-  console.log(`[processDataFeedsToEvents] Processing ${dataFeeds.length} data feeds`);
-  
-  // Log the structure of the first data feed for debugging
-  if (dataFeeds.length > 0) {
-    const firstFeed = dataFeeds[0];
-    console.log(`[processDataFeedsToEvents] First feed: block ${firstFeed.blockNumber}, logs: ${firstFeed.logs?.length || 0}, chatLogs: ${firstFeed.chatLogs?.length || 0}`);
-    if (firstFeed.logs && firstFeed.logs.length > 0) {
-      console.log(`[processDataFeedsToEvents] First log type: ${firstFeed.logs[0].logType}`);
-    }
-  }
 
   const contractAddress = ENTRYPOINT_ADDRESS.toLowerCase();
   const storeTimestamp = Date.now();
@@ -476,7 +466,6 @@ export const processDataFeedsToEvents = (
     });
   }
 
-  console.log(`[processDataFeedsToEvents] Finished processing: ${events.length} events, ${chatMessages.length} chat messages`);
   return { events, chatMessages };
 };
 
@@ -551,7 +540,6 @@ export const storeEventData = async (
       }
     });
 
-    console.log(`[storeEventData] Stored ${storedEvents} new events and ${storedChatMessages} new chat messages`);
   } catch (error) {
     console.error('[storeEventData] Error storing event data:', error);
   }
