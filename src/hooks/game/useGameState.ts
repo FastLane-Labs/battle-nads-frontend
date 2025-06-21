@@ -164,7 +164,8 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         (uiSnapshot.noncombatants || []).map(c => mapCharacterLite(c)),
         uiSnapshot.endBlock,
         uiSnapshot.fetchTimestamp,
-        playerAreaId
+        playerAreaId,
+        uiSnapshot.character // Pass main player character for name lookup
       );
     }
   }, [characterLookup, includeHistory, owner, characterId]);
