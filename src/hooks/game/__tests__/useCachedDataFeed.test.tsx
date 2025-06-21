@@ -1,12 +1,22 @@
 import React from 'react';
 import { renderHook, waitFor, act } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useCachedDataFeed, storeFeedData, CachedDataBlock } from '../useCachedDataFeed';
+import { useCachedDataFeed, storeEventData, CachedDataBlock } from '../useCachedDataFeed';
 import { db } from '../../../lib/db';
 
 // Mock the database
 jest.mock('../../../lib/db', () => ({
   db: {
+    events: {
+      where: jest.fn(),
+      add: jest.fn(),
+      put: jest.fn(),
+    },
+    chatMessages: {
+      where: jest.fn(),
+      add: jest.fn(),
+      put: jest.fn(),
+    },
     dataBlocks: {
       where: jest.fn(),
       bulkPut: jest.fn(),
@@ -47,7 +57,7 @@ describe('useCachedDataFeed', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    // Mock the database query chain
+    // Mock the database query chain for events and chatMessages
     const mockWhere = {
       equals: jest.fn().mockReturnValue({
         toArray: jest.fn().mockResolvedValue([]),
@@ -57,6 +67,9 @@ describe('useCachedDataFeed', () => {
       }),
     };
     
+    // Mock all database tables
+    mockDb.events.where.mockReturnValue(mockWhere as any);
+    mockDb.chatMessages.where.mockReturnValue(mockWhere as any);
     mockDb.dataBlocks.where.mockReturnValue(mockWhere as any);
     mockDb.characters.put.mockResolvedValue(undefined as any);
     mockDb.transaction.mockImplementation(async (mode, tables, callback) => {
@@ -71,7 +84,6 @@ describe('useCachedDataFeed', () => {
 
     expect(result.current.historicalBlocks).toEqual([]);
     expect(result.current.isHistoryLoading).toBe(false);
-    expect(result.current.processedBlocks.size).toBe(0);
   });
 
   it('should load initial cached events on mount', async () => {
@@ -136,89 +148,12 @@ describe('useCachedDataFeed', () => {
     });
 
     expect(result.current.historicalBlocks).toHaveLength(2);
-    expect(result.current.processedBlocks.has('1000')).toBe(true);
-    expect(result.current.processedBlocks.has('1001')).toBe(true);
     
     // Check that blocks are sorted by block number
     expect(result.current.historicalBlocks[0].blockNumber).toBe(1000n);
     expect(result.current.historicalBlocks[1].blockNumber).toBe(1001n);
   });
 
-  it('should add new events to in-memory store', async () => {
-    const { result } = renderHook(() => useCachedDataFeed(mockOwner, mockCharacterId), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => {
-      expect(result.current.isHistoryLoading).toBe(false);
-    });
-
-    const newBlocks: CachedDataBlock[] = [
-      {
-        blockNumber: 2000n,
-        timestamp: 1640001000000,
-        chats: [],
-        events: [{ 
-          logType: 2, 
-          index: 0, 
-          mainPlayerIndex: 3, 
-          otherPlayerIndex: 4,
-          attackerName: 'Player3',
-          defenderName: 'Player4',
-          areaId: '5678',
-          hit: false,
-          critical: false,
-          damageDone: 0,
-          healthHealed: 0,
-          targetDied: false,
-          lootedWeaponID: 0,
-          lootedArmorID: 0,
-          experience: 0,
-          value: '0'
-        }],
-      },
-    ];
-
-    act(() => {
-      result.current.addNewEvents(newBlocks);
-    });
-
-    expect(result.current.historicalBlocks).toHaveLength(1);
-    expect(result.current.processedBlocks.has('2000')).toBe(true);
-    expect(result.current.historicalBlocks[0].blockNumber).toBe(2000n);
-  });
-
-  it('should not add duplicate blocks', async () => {
-    const { result } = renderHook(() => useCachedDataFeed(mockOwner, mockCharacterId), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => {
-      expect(result.current.isHistoryLoading).toBe(false);
-    });
-
-    const newBlocks: CachedDataBlock[] = [
-      {
-        blockNumber: 2000n,
-        timestamp: 1640001000000,
-        chats: [],
-        events: [],
-      },
-    ];
-
-    // Add blocks twice
-    act(() => {
-      result.current.addNewEvents(newBlocks);
-    });
-
-    act(() => {
-      result.current.addNewEvents(newBlocks);
-    });
-
-    // Should still only have one block
-    expect(result.current.historicalBlocks).toHaveLength(1);
-    expect(result.current.processedBlocks.has('2000')).toBe(true);
-  });
 
   it('should handle database errors gracefully', async () => {
     const mockWhere = {
@@ -243,9 +178,8 @@ describe('useCachedDataFeed', () => {
     });
 
     expect(result.current.historicalBlocks).toEqual([]);
-    expect(result.current.processedBlocks.size).toBe(0);
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[CachedDataFeed] Error loading initial blocks from Dexie:',
+      '[CachedDataFeed] Error loading initial events from storage:',
       expect.any(Error)
     );
 
@@ -253,7 +187,7 @@ describe('useCachedDataFeed', () => {
   });
 });
 
-describe('storeFeedData', () => {
+describe('storeEventData', () => {
   const mockOwner = '0x1234567890abcdef1234567890abcdef12345678';
   const mockCharacterId = 'char123';
   const mockDataFeeds = [
@@ -282,17 +216,25 @@ describe('storeFeedData', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockDb.dataBlocks.bulkPut.mockResolvedValue(undefined as any);
+    mockDb.events.add.mockResolvedValue(undefined as any);
+    mockDb.chatMessages.add.mockResolvedValue(undefined as any);
+    
+    // Mock first() to return null (no existing events)
+    const mockWhere = {
+      equals: jest.fn().mockReturnValue({
+        first: jest.fn().mockResolvedValue(null),
+      }),
+    };
+    mockDb.events.where.mockReturnValue(mockWhere as any);
+    mockDb.chatMessages.where.mockReturnValue(mockWhere as any);
+    
     mockDb.transaction.mockImplementation(async (mode, tables, callback) => {
       return await callback();
     });
   });
 
-  it('should process and store new feed data', async () => {
-    const processedBlocks = new Set<string>();
-    const addNewEvents = jest.fn();
-
-    const result = await storeFeedData(
+  it('should process and store new event data', async () => {
+    const result = await storeEventData(
       mockOwner,
       mockCharacterId,
       mockDataFeeds as any,
@@ -300,69 +242,38 @@ describe('storeFeedData', () => {
       [],
       1000n,
       Date.now(),
-      processedBlocks,
-      addNewEvents,
-      1000n, // endBlock
-      123n
-    );
-
-    expect(result).toHaveLength(1);
-    expect(addNewEvents).toHaveBeenCalledWith(result);
-    expect(mockDb.dataBlocks.bulkPut).toHaveBeenCalled();
-  });
-
-  it('should skip already processed blocks', async () => {
-    const processedBlocks = new Set(['1000']); // Block already processed
-    const addNewEvents = jest.fn();
-
-    const result = await storeFeedData(
-      mockOwner,
-      mockCharacterId,
-      mockDataFeeds as any,
-      [],
-      [],
-      1000n,
-      Date.now(),
-      processedBlocks,
-      addNewEvents,
+      123n, // playerAreaId
+      undefined, // mainPlayerCharacter
       1000n // endBlock
     );
 
-    expect(result).toHaveLength(0);
-    expect(addNewEvents).not.toHaveBeenCalled();
-    expect(mockDb.dataBlocks.bulkPut).not.toHaveBeenCalled();
+    expect(result.storedEvents).toBe(1);
+    expect(result.storedChatMessages).toBe(0);
+    expect(mockDb.events.add).toHaveBeenCalled();
   });
 
   it('should handle empty data feeds', async () => {
-    const processedBlocks = new Set<string>();
-    const addNewEvents = jest.fn();
-
-    const result = await storeFeedData(
+    const result = await storeEventData(
       mockOwner,
       mockCharacterId,
       [],
       [],
       [],
       1000n,
-      Date.now(),
-      processedBlocks,
-      addNewEvents
+      Date.now()
     );
 
-    expect(result).toHaveLength(0);
-    expect(addNewEvents).not.toHaveBeenCalled();
-    expect(mockDb.dataBlocks.bulkPut).not.toHaveBeenCalled();
+    expect(result.storedEvents).toBe(0);
+    expect(result.storedChatMessages).toBe(0);
+    expect(mockDb.events.add).not.toHaveBeenCalled();
   });
 
   it('should handle database storage errors', async () => {
-    const processedBlocks = new Set<string>();
-    const addNewEvents = jest.fn();
-    
-    mockDb.dataBlocks.bulkPut.mockRejectedValue(new Error('Storage error'));
+    mockDb.events.add.mockRejectedValue(new Error('Storage error'));
     
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-    const result = await storeFeedData(
+    const result = await storeEventData(
       mockOwner,
       mockCharacterId,
       mockDataFeeds as any,
@@ -370,15 +281,15 @@ describe('storeFeedData', () => {
       [],
       1000n,
       Date.now(),
-      processedBlocks,
-      addNewEvents,
-      1000n // endBlock
+      123n,
+      undefined,
+      1000n
     );
 
-    expect(result).toHaveLength(1);
-    expect(addNewEvents).toHaveBeenCalled(); // Still adds to memory
+    expect(result.storedEvents).toBe(0);
+    expect(result.storedChatMessages).toBe(0);
     expect(consoleSpy).toHaveBeenCalledWith(
-      '[storeFeedData] Dexie transaction failed:',
+      '[storeEventData] Error storing event data:',
       expect.any(Error)
     );
 

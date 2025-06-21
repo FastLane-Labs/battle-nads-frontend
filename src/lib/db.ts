@@ -28,7 +28,53 @@ interface SerializedChatLog {
   senderName: string;
 }
 
-// Interface for the data stored in Dexie table
+// New event-level storage interface
+export interface StoredEvent {
+  // Compound primary key: [owner, contract, characterId, eventKey]
+  owner: string;
+  contract: string; 
+  characterId: string;
+  eventKey: string; // Format: "${absoluteBlock}-${logIndex}"
+  blockNumber: string; // Absolute block number as string
+  logIndex: number;
+  logType: number;
+  mainPlayerIndex: number;
+  otherPlayerIndex: number;
+  attackerName: string;
+  defenderName: string;
+  areaId: string;
+  hit: boolean;
+  critical: boolean;
+  damageDone: number;
+  healthHealed: number;
+  targetDied: boolean;
+  lootedWeaponID: number;
+  lootedArmorID: number;
+  experience: number;
+  value: string;
+  isNameResolved: boolean; // Track if names are properly resolved
+  timestamp: number; // Block timestamp
+  storeTimestamp: number; // When we stored this event
+}
+
+// New chat message storage interface
+export interface StoredChatMessage {
+  // Compound primary key: [owner, contract, characterId, messageKey]
+  owner: string;
+  contract: string;
+  characterId: string;
+  messageKey: string; // Format: "${absoluteBlock}-${logIndex}"
+  blockNumber: string;
+  logIndex: number;
+  content: string;
+  senderId: string;
+  senderName: string;
+  timestamp: number; // Block timestamp
+  storeTimestamp: number; // When we stored this message
+  isConfirmed: boolean; // true for confirmed, false for optimistic
+}
+
+// Legacy interface for backward compatibility (will be migrated)
 export interface StoredDataBlock {
   // Enhanced compound primary key: [ownerAddress, contractAddress, characterId, blockNumberAsString]
   owner: string;        // Owner's address (part of primary key)
@@ -49,28 +95,41 @@ export interface StoredCharacterMetadata {
 
 // Define the Dexie database instance
 // We use casting to provide type safety for our tables
-// Changed database name to force fresh start with character-specific schema
-const db = new Dexie('BattleNadsFeedCache_v2') as Dexie & {
+// Changed database name to force fresh start with event-level schema
+const db = new Dexie('BattleNadsFeedCache_v3') as Dexie & {
+  events: EntityTable<
+    StoredEvent,
+    'owner'
+  >;
+  chatMessages: EntityTable<
+    StoredChatMessage,
+    'owner'
+  >;
   dataBlocks: EntityTable<
     StoredDataBlock,
-    'owner' // Use 'owner' as the key *type* hint for TS
+    'owner' // Legacy table for migration
   >;
   characters: EntityTable<
     StoredCharacterMetadata,
-    'owner' // Use 'owner' as the key *type* hint for TS
+    'owner'
   >;
 };
 
 // Define schema version 1 for the new database (fresh start)
-// Character-specific data support from the beginning
+// Event-level storage with proper indexes
 db.version(1).stores({
-  // Table name: dataBlocks
-  // Primary key: [owner+contract+characterId+block] (4-part compound key)
-  // Additional indexes for efficient queries:
-  // - [owner+contract+characterId] for character-specific data
-  // - [owner+characterId] for cross-contract character data
-  // - ts for TTL cleanup
+  // Event-level storage table
+  // Primary key: [owner+contract+characterId+eventKey] (4-part compound key)
+  // Additional indexes for efficient queries and filtering
+  events: '&[owner+contract+characterId+eventKey], owner, contract, characterId, eventKey, blockNumber, logIndex, logType, isNameResolved, timestamp, storeTimestamp, [owner+contract+characterId], [owner+characterId], [blockNumber+logIndex]',
+  
+  // Chat message storage table  
+  // Primary key: [owner+contract+characterId+messageKey] (4-part compound key)
+  chatMessages: '&[owner+contract+characterId+messageKey], owner, contract, characterId, messageKey, blockNumber, logIndex, timestamp, storeTimestamp, isConfirmed, [owner+contract+characterId], [owner+characterId], [blockNumber+logIndex]',
+  
+  // Legacy table for migration (will be removed after migration)
   dataBlocks: '&[owner+contract+characterId+block], owner, contract, characterId, ts, [owner+contract+characterId], [owner+characterId], [owner+contract], [owner+ts]',
+  
   // Store character metadata with lastActive timestamp
   characters: '&[owner+characterId], owner, characterId, lastActive',
 });
