@@ -83,7 +83,7 @@ jest.mock('../useCachedDataFeed', () => ({
     getAllCharactersForOwner: jest.fn().mockResolvedValue([]),
     getDataSummaryForOwner: jest.fn().mockResolvedValue({}),
   }),
-  storeFeedData: jest.fn().mockResolvedValue(undefined) // Mock storeFeedData
+  storeEventData: jest.fn().mockResolvedValue({ storedEvents: 0, storedChatMessages: 0 }) // Mock storeEventData
 }));
 
 // Mock React Query for immediate query execution
