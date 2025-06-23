@@ -88,6 +88,9 @@ interface OnboardingState {
 const ONBOARDING_VERSION = 'v2.0';
 const ONBOARDING_STORAGE_KEY = `battlenads_onboarding_state_${ONBOARDING_VERSION}`;
 
+// Development flag - set to true to always show welcome screen on refresh
+const DEV_ALWAYS_SHOW_WELCOME = true; // Set to false for production
+
 // Main onboarding manager component
 function OnboardingManagerInner() {
   const pathname = usePathname();
@@ -144,6 +147,11 @@ function OnboardingManagerInner() {
 
   // Check if a flow should be triggered
   const shouldTriggerFlow = (flow: OnboardingFlow): boolean => {
+    // Development override - always show welcome flow
+    if (DEV_ALWAYS_SHOW_WELCOME && flow.id === 'welcome') {
+      return flow.autoTrigger ?? false;
+    }
+
     // Already completed or skipped
     if (onboardingState.completedFlows.includes(flow.id) || 
         onboardingState.skippedFlows.includes(flow.id)) {
