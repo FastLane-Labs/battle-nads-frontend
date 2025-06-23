@@ -219,9 +219,9 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
             index: -1
           }, 
           message: chat.content,
-          blocknumber: BigInt(chat.timestamp),
+          blocknumber: block.blockNumber,
           timestamp: Number(chat.timestamp),
-          logIndex: index,
+          logIndex: chat.logIndex,
           isOptimistic: false
         });
       });
