@@ -126,7 +126,7 @@ describe('useOptimisticUpdates', () => {
     });
 
     expect(result.current.updates).toHaveLength(1);
-    expect(result.current.updates[0].data.message).toBe('other');
+    expect((result.current.updates[0].data as any).message).toBe('other');
   });
 
   it('should clear all updates', () => {
