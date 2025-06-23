@@ -18,7 +18,8 @@ import {
   CardBody,
   CardHeader,
 } from '@chakra-ui/react';
-import { FaInfoCircle, FaStar, FaShield, FaSword, FaHeart, FaEye, FaRunning, FaDice } from 'react-icons/fa';
+import { FaInfoCircle, FaStar, FaHeart, FaEye, FaRunning, FaDice, FaFire } from 'react-icons/fa';
+import { FaShield } from 'react-icons/fa6';
 import { StatIncrementControl } from '../ui/StatIncrementControl';
 
 interface StatAllocation {
@@ -90,7 +91,7 @@ const CHARACTER_CLASSES: CharacterClass[] = [
 
 const STAT_INFO = {
   strength: {
-    icon: FaSword,
+    icon: FaFire,
     description: 'Primary damage scaling, affects weapon damage',
     color: '#F56565',
   },
@@ -332,7 +333,7 @@ export function StatCalculator() {
                               onDecrement={() => handleStatChange(statKey, baseValue - 1)}
                               canIncrement={canIncrease(statKey)}
                               canDecrement={canDecrease(statKey)}
-                              size="sm"
+                              size="small"
                             />
                           </HStack>
                         </HStack>

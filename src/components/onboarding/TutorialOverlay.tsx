@@ -28,7 +28,7 @@ function convertToJoyrideSteps(steps: TutorialStep[]): JoyrideStep[] {
 }
 
 // Custom Joyride styles for Battle Nads theme
-const joyrideStyles: Styles = {
+const joyrideStyles: Partial<Styles> = {
   options: {
     primaryColor: '#F6AD55', // Orange theme color
     backgroundColor: '#1A202C', // Dark background
@@ -100,6 +100,29 @@ const joyrideStyles: Styles = {
   },
   overlay: {
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  // Add missing required properties
+  beacon: {
+    backgroundColor: '#F6AD55',
+  },
+  beaconInner: {
+    backgroundColor: '#F6AD55',
+  },
+  beaconOuter: {
+    backgroundColor: '#F6AD55',
+    border: '2px solid #F6AD55',
+  },
+  overlayLegacy: {
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+  },
+  tooltipContainer: {
+    textAlign: 'left',
+  },
+  tooltipFooter: {
+    marginTop: '16px',
+  },
+  tooltipFooterSpacer: {
+    flex: '1',
   },
 };
 

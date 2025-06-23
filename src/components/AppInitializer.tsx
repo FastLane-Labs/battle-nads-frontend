@@ -13,6 +13,7 @@ import NavBar from './NavBar';
 import { Box, useToast } from '@chakra-ui/react';
 import { formatEther } from 'ethers';
 import { logger } from '../utils/logger';
+import { OnboardingManager } from './onboarding';
 
 const AppInitializer: React.FC = () => {
   const game = useGameState();
@@ -45,6 +46,7 @@ const AppInitializer: React.FC = () => {
       <div className='h-screen'>
         <NavBar />
         <Box pt="64px" className='h-full'>{content}</Box>
+        <OnboardingManager />
       </div>
     );
   };
@@ -122,7 +124,12 @@ const AppInitializer: React.FC = () => {
   
   // 2. No Wallet Connected State (HIGHEST PRIORITY after init)
   if (!game.hasWallet) {
-    return <Login />; 
+    return (
+      <>
+        <Login />
+        <OnboardingManager />
+      </>
+    );
   }
 
   // --- Wallet IS Connected States --- 
@@ -237,7 +244,7 @@ const AppInitializer: React.FC = () => {
   }
   
   // Fallback:
-  return renderWithNav(<LoadingScreen message="Verifying state..." />, "Fallback Loading Screen"); 
+  return renderWithNav(<LoadingScreen message="Verifying state..." />, "Fallback Loading Screen");
 };
 
 export default AppInitializer; 
