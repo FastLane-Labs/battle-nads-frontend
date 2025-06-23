@@ -73,6 +73,7 @@ export function filterEventsByRecentAreas(
   const mostRecentEventTime = Math.max(...events.map(e => e.timestamp));
   const recentCutoff = mostRecentEventTime - recentTimeWindow;
   
+  
   return events.filter(event => {
     // Include all events from current area (regardless of age)
     if (event.areaId === currentAreaId) {

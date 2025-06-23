@@ -394,6 +394,7 @@ export const processDataFeedsToEvents = (
       const otherPlayerIndexNum = Number(log.otherPlayerIndex);
       const attackerInfo = characterLookup.get(mainPlayerIndexNum);
       const defenderInfo = characterLookup.get(otherPlayerIndexNum);
+      
 
       const getCharacterFallbackName = (playerIndex: number, isAttacker: boolean): string => {
         if (playerIndex <= 0) return 'Unknown';

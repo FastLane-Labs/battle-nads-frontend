@@ -524,8 +524,6 @@ export function contractToWorldSnapshot(
       Number(raw.character.stats.y)
     ) : 0n;
 
-  console.log(`[contractToWorldSnapshot] Calculated snapshotAreaId: ${snapshotAreaId} from character position (depth: ${raw.character?.stats.depth}, x: ${raw.character?.stats.x}, y: ${raw.character?.stats.y})`);
-
   if (snapshotAreaId === 0n) {
     if (raw.character) {
       // This means createAreaID returned 0n even with character data (e.g., depth 0, x 0, y 0)
@@ -691,12 +689,8 @@ export function contractToWorldSnapshot(
           }
           
           const actionText = logTypeNum === domain.LogType.EnteredArea ? 'entered' : 'left';
-          const displayMessage = `${participantName} ${actionText} the area.`;
+          const displayMessage = `${participantName} ${actionText} area ${snapshotAreaId}.`;
           
-          // Debug logging for area movement events
-          if (isPlayer) {
-            console.log(`[contractToWorldSnapshot] ${actionText} event - snapshotAreaId: ${snapshotAreaId}, character position: depth=${raw.character?.stats.depth}, x=${raw.character?.stats.x}, y=${raw.character?.stats.y}`);
-          }
           
           const newEventMessage: domain.EventMessage = {
             logIndex: logIndex,

@@ -108,7 +108,6 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     if (includeHistory && uiSnapshot.dataFeeds?.length) {
       const freshSnapshot = contractToWorldSnapshot(uiSnapshot, owner, characterId || undefined);
       if (freshSnapshot?.eventLogs && freshSnapshot.eventLogs.length > 0) {
-        console.log(`[useGameState] Processing ${freshSnapshot.eventLogs.length} fresh runtime events`);
         
         // Add fresh events to runtime state with deduplication
         setRuntimeEvents(prev => {
@@ -162,7 +161,6 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       ).then(result => {
         // Mark events as persisted when storage succeeds
         if (result.storedEvents > 0) {
-          console.log(`[useGameState] Successfully persisted ${result.storedEvents} events to localStorage`);
           
           // Update persisted keys to allow runtime events to be cleaned up
           const freshSnapshot = contractToWorldSnapshot(uiSnapshot, owner, characterId || undefined);
@@ -353,7 +351,6 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       const finalEventLogs = Array.from(combinedEventLogsMap.values())
                                   .sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
                                   
-      console.log(`[useGameState] Final merged events: ${historicalEventMessages.length} historical + ${runtimeEvents.length} runtime + ${snapshotBase.eventLogs.length} fresh = ${finalEventLogs.length} total`);
       
       // --- Combine Historical + Runtime Chat Logs --- 
       const combinedChatLogsMap = new Map<string, domain.ChatMessage>();
