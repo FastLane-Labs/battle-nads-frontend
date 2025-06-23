@@ -77,7 +77,8 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
   const { 
     optimisticChatMessages, 
     addOptimisticChatMessage: addOptimisticChat,
-    isMessageOptimistic 
+    isMessageOptimistic,
+    removeConfirmedOptimisticMessages
   } = useOptimisticChat();
   
   // Runtime event state - keeps new events until they're persisted to localStorage
@@ -335,8 +336,13 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         return previousGameStateRef.current;
       }
 
-      // If history is not enabled, return the base snapshot
+      // If history is not enabled, check for confirmed messages and remove optimistic ones
       if (!includeHistory) {
+        // Check if any optimistic messages now have confirmed versions
+        if (snapshotBase.chatLogs.length > 0) {
+          removeConfirmedOptimisticMessages(snapshotBase.chatLogs);
+        }
+        
         if (snapshotBase) {
           previousGameStateRef.current = snapshotBase;
         }
@@ -388,10 +394,20 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         combinedChatLogsMap.set(key, log);
       });
       
+      // Collect all confirmed messages before processing optimistic ones
+      const allConfirmedMessages = Array.from(combinedChatLogsMap.values());
+      
+      // Remove optimistic messages that now have confirmed versions
+      if (allConfirmedMessages.length > 0) {
+        removeConfirmedOptimisticMessages(allConfirmedMessages);
+      }
       
       // 3. Add optimistic chat messages (but skip if we have a confirmed version)
+      // Also track which optimistic messages should be removed because confirmed versions exist
+      const optimisticToRemove: string[] = [];
+      
       optimisticChatMessages.forEach((optimistic) => {
-        const hasConfirmedVersion = Array.from(combinedChatLogsMap.values()).some(confirmed => {
+        const hasConfirmedVersion = allConfirmedMessages.some(confirmed => {
           // Must be from the same player
           const isSamePlayer = confirmed.sender.index === optimistic.sender.index ||
                               confirmed.sender.id === optimistic.sender.id;
@@ -438,7 +454,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       console.error('[useGameState] Error mapping contract data to domain:', error);
       return previousGameStateRef.current;
     }
-  }, [rawData, includeHistory, historicalEventMessages, historicalChatMessages, optimisticChatMessages, runtimeEvents, owner, characterId]);
+  }, [rawData, includeHistory, historicalEventMessages, historicalChatMessages, optimisticChatMessages, runtimeEvents, owner, characterId, removeConfirmedOptimisticMessages]);
 
   /* ---------- Unified world snapshot with session data ---------- */
   const worldSnapshot = useMemo<domain.WorldSnapshot | null>(() => {

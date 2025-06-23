@@ -78,11 +78,44 @@ export function useOptimisticChat() {
     rollback(updateId);
   }, [rollback]);
 
+  // Remove optimistic messages that have confirmed versions
+  const removeConfirmedOptimisticMessages = useCallback((
+    confirmedMessages: domain.ChatMessage[]
+  ) => {
+    const updates = getUpdatesByType<OptimisticChatData>('chat');
+    
+    updates.forEach(update => {
+      const hasConfirmedVersion = confirmedMessages.some(confirmed => {
+        // Must be from the same player
+        const isSamePlayer = confirmed.sender.index === update.data.message.sender.index ||
+                            confirmed.sender.id === update.data.message.sender.id;
+        
+        if (!isSamePlayer) return false;
+        
+        // Must have the same message content
+        const sameContent = confirmed.message === update.data.originalMessage;
+        if (!sameContent) return false;
+        
+        // Must be within reasonable time window (30 seconds)
+        const timeDiff = Math.abs(confirmed.timestamp - update.data.message.timestamp);
+        const withinTimeWindow = timeDiff <= 30000;
+        
+        return sameContent && isSamePlayer && withinTimeWindow;
+      });
+      
+      if (hasConfirmedVersion) {
+        console.log('[useOptimisticChat] Removing optimistic message (confirmed version found):', update.data.originalMessage);
+        removeOptimisticUpdate(update.id);
+      }
+    });
+  }, [getUpdatesByType, removeOptimisticUpdate]);
+
   return {
     optimisticChatMessages,
     addOptimisticChatMessage,
     removeOptimisticChatMessage,
     isMessageOptimistic,
-    rollbackChatMessage
+    rollbackChatMessage,
+    removeConfirmedOptimisticMessages
   };
 }
