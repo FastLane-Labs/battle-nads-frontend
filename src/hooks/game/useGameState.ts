@@ -446,13 +446,17 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     }
   }, [rawData, includeHistory, historicalEventMessages, historicalChatMessages, optimisticChatMessages, runtimeEvents, owner, characterId]);
 
+  // Ref to store the latest removeConfirmedOptimisticMessages function
+  const removeConfirmedOptimisticMessagesRef = useRef(removeConfirmedOptimisticMessages);
+  removeConfirmedOptimisticMessagesRef.current = removeConfirmedOptimisticMessages;
+
   // Effect to clean up confirmed optimistic messages
   useEffect(() => {
     if (!gameState?.chatLogs || gameState.chatLogs.length === 0) return;
     
     // Remove optimistic messages that now have confirmed versions
-    removeConfirmedOptimisticMessages(gameState.chatLogs);
-  }, [gameState?.chatLogs, removeConfirmedOptimisticMessages]);
+    removeConfirmedOptimisticMessagesRef.current(gameState.chatLogs);
+  }, [gameState?.chatLogs]);
 
   /* ---------- Unified world snapshot with session data ---------- */
   const worldSnapshot = useMemo<domain.WorldSnapshot | null>(() => {
