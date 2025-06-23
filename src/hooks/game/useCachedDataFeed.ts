@@ -10,9 +10,59 @@ import { mapCharacterToCharacterLite } from '@/mappers/contractToDomain'; // Imp
 // This persists during the session but clears on page reload
 const characterNameCache = new Map<number, { id: string; name: string; areaId: bigint }>();
 
+// Export character cache for use in other modules
+export const getCharacterNameCache = () => characterNameCache;
+
 // Export function to clear character cache (useful for debugging or when switching characters)
 export const clearCharacterNameCache = () => {
   characterNameCache.clear();
+};
+
+/**
+ * Build character lookup map from cache and current context
+ * This is the same logic used when storing events, now shared for fresh events
+ */
+export const buildCharacterLookup = (
+  combatantsContext?: CharacterLite[],
+  nonCombatantsContext?: CharacterLite[],
+  mainPlayerCharacter?: contract.Character
+): Map<number, { id: string; name: string; areaId: bigint }> => {
+  const characterLookup = new Map<number, { id: string; name: string; areaId: bigint }>();
+  
+  // 1. Start with cached characters
+  characterNameCache.forEach((char, index) => {
+    characterLookup.set(index, char);
+  });
+  
+  // 2. Add/update current combatants
+  (combatantsContext || []).forEach(c => {
+    const charData = { id: c.id, name: c.name, areaId: c.areaId };
+    characterLookup.set(c.index, charData);
+    characterNameCache.set(c.index, charData);
+  });
+  
+  // 3. Add/update current noncombatants
+  (nonCombatantsContext || []).forEach(c => {
+    const charData = { id: c.id, name: c.name, areaId: c.areaId };
+    characterLookup.set(c.index, charData);
+    characterNameCache.set(c.index, charData);
+  });
+  
+  // 4. Add main player character
+  if (mainPlayerCharacter) {
+    const mainPlayerLite = mapCharacterToCharacterLite(mainPlayerCharacter);
+    if (mainPlayerLite) {
+      const charData = { 
+        id: mainPlayerLite.id, 
+        name: mainPlayerLite.name, 
+        areaId: mainPlayerLite.areaId 
+      };
+      characterLookup.set(mainPlayerLite.index, charData);
+      characterNameCache.set(mainPlayerLite.index, charData);
+    }
+  }
+  
+  return characterLookup;
 };
 
 // Define SerializedEventLog based on contract.Log, converting BigInts to numbers
@@ -329,41 +379,12 @@ export const processDataFeedsToEvents = (
   
   const baseBlock = endBlock ? Number(endBlock) - maxRelativeBlock : 0;
 
-  // Create character lookup map with cache fallbacks
-  const characterLookup = new Map<number, { id: string; name: string; areaId: bigint }>();
-  
-  // 1. Start with cached characters
-  characterNameCache.forEach((char, index) => {
-    characterLookup.set(index, char);
-  });
-  
-  // 2. Add/update current combatants
-  (combatantsContext || []).forEach(c => {
-    const charData = { id: c.id, name: c.name, areaId: c.areaId };
-    characterLookup.set(c.index, charData);
-    characterNameCache.set(c.index, charData);
-  });
-  
-  // 3. Add/update current noncombatants
-  (nonCombatantsContext || []).forEach(c => {
-    const charData = { id: c.id, name: c.name, areaId: c.areaId };
-    characterLookup.set(c.index, charData);
-    characterNameCache.set(c.index, charData);
-  });
-  
-  // 4. Add main player character
-  if (mainPlayerCharacter) {
-    const mainPlayerLite = mapCharacterToCharacterLite(mainPlayerCharacter);
-    if (mainPlayerLite) {
-      const charData = { 
-        id: mainPlayerLite.id, 
-        name: mainPlayerLite.name, 
-        areaId: mainPlayerLite.areaId 
-      };
-      characterLookup.set(mainPlayerLite.index, charData);
-      characterNameCache.set(mainPlayerLite.index, charData);
-    }
-  }
+  // Create character lookup using shared function
+  const characterLookup = buildCharacterLookup(
+    combatantsContext,
+    nonCombatantsContext,
+    mainPlayerCharacter
+  );
 
   const events: StoredEvent[] = [];
   const chatMessages: StoredChatMessage[] = [];
@@ -389,16 +410,15 @@ export const processDataFeedsToEvents = (
       const logTypeNum = Number(log.logType);
       const eventKey = `${absoluteBlockNumber}-${logIndexNum}`;
 
-      // Process event (all log types create events)
+      // Process event (all log types create events)  
       const mainPlayerIndexNum = Number(log.mainPlayerIndex);
       const otherPlayerIndexNum = Number(log.otherPlayerIndex);
       const attackerInfo = characterLookup.get(mainPlayerIndexNum);
       const defenderInfo = characterLookup.get(otherPlayerIndexNum);
       
-
       const getCharacterFallbackName = (playerIndex: number, isAttacker: boolean): string => {
         if (playerIndex <= 0) return 'Unknown';
-        if (playerIndex < 100) {
+        if (playerIndex <= 64) {
           return isAttacker ? `Player ${playerIndex}` : `Character ${playerIndex}`;
         } else {
           return isAttacker ? `Creature ${playerIndex}` : `Enemy ${playerIndex}`;
