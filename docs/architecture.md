@@ -145,13 +145,15 @@
   - Provides unified interface for contract interactions
 
 #### `useCachedDataFeed`
-- **Purpose**: Manage local cache (IndexedDB via localforage) of historical event and chat logs.
+- **Purpose**: Manage local cache (IndexedDB via Dexie) of historical event and chat logs.
 - **Responsibilities**:
   - Loads cached data blocks on initialization.
   - Determines the appropriate `startBlock` for incremental fetching based on the last cached block and a TTL.
-  - Stores newly fetched `DataFeed` blocks (events/chats) from the client.
-  - Purges expired blocks from the cache.
+  - Stores newly fetched `DataFeed` blocks (events/chats) from the client using event-level storage.
+  - Purges expired blocks from the cache (TTL: 1 hour).
   - Provides the cached blocks and the latest block number covered by the cache to `useUiSnapshot`.
+  - Handles event-level deduplication to prevent duplicate storage.
+  - Supports name resolution updates for events with incomplete character information.
 
 #### `useEquipment`
 - **Purpose**: Handle character equipment changes and item management.
