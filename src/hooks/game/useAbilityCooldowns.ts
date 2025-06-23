@@ -85,7 +85,8 @@ export const useAbilityCooldowns = (characterId: string | null) => {
   const {
     getOptimisticAbilityUse,
     addOptimisticAbilityUse,
-    confirmAbilityUse
+    confirmAbilityUse,
+    optimisticAbilityUses
   } = useOptimisticAbilities();
 
   const abilitiesFromGameState = useMemo(() => {
@@ -168,7 +169,9 @@ export const useAbilityCooldowns = (characterId: string | null) => {
     
     return abilitiesFromGameState.map(status => {
       // Check if there's an optimistic update for this ability
-      const optimisticUse = getOptimisticAbilityUse(characterId, status.ability);
+      const optimisticUse = optimisticAbilityUses.find(use => 
+        use.characterId === characterId && use.abilityIndex === status.ability
+      );
       
       if (optimisticUse) {
         // Calculate optimistic cooldown properties
@@ -199,7 +202,7 @@ export const useAbilityCooldowns = (characterId: string | null) => {
       
       return status;
     });
-  }, [abilitiesFromGameState, characterId, currentBlock, getAbilityDescription, characterName, getOptimisticAbilityUse]);
+  }, [abilitiesFromGameState, characterId, currentBlock, getAbilityDescription, characterName, optimisticAbilityUses]);
 
   // Effect to clear the optimistic flag once the gameState confirms the ability is no longer ready
   useEffect(() => {
@@ -207,12 +210,16 @@ export const useAbilityCooldowns = (characterId: string | null) => {
     
     // Check each ability from game state to see if it's now confirmed as not ready
     abilitiesFromGameState.forEach(status => {
-      if (!status.isReady && getOptimisticAbilityUse(characterId, status.ability)) {
+      const hasOptimisticUse = optimisticAbilityUses.some(use => 
+        use.characterId === characterId && use.abilityIndex === status.ability
+      );
+      
+      if (!status.isReady && hasOptimisticUse) {
         // The ability is confirmed to be on cooldown, we can remove the optimistic update
         confirmAbilityUse(characterId, status.ability);
       }
     });
-  }, [abilitiesFromGameState, characterId, getOptimisticAbilityUse, confirmAbilityUse]);
+  }, [abilitiesFromGameState, characterId, optimisticAbilityUses, confirmAbilityUse]);
 
   // Mutation for using an ability
   const abilityMutation = useGameMutation(

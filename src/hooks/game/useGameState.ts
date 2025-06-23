@@ -336,13 +336,8 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         return previousGameStateRef.current;
       }
 
-      // If history is not enabled, check for confirmed messages and remove optimistic ones
+      // If history is not enabled, return the base snapshot
       if (!includeHistory) {
-        // Check if any optimistic messages now have confirmed versions
-        if (snapshotBase.chatLogs.length > 0) {
-          removeConfirmedOptimisticMessages(snapshotBase.chatLogs);
-        }
-        
         if (snapshotBase) {
           previousGameStateRef.current = snapshotBase;
         }
@@ -397,11 +392,6 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       // Collect all confirmed messages before processing optimistic ones
       const allConfirmedMessages = Array.from(combinedChatLogsMap.values());
       
-      // Remove optimistic messages that now have confirmed versions
-      if (allConfirmedMessages.length > 0) {
-        removeConfirmedOptimisticMessages(allConfirmedMessages);
-      }
-      
       // 3. Add optimistic chat messages (but skip if we have a confirmed version)
       // Also track which optimistic messages should be removed because confirmed versions exist
       const optimisticToRemove: string[] = [];
@@ -454,7 +444,15 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       console.error('[useGameState] Error mapping contract data to domain:', error);
       return previousGameStateRef.current;
     }
-  }, [rawData, includeHistory, historicalEventMessages, historicalChatMessages, optimisticChatMessages, runtimeEvents, owner, characterId, removeConfirmedOptimisticMessages]);
+  }, [rawData, includeHistory, historicalEventMessages, historicalChatMessages, optimisticChatMessages, runtimeEvents, owner, characterId]);
+
+  // Effect to clean up confirmed optimistic messages
+  useEffect(() => {
+    if (!gameState?.chatLogs || gameState.chatLogs.length === 0) return;
+    
+    // Remove optimistic messages that now have confirmed versions
+    removeConfirmedOptimisticMessages(gameState.chatLogs);
+  }, [gameState?.chatLogs, removeConfirmedOptimisticMessages]);
 
   /* ---------- Unified world snapshot with session data ---------- */
   const worldSnapshot = useMemo<domain.WorldSnapshot | null>(() => {
