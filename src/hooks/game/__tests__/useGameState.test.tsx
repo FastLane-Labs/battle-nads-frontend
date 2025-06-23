@@ -8,6 +8,8 @@ import { useBattleNadsClient } from '../../contracts/useBattleNadsClient';
 import { useUiSnapshot } from '../useUiSnapshot';
 import { useCachedDataFeed } from '../useCachedDataFeed';
 import { useSessionKey } from '../../session/useSessionKey';
+import { OptimisticUpdatesProvider } from '../../../providers/OptimisticUpdatesProvider';
+import { useOptimisticUpdates } from '../../optimistic/useOptimisticUpdates';
 
 // Mock dependencies
 jest.mock('../../../providers/WalletProvider');
@@ -15,12 +17,14 @@ jest.mock('../../contracts/useBattleNadsClient');
 jest.mock('../useUiSnapshot');
 jest.mock('../useCachedDataFeed');
 jest.mock('../../session/useSessionKey');
+jest.mock('../../optimistic/useOptimisticUpdates');
 
 const mockUseWallet = useWallet as jest.Mock;
 const mockUseBattleNadsClient = useBattleNadsClient as jest.Mock;
 const mockUseUiSnapshot = useUiSnapshot as jest.Mock;
 const mockUseCachedDataFeed = useCachedDataFeed as jest.Mock;
 const mockUseSessionKey = useSessionKey as jest.Mock;
+const mockUseOptimisticUpdates = useOptimisticUpdates as jest.Mock;
 
 // Test wrapper
 const createWrapper = () => {
@@ -34,7 +38,9 @@ const createWrapper = () => {
   return ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={queryClient}>
       <ChakraProvider>
-        {children}
+        <OptimisticUpdatesProvider>
+          {children}
+        </OptimisticUpdatesProvider>
       </ChakraProvider>
     </QueryClientProvider>
   );
@@ -141,6 +147,13 @@ const mockSessionData = {
   needsUpdate: false,
 };
 
+const mockOptimisticUpdates = {
+  optimisticChatMessages: [],
+  addOptimisticChatMessage: jest.fn(),
+  clearOptimisticChatMessages: jest.fn(),
+  getUpdatesByType: jest.fn(() => []),
+};
+
 describe('useGameState', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -154,6 +167,7 @@ describe('useGameState', () => {
     });
     mockUseCachedDataFeed.mockReturnValue(mockCachedData);
     mockUseSessionKey.mockReturnValue(mockSessionData);
+    mockUseOptimisticUpdates.mockReturnValue(mockOptimisticUpdates);
   });
 
   it('should return basic game state data', () => {

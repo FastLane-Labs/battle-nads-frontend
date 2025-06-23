@@ -1,6 +1,9 @@
 import { renderHook, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ChakraProvider } from '@chakra-ui/react';
 import { useAbilityCooldowns } from '../useAbilityCooldowns';
 import { AbilityStage } from '@/types/domain/enums';
+import { OptimisticUpdatesProvider } from '@/providers/OptimisticUpdatesProvider';
 
 // Mock dependencies
 jest.mock('@/providers/WalletProvider', () => ({
@@ -19,6 +22,7 @@ jest.mock('../../contracts/useBattleNadsClient', () => ({
 
 jest.mock('@chakra-ui/react', () => ({
   useToast: () => jest.fn(),
+  ChakraProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 jest.mock('../useGameState', () => ({
@@ -49,6 +53,32 @@ jest.mock('../useGameMutation', () => ({
   }),
 }));
 
+jest.mock('../../optimistic/useOptimisticUpdates', () => ({
+  useOptimisticUpdates: () => ({
+    getUpdatesByType: jest.fn(() => []),
+  }),
+}));
+
+// Test wrapper
+const createWrapper = () => {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: false },
+    },
+  });
+
+  return ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>
+      <ChakraProvider>
+        <OptimisticUpdatesProvider>
+          {children}
+        </OptimisticUpdatesProvider>
+      </ChakraProvider>
+    </QueryClientProvider>
+  );
+};
+
 describe('useAbilityCooldowns', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -57,7 +87,9 @@ describe('useAbilityCooldowns', () => {
   describe('ability cooldown constants', () => {
     it('should have hook structure defined correctly', () => {
       // This test verifies the hook returns the expected structure
-      const { result } = renderHook(() => useAbilityCooldowns('test-character-id'));
+      const { result } = renderHook(() => useAbilityCooldowns('test-character-id'), {
+        wrapper: createWrapper(),
+      });
       
       expect(result.current).toHaveProperty('abilities');
       expect(result.current).toHaveProperty('useAbility');
@@ -68,7 +100,9 @@ describe('useAbilityCooldowns', () => {
 
   describe('ability state management', () => {
     it('should return ready state for all abilities when character has no active ability', () => {
-      const { result } = renderHook(() => useAbilityCooldowns('test-character-id'));
+      const { result } = renderHook(() => useAbilityCooldowns('test-character-id'), {
+        wrapper: createWrapper(),
+      });
       
       const abilities = result.current.abilities;
       abilities.forEach((ability: any) => {
@@ -79,13 +113,17 @@ describe('useAbilityCooldowns', () => {
     });
 
     it('should provide useAbility function', () => {
-      const { result } = renderHook(() => useAbilityCooldowns('test-character-id'));
+      const { result } = renderHook(() => useAbilityCooldowns('test-character-id'), {
+        wrapper: createWrapper(),
+      });
       
       expect(typeof result.current.useAbility).toBe('function');
     });
 
     it('should provide loading and error states', () => {
-      const { result } = renderHook(() => useAbilityCooldowns('test-character-id'));
+      const { result } = renderHook(() => useAbilityCooldowns('test-character-id'), {
+        wrapper: createWrapper(),
+      });
       
       expect(typeof result.current.isUsingAbility).toBe('boolean');
       expect(result.current.abilityError).toBeNull();
@@ -95,7 +133,9 @@ describe('useAbilityCooldowns', () => {
 
   describe('ability class mapping', () => {
     it('should handle abilities correctly', () => {
-      const { result } = renderHook(() => useAbilityCooldowns('test-character-id'));
+      const { result } = renderHook(() => useAbilityCooldowns('test-character-id'), {
+        wrapper: createWrapper(),
+      });
       
       const abilities = result.current.abilities;
       
@@ -114,7 +154,9 @@ describe('useAbilityCooldowns', () => {
 
   describe('ability descriptions', () => {
     it('should provide proper descriptions for ready abilities', () => {
-      const { result } = renderHook(() => useAbilityCooldowns('test-character-id'));
+      const { result } = renderHook(() => useAbilityCooldowns('test-character-id'), {
+        wrapper: createWrapper(),
+      });
       
       const abilities = result.current.abilities;
       abilities.forEach((ability: any) => {
@@ -127,7 +169,9 @@ describe('useAbilityCooldowns', () => {
 
   describe('error handling', () => {
     it('should handle missing character ID gracefully', () => {
-      const { result } = renderHook(() => useAbilityCooldowns(null));
+      const { result } = renderHook(() => useAbilityCooldowns(null), {
+        wrapper: createWrapper(),
+      });
       
       expect(result.current.abilities).toEqual([]);
       expect(typeof result.current.useAbility).toBe('function');

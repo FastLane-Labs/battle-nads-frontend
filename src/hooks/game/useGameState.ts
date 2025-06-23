@@ -10,9 +10,9 @@ import { TransactionResponse } from 'ethers';
 import { mapSessionKeyData } from '../../mappers/contractToDomain';
 import { contractToWorldSnapshot, mapCharacterLite } from '@/mappers';
 import { createAreaID } from '@/utils/areaId';
-import { useCachedDataFeed, CachedDataBlock, storeEventData, storeChatMessagesDirectly, buildCharacterLookup } from './useCachedDataFeed';
+import { useCachedDataFeed, CachedDataBlock, storeEventData, buildCharacterLookup, storeChatMessagesDirectly } from './useCachedDataFeed';
 import { useUiSnapshot } from './useUiSnapshot';
-import { useGameMutation } from './useGameMutation';
+import { useGameMutation, useGameTransactionMutation } from './useGameMutation';
 import { useOptimisticChat } from '../optimistic/useOptimisticChat';
 
 export interface UseGameStateOptions {
@@ -194,27 +194,6 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       }).catch(error => {
         console.error('[useGameState] Error storing event data:', error);
       });
-    }
-    
-    // Also check if contractToWorldSnapshot found any chat messages that need to be stored
-    if (includeHistory && owner && characterId) {
-      const characterLookup = buildCharacterLookup(
-        (uiSnapshot.combatants || []).map(c => mapCharacterLite(c)),
-        (uiSnapshot.noncombatants || []).map(c => mapCharacterLite(c)),
-        uiSnapshot.character
-      );
-      const freshSnapshot = contractToWorldSnapshot(uiSnapshot, owner, characterId || undefined, characterLookup);
-      if (freshSnapshot?.chatLogs && freshSnapshot.chatLogs.length > 0) {
-        
-        // Store fresh chat messages directly to ensure they're persisted
-        storeChatMessagesDirectly(
-          owner,
-          characterId,
-          freshSnapshot.chatLogs
-        ).catch((error: unknown) => {
-          console.error('[useGameState] Error storing fresh chat messages:', error);
-        });
-      }
     }
   }, [includeHistory, owner, characterId]);
 
@@ -581,8 +560,8 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       }
     );
 
-    // Send chat mutation
-    const sendChatMutation = useGameMutation(
+    // Send chat mutation - wait for transaction confirmation before re-enabling chat
+    const sendChatMutation = useGameTransactionMutation(
       async (variables: { message: string }) => {
         if (!client || !characterId) {
           throw new Error('Client or character ID missing');
@@ -590,12 +569,15 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         return client.chat(characterId, variables.message);
       },
       {
-        successMessage: 'Message sent',
+        successMessage: 'Message confirmed',
         errorMessage: 'Failed to send message',
-        showSuccessToast: false, // Don't show toast for chat
+        showSuccessToast: false, // Don't show success toast for chat
+        showTransactionFlow: false, // Don't show transaction flow toast for chat
         mutationKey: ['sendChat', characterId || 'unknown', owner || 'unknown'],
         characterId,
         onSuccess: (_, variables) => {
+          // Add optimistic message only after transaction is confirmed
+          // This prevents duplicate messages if the transaction fails
           addOptimisticChatMessage(variables.message);
         }
       }

@@ -10,6 +10,7 @@ interface ChatPanelProps {
   chatLogs: domain.ChatMessage[];
   isCacheLoading: boolean;
   currentAreaId?: bigint;
+  isSendingChat?: boolean; // New prop to track sending state
 }
 
 const ChatPanel: React.FC<ChatPanelProps> = ({ 
@@ -17,10 +18,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   onSendChatMessage, 
   chatLogs,
   isCacheLoading,
-  currentAreaId
+  currentAreaId,
+  isSendingChat = false
 }) => {
   const [inputValue, setInputValue] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Track previous area ID for change detection
   const prevAreaIdRef = useRef<bigint | undefined>(currentAreaId);
@@ -56,22 +57,18 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
   
   const handleSendMessage = async () => {
     const messageToSend = inputValue.trim();
-    if (messageToSend && !isSubmitting && !isTransactionDisabled) {
-      setIsSubmitting(true);
-      
+    if (messageToSend && !isSendingChat && !isTransactionDisabled) {
       try {
         await onSendChatMessage(messageToSend);
-        setInputValue('');
+        setInputValue(''); // Clear input only after successful send
       } catch (error) {
         console.error('Failed to send message:', error);
-      } finally {
-        setIsSubmitting(false);
-      } 
+      }
     }
   };
   
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey && !isTransactionDisabled) {
+    if (e.key === 'Enter' && !e.shiftKey && !isTransactionDisabled && !isSendingChat) {
       e.preventDefault();
       handleSendMessage();
     }
@@ -145,7 +142,7 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Send a message"
-          disabled={isSubmitting || isCacheLoading}
+          disabled={isSendingChat || isCacheLoading}
           className="w-full bg-stone-600/90 text-white py-2 px-2 rounded-md outline-none focus:outline-none"
         />
         <Tooltip 
@@ -157,10 +154,10 @@ const ChatPanel: React.FC<ChatPanelProps> = ({
         >
           <Button
             onClick={handleSendMessage}
-            isLoading={isSubmitting}
+            isLoading={isSendingChat}
             loadingText=""
             // colorScheme="blue"
-            disabled={isCacheLoading || isSubmitting || !inputValue.trim() || isTransactionDisabled}
+            disabled={isCacheLoading || isSendingChat || !inputValue.trim() || isTransactionDisabled}
             className={`!outline-none ${
               isTransactionDisabled ? '!bg-[#8B6914]/50 !opacity-50' : '!bg-[#8B6914]'
             }`}

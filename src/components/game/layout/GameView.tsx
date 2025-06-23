@@ -23,6 +23,7 @@ interface GameViewProps {
   onSendChatMessage: (message: string) => Promise<void>;
   isMoving: boolean;
   isAttacking: boolean;
+  isSendingChat: boolean;
   isInCombat: boolean;
   isCacheLoading: boolean;
   equipableWeaponIDs?: number[];
@@ -43,6 +44,7 @@ const GameView: React.FC<GameViewProps> = ({
   onSendChatMessage,
   isMoving,
   isAttacking,
+  isSendingChat,
   isInCombat,
   isCacheLoading,
   equipableWeaponIDs,
@@ -174,6 +176,7 @@ const GameView: React.FC<GameViewProps> = ({
             chatLogs={chatLogs}
             onSendChatMessage={onSendChatMessage}
             isCacheLoading={isCacheLoading}
+            isSendingChat={isSendingChat}
             currentAreaId={currentAreaId}
           />
         </Box>
