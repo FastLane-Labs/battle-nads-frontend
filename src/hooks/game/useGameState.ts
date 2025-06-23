@@ -732,7 +732,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     others: gameState?.combatants.filter(c => c.id !== characterId) || [],
     
     // Combat state
-    isInCombat: Boolean(rawData?.character?.stats.combatantBitMap),
+    isInCombat: Boolean(rawData?.character?.stats?.combatantBitMap),
     
     // Loading states
     isLoading,
