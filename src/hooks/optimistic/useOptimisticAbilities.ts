@@ -14,14 +14,15 @@ export function useOptimisticAbilities() {
     removeOptimisticUpdate, 
     getUpdatesByType,
     rollback,
-    rollbackByType
+    rollbackByType,
+    updates
   } = useOptimisticUpdatesContext();
 
   // Get all optimistic ability uses
   const optimisticAbilityUses = useMemo(() => {
     const updates = getUpdatesByType<OptimisticAbilityData>('ability');
     return updates.map(update => update.data);
-  }, [getUpdatesByType]);
+  }, [getUpdatesByType, updates]);
 
   // Add an optimistic ability use
   const addOptimisticAbilityUse = useCallback((
@@ -57,7 +58,7 @@ export function useOptimisticAbilities() {
       u.data.abilityIndex === abilityIndex
     );
     return update?.data || null;
-  }, [getUpdatesByType]);
+  }, [getUpdatesByType, updates]);
 
   // Remove a specific optimistic ability use
   const removeOptimisticAbilityUse = useCallback((updateId: string) => {
@@ -78,7 +79,7 @@ export function useOptimisticAbilities() {
     if (update) {
       removeOptimisticUpdate(update.id);
     }
-  }, [getUpdatesByType, removeOptimisticUpdate]);
+  }, [getUpdatesByType, removeOptimisticUpdate, updates]);
 
   // Rollback all ability uses (useful for error recovery)
   const rollbackAllAbilityUses = useCallback(() => {

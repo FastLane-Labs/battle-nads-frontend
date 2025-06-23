@@ -12,14 +12,15 @@ export function useOptimisticChat() {
     addOptimisticUpdate, 
     removeOptimisticUpdate, 
     getUpdatesByType,
-    rollback
+    rollback,
+    updates
   } = useOptimisticUpdatesContext();
 
   // Get all optimistic chat messages
   const optimisticChatMessages = useMemo(() => {
     const updates = getUpdatesByType<OptimisticChatData>('chat');
     return updates.map(update => update.data.message);
-  }, [getUpdatesByType]);
+  }, [getUpdatesByType, updates]);
 
   // Add an optimistic chat message
   const addOptimisticChatMessage = useCallback((
@@ -71,7 +72,7 @@ export function useOptimisticChat() {
       update.data.originalMessage === message && 
       update.data.message.sender.id === senderId
     );
-  }, [getUpdatesByType]);
+  }, [getUpdatesByType, updates]);
 
   // Rollback a specific chat message
   const rollbackChatMessage = useCallback((updateId: string) => {
@@ -108,7 +109,7 @@ export function useOptimisticChat() {
         removeOptimisticUpdate(update.id);
       }
     });
-  }, [getUpdatesByType, removeOptimisticUpdate]);
+  }, [getUpdatesByType, removeOptimisticUpdate, updates]);
 
   return {
     optimisticChatMessages,
