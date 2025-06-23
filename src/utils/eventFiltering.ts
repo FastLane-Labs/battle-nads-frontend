@@ -59,13 +59,13 @@ export function getUniqueAreaIds(events: domain.EventMessage[]): bigint[] {
  * to maintain context during movement while being refresh-friendly
  * @param events - Array of events to filter
  * @param currentAreaId - Current player area ID
- * @param recentTimeWindow - Time window in milliseconds for recent events (default: 5 minutes)
+ * @param recentTimeWindow - Time window in milliseconds for recent events (default: 10 minutes)
  * @returns Events from current area plus any recent events
  */
 export function filterEventsByRecentAreas(
   events: domain.EventMessage[], 
   currentAreaId: bigint,
-  recentTimeWindow: number = 5 * 60 * 1000 // 5 minutes
+  recentTimeWindow: number = 10 * 60 * 1000 // 10 minutes
 ): domain.EventMessage[] {
   if (!events.length) return [];
   
