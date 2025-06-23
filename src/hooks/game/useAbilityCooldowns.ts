@@ -8,6 +8,7 @@ import { useWallet } from '@/providers/WalletProvider';
 import { useToast } from '@chakra-ui/react';
 import { AVG_BLOCK_TIME_MS } from '@/config/gas';
 import { useGameMutation } from './useGameMutation';
+import { useOptimisticAbilities } from '../optimistic/useOptimisticAbilities';
 
 // Define ability-specific cooldown durations in blocks (after final stage completion)
 const ABILITY_COOLDOWN_BLOCKS: Record<domain.Ability, number> = {
@@ -80,10 +81,12 @@ export const useAbilityCooldowns = (characterId: string | null) => {
   const character = gameState?.character;
   const characterName = character?.name || 'Character';
 
-  // State to hold the ability index that was just optimistically used
-  const [optimisticallyUsedAbility, setOptimisticallyUsedAbility] = useState<domain.Ability | null>(null);
-  // State to hold the block number when the optimistic cooldown started
-  const [blockOfOptimisticUse, setBlockOfOptimisticUse] = useState<number | null>(null);
+  // Use centralized optimistic ability system
+  const {
+    getOptimisticAbilityUse,
+    addOptimisticAbilityUse,
+    confirmAbilityUse
+  } = useOptimisticAbilities();
 
   const abilitiesFromGameState = useMemo(() => {
     if (!character || typeof character.class === 'undefined') return [];
@@ -161,15 +164,16 @@ export const useAbilityCooldowns = (characterId: string | null) => {
 
   // This useMemo applies the optimistic update to the abilities derived from gameState
   const finalAbilities = useMemo(() => {
-    if (!optimisticallyUsedAbility || blockOfOptimisticUse === null) {
-      return abilitiesFromGameState;
-    }
+    if (!characterId) return abilitiesFromGameState;
+    
     return abilitiesFromGameState.map(status => {
-      // Check if the current status object is for the optimistically used ability
-      if (status.ability === optimisticallyUsedAbility) {
-        // Calculate optimistic cooldown properties regardless of the underlying gameState for this ability
-        const cooldownBlocks = ABILITY_COOLDOWN_BLOCKS[optimisticallyUsedAbility] || DEFAULT_ABILITY_TIMEOUT_BLOCKS;
-        const optimisticReadyAgainBlock = blockOfOptimisticUse + cooldownBlocks;
+      // Check if there's an optimistic update for this ability
+      const optimisticUse = getOptimisticAbilityUse(characterId, status.ability);
+      
+      if (optimisticUse) {
+        // Calculate optimistic cooldown properties
+        const cooldownBlocks = ABILITY_COOLDOWN_BLOCKS[status.ability] || DEFAULT_ABILITY_TIMEOUT_BLOCKS;
+        const optimisticReadyAgainBlock = Number(optimisticUse.blockUsed) + cooldownBlocks;
         const optimisticSecondsLeft = Math.max(0, optimisticReadyAgainBlock - currentBlock) * (AVG_BLOCK_TIME_MS / 1000);
         const optimisticIsReady = currentBlock >= optimisticReadyAgainBlock;
         
@@ -177,38 +181,38 @@ export const useAbilityCooldowns = (characterId: string | null) => {
         if (optimisticIsReady) {
           optimisticDescription = getAbilityDescription(status.ability, AbilityStage.READY, characterName);
         } else {
-          // Align with the standard getAbilityDescription for COOLDOWN stage, but acknowledge it's optimistic indirectly by context
-          // The main getAbilityDescription already formats this well.
           optimisticDescription = getAbilityDescription(status.ability, AbilityStage.COOLDOWN, characterName);
         }
 
         const optimisticInitialTotalSeconds = cooldownBlocks * (AVG_BLOCK_TIME_MS / 1000);
 
         return {
-          ...status, // Spread the original status to keep other properties like base damage, etc.
+          ...status,
           isReady: optimisticIsReady,
           stage: optimisticIsReady ? AbilityStage.READY : AbilityStage.COOLDOWN,
           secondsLeft: optimisticSecondsLeft,
           description: optimisticDescription,
           currentCooldownInitialTotalSeconds: optimisticInitialTotalSeconds,
-          gasShortfall: !optimisticIsReady && status.gasShortfall // Only show if optimistically cooling and original state had it
+          gasShortfall: !optimisticIsReady && status.gasShortfall
         };
       }
-      // If not the optimistically used ability, return its status from gameState as is
+      
       return status;
     });
-  }, [abilitiesFromGameState, optimisticallyUsedAbility, blockOfOptimisticUse, characterName, currentBlock, getAbilityDescription]);
+  }, [abilitiesFromGameState, characterId, currentBlock, getAbilityDescription, characterName, getOptimisticAbilityUse]);
 
   // Effect to clear the optimistic flag once the gameState confirms the ability is no longer ready
   useEffect(() => {
-    if (optimisticallyUsedAbility) {
-      const confirmedStatus = abilitiesFromGameState.find(s => s.ability === optimisticallyUsedAbility);
-      if (confirmedStatus && !confirmedStatus.isReady) {
-        setOptimisticallyUsedAbility(null);
-        setBlockOfOptimisticUse(null); // Clear block reference too
+    if (!characterId) return;
+    
+    // Check each ability from game state to see if it's now confirmed as not ready
+    abilitiesFromGameState.forEach(status => {
+      if (!status.isReady && getOptimisticAbilityUse(characterId, status.ability)) {
+        // The ability is confirmed to be on cooldown, we can remove the optimistic update
+        confirmAbilityUse(characterId, status.ability);
       }
-    }
-  }, [abilitiesFromGameState, optimisticallyUsedAbility]);
+    });
+  }, [abilitiesFromGameState, characterId, getOptimisticAbilityUse, confirmAbilityUse]);
 
   // Mutation for using an ability
   const abilityMutation = useGameMutation(
@@ -225,8 +229,14 @@ export const useAbilityCooldowns = (characterId: string | null) => {
       mutationKey: ['useAbility', characterId || 'unknown', owner || 'unknown'],
       onSuccess: (data, variables) => {
         console.log(`[useAbilityCooldowns] Ability ${variables.abilityIndex} used successfully. Tx:`, data?.hash);
-        setOptimisticallyUsedAbility(variables.abilityIndex); // Set optimistic flag
-        setBlockOfOptimisticUse(currentBlock); // Capture current block at time of use
+        if (characterId) {
+          // Add optimistic ability use with current block
+          addOptimisticAbilityUse(
+            variables.abilityIndex,
+            BigInt(currentBlock),
+            characterId
+          );
+        }
       },
       onError: (error: Error, variables) => {
         console.error(`[useAbilityCooldowns] Error using ability ${variables.abilityIndex}:`, error);

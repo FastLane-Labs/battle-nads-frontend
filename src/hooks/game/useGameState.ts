@@ -13,6 +13,7 @@ import { createAreaID } from '@/utils/areaId';
 import { useCachedDataFeed, CachedDataBlock, storeEventData, storeChatMessagesDirectly, buildCharacterLookup } from './useCachedDataFeed';
 import { useUiSnapshot } from './useUiSnapshot';
 import { useGameMutation } from './useGameMutation';
+import { useOptimisticChat } from '../optimistic/useOptimisticChat';
 
 export interface UseGameStateOptions {
   /** Whether to include action mutations and wallet integration (default: true) */
@@ -72,8 +73,12 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     includeHistory ? characterId : null
   );
 
-  // Chat and event state management
-  const [optimisticChatMessages, setOptimisticChatMessages] = useState<domain.ChatMessage[]>([]);
+  // Use centralized optimistic chat system
+  const { 
+    optimisticChatMessages, 
+    addOptimisticChatMessage: addOptimisticChat,
+    isMessageOptimistic 
+  } = useOptimisticChat();
   
   // Runtime event state - keeps new events until they're persisted to localStorage
   const [runtimeEvents, setRuntimeEvents] = useState<domain.EventMessage[]>([]);
@@ -496,28 +501,22 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       return;
     }
 
-    const optimisticMessage: domain.ChatMessage = {
-      sender: {
+    // Check if already optimistic (deduplication handled by the centralized system)
+    if (isMessageOptimistic(message, rawData.character.id.toString())) {
+      return;
+    }
+
+    // Use centralized optimistic chat system
+    addOptimisticChat(
+      message,
+      {
         id: rawData.character.id.toString(),
         name: rawData.character.name,
         index: Number(rawData.character.stats.index)
       },
-      message,
-      blocknumber: rawData.endBlock,
-      timestamp: Date.now(),
-      logIndex: 9999,
-      isOptimistic: true
-    };
-
-    setOptimisticChatMessages(prev => [...prev, optimisticMessage]);
-
-    // Remove optimistic message after 30 seconds
-    setTimeout(() => {
-      setOptimisticChatMessages(prev => 
-        prev.filter(msg => msg !== optimisticMessage)
-      );
-    }, 30000);
-  }, [rawData, gameState]);
+      rawData.endBlock
+    );
+  }, [rawData, gameState, addOptimisticChat, isMessageOptimistic]);
 
   /* ---------- Loading states ---------- */
   const isLoading = isSnapshotLoading || (includeHistory && isCacheHistoryLoading);
