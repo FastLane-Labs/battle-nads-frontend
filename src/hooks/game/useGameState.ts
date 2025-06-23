@@ -74,6 +74,10 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
 
   // Chat and event state management
   const [optimisticChatMessages, setOptimisticChatMessages] = useState<domain.ChatMessage[]>([]);
+  
+  // Runtime event state - keeps new events until they're persisted to localStorage
+  const [runtimeEvents, setRuntimeEvents] = useState<domain.EventMessage[]>([]);
+  const [persistedEventKeys, setPersistedEventKeys] = useState<Set<string>>(new Set());
 
   /* ---------- Previous state preservation ---------- */
   const previousGameStateRef = useRef<domain.WorldSnapshot | null>(null);
@@ -100,6 +104,37 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       previousEndBlockRef.current = endBlock;
     }
     
+    // Extract fresh runtime events and store them separately to prevent disappearing
+    if (includeHistory && uiSnapshot.dataFeeds?.length) {
+      const freshSnapshot = contractToWorldSnapshot(uiSnapshot, owner, characterId || undefined);
+      if (freshSnapshot?.eventLogs && freshSnapshot.eventLogs.length > 0) {
+        console.log(`[useGameState] Processing ${freshSnapshot.eventLogs.length} fresh runtime events`);
+        
+        // Add fresh events to runtime state with deduplication
+        setRuntimeEvents(prev => {
+          const eventMap = new Map<string, domain.EventMessage>();
+          
+          // Add existing runtime events (not yet persisted)
+          prev.forEach(event => {
+            const key = `${event.blocknumber}-${event.logIndex}`;
+            if (!persistedEventKeys.has(key)) {
+              eventMap.set(key, event);
+            }
+          });
+          
+          // Add fresh events
+          freshSnapshot.eventLogs.forEach(event => {
+            const key = `${event.blocknumber}-${event.logIndex}`;
+            if (!persistedEventKeys.has(key)) {
+              eventMap.set(key, event);
+            }
+          });
+          
+          return Array.from(eventMap.values())
+            .sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
+        });
+      }
+    }
     
     // Store new feed data using event-level deduplication
     if (includeHistory && owner && characterId && uiSnapshot.dataFeeds?.length) {
@@ -124,14 +159,32 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         playerAreaId,
         uiSnapshot.character, // Pass main player character for name lookup
         uiSnapshot.endBlock // Pass endBlock for absolute block calculation
-      ).catch(error => {
+      ).then(result => {
+        // Mark events as persisted when storage succeeds
+        if (result.storedEvents > 0) {
+          console.log(`[useGameState] Successfully persisted ${result.storedEvents} events to localStorage`);
+          
+          // Update persisted keys to allow runtime events to be cleaned up
+          const freshSnapshot = contractToWorldSnapshot(uiSnapshot, owner, characterId || undefined);
+          if (freshSnapshot?.eventLogs) {
+            setPersistedEventKeys(prev => {
+              const newKeys = new Set(prev);
+              freshSnapshot.eventLogs.forEach(event => {
+                const key = `${event.blocknumber}-${event.logIndex}`;
+                newKeys.add(key);
+              });
+              return newKeys;
+            });
+          }
+        }
+      }).catch(error => {
         console.error('[useGameState] Error storing event data:', error);
       });
     }
     
     // Also check if contractToWorldSnapshot found any chat messages that need to be stored
     if (includeHistory && owner && characterId) {
-      const freshSnapshot = contractToWorldSnapshot(uiSnapshot, owner, characterId);
+      const freshSnapshot = contractToWorldSnapshot(uiSnapshot, owner, characterId || undefined);
       if (freshSnapshot?.chatLogs && freshSnapshot.chatLogs.length > 0) {
         
         // Store fresh chat messages directly to ensure they're persisted
@@ -272,7 +325,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       }
 
       // Use historical events as the primary source (fully resolved names)
-      // and supplement with any fresh events not yet in cache
+      // and supplement with runtime events and fresh events not yet in cache
       const combinedEventLogsMap = new Map<string, domain.EventMessage>();
 
       // 1. Add historical event logs first (highest priority - fully resolved)
@@ -281,7 +334,15 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         combinedEventLogsMap.set(key, log);
       });
       
-      // 2. Add fresh logs only if not already in historical (fallback for very new events)
+      // 2. Add runtime events that haven't been persisted yet (prevents disappearing)
+      runtimeEvents.forEach(log => {
+        const key = `${log.blocknumber}-${log.logIndex}`;
+        if (!combinedEventLogsMap.has(key)) {
+          combinedEventLogsMap.set(key, log);
+        }
+      });
+      
+      // 3. Add fresh logs from current snapshot only if not already included (final fallback)
       snapshotBase.eventLogs.forEach(log => {
         const key = `${log.blocknumber}-${log.logIndex}`;
         if (!combinedEventLogsMap.has(key)) {
@@ -291,6 +352,8 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
 
       const finalEventLogs = Array.from(combinedEventLogsMap.values())
                                   .sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);
+                                  
+      console.log(`[useGameState] Final merged events: ${historicalEventMessages.length} historical + ${runtimeEvents.length} runtime + ${snapshotBase.eventLogs.length} fresh = ${finalEventLogs.length} total`);
       
       // --- Combine Historical + Runtime Chat Logs --- 
       const combinedChatLogsMap = new Map<string, domain.ChatMessage>();
@@ -370,7 +433,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       console.error('[useGameState] Error mapping contract data to domain:', error);
       return previousGameStateRef.current;
     }
-  }, [rawData, includeHistory, historicalEventMessages, historicalChatMessages, optimisticChatMessages, owner, characterId]);
+  }, [rawData, includeHistory, historicalEventMessages, historicalChatMessages, optimisticChatMessages, runtimeEvents, owner, characterId]);
 
   /* ---------- Unified world snapshot with session data ---------- */
   const worldSnapshot = useMemo<domain.WorldSnapshot | null>(() => {
