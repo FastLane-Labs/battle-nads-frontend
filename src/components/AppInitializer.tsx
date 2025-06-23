@@ -14,12 +14,18 @@ import { Box, useToast } from '@chakra-ui/react';
 import { formatEther } from 'ethers';
 import { logger } from '../utils/logger';
 import { OnboardingManager } from './onboarding';
+import { useWelcomeScreen } from './onboarding/WelcomeScreen';
+import { useWallet } from '../providers/WalletProvider';
 
 const AppInitializer: React.FC = () => {
   const game = useGameState();
   const router = useRouter();
   const toast = useToast();
+  const { currentWallet } = useWallet();
   const zeroCharacterId = "0x0000000000000000000000000000000000000000000000000000000000000000";
+  
+  // Check onboarding status for current wallet
+  const { hasSeenWelcome } = useWelcomeScreen(currentWallet !== 'none' ? currentWallet : undefined);
   
   // State for contract change detection
   const [contractChangeState, setContractChangeState] = useState<{
@@ -103,12 +109,17 @@ const AppInitializer: React.FC = () => {
 
   // Effect for redirection when no character exists
   useEffect(() => {
-    // Only redirect if wallet is connected, initialized, not loading, no error, and character ID is zero
-    if (game.isInitialized && game.hasWallet && !game.isLoading && !game.error && game.characterId === zeroCharacterId) {
+    // Only redirect if wallet is connected, initialized, not loading, no error, character ID is zero, AND onboarding is completed
+    if (game.isInitialized && 
+        game.hasWallet && 
+        !game.isLoading && 
+        !game.error && 
+        game.characterId === zeroCharacterId &&
+        hasSeenWelcome) {
       router.push('/create');
     }
     // Dependencies: Watch for changes in these state variables to trigger the effect
-  }, [game.isInitialized, game.hasWallet, game.isLoading, game.error, game.characterId, zeroCharacterId, router]);
+  }, [game.isInitialized, game.hasWallet, game.isLoading, game.error, game.characterId, zeroCharacterId, hasSeenWelcome, router]);
 
   // --- State Rendering Logic (Corrected Order) --- 
 
@@ -148,7 +159,8 @@ const AppInitializer: React.FC = () => {
   }
 
   // 5. PRIORITY: No Character Found State (Wallet connected, not loading, no error)
-  if (game.hasWallet && game.characterId === zeroCharacterId) { 
+  // Only show redirect screen if onboarding is completed
+  if (game.hasWallet && game.characterId === zeroCharacterId && hasSeenWelcome) { 
     return renderWithNav(<LoadingScreen message="Redirecting to character creation..." />, "Redirecting");
   }
 

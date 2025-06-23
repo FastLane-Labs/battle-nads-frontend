@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   VStack,
@@ -353,6 +353,29 @@ export function useWelcomeScreen(walletAddress?: string) {
     const walletSpecificKey = `${WELCOME_SEEN_KEY}_${walletAddress}`;
     return localStorage.getItem(walletSpecificKey) === 'true';
   });
+
+  // Listen for changes to the localStorage key
+  useEffect(() => {
+    if (!walletAddress) return;
+    
+    const walletSpecificKey = `${WELCOME_SEEN_KEY}_${walletAddress}`;
+    
+    const checkWelcomeStatus = () => {
+      const currentStatus = localStorage.getItem(walletSpecificKey) === 'true';
+      setHasSeenWelcome(currentStatus);
+    };
+    
+    // Listen for storage events (from other tabs/windows)
+    window.addEventListener('storage', checkWelcomeStatus);
+    
+    // Also check periodically for same-tab updates
+    const interval = setInterval(checkWelcomeStatus, 500);
+    
+    return () => {
+      window.removeEventListener('storage', checkWelcomeStatus);
+      clearInterval(interval);
+    };
+  }, [walletAddress]);
 
   const markWelcomeAsSeen = () => {
     if (!walletAddress) return;
