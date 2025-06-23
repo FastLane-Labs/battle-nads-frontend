@@ -203,7 +203,7 @@ function mapCharacterStats(stats: contract.BattleNadStats): domain.CharacterStat
 export function mapCharacter(
   rawCharacter: contract.Character | null
 ): domain.Character | null {
-  if (!rawCharacter) return null;
+  if (!rawCharacter || !rawCharacter.stats) return null;
   
   // --- Corrected Weapon Mapping ---
   const weapon: domain.Weapon = {
@@ -859,7 +859,7 @@ export function contractToWorldSnapshot(
 export function mapCharacterToCharacterLite(
   rawCharacter: contract.Character | null
 ): domain.CharacterLite | null {
-  if (!rawCharacter) return null;
+  if (!rawCharacter || !rawCharacter.stats) return null;
 
   // Reuse existing logic where possible
   const mappedClass = mapContractClassToDomain(rawCharacter.stats.class);
