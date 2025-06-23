@@ -12,7 +12,7 @@ describe('Optimistic Updates Integration', () => {
   it('should handle complete chat message lifecycle', () => {
     const { result } = renderHook(() => useOptimisticChat(), { wrapper });
     
-    const character = { id: 'user1', name: 'TestUser', index: 1 };
+    const character = { id: 'integration-user1', name: 'IntegrationUser', index: 10 };
     const message = 'Hello from integration test!';
 
     // 1. Send optimistic message
@@ -49,8 +49,8 @@ describe('Optimistic Updates Integration', () => {
   it('should handle deduplication across reloads', () => {
     const { result } = renderHook(() => useOptimisticChat(), { wrapper });
     
-    const character = { id: 'user1', name: 'TestUser', index: 1 };
-    const message = 'Duplicate test message';
+    const character = { id: 'integration-user2', name: 'IntegrationUser2', index: 11 };
+    const message = 'Duplicate test message for integration';
 
     // Add same message multiple times (simulating rapid clicks or retries)
     act(() => {
