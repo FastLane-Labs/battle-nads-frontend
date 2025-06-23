@@ -191,6 +191,7 @@ export const useEquipmentDetails = (slot: 'weapon' | 'armor', equipmentId: numbe
     queryKey: ['equipmentDetails', slot, equipmentId],
     enabled: !!client && !!equipmentId,
     staleTime: 5 * 60 * 1000, // 5 minutes - equipment stats don't change often
+    gcTime: 30 * 60 * 1000,   // 30 minutes - keep equipment data around longer
     
     queryFn: async () => {
       if (!client || !equipmentId) throw new Error('Missing client or equipment ID');
