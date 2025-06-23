@@ -10,7 +10,7 @@ import { TransactionResponse } from 'ethers';
 import { mapSessionKeyData } from '../../mappers/contractToDomain';
 import { contractToWorldSnapshot, mapCharacterLite } from '@/mappers';
 import { createAreaID } from '@/utils/areaId';
-import { useCachedDataFeed, CachedDataBlock, storeEventData, storeChatMessagesDirectly } from './useCachedDataFeed';
+import { useCachedDataFeed, CachedDataBlock, storeEventData, storeChatMessagesDirectly, buildCharacterLookup } from './useCachedDataFeed';
 import { useUiSnapshot } from './useUiSnapshot';
 import { useGameMutation } from './useGameMutation';
 
@@ -106,7 +106,13 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     
     // Extract fresh runtime events and store them separately to prevent disappearing
     if (includeHistory && uiSnapshot.dataFeeds?.length) {
-      const freshSnapshot = contractToWorldSnapshot(uiSnapshot, owner, characterId || undefined);
+      // Build character lookup for consistent name resolution
+      const characterLookup = buildCharacterLookup(
+        (uiSnapshot.combatants || []).map(c => mapCharacterLite(c)),
+        (uiSnapshot.noncombatants || []).map(c => mapCharacterLite(c)),
+        uiSnapshot.character
+      );
+      const freshSnapshot = contractToWorldSnapshot(uiSnapshot, owner, characterId || undefined, characterLookup);
       if (freshSnapshot?.eventLogs && freshSnapshot.eventLogs.length > 0) {
         
         // Add fresh events to runtime state with deduplication
@@ -163,7 +169,12 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         if (result.storedEvents > 0) {
           
           // Update persisted keys to allow runtime events to be cleaned up
-          const freshSnapshot = contractToWorldSnapshot(uiSnapshot, owner, characterId || undefined);
+          const characterLookup = buildCharacterLookup(
+            (uiSnapshot.combatants || []).map(c => mapCharacterLite(c)),
+            (uiSnapshot.noncombatants || []).map(c => mapCharacterLite(c)),
+            uiSnapshot.character
+          );
+          const freshSnapshot = contractToWorldSnapshot(uiSnapshot, owner, characterId || undefined, characterLookup);
           if (freshSnapshot?.eventLogs) {
             setPersistedEventKeys(prev => {
               const newKeys = new Set(prev);
@@ -182,7 +193,12 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     
     // Also check if contractToWorldSnapshot found any chat messages that need to be stored
     if (includeHistory && owner && characterId) {
-      const freshSnapshot = contractToWorldSnapshot(uiSnapshot, owner, characterId || undefined);
+      const characterLookup = buildCharacterLookup(
+        (uiSnapshot.combatants || []).map(c => mapCharacterLite(c)),
+        (uiSnapshot.noncombatants || []).map(c => mapCharacterLite(c)),
+        uiSnapshot.character
+      );
+      const freshSnapshot = contractToWorldSnapshot(uiSnapshot, owner, characterId || undefined, characterLookup);
       if (freshSnapshot?.chatLogs && freshSnapshot.chatLogs.length > 0) {
         
         // Store fresh chat messages directly to ensure they're persisted
@@ -246,15 +262,31 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     historicalBlocks.forEach((block: CachedDataBlock) => {
       block.events?.forEach((event) => {
         // Create event participant info from stored data with player substitution
+        // Determine if this event involves the current player by checking stored names
+        const attackerIsCurrentPlayer = currentPlayerIndex === event.mainPlayerIndex || 
+          (currentPlayerIndex === null && event.attackerName === "You");
+        const defenderIsCurrentPlayer = currentPlayerIndex === event.otherPlayerIndex || 
+          (currentPlayerIndex === null && event.defenderName === "You");
+        
+        // Helper function to get proper fallback name (matching storage logic)
+        const getCharacterFallbackName = (playerIndex: number, isAttacker: boolean): string => {
+          if (playerIndex <= 0) return 'Unknown';
+          if (playerIndex <= 64) {
+            return isAttacker ? `Player ${playerIndex}` : `Character ${playerIndex}`;
+          } else {
+            return isAttacker ? `Creature ${playerIndex}` : `Enemy ${playerIndex}`;
+          }
+        };
+          
         const attacker: domain.EventParticipant | undefined = event.mainPlayerIndex > 0 ? {
           id: `index_${event.mainPlayerIndex}`,
-          name: currentPlayerIndex === event.mainPlayerIndex ? "You" : (event.attackerName || `Index ${event.mainPlayerIndex}`),
+          name: attackerIsCurrentPlayer ? "You" : (event.attackerName || getCharacterFallbackName(event.mainPlayerIndex, true)),
           index: event.mainPlayerIndex
         } : undefined;
         
         const defender: domain.EventParticipant | undefined = event.otherPlayerIndex > 0 ? {
           id: `index_${event.otherPlayerIndex}`,
-          name: currentPlayerIndex === event.otherPlayerIndex ? "You" : (event.defenderName || `Index ${event.otherPlayerIndex}`),
+          name: defenderIsCurrentPlayer ? "You" : (event.defenderName || getCharacterFallbackName(event.otherPlayerIndex, false)),
           index: event.otherPlayerIndex
         } : undefined;
         
@@ -307,8 +339,15 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     }
 
     try {
+      // Build character lookup for consistent name resolution
+      const characterLookup = buildCharacterLookup(
+        (rawData.combatants || []).map(c => mapCharacterLite(c)),
+        (rawData.noncombatants || []).map(c => mapCharacterLite(c)),
+        rawData.character
+      );
+      
       // Get base snapshot from contract data (includes fresh logs)
-      const snapshotBase = contractToWorldSnapshot(rawData, owner, characterId?.toString());
+      const snapshotBase = contractToWorldSnapshot(rawData, owner, characterId?.toString(), characterLookup);
       
       if (!snapshotBase) {
         return previousGameStateRef.current;
@@ -370,19 +409,6 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       
       // 3. Add optimistic chat messages (but skip if we have a confirmed version)
       optimisticChatMessages.forEach((optimistic) => {
-        // Check if we already have a confirmed version of this message
-        const confirmedInHistorical = historicalChatMessages.some(confirmed => 
-          confirmed.sender.index === optimistic.sender.index && 
-          confirmed.message === optimistic.message &&
-          Math.abs(confirmed.timestamp - optimistic.timestamp) <= 30000
-        );
-        
-        const confirmedInFresh = snapshotBase.chatLogs.some(confirmed => 
-          confirmed.sender.index === optimistic.sender.index && 
-          confirmed.message === optimistic.message &&
-          Math.abs(confirmed.timestamp - optimistic.timestamp) <= 30000
-        );
-        
         const hasConfirmedVersion = Array.from(combinedChatLogsMap.values()).some(confirmed => {
           // Must be from the same player
           const isSamePlayer = confirmed.sender.index === optimistic.sender.index ||

@@ -1,5 +1,3 @@
-import { MAX_SESSION_KEY_VALIDITY_BLOCKS } from '../config/env';
-
 // Session key states
 export enum SessionKeyState {
   IDLE = 'idle',

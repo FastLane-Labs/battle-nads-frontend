@@ -395,19 +395,33 @@ export function mapSessionKeyData(
 }
 
 /**
- * Helper function to find character name and ID by index
+ * Helper function to find character name and ID by index using shared character lookup
  */
 function findCharacterParticipantByIndex(
   index: number, 
   combatants: contract.CharacterLite[], 
   noncombatants: contract.CharacterLite[],
-  mainCharacter?: contract.Character | null
+  mainCharacter?: contract.Character | null,
+  characterLookup?: Map<number, { id: string; name: string; areaId: bigint }>
 ): domain.EventParticipant | null {
   
   if (index === 0) {
     return null; // Index 0 usually means no character
   }
   
+  // If we have a character lookup, use it first (has cached + current context)
+  if (characterLookup) {
+    const lookupResult = characterLookup.get(index);
+    if (lookupResult) {
+      return {
+        id: lookupResult.id,
+        name: lookupResult.name,
+        index: index
+      };
+    }
+  }
+  
+  // Fallback to original logic if not found in lookup
   // Check main character first if its index matches
   if (mainCharacter && Number(mainCharacter.stats.index) === index) {
     const char = mainCharacter;
@@ -509,7 +523,8 @@ export const processChatFeedsToDomain = (
 export function contractToWorldSnapshot(
   raw: contract.PollFrontendDataReturn | null,
   owner: string | null = null,
-  ownerCharacterId?: string // Optional: Pass player's character ID for isPlayerInitiated flag
+  ownerCharacterId?: string, // Optional: Pass player's character ID for isPlayerInitiated flag
+  characterLookup?: Map<number, { id: string; name: string; areaId: bigint }> // Optional: shared character lookup for fresh events
 ): domain.WorldSnapshot | null {
   
   if (!raw) {
@@ -567,8 +582,8 @@ export function contractToWorldSnapshot(
       switch (logTypeNum) {
         case domain.LogType.Combat:
         case domain.LogType.InstigatedCombat: {
-          const attacker = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
-          const defender = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character);
+          const attacker = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character, characterLookup);
+          const defender = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character, characterLookup);
           const isPlayer = !!ownerCharacterId && !!attacker && attacker.id === ownerCharacterId;
           
           // Enhanced fallback for missing character names
@@ -640,7 +655,7 @@ export function contractToWorldSnapshot(
           break;
         }
         case domain.LogType.Chat: {
-          const sender = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
+          const sender = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character, characterLookup);
           const messageContent = feed.chatLogs?.[blockChatLogIndex] ?? "[Chat message content unavailable]";
           blockChatLogIndex++;
           
@@ -676,7 +691,7 @@ export function contractToWorldSnapshot(
         }
         case domain.LogType.EnteredArea:
         case domain.LogType.LeftArea: { 
-          const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
+          const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character, characterLookup);
           const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
           
           // Enhanced fallback for missing character names
@@ -707,8 +722,8 @@ export function contractToWorldSnapshot(
           break;
         }
         case domain.LogType.Ability: { 
-          const caster = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
-          const target = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character);
+          const caster = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character, characterLookup);
+          const target = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character, characterLookup);
           const isPlayer = !!ownerCharacterId && !!caster && caster.id === ownerCharacterId;
           
           // Enhanced fallback for missing character names
@@ -744,7 +759,7 @@ export function contractToWorldSnapshot(
           break;
         }
         case domain.LogType.Ascend: {
-           const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
+           const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character, characterLookup);
            const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
            
            // Enhanced fallback for missing character names
@@ -773,7 +788,7 @@ export function contractToWorldSnapshot(
         default: {
           // Handle unknown log types
           console.warn(`[contractToWorldSnapshot] Encountered unknown log type: ${logTypeNum}`, log);
-          const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character);
+          const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character, characterLookup);
           const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
           
           const displayMessage = `Unknown event: type ${logTypeNum}, value ${log.value?.toString()}, mainIdx ${mainPlayerIdx}, otherIdx ${otherPlayerIdx}`;
@@ -784,7 +799,7 @@ export function contractToWorldSnapshot(
             timestamp: estimatedTimestamp,
             type: domain.LogType.Unknown, // Use the Unknown type
             attacker: participant || undefined, // Assign main player as attacker for context
-            defender: findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character) || undefined,
+            defender: findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character, characterLookup) || undefined,
             areaId: snapshotAreaId, // Use determined snapshotAreaId
             isPlayerInitiated: isPlayer,
             details: { 
