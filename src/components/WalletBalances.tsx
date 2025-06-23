@@ -1,77 +1,79 @@
-import React, { useState } from 'react';
-import { 
-  Box, 
-  Text, 
-  Flex, 
-  Badge,  
-  Button,
-  useToast
-} from '@chakra-ui/react';
-import { ethers } from 'ethers';
-import { useWallet } from '@/providers/WalletProvider';
-import { useWalletBalances } from '@/hooks/wallet/useWalletState';
-import { useBattleNadsClient } from '@/hooks/contracts/useBattleNadsClient';
-import { useGameState } from '@/hooks/game/useGameState';
-import { 
-  DIRECT_FUNDING_AMOUNT, 
+import React, { useState } from "react";
+import { Box, Text, Flex, Badge, Button, useToast } from "@chakra-ui/react";
+import { ethers } from "ethers";
+import { useWallet } from "@/providers/WalletProvider";
+import { useWalletBalances } from "@/hooks/wallet/useWalletState";
+import { useBattleNadsClient } from "@/hooks/contracts/useBattleNadsClient";
+import { useGameState } from "@/hooks/game/useGameState";
+import {
+  DIRECT_FUNDING_AMOUNT,
   LOW_SESSION_KEY_THRESHOLD,
-  MIN_SAFE_OWNER_BALANCE
-} from '@/config/wallet';
+  MIN_SAFE_OWNER_BALANCE,
+} from "@/config/wallet";
 
 const WalletBalances: React.FC = () => {
   const { injectedWallet } = useWallet();
   const { client } = useBattleNadsClient();
   const toast = useToast();
-  
+
   // Use the owner address from the wallet
   const owner = injectedWallet?.address || null;
-  
+
   // Get all balance data from the hook
-  const { 
-    ownerBalance, 
-    sessionKeyBalance, 
+  const {
+    ownerBalance,
+    sessionKeyBalance,
     bondedBalance,
     shortfall,
     isLoading,
-    hasShortfall
+    hasShortfall,
   } = useWalletBalances(owner);
-  
+
   // Get gameState directly from useGameState
-  const { gameState, error: gameStateError } = useGameState({ includeActions: false, includeHistory: false });
-  
+  const { gameState, error: gameStateError } = useGameState({
+    includeActions: false,
+    includeHistory: false,
+  });
+
   // State for action buttons
   const [isReplenishing, setIsReplenishing] = useState(false);
   const [isDirectFunding, setIsDirectFunding] = useState(false);
 
   // Calculate shortfall amounts for display
-  const shortfallEth = shortfall && shortfall > BigInt(0) ? ethers.formatEther(shortfall) : '0';
-  
+  const shortfallEth =
+    shortfall && shortfall > BigInt(0) ? ethers.formatEther(shortfall) : "0";
+
   // committed balance replensish amounts
   const shortfallNum = parseFloat(shortfallEth) * 3;
   const safeReplenishAmount = (shortfallNum * 2).toFixed(4);
-  
+
   // Function to replenish session key balance using contract client
   const handleReplenishBalance = async (useMinimalAmount: boolean = false) => {
     if (!client?.replenishGasBalance) {
-      toast({ title: 'Error', description: 'Replenish function not available', status: 'error', isClosable: true });
+      toast({
+        title: "Error",
+        description: "Replenish function not available",
+        status: "error",
+        isClosable: true,
+      });
       return;
     }
-    
+
     try {
       setIsReplenishing(true);
-      
+
       if (!injectedWallet?.address) {
-        throw new Error('Owner wallet not connected.');
+        throw new Error("Owner wallet not connected.");
       }
-      
+
       // Validate the shortfall (already in wei)
       if (!shortfall || shortfall <= BigInt(0)) {
         throw new Error("No balance shortfall detected.");
       }
-      
+
       // Convert owner balance to BigInt for comparison
       const ownerBalanceWei = ethers.parseEther(ownerBalance);
-      
+
       // Calculate replenish amount based on option chosen using the same logic as UI display
       let targetAmount: bigint;
       if (useMinimalAmount) {
@@ -83,28 +85,41 @@ const WalletBalances: React.FC = () => {
         const safeReplenishAmountWei = ethers.parseEther(safeReplenishAmount);
         targetAmount = safeReplenishAmountWei;
       }
-      
+
       // Calculate safe replenish amount
       let replenishAmountWei: bigint;
       if (ownerBalanceWei < targetAmount) {
-        const safeBalance = ownerBalanceWei - ethers.parseEther(MIN_SAFE_OWNER_BALANCE); 
+        const safeBalance =
+          ownerBalanceWei - ethers.parseEther(MIN_SAFE_OWNER_BALANCE);
         replenishAmountWei = safeBalance > 0 ? safeBalance : BigInt(0);
       } else {
         replenishAmountWei = targetAmount;
       }
-      
+
       const replenishAmountEth = ethers.formatEther(replenishAmountWei);
-      if (replenishAmountWei <= BigInt(0)) { 
-        throw new Error("Replenish amount zero or wallet has insufficient funds.");
+      if (replenishAmountWei <= BigInt(0)) {
+        throw new Error(
+          "Replenish amount zero or wallet has insufficient funds."
+        );
       }
-      
+
       // Call the contract method
-      await client.replenishGasBalance(replenishAmountWei); 
-      
-      toast({ title: 'Success', description: `Replenish transaction sent for ${replenishAmountEth} MON`, status: 'success', isClosable: true });
+      await client.replenishGasBalance(replenishAmountWei);
+
+      toast({
+        title: "Success",
+        description: `Replenish transaction sent for ${replenishAmountEth} MON`,
+        status: "success",
+        isClosable: true,
+      });
     } catch (error: any) {
-      console.error('Error replenishing balance:', error);
-      toast({ title: 'Error', description: `Replenish failed: ${error.message || String(error)}`, status: 'error', isClosable: true });
+      console.error("Error replenishing balance:", error);
+      toast({
+        title: "Error",
+        description: `Replenish failed: ${error.message || String(error)}`,
+        status: "error",
+        isClosable: true,
+      });
     } finally {
       setIsReplenishing(false);
     }
@@ -113,112 +128,148 @@ const WalletBalances: React.FC = () => {
   // Function to directly fund session key from owner wallet
   const handleDirectFunding = async (amount: string) => {
     if (!injectedWallet?.signer) {
-       toast({ title: 'Error', description: 'Owner wallet signer not available', status: 'error', isClosable: true });
-       return;
+      toast({
+        title: "Error",
+        description: "Owner wallet signer not available",
+        status: "error",
+        isClosable: true,
+      });
+      return;
     }
-    
+
     try {
       setIsDirectFunding(true);
-      
+
       // Get session key address from gameState
       const sessionKeyAddress = gameState?.sessionKeyData?.key;
       if (!sessionKeyAddress) {
-         throw new Error('Session key not available.');
+        throw new Error("Session key not available.");
       }
-      
+
       if (!injectedWallet?.address) {
-        throw new Error('Owner wallet not connected.');
+        throw new Error("Owner wallet not connected.");
       }
-      
+
       // Convert owner balance to BigInt for comparison
       const ownerBalanceWei = ethers.parseEther(ownerBalance);
-      
+
       const transferAmount = ethers.parseEther(amount);
-      if (ownerBalanceWei < transferAmount + ethers.parseEther(MIN_SAFE_OWNER_BALANCE)) {
+      if (
+        ownerBalanceWei <
+        transferAmount + ethers.parseEther(MIN_SAFE_OWNER_BALANCE)
+      ) {
         throw new Error(`Insufficient owner funds. Need ${amount} MON + gas.`);
       }
-      
+
       const tx = await injectedWallet.signer.sendTransaction({
         to: sessionKeyAddress,
         value: transferAmount,
       });
-      
+
       await tx.wait();
-      
-      toast({ title: 'Success', description: `Sent ${amount} MON to session key`, status: 'success', isClosable: true });
+
+      toast({
+        title: "Success",
+        description: `Sent ${amount} MON to session key`,
+        status: "success",
+        isClosable: true,
+      });
     } catch (error: any) {
-      console.error('Error in direct funding:', error);
-      toast({ title: 'Error', description: `Direct funding failed: ${error.message || String(error)}`, status: 'error', isClosable: true });
+      console.error("Error in direct funding:", error);
+      toast({
+        title: "Error",
+        description: `Direct funding failed: ${error.message || String(error)}`,
+        status: "error",
+        isClosable: true,
+      });
     } finally {
       setIsDirectFunding(false);
     }
   };
 
   // Note: Removed loading spinner - balances update in background
-  
+
   // Handle error state
   if (gameStateError) {
-     return (
+    return (
       <Box p={4} borderWidth="1px" borderRadius="lg" bg="red.900" color="white">
-        <Text>Error loading game data: {gameStateError ? gameStateError.message : 'Unknown error'}</Text>
+        <Text>
+          Error loading game data:{" "}
+          {gameStateError ? gameStateError.message : "Unknown error"}
+        </Text>
       </Box>
     );
   }
 
   // Parse numeric values for comparison
   const sessionKeyBalanceNum = parseFloat(sessionKeyBalance);
-  
+
   // Determine if direct funding should be offered
   const showDirectFunding = sessionKeyBalanceNum < LOW_SESSION_KEY_THRESHOLD;
   const sessionKeyAddress = gameState?.sessionKeyData?.key;
-  
+
   // Calculate session key funding amounts for display
-  const smallFundingAmount = (parseFloat(DIRECT_FUNDING_AMOUNT) * 0.5).toFixed(1);
+  const smallFundingAmount = (parseFloat(DIRECT_FUNDING_AMOUNT) * 0.5).toFixed(
+    1
+  );
   const largeFundingAmount = DIRECT_FUNDING_AMOUNT;
-  
+
   return (
-    <Box borderWidth="1px" borderRadius="md" color="white" className='px-3 pt-1 pb-2 flex flex-col gap-2 border-none'>
+    <Box
+      borderWidth="1px"
+      borderRadius="md"
+      color="white"
+      className="px-3 pt-1 pb-2 flex flex-col gap-2 border-none"
+    >
       {/* <Text fontSize="md" fontWeight="bold">Gas Balances</Text> */}
 
-      <Flex direction="column" gap={1.5} className='w-auto'>
+      <Flex direction="column" gap={1.5} className="w-auto">
         {/* Session Key Wallet */}
-        <div className='flex w-full justify-between gap-2'>
+        <div className="flex w-full justify-between gap-2">
           <Flex align="center" gap={1}>
-            <h2 className='text-sm font-medium gold-text-light'>Session Key</h2>
-            <Badge colorScheme="purple" size="xs">MON</Badge>
+            <h2 className="text-sm font-medium gold-text-light">Session Key</h2>
+            <Badge colorScheme="purple" size="xs">
+              MON
+            </Badge>
           </Flex>
-          <div className='font-semibold text-amber-300 text-sm'>
-          {parseFloat(sessionKeyBalance).toFixed(4)}
+          <div className="font-semibold text-amber-300 text-sm">
+            {parseFloat(sessionKeyBalance).toFixed(4)}
           </div>
         </div>
 
         {/* Bonded MONAD Balance (Using ownerCommittedAmount) */}
-        <div className='flex w-full justify-between gap-2'>
+        <div className="flex w-full justify-between gap-2">
           <Flex align="center" gap={1}>
-            <h2 className='text-sm font-medium gold-text-light'>Committed</h2>
-            <Badge colorScheme="yellow" size="xs">shMON</Badge>
-            </Flex>
-            <div className='font-semibold text-amber-300 text-sm'>
+            <h2 className="text-sm font-medium gold-text-light">Committed</h2>
+            <Badge colorScheme="yellow" size="xs">
+              shMON
+            </Badge>
+          </Flex>
+          <div className="font-semibold text-amber-300 text-sm">
             {parseFloat(bondedBalance).toFixed(4)}
           </div>
         </div>
-        
+
         {/* Owner Wallet Balance */}
-        <div className='flex w-full justify-between gap-2'>
+        <div className="flex w-full justify-between gap-2">
           <Flex align="center" gap={1}>
-            <h2 className='text-sm font-medium gold-text-light'>Owner Wallet</h2>
-            <Badge colorScheme="purple" size="xs">MON</Badge>
-            </Flex>
-            <div className='font-semibold text-amber-300 text-sm'>
+            <h2 className="text-sm font-medium gold-text-light">
+              Owner Wallet
+            </h2>
+            <Badge colorScheme="purple" size="xs">
+              MON
+            </Badge>
+          </Flex>
+          <div className="font-semibold text-amber-300 text-sm">
             {parseFloat(ownerBalance).toFixed(4)}
           </div>
         </div>
 
-        {/* Direct Session Key Funding Button */}
-        {sessionKeyAddress && showDirectFunding && (
-          <Box 
-            mt={1} 
-            p={3} 
+        {/* Direct Session Key Funding Button - only show if session key is low AND committed balance is NOT low */}
+        {sessionKeyAddress && showDirectFunding && !hasShortfall && (
+          <Box
+            mt={1}
+            p={3}
             className="flex flex-col gap-2 card-bg !border-amber-500/15"
           >
             <Text fontWeight="bold" fontSize="sm" className="gold-text-light">
@@ -260,16 +311,21 @@ const WalletBalances: React.FC = () => {
 
         {/* Balance Shortfall Warning */}
         {hasShortfall && (
-          <Box 
-            mt={1} 
-            p={3} 
+          <Box
+            mt={1}
+            p={3}
             className="flex flex-col gap-2 card-bg !border-red-500/25"
           >
             <Text fontWeight="bold" fontSize="sm" className="text-red-400">
               ⚠️ Character at Risk!
             </Text>
             <Text fontSize="sm" className="text-white" mb={2}>
-              Your committed balance is running low. <strong className="text-red-300">If it hits zero, your character won't be able to defend itself and will likely die!</strong> Replenish now to keep your character alive.
+              Your committed balance is running low.{" "}
+              <strong className="text-red-300">
+                If it hits zero, your character won't be able to defend itself
+                and will likely die!
+              </strong>{" "}
+              Replenish now to keep your character alive.
             </Text>
             <Flex gap={2} width="full">
               <Button
@@ -306,4 +362,4 @@ const WalletBalances: React.FC = () => {
   );
 };
 
-export default WalletBalances; 
+export default WalletBalances;
