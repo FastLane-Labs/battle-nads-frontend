@@ -104,6 +104,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     // NOTE: Chat processing is now handled entirely by contractToWorldSnapshot
     // This eliminates duplicate processing and character lookup issues
     
+    
     // Check if we've already processed this exact snapshot to avoid duplicate processing
     // due to overlapping block queries
     
@@ -215,7 +216,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     const messages: domain.ChatMessage[] = [];
     
     historicalBlocks.forEach((block: CachedDataBlock) => {
-      block.chats?.forEach((chat, index) => {
+      block.chats?.forEach((chat) => {
         messages.push({
           sender: { 
             id: chat.senderId || 'unknown-id', 
@@ -423,60 +424,34 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     }
   }, [rawData, includeHistory, historicalEventMessages, historicalChatMessages, optimisticChatMessages, runtimeEvents, owner, characterId]);
 
-  // Ref to store the latest removeConfirmedOptimisticMessages function
-  const removeConfirmedOptimisticMessagesRef = useRef(removeConfirmedOptimisticMessages);
-  removeConfirmedOptimisticMessagesRef.current = removeConfirmedOptimisticMessages;
-
-  // Track last processed confirmed messages to prevent duplicate processing
-  const lastConfirmedChatKeysRef = useRef<Set<string>>(new Set());
-
-  // Create a stable string representation of confirmed message keys for dependency tracking
-  const confirmedChatKeysString = useMemo(() => {
+  // Create a stable identifier for confirmed messages to prevent re-processing
+  const confirmedMessageIds = useMemo(() => {
     if (!gameState?.chatLogs || gameState.chatLogs.length === 0) return '';
     
-    const confirmedKeys = gameState.chatLogs
+    return gameState.chatLogs
       .filter(chat => !chat.isOptimistic)
       .map(chat => `${chat.blocknumber}-${chat.logIndex}`)
       .sort()
       .join(',');
-    
-    return confirmedKeys;
   }, [gameState?.chatLogs]);
 
-  // Store previous keys to avoid processing the same set multiple times
-  const previousConfirmedKeysRef = useRef<string>('');
+  // Track last processed to avoid duplicate processing
+  const lastProcessedIds = useRef('');
 
   // Effect to remove optimistic messages when confirmed versions are detected
   useEffect(() => {
-    if (!confirmedChatKeysString || !gameState?.chatLogs) return;
+    if (!confirmedMessageIds || confirmedMessageIds === lastProcessedIds.current) return;
     
-    // Only process if the keys string has actually changed
-    if (confirmedChatKeysString === previousConfirmedKeysRef.current) {
-      return;
-    }
-    
-    previousConfirmedKeysRef.current = confirmedChatKeysString;
+    lastProcessedIds.current = confirmedMessageIds;
     
     // Get only confirmed chat messages (not optimistic)
-    const confirmedChatMessages = gameState.chatLogs.filter(chat => !chat.isOptimistic);
+    const confirmedChatMessages = gameState?.chatLogs?.filter(chat => !chat.isOptimistic) || [];
     
     if (confirmedChatMessages.length > 0) {
-      // Create a set of keys for current confirmed messages
-      const currentConfirmedKeys = new Set(
-        confirmedChatMessages.map(chat => `${chat.blocknumber}-${chat.logIndex}`)
-      );
-      
-      // Only process if we have new confirmed messages
-      const previousKeys = lastConfirmedChatKeysRef.current;
-      const hasNewConfirmedMessages = Array.from(currentConfirmedKeys).some(key => !previousKeys.has(key));
-      
-      if (hasNewConfirmedMessages) {
-        console.log(`[useGameState] Processing ${confirmedChatMessages.length} confirmed messages for optimistic cleanup`);
-        removeConfirmedOptimisticMessagesRef.current(confirmedChatMessages);
-        lastConfirmedChatKeysRef.current = currentConfirmedKeys;
-      }
+      console.log(`[useGameState] Processing ${confirmedChatMessages.length} confirmed messages for optimistic cleanup`);
+      removeConfirmedOptimisticMessages(confirmedChatMessages);
     }
-  }, [confirmedChatKeysString]);
+  }, [confirmedMessageIds, removeConfirmedOptimisticMessages]);
 
 
   /* ---------- Unified world snapshot with session data ---------- */

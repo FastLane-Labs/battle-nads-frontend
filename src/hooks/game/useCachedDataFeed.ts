@@ -366,7 +366,6 @@ export const processDataFeedsToEvents = (
   if (!dataFeeds || dataFeeds.length === 0) {
     return { events: [], chatMessages: [] };
   }
-  
 
   const contractAddress = ENTRYPOINT_ADDRESS.toLowerCase();
   const storeTimestamp = Date.now();

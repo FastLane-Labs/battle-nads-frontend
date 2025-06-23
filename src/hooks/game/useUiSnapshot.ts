@@ -49,9 +49,22 @@ export const useUiSnapshot = (owner: string | null) => {
       
       const previousData = queryClient.getQueryData<contract.PollFrontendDataReturn>(['uiSnapshot', owner, embeddedWallet?.address]);
       
-      const startBlock = previousData?.endBlock 
-        ? previousData.endBlock - BigInt(POLL_LOOKBEHIND_BLOCKS)
-        : (await client.getLatestBlockNumber()) - BigInt(INITIAL_SNAPSHOT_LOOKBACK_BLOCKS);
+      // Check if we have any cached data in IndexedDB to determine if this is initial load
+      const { db } = await import('../../lib/db');
+      const ENTRYPOINT_ADDRESS = (await import('../../config/env')).ENTRYPOINT_ADDRESS;
+      const contractAddress = ENTRYPOINT_ADDRESS.toLowerCase();
+      
+      const existingEvents = await db.events
+        .where('[owner+contract]')
+        .equals([owner, contractAddress])
+        .limit(1)
+        .toArray();
+      
+      const hasHistoricalData = existingEvents.length > 0;
+      
+      const startBlock = previousData?.endBlock && hasHistoricalData
+        ? previousData.endBlock - BigInt(POLL_LOOKBEHIND_BLOCKS)  // Normal polling - only recent blocks
+        : (await client.getLatestBlockNumber()) - BigInt(INITIAL_SNAPSHOT_LOOKBACK_BLOCKS); // Initial load - full history
       
       
       const rawArrayData = await client.getUiSnapshot(owner, startBlock);
