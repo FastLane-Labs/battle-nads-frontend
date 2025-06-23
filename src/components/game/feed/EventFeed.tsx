@@ -3,7 +3,7 @@ import { Box, Text, Spinner, Center } from '@chakra-ui/react';
 import { domain } from '@/types';
 import { EventLogItemRenderer } from './EventLogItemRenderer';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { filterEventsByArea } from '@/utils/eventFiltering';
+import { filterEventsByArea, filterEventsByRecentAreas } from '@/utils/eventFiltering';
 
 interface EventFeedProps {
   playerIndex: number | null;
@@ -45,8 +45,9 @@ const EventFeed: React.FC<EventFeedProps> = ({
     }
     
     // First filter by area if currentAreaId is provided
+    // Use recent areas filtering to maintain context when player moves between depths
     const areaFilteredEvents = currentAreaId !== undefined 
-      ? filterEventsByArea(eventLogs, currentAreaId)
+      ? filterEventsByRecentAreas(eventLogs, currentAreaId)
       : eventLogs;
     
     // Then apply other filters
