@@ -3,7 +3,7 @@ import { useOptimisticUpdatesContext } from '@/providers/OptimisticUpdatesProvid
 import * as domain from '@/types/domain';
 
 interface OptimisticAbilityData {
-  abilityIndex: domain.AbilityIndex;
+  abilityIndex: domain.Ability;
   blockUsed: bigint;
   characterId: string;
 }
@@ -25,7 +25,7 @@ export function useOptimisticAbilities() {
 
   // Add an optimistic ability use
   const addOptimisticAbilityUse = useCallback((
-    abilityIndex: domain.AbilityIndex,
+    abilityIndex: domain.Ability,
     blockUsed: bigint,
     characterId: string
   ): string => {
@@ -41,7 +41,7 @@ export function useOptimisticAbilities() {
       rollbackStrategy: 'confirmation',
       deduplicationKey: (data) => `${data.characterId}-${data.abilityIndex}`,
       onRollback: () => {
-        console.log('[useOptimisticAbilities] Ability use rolled back:', domain.AbilityIndex[abilityIndex]);
+        console.log('[useOptimisticAbilities] Ability use rolled back:', domain.Ability[abilityIndex]);
       }
     });
   }, [addOptimisticUpdate]);
@@ -49,7 +49,7 @@ export function useOptimisticAbilities() {
   // Get optimistic ability use for a specific character and ability
   const getOptimisticAbilityUse = useCallback((
     characterId: string,
-    abilityIndex: domain.AbilityIndex
+    abilityIndex: domain.Ability
   ): OptimisticAbilityData | null => {
     const updates = getUpdatesByType<OptimisticAbilityData>('ability');
     const update = updates.find(u => 
@@ -67,7 +67,7 @@ export function useOptimisticAbilities() {
   // Clear optimistic ability use when confirmed by blockchain
   const confirmAbilityUse = useCallback((
     characterId: string,
-    abilityIndex: domain.AbilityIndex
+    abilityIndex: domain.Ability
   ) => {
     const updates = getUpdatesByType<OptimisticAbilityData>('ability');
     const update = updates.find(u => 
@@ -88,7 +88,7 @@ export function useOptimisticAbilities() {
   // Check if a specific ability has an optimistic update
   const hasOptimisticAbilityUse = useCallback((
     characterId: string,
-    abilityIndex: domain.AbilityIndex
+    abilityIndex: domain.Ability
   ): boolean => {
     return !!getOptimisticAbilityUse(characterId, abilityIndex);
   }, [getOptimisticAbilityUse]);
