@@ -9,6 +9,7 @@ import {
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
+import { clearCharacterQueries } from '@/hooks/utils';
 import { useWallet } from '@/providers/WalletProvider';
 import { GameModal } from '../../ui';
 
@@ -41,16 +42,9 @@ const DeathModal: React.FC<DeathModalProps> = ({
       });
     }
     
-    // Invalidate all game-related queries to force a refresh
+    // Use centralized utility to clear all character-related queries
     const owner = injectedWallet?.address;
-    if (owner) {
-      // Invalidate the main game state query
-      queryClient.invalidateQueries({ queryKey: ['uiSnapshot', owner] });
-      // Invalidate session key queries
-      queryClient.invalidateQueries({ queryKey: ['sessionKey'] });
-      // Invalidate any other character-related queries
-      queryClient.invalidateQueries({ queryKey: ['battleNads'] });
-    }
+    clearCharacterQueries(queryClient, owner);
     
     // Add a small delay to allow queries to refresh before redirecting
     setTimeout(() => {

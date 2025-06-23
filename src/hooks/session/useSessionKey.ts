@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { invalidateSessionKeyQueries } from '../utils';
 import { SessionKeyState, sessionKeyMachine } from '../../machines/sessionKeyMachine';
 import { useWallet } from '../../providers/WalletProvider';
 import { useUiSnapshot } from '../game/useUiSnapshot';
@@ -142,6 +143,14 @@ export const useSessionKey = (characterId: string | null) => {
       if (isMounted) { // Check mount status before setting state
           setSessionKeyState(prevState => {
               if (prevState !== newSessionKeyState) {
+                  // Handle session key state changes that require cache invalidation
+                  if ((newSessionKeyState === SessionKeyState.EXPIRED || 
+                       newSessionKeyState === SessionKeyState.MISMATCH) && 
+                      prevState !== newSessionKeyState) {
+                    // Use centralized utility for session key invalidation
+                    invalidateSessionKeyQueries(queryClient);
+                  }
+                  
                   return newSessionKeyState;
               }
               return prevState;

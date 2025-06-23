@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { usePrivy, useWallets, useSendTransaction, UnsignedTransactionRequest  } from '@privy-io/react-auth';
 import { ethers, TransactionRequest, TransactionResponse } from 'ethers';
 import { useQueryClient } from '@tanstack/react-query';
+import { invalidateWalletQueries } from '../hooks/utils';
 
 // Define wallet client types based on Privy's supported wallets
 type InjectedWalletClientType = 
@@ -151,6 +152,10 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       if (authenticated) {
         await privyLogout();
       }
+      
+      // Clear all React Query cache on logout
+      console.log('[WalletProvider] Clearing React Query cache on logout');
+      queryClient.clear();
       
       // Clear state AFTER privyLogout
       setCurrentWallet('none');
@@ -389,10 +394,15 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     if (previousEmbeddedAddressRef.current !== null && 
         previousEmbeddedAddressRef.current !== currentEmbeddedAddress) {
       // Invalidate React Query cache for embedded wallet changes
+      console.log('[WalletProvider] Embedded wallet changed - invalidating cache:', {
+        previous: previousEmbeddedAddressRef.current,
+        current: currentEmbeddedAddress,
+        injectedAddress: currentInjectedAddress
+      });
+      
       if (currentInjectedAddress) {
-        queryClient.invalidateQueries({ 
-          queryKey: ['uiSnapshot', currentInjectedAddress] 
-        });
+        // Use centralized utility for wallet query invalidation
+        invalidateWalletQueries(queryClient, currentInjectedAddress);
       }
     }
     
