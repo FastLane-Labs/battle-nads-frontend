@@ -50,6 +50,7 @@ const EventFeed: React.FC<EventFeedProps> = ({
       ? filterEventsByRecentAreas(eventLogs, currentAreaId)
       : eventLogs;
     
+    
     // Then apply other filters
     return areaFilteredEvents.filter(event => {
       // Skip events without proper structure
@@ -57,10 +58,6 @@ const EventFeed: React.FC<EventFeedProps> = ({
         return false;
       }
       
-      // Debug logging for EnteredArea events to see areaId
-      if (Number(event.type) === 2 && event.displayMessage?.includes("You entered")) { // EnteredArea
-        console.log(`[EventFeed] EnteredArea event - areaId: ${event.areaId}, currentAreaId: ${currentAreaId}, message: ${event.displayMessage}`);
-      }
       
       // Filter out chat messages (type 4)
       if (Number(event.type) === 4) {
