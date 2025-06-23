@@ -41,8 +41,12 @@ const DEFAULT_TIMEOUT_DURATION = 30000; // 30 seconds
 
 export function useOptimisticUpdates(): UseOptimisticUpdatesReturn {
   const [updates, setUpdates] = useState<OptimisticUpdate[]>([]);
+  const updatesRef = useRef<OptimisticUpdate[]>([]);
   const timeoutRefs = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const deduplicationKeys = useRef<Map<string, Set<string>>>(new Map());
+
+  // Keep ref in sync with state
+  updatesRef.current = updates;
 
   const addOptimisticUpdate = useCallback(<T>(
     type: OptimisticUpdateType,
@@ -160,12 +164,12 @@ export function useOptimisticUpdates(): UseOptimisticUpdatesReturn {
   }, []);
 
   const getUpdatesByType = useCallback(<T>(type: OptimisticUpdateType): OptimisticUpdate<T>[] => {
-    return updates.filter(u => u.type === type) as OptimisticUpdate<T>[];
-  }, [updates]);
+    return updatesRef.current.filter(u => u.type === type) as OptimisticUpdate<T>[];
+  }, []);
 
   const hasOptimisticUpdate = useCallback((id: string): boolean => {
-    return updates.some(u => u.id === id);
-  }, [updates]);
+    return updatesRef.current.some(u => u.id === id);
+  }, []);
 
   const clearAll = useCallback(() => {
     // Clear all timeouts
