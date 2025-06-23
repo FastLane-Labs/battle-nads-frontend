@@ -110,6 +110,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
     },
     enabled: !!client, // Only fetch when client is ready
     staleTime: Infinity, // This value rarely changes
+    gcTime: Infinity, // Keep character creation cost data permanently
     refetchOnWindowFocus: false, // No need to refetch on focus
   });
   // -------------------------------------
@@ -136,6 +137,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
     },
     enabled: !!client,
     staleTime: 600000, // Refresh at most once per 10 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes - block number can be kept around
   });
   // -------------------------------------
 
