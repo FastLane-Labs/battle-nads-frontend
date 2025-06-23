@@ -40,7 +40,6 @@ const WELCOME_SLIDES: WelcomeSlide[] = [
     color: '#d4af37',
     details: [
       'Heroes live forever on-chain',
-      'Every choice shapes your eternal legend',
       'Turn-based tactical combat awaits',
       'True ownership of your digital destiny',
     ],
@@ -48,11 +47,10 @@ const WELCOME_SLIDES: WelcomeSlide[] = [
   {
     id: 'character',
     title: 'Forge Your Hero',
-    content: 'Choose a class, name, and banner. The chain will remember your choices for all time.',
+    content: 'Choose a name and allocate your skill points. The chain will remember your choices for all time.',
     icon: FaGamepad,
     color: '#d4af37',
     details: [
-      'Select from unique character classes',
       'Allocate stats to match your strategy',
       'Choose a name that echoes through eternity',
       'Your hero lives forever on-chain',
@@ -61,26 +59,24 @@ const WELCOME_SLIDES: WelcomeSlide[] = [
   {
     id: 'movement',
     title: 'Master the Board',
-    content: 'Move with W A S D or click the arrows to explore each depth of the ancient dungeons.',
+    content: 'Move with the arrows to explore each depth of the ancient dungeons.',
     icon: FaArrowRight,
     color: '#d4af37',
     details: [
       'Navigate turn-based tactical combat',
       'Explore multiple dungeon depths',
       'Position matters in every battle',
-      'Strategic movement wins wars',
     ],
   },
   {
     id: 'abilities',
     title: 'Strike & Guard',
-    content: 'Abilities cost stamina—watch cooldowns and unleash devastating combos to defeat your foes.',
+    content: 'Abilities cost balance — watch cooldowns and unleash devastating combos to defeat your foes.',
     icon: FaCoins,
     color: '#d4af37',
     details: [
       'Master unique class abilities',
-      'Manage stamina and cooldowns',
-      'Chain abilities for maximum impact',
+      'Manage resources and cooldowns',
       'Timing determines victory',
     ],
   },
@@ -93,7 +89,6 @@ const WELCOME_SLIDES: WelcomeSlide[] = [
     details: [
       'All loot stored permanently on-chain',
       'Equip and upgrade your gear',
-      'Experience persists through death',
       'True ownership of digital assets',
     ],
   },
@@ -205,9 +200,9 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
               </Box>
 
               {/* Title */}
-              <Heading size="lg" color="#d4af37" fontFamily="serif" letterSpacing="0.5px">
+              <h2 className='gold-text-light text-3xl'>
                 {slide.title}
-              </Heading>
+              </h2>
 
               {/* Content */}
               <Text
