@@ -28,9 +28,10 @@ const ONBOARDING_FLOWS: OnboardingFlow[] = [
     id: 'welcome',
     name: 'Welcome to Battle Nads',
     description: 'Introduction to the game and blockchain gaming concepts',
-    requiredPath: '/',
+    // No requiredPath - can trigger on any page
     requiredConditions: {
       isNewUser: true,
+      hasWallet: true,
     },
     autoTrigger: true,
     priority: 1,
@@ -83,18 +84,25 @@ interface OnboardingState {
   lastShownFlow: string | null;
 }
 
-const ONBOARDING_STORAGE_KEY = 'battlenads_onboarding_state';
+// Version the storage key to reset onboarding for all users when updated
+const ONBOARDING_VERSION = 'v2.0';
+const ONBOARDING_STORAGE_KEY = `battlenads_onboarding_state_${ONBOARDING_VERSION}`;
 
 // Main onboarding manager component
 function OnboardingManagerInner() {
   const pathname = usePathname();
   const router = useRouter();
-  const { hasWallet } = useWallet();
-  const { hasSeenWelcome, markWelcomeAsSeen } = useWelcomeScreen();
+  const { currentWallet } = useWallet();
+  const { hasSeenWelcome, markWelcomeAsSeen } = useWelcomeScreen(currentWallet !== 'none' ? currentWallet : undefined);
   const tutorial = useTutorial();
 
+  const getWalletSpecificStorageKey = () => {
+    if (currentWallet === 'none') return ONBOARDING_STORAGE_KEY;
+    return `${ONBOARDING_STORAGE_KEY}_${currentWallet}`;
+  };
+
   const [onboardingState, setOnboardingState] = useState<OnboardingState>(() => {
-    if (typeof window === 'undefined') {
+    if (typeof window === 'undefined' || currentWallet === 'none') {
       return {
         completedFlows: [],
         skippedFlows: [],
@@ -104,7 +112,8 @@ function OnboardingManagerInner() {
       };
     }
 
-    const stored = localStorage.getItem(ONBOARDING_STORAGE_KEY);
+    const walletSpecificKey = getWalletSpecificStorageKey();
+    const stored = localStorage.getItem(walletSpecificKey);
     if (stored) {
       try {
         return JSON.parse(stored);
@@ -127,7 +136,10 @@ function OnboardingManagerInner() {
   // Save onboarding state to localStorage
   const saveOnboardingState = (state: OnboardingState) => {
     setOnboardingState(state);
-    localStorage.setItem(ONBOARDING_STORAGE_KEY, JSON.stringify(state));
+    if (currentWallet !== 'none') {
+      const walletSpecificKey = getWalletSpecificStorageKey();
+      localStorage.setItem(walletSpecificKey, JSON.stringify(state));
+    }
   };
 
   // Check if a flow should be triggered
@@ -152,7 +164,7 @@ function OnboardingManagerInner() {
     if (flow.requiredConditions) {
       const { hasWallet: needsWallet, hasCharacter: needsCharacter, isNewUser } = flow.requiredConditions;
 
-      if (needsWallet !== undefined && hasWallet !== needsWallet) {
+      if (needsWallet !== undefined && (currentWallet !== 'none') !== needsWallet) {
         return false;
       }
 
@@ -161,12 +173,19 @@ function OnboardingManagerInner() {
       //   return false;
       // }
 
-      if (isNewUser && hasSeenWelcome) {
-        return false;
+      if (isNewUser !== undefined) {
+        // If flow requires new user, only show if they haven't seen welcome
+        if (isNewUser && hasSeenWelcome) {
+          return false;
+        }
+        // If flow requires NOT new user, only show if they have seen welcome  
+        if (!isNewUser && !hasSeenWelcome) {
+          return false;
+        }
       }
     }
 
-    return flow.autoTrigger;
+    return flow.autoTrigger ?? false;
   };
 
   // Find the next flow to trigger
@@ -217,6 +236,36 @@ function OnboardingManagerInner() {
     saveOnboardingState(newState);
   };
 
+  // Reset onboarding state when wallet changes
+  useEffect(() => {
+    if (currentWallet !== 'none') {
+      const walletSpecificKey = getWalletSpecificStorageKey();
+      const stored = localStorage.getItem(walletSpecificKey);
+      if (stored) {
+        try {
+          setOnboardingState(JSON.parse(stored));
+        } catch (error) {
+          console.error('Failed to parse onboarding state:', error);
+          setOnboardingState({
+            completedFlows: [],
+            skippedFlows: [],
+            currentFlow: null,
+            isActive: false,
+            lastShownFlow: null,
+          });
+        }
+      } else {
+        setOnboardingState({
+          completedFlows: [],
+          skippedFlows: [],
+          currentFlow: null,
+          isActive: false,
+          lastShownFlow: null,
+        });
+      }
+    }
+  }, [currentWallet]);
+
   // Check for flows to trigger on path/state changes
   useEffect(() => {
     // Don't trigger during tutorial or welcome screen
@@ -233,7 +282,7 @@ function OnboardingManagerInner() {
 
       return () => clearTimeout(timer);
     }
-  }, [pathname, hasWallet, tutorial.isActive, showWelcome, onboardingState]);
+  }, [pathname, currentWallet, tutorial.isActive, showWelcome, onboardingState]);
 
   // Handle welcome screen completion
   const handleWelcomeComplete = () => {
@@ -306,7 +355,7 @@ export function OnboardingManager() {
 
 // Hook for manual onboarding control
 export function useOnboarding() {
-  const { hasSeenWelcome, markWelcomeAsSeen, resetWelcomeScreen } = useWelcomeScreen();
+  const { hasSeenWelcome, resetWelcomeScreen } = useWelcomeScreen();
   const tutorial = useTutorial();
 
   const startWelcomeFlow = () => {

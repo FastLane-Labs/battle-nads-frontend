@@ -14,8 +14,8 @@ import {
   Container,
   Heading,
 } from '@chakra-ui/react';
-import { FaGamepad, FaCoins, FaShield, FaUsers, FaArrowRight, FaSkull } from 'react-icons/fa';
-import { GameButton } from '../ui/GameButton';
+import { FaGamepad, FaCoins, FaUsers, FaArrowRight, FaSkull } from 'react-icons/fa';
+import { FaShield } from 'react-icons/fa6';
 
 interface WelcomeScreenProps {
   onComplete: () => void;
@@ -33,68 +33,68 @@ interface WelcomeSlide {
 
 const WELCOME_SLIDES: WelcomeSlide[] = [
   {
-    id: 'intro',
-    title: 'Welcome to Battle Nads!',
-    content: 'A blockchain-based tactical RPG where you create characters, explore dungeons, and battle other players in a persistent world.',
-    icon: FaGamepad,
-    color: '#F6AD55',
-    details: [
-      'Turn-based tactical combat system',
-      'Persistent character progression',
-      'Real-time multiplayer interactions',
-      'Blockchain-based ownership of assets',
-    ],
-  },
-  {
-    id: 'blockchain',
-    title: 'True Ownership',
-    content: 'Your characters, equipment, and progress are stored on the Monad blockchain. You truly own your game assets!',
+    id: 'welcome',
+    title: 'Adventure Awaits',
+    content: 'Welcome to Battle Nads! Enter the eternal realm where heroes are forged on the Monad blockchain.',
     icon: FaShield,
-    color: '#68D391',
+    color: '#d4af37',
     details: [
-      'Characters stored permanently on-chain',
-      'Trade equipment with other players',
-      'No central server can delete your progress',
-      'Transparent and verifiable game mechanics',
+      'Heroes live forever on-chain',
+      'Every choice shapes your eternal legend',
+      'Turn-based tactical combat awaits',
+      'True ownership of your digital destiny',
     ],
   },
   {
-    id: 'economy',
-    title: 'Real Economy',
-    content: 'Battle Nads features a player-driven economy using MON tokens. Earn rewards by defeating enemies, but death means losing your balance!',
+    id: 'character',
+    title: 'Forge Your Hero',
+    content: 'Choose a class, name, and banner. The chain will remember your choices for all time.',
+    icon: FaGamepad,
+    color: '#d4af37',
+    details: [
+      'Select from unique character classes',
+      'Allocate stats to match your strategy',
+      'Choose a name that echoes through eternity',
+      'Your hero lives forever on-chain',
+    ],
+  },
+  {
+    id: 'movement',
+    title: 'Master the Board',
+    content: 'Move with W A S D or click the arrows to explore each depth of the ancient dungeons.',
+    icon: FaArrowRight,
+    color: '#d4af37',
+    details: [
+      'Navigate turn-based tactical combat',
+      'Explore multiple dungeon depths',
+      'Position matters in every battle',
+      'Strategic movement wins wars',
+    ],
+  },
+  {
+    id: 'abilities',
+    title: 'Strike & Guard',
+    content: 'Abilities cost stamina—watch cooldowns and unleash devastating combos to defeat your foes.',
     icon: FaCoins,
-    color: '#F6E05E',
+    color: '#d4af37',
     details: [
-      'Earn MON tokens by defeating players and monsters',
-      'Death redistributes your balance to the victor',
-      'Session keys enable gasless gameplay',
-      'Economic strategy matters as much as combat skill',
+      'Master unique class abilities',
+      'Manage stamina and cooldowns',
+      'Chain abilities for maximum impact',
+      'Timing determines victory',
     ],
   },
   {
-    id: 'community',
-    title: 'Competitive Community',
-    content: 'Join a thriving community of players. Form alliances, hunt rivals, and compete for dominance in the dungeons.',
-    icon: FaUsers,
-    color: '#9F7AEA',
-    details: [
-      'Real-time player vs player combat',
-      'Chat system for coordination and taunting',
-      'Leaderboards and achievement tracking',
-      'Community-driven meta and strategies',
-    ],
-  },
-  {
-    id: 'warning',
-    title: 'High Stakes Gaming',
-    content: 'Battle Nads is not casual gaming. Your decisions have real consequences. Death is permanent and costly. Are you ready?',
+    id: 'ownership',
+    title: 'True Ownership',
+    content: 'Loot and XP live on the Monad blockchain. Equip your treasures—they are truly yours forever.',
     icon: FaSkull,
-    color: '#F56565',
+    color: '#d4af37',
     details: [
-      'Character death means loss of all balance',
-      'No save/reload - all actions are final',
-      'Economic losses can be significant',
-      'Only play with funds you can afford to lose',
+      'All loot stored permanently on-chain',
+      'Equip and upgrade your gear',
+      'Experience persists through death',
+      'True ownership of digital assets',
     ],
   },
 ];
@@ -147,7 +147,8 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
       left="0"
       right="0"
       bottom="0"
-      bg="rgba(0, 0, 0, 0.95)"
+      bg="rgba(5, 22, 43, 0.75)"
+      backdropFilter="blur(10px)"
       zIndex="9999"
       display="flex"
       alignItems="center"
@@ -158,17 +159,18 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
         <VStack spacing={8} align="center">
           {/* Progress Bar */}
           <Box w="full" maxW="400px">
-            <Progress
-              value={progress}
-              colorScheme="orange"
-              size="sm"
-              borderRadius="full"
-              bg="gray.700"
-              data-testid="welcome-progress"
-            />
+            <Box w="full" h="4px" bg="#10243b" borderRadius="full" overflow="hidden" position="relative">
+              <Box
+                position="absolute"
+                inset={0}
+                w={`${progress}%`}
+                bg="#d4af37"
+                transition="all 0.3s ease"
+              />
+            </Box>
             <Text
               fontSize="sm"
-              color="gray.400"
+              color="#f0e6c0"
               textAlign="center"
               mt={2}
             >
@@ -178,10 +180,11 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
 
           {/* Main Content */}
           <Box
-            bg="gray.800"
+            bg="#10243b"
             borderRadius="xl"
             border="1px solid"
-            borderColor="gray.600"
+            borderColor="#d4af37"
+            boxShadow="0 0 6px rgba(212,175,55,0.35)"
             p={8}
             maxW="600px"
             w="full"
@@ -194,21 +197,22 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
               <Box
                 p={4}
                 borderRadius="full"
-                bg={slide.color}
-                color="gray.900"
+                bg="#d4af37"
+                color="#05162b"
+                boxShadow="0 0 12px rgba(212,175,55,0.6)"
               >
                 <Icon as={slide.icon} boxSize={8} />
               </Box>
 
               {/* Title */}
-              <Heading size="lg" color="white">
+              <Heading size="lg" color="#d4af37" fontFamily="serif" letterSpacing="0.5px">
                 {slide.title}
               </Heading>
 
               {/* Content */}
               <Text
                 fontSize="lg"
-                color="gray.300"
+                color="#f0e6c0"
                 lineHeight="1.6"
                 maxW="500px"
               >
@@ -220,15 +224,15 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
                 <VStack spacing={2} align="start" w="full" maxW="400px">
                   {slide.details.map((detail, index) => (
                     <HStack key={index} spacing={3} align="start">
-                      <Box
-                        w={2}
-                        h={2}
-                        borderRadius="full"
-                        bg={slide.color}
-                        mt={2}
+                      <Text
+                        color="#d4af37"
+                        fontSize="md"
+                        mt={0.5}
                         flexShrink={0}
-                      />
-                      <Text color="gray.400" fontSize="sm">
+                      >
+                        ◆
+                      </Text>
+                      <Text color="#f0e6c0" fontSize="sm">
                         {detail}
                       </Text>
                     </HStack>
@@ -246,11 +250,11 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
                 w={3}
                 h={3}
                 borderRadius="full"
-                bg={index === currentSlide ? 'orange.400' : 'gray.600'}
+                bg={index === currentSlide ? '#d4af37' : '#10243b'}
                 cursor="pointer"
                 transition="all 0.2s"
                 _hover={{
-                  bg: index === currentSlide ? 'orange.300' : 'gray.500',
+                  bg: index === currentSlide ? '#f0e6c0' : '#05162b',
                 }}
                 onClick={() => handleSlideSelect(index)}
                 data-testid={`slide-indicator-${index}`}
@@ -262,35 +266,72 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
           <HStack spacing={4}>
             <Button
               variant="ghost"
-              color="gray.400"
+              color="#f0e6c0"
               onClick={onSkip}
-              size="lg"
+              size="md"
               data-testid="skip-welcome"
+              _hover={{ color: '#d4af37' }}
+              textTransform="uppercase"
+              letterSpacing="0.5px"
+              fontWeight="bold"
             >
-              Skip Introduction
+              SKIP INTRODUCTION
             </Button>
 
             <HStack spacing={2}>
-              <GameButton
-                variant="secondary"
+              <Box
+                as="button"
                 onClick={handlePrevious}
                 disabled={currentSlide === 0 || isAnimating}
-                size="lg"
+                px={6}
+                py={2}
+                border="1px solid #d4af37"
+                bg="#10243b"
+                color="#d4af37"
+                borderRadius="md"
+                boxShadow="inset 0 0 4px #000"
+                _hover={{ boxShadow: '0 0 6px #d4af37' }}
+                _active={{ transform: 'translateY(1px)' }}
+                transition="all 0.2s"
+                textTransform="uppercase"
+                letterSpacing="0.5px"
+                fontWeight="bold"
+                fontSize="sm"
+                opacity={currentSlide === 0 || isAnimating ? 0.5 : 1}
+                cursor={currentSlide === 0 || isAnimating ? 'not-allowed' : 'pointer'}
                 data-testid="previous-slide"
               >
-                Previous
-              </GameButton>
+                PREVIOUS
+              </Box>
 
-              <GameButton
-                variant="primary"
+              <Box
+                as="button"
                 onClick={handleNext}
                 disabled={isAnimating}
-                size="lg"
-                rightIcon={currentSlide === WELCOME_SLIDES.length - 1 ? undefined : <FaArrowRight />}
+                px={6}
+                py={2}
+                border="1px solid #d4af37"
+                bg="#d4af37"
+                color="#05162b"
+                borderRadius="md"
+                boxShadow="inset 0 0 4px #000"
+                _hover={{ boxShadow: '0 0 8px #d4af37' }}
+                _active={{ transform: 'translateY(1px)' }}
+                transition="all 0.2s"
+                textTransform="uppercase"
+                letterSpacing="0.5px"
+                fontWeight="bold"
+                fontSize="sm"
+                opacity={isAnimating ? 0.5 : 1}
+                cursor={isAnimating ? 'not-allowed' : 'pointer'}
+                display="flex"
+                alignItems="center"
+                gap={2}
                 data-testid="next-slide"
               >
-                {currentSlide === WELCOME_SLIDES.length - 1 ? 'Get Started' : 'Next'}
-              </GameButton>
+                {currentSlide === WELCOME_SLIDES.length - 1 ? 'GET STARTED' : 'NEXT'}
+                {currentSlide !== WELCOME_SLIDES.length - 1 && <FaArrowRight />}
+              </Box>
             </HStack>
           </HStack>
         </VStack>
@@ -299,21 +340,34 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
   );
 }
 
+// Version for the onboarding feature - increment this to show to all users again
+const ONBOARDING_VERSION = 'v2.0';
+const WELCOME_SEEN_KEY = `battlenads_seen_welcome_${ONBOARDING_VERSION}`;
+
 // Hook for managing welcome screen state
-export function useWelcomeScreen() {
+export function useWelcomeScreen(walletAddress?: string) {
   const [hasSeenWelcome, setHasSeenWelcome] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem('battlenads_seen_welcome') === 'true';
+    if (typeof window === 'undefined' || !walletAddress) return false;
+    
+    // Create wallet-specific key
+    const walletSpecificKey = `${WELCOME_SEEN_KEY}_${walletAddress}`;
+    return localStorage.getItem(walletSpecificKey) === 'true';
   });
 
   const markWelcomeAsSeen = () => {
+    if (!walletAddress) return;
+    
     setHasSeenWelcome(true);
-    localStorage.setItem('battlenads_seen_welcome', 'true');
+    const walletSpecificKey = `${WELCOME_SEEN_KEY}_${walletAddress}`;
+    localStorage.setItem(walletSpecificKey, 'true');
   };
 
   const resetWelcomeScreen = () => {
+    if (!walletAddress) return;
+    
     setHasSeenWelcome(false);
-    localStorage.removeItem('battlenads_seen_welcome');
+    const walletSpecificKey = `${WELCOME_SEEN_KEY}_${walletAddress}`;
+    localStorage.removeItem(walletSpecificKey);
   };
 
   return {

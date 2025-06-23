@@ -24,7 +24,8 @@ import {
   Alert,
   AlertIcon,
 } from '@chakra-ui/react';
-import { FaSword, FaShield, FaHeart, FaBolt, FaEye, FaDice } from 'react-icons/fa';
+import { FaHeart, FaBolt, FaEye, FaDice, FaFire } from 'react-icons/fa';
+import { FaShield } from 'react-icons/fa6';
 
 interface CombatCharacter {
   name: string;
