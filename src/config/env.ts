@@ -36,6 +36,6 @@ export const INITIAL_SNAPSHOT_LOOKBACK_BLOCKS = 1200; // ~10-20 minutes dependin
 export const MAX_SESSION_KEY_VALIDITY_BLOCKS = 172800; // About 24 hours at 0.5s blocks (24*60*60 / 0.5)
 
 // Number of recent blocks to re-check on each poll to account for RPC lag
-export const POLL_LOOKBEHIND_BLOCKS = 10;
+export const POLL_LOOKBEHIND_BLOCKS = 30; // 10 seconds at 0.5s per block - sufficient for RPC lag
 
 // Gas limits for different actions (adjust based on network and contract complexity) 

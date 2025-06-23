@@ -35,6 +35,11 @@ export interface UseOptimisticUpdatesReturn {
   getUpdatesByType: <T>(type: OptimisticUpdateType) => OptimisticUpdate<T>[];
   hasOptimisticUpdate: (id: string) => boolean;
   clearAll: () => void;
+  removeConfirmedUpdates: <T>(
+    type: OptimisticUpdateType,
+    confirmedItems: T[],
+    matcher: (optimisticData: T, confirmedItem: T) => boolean
+  ) => void;
 }
 
 const DEFAULT_TIMEOUT_DURATION = 30000; // 30 seconds
@@ -179,6 +184,29 @@ export function useOptimisticUpdates(): UseOptimisticUpdatesReturn {
     setUpdates([]);
   }, []);
 
+  const removeConfirmedUpdates = useCallback(<T>(
+    type: OptimisticUpdateType,
+    confirmedItems: T[],
+    matcher: (optimisticData: T, confirmedItem: T) => boolean
+  ) => {
+    const updatesOfType = getUpdatesByType<T>(type);
+    
+    const toRemove: string[] = [];
+    
+    updatesOfType.forEach(optimisticUpdate => {
+      const hasConfirmedVersion = confirmedItems.some(confirmedItem => 
+        matcher(optimisticUpdate.data, confirmedItem)
+      );
+      
+      if (hasConfirmedVersion) {
+        toRemove.push(optimisticUpdate.id);
+      }
+    });
+    
+    // Remove all confirmed updates
+    toRemove.forEach(id => removeOptimisticUpdate(id));
+  }, [getUpdatesByType, removeOptimisticUpdate]);
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -194,6 +222,7 @@ export function useOptimisticUpdates(): UseOptimisticUpdatesReturn {
     rollbackByType,
     getUpdatesByType,
     hasOptimisticUpdate,
-    clearAll
+    clearAll,
+    removeConfirmedUpdates
   };
 }

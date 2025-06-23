@@ -104,6 +104,9 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     // NOTE: Chat processing is now handled entirely by contractToWorldSnapshot
     // This eliminates duplicate processing and character lookup issues
     
+    // Check if we've already processed this exact snapshot to avoid duplicate processing
+    // due to overlapping block queries
+    
     // Update previous endBlock for continuity tracking
     if (uiSnapshot.dataFeeds?.length > 0) {
       const endBlock = Number(uiSnapshot.endBlock || 0);
@@ -389,11 +392,9 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         combinedChatLogsMap.set(key, log);
       });
       
-      // Collect all confirmed messages before processing optimistic ones
-      const allConfirmedMessages = Array.from(combinedChatLogsMap.values());
       
       // 3. Add optimistic chat messages
-      // Note: Cleanup of confirmed optimistic messages is handled by useEffect
+      // Note: Cleanup of confirmed optimistic messages is handled automatically by timeout
       optimisticChatMessages.forEach((optimistic) => {
         const key = `optimistic-${optimistic.timestamp}-${optimistic.sender.index}`;
         combinedChatLogsMap.set(key, optimistic);
@@ -426,13 +427,57 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
   const removeConfirmedOptimisticMessagesRef = useRef(removeConfirmedOptimisticMessages);
   removeConfirmedOptimisticMessagesRef.current = removeConfirmedOptimisticMessages;
 
-  // Effect to clean up confirmed optimistic messages
-  useEffect(() => {
-    if (!gameState?.chatLogs || gameState.chatLogs.length === 0) return;
+  // Track last processed confirmed messages to prevent duplicate processing
+  const lastConfirmedChatKeysRef = useRef<Set<string>>(new Set());
+
+  // Create a stable string representation of confirmed message keys for dependency tracking
+  const confirmedChatKeysString = useMemo(() => {
+    if (!gameState?.chatLogs || gameState.chatLogs.length === 0) return '';
     
-    // Remove optimistic messages that now have confirmed versions
-    removeConfirmedOptimisticMessagesRef.current(gameState.chatLogs);
+    const confirmedKeys = gameState.chatLogs
+      .filter(chat => !chat.isOptimistic)
+      .map(chat => `${chat.blocknumber}-${chat.logIndex}`)
+      .sort()
+      .join(',');
+    
+    return confirmedKeys;
   }, [gameState?.chatLogs]);
+
+  // Store previous keys to avoid processing the same set multiple times
+  const previousConfirmedKeysRef = useRef<string>('');
+
+  // Effect to remove optimistic messages when confirmed versions are detected
+  useEffect(() => {
+    if (!confirmedChatKeysString || !gameState?.chatLogs) return;
+    
+    // Only process if the keys string has actually changed
+    if (confirmedChatKeysString === previousConfirmedKeysRef.current) {
+      return;
+    }
+    
+    previousConfirmedKeysRef.current = confirmedChatKeysString;
+    
+    // Get only confirmed chat messages (not optimistic)
+    const confirmedChatMessages = gameState.chatLogs.filter(chat => !chat.isOptimistic);
+    
+    if (confirmedChatMessages.length > 0) {
+      // Create a set of keys for current confirmed messages
+      const currentConfirmedKeys = new Set(
+        confirmedChatMessages.map(chat => `${chat.blocknumber}-${chat.logIndex}`)
+      );
+      
+      // Only process if we have new confirmed messages
+      const previousKeys = lastConfirmedChatKeysRef.current;
+      const hasNewConfirmedMessages = Array.from(currentConfirmedKeys).some(key => !previousKeys.has(key));
+      
+      if (hasNewConfirmedMessages) {
+        console.log(`[useGameState] Processing ${confirmedChatMessages.length} confirmed messages for optimistic cleanup`);
+        removeConfirmedOptimisticMessagesRef.current(confirmedChatMessages);
+        lastConfirmedChatKeysRef.current = currentConfirmedKeys;
+      }
+    }
+  }, [confirmedChatKeysString]);
+
 
   /* ---------- Unified world snapshot with session data ---------- */
   const worldSnapshot = useMemo<domain.WorldSnapshot | null>(() => {
@@ -452,29 +497,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
   const addOptimisticChatMessage = useCallback((message: string) => {
     if (!rawData?.character || !gameState) return;
 
-    // Check if this message already exists in the game state (confirmed)
-    const messageAlreadyExists = gameState.chatLogs.some(chat => {
-      // Must be from the same player
-      const isSamePlayer = chat.sender.id === rawData.character.id.toString() ||
-                          chat.sender.index === Number(rawData.character.stats.index);
-      
-      if (!isSamePlayer) return false;
-      
-      // Must have the same message content
-      const sameContent = chat.message === message;
-      if (!sameContent) return false;
-      
-      // Must be recent (within 30 seconds) to match deduplication window
-      const isRecent = Date.now() - chat.timestamp <= 30000;
-      
-      return sameContent && isSamePlayer && isRecent;
-    });
-
-    if (messageAlreadyExists) {
-      return;
-    }
-
-    // Check if already optimistic (deduplication handled by the centralized system)
+    // Simple deduplication: check if already optimistic
     if (isMessageOptimistic(message, rawData.character.id.toString())) {
       return;
     }

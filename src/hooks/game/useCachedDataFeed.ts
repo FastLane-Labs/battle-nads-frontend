@@ -458,14 +458,11 @@ export const processDataFeedsToEvents = (
 
       // Process chat message if log type is Chat (4)
       if (logTypeNum === 4) {
-        console.log(`[processDataFeedsToEvents] Found chat log type 4, chatLogArrayIndex: ${chatLogArrayIndex}, chatLogs length: ${feed.chatLogs?.length || 0}`);
         const senderInfo = attackerInfo;
         const messageContent = feed.chatLogs?.[chatLogArrayIndex];
-        chatLogArrayIndex++;
         
-        if (messageContent) {
+        if (messageContent && senderInfo) {
           const messageKey = `${absoluteBlockNumber}-${logIndexNum}`;
-          console.log(`[processDataFeedsToEvents] Adding chat message: "${messageContent}" with key: ${messageKey}`);
           chatMessages.push({
             owner,
             contract: contractAddress,
@@ -474,14 +471,17 @@ export const processDataFeedsToEvents = (
             blockNumber: absoluteBlockNumber.toString(),
             logIndex: logIndexNum,
             content: messageContent,
-            senderId: senderInfo?.id || 'unknown-id',
-            senderName: senderInfo?.name || 'Unknown',
+            senderId: senderInfo.id,
+            senderName: senderInfo.name,
             timestamp: blockTimestamp,
             storeTimestamp,
             isConfirmed: true
           });
+          // Only increment when we successfully process the chat message
+          chatLogArrayIndex++;
         } else {
-          console.log(`[processDataFeedsToEvents] Chat log type 4 found but no message content at index ${chatLogArrayIndex - 1}`);
+          // Still increment to keep array index synchronized
+          chatLogArrayIndex++;
         }
       }
     });
@@ -540,6 +540,7 @@ export const storeEventData = async (
         if (!existingEvent) {
           await db.events.add(event);
           storedEvents++;
+          console.log(`[storeEventData] Stored new event: ${event.eventKey}`);
         } else if (!existingEvent.isNameResolved && event.isNameResolved) {
           // Update event with resolved names
           await db.events.put({ ...existingEvent, ...event });
@@ -557,9 +558,12 @@ export const storeEventData = async (
         if (!existingMessage) {
           await db.chatMessages.add(chatMessage);
           storedChatMessages++;
+          console.log(`[storeEventData] Stored new chat message: ${chatMessage.messageKey} - "${chatMessage.content}"`);
         }
       }
     });
+
+    console.log(`[storeEventData] Transaction completed: stored ${storedEvents} events and ${storedChatMessages} chat messages`);
 
   } catch (error) {
     console.error('[storeEventData] Error storing event data:', error);

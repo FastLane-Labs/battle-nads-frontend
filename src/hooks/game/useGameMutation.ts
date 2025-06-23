@@ -66,6 +66,11 @@ export function useGameTransactionMutation<TData extends { hash: string; wait: (
   const { client } = useBattleNadsClient();
   const { injectedWallet, embeddedWallet } = useWallet();
   const owner = injectedWallet?.address || null;
+
+  // Defensive check for toast context
+  if (!toast) {
+    console.error('[useGameTransactionMutation] Toast context not available - ChakraProvider may be missing');
+  }
   // Character ID passed from calling context to avoid circular dependency
 
   return useMutation<TData, Error, TVariables>({
@@ -84,7 +89,7 @@ export function useGameTransactionMutation<TData extends { hash: string; wait: (
           : transactionDescription;
         
         const loadingToastId = `tx-${data.hash}`;
-        toast({
+        toast?.({
           id: loadingToastId,
           title: 'Transaction Sent',
           description: `${description}: ${data.hash.slice(0, 6)}...${data.hash.slice(-4)}. Waiting for confirmation...`,
@@ -96,13 +101,13 @@ export function useGameTransactionMutation<TData extends { hash: string; wait: (
         try {
           // Wait for transaction confirmation
           await data.wait(1);
-          toast.close(loadingToastId);
+          toast?.close?.(loadingToastId);
           
           if (showSuccessToast) {
             const message = typeof successMessage === 'function' 
               ? successMessage(data, variables) 
               : successMessage;
-            toast({
+            toast?.({
               title: 'Transaction Confirmed',
               description: message,
               status: 'success',
@@ -111,9 +116,9 @@ export function useGameTransactionMutation<TData extends { hash: string; wait: (
             });
           }
         } catch (waitError: any) {
-          toast.close(loadingToastId);
-          if (showErrorToast) {
-            toast({
+          toast?.close?.(loadingToastId);
+          if (showErrorToast && toast) {
+            toast?.({
               title: 'Transaction Failed',
               description: `Failed to confirm transaction ${data.hash}: ${waitError.message}`,
               status: 'error',
@@ -128,7 +133,7 @@ export function useGameTransactionMutation<TData extends { hash: string; wait: (
         const message = typeof successMessage === 'function' 
           ? successMessage(data, variables) 
           : successMessage;
-        toast({
+        toast?.({
           title: 'Success',
           description: message,
           status: 'success',
@@ -152,11 +157,11 @@ export function useGameTransactionMutation<TData extends { hash: string; wait: (
       }
     },
     onError: (error, variables) => {
-      if (showErrorToast) {
+      if (showErrorToast && toast) {
         const message = typeof errorMessage === 'function' 
           ? errorMessage(error, variables) 
           : errorMessage;
-        toast({
+        toast?.({
           title: 'Error',
           description: message || error.message || 'An unknown error occurred',
           status: 'error',
@@ -201,6 +206,11 @@ export function useGameMutation<TData, TVariables>(
   const { client } = useBattleNadsClient();
   const { injectedWallet, embeddedWallet } = useWallet();
   const owner = injectedWallet?.address || null;
+
+  // Defensive check for toast context
+  if (!toast) {
+    console.error('[useGameMutation] Toast context not available - ChakraProvider may be missing');
+  }
   // Character ID passed from calling context to avoid circular dependency
 
   return useMutation<TData, Error, TVariables>({
@@ -212,11 +222,11 @@ export function useGameMutation<TData, TVariables>(
       return mutationFn(variables);
     },
     onSuccess: async (data, variables) => {
-      if (showSuccessToast) {
+      if (showSuccessToast && toast) {
         const message = typeof successMessage === 'function' 
           ? successMessage(data, variables) 
           : successMessage;
-        toast({
+        toast?.({
           title: 'Success',
           description: message,
           status: 'success',
@@ -240,11 +250,11 @@ export function useGameMutation<TData, TVariables>(
       }
     },
     onError: (error, variables) => {
-      if (showErrorToast) {
+      if (showErrorToast && toast) {
         const message = typeof errorMessage === 'function' 
           ? errorMessage(error, variables) 
           : errorMessage;
-        toast({
+        toast?.({
           title: 'Error',
           description: message || error.message || 'An unknown error occurred',
           status: 'error',
