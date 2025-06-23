@@ -532,7 +532,7 @@ export function contractToWorldSnapshot(
   }
 
   // --- Determine snapshotAreaId once for all events in this snapshot ---
-  const snapshotAreaId: bigint = raw.character ? 
+  const snapshotAreaId: bigint = (raw.character && raw.character.stats) ? 
     createAreaID(
       Number(raw.character.stats.depth),
       Number(raw.character.stats.x),
@@ -540,7 +540,7 @@ export function contractToWorldSnapshot(
     ) : 0n;
 
   if (snapshotAreaId === 0n) {
-    if (raw.character) {
+    if (raw.character && raw.character.stats) {
       // This means createAreaID returned 0n even with character data (e.g., depth 0, x 0, y 0)
       // This is a valid areaId (representing the "void" or an undefined area), but log if it might be unexpected.
       console.log(`[contractToWorldSnapshot] Player character is at coordinates (Depth: ${raw.character.stats.depth}, X: ${raw.character.stats.x}, Y: ${raw.character.stats.y}), resulting in snapshotAreaId 0n for all events in this snapshot.`);
