@@ -179,6 +179,7 @@ Battle Nads is a production-ready blockchain RPG with comprehensive documentatio
 ### ✅ **PRODUCTION-READY FEATURES (13/22 Complete - 59%)**
 
 #### **MVP Features (6/7 Complete - 85.7%)**
+
 - ✅ **Combat & Event Log** - Real-time combat visualization with event history
 - ✅ **Ability Cooldowns** - Block-based timing with visual progress indicators  
 - ✅ **Session Key Management** - Gasless transaction system with funding UI
@@ -188,6 +189,7 @@ Battle Nads is a production-ready blockchain RPG with comprehensive documentatio
 - ⏳ **Async Feedback** - Loading states (partially implemented)
 
 #### **Next-Wave Features (5/6 Complete - 83.3%)**
+
 - ✅ **Stat Allocation** - Level-up point distribution with +/- controls
 - ✅ **Chat Functionality** - Real-time area chat with history
 - ✅ **Monster Visuals** - Visual differentiation of monster types and bosses  
@@ -196,18 +198,21 @@ Battle Nads is a production-ready blockchain RPG with comprehensive documentatio
 - ⏳ **Area View** - Other entities visualization (remaining)
 
 #### **Polish Features (2/9 Complete - 22.2%)**
+
 - ✅ **Death/Revival Flow** - Death modal with balance redistribution info
 - ✅ **Onboarding System** - Multi-screen tutorial with interactive tours
 
 ### 🎯 **ENHANCED BEYOND ORIGINAL SCOPE**
 
 #### **Documentation System**
+
 - **7 Comprehensive Guides** - From quick start to advanced PvP tactics
 - **Interactive Tools** - Stat calculator and combat simulator
 - **Developer Documentation** - Complete API reference and architecture
 - **Organized Structure** - Game docs separated from development docs
 
-#### **Onboarding System**  
+#### **Onboarding System**
+
 - **Multi-Screen Welcome** - 5 animated introduction screens
 - **Interactive Tutorials** - Context-aware tours using react-joyride
 - **Smart Flow Management** - Auto-triggering based on user state
@@ -216,29 +221,34 @@ Battle Nads is a production-ready blockchain RPG with comprehensive documentatio
 ## Core Technologies
 
 ### **Framework & Language**
+
 - **Next.js 14.1.0** - App Router with SSR and client-side hydration
 - **React 18.2.0** - Latest React with concurrent features
 - **TypeScript 5** - Strict typing throughout the application
 - **Node.js 18.17.1** - Specified in .nvmrc for consistency
 
 ### **Blockchain Integration**
+
 - **ethers 6.13.5** - Contract interaction and wallet management
 - **Privy Auth 2.8.0** - Wallet connection and authentication
 - **Custom Session Keys** - Account abstraction for gasless gameplay
 
 ### **State Management**
+
 - **TanStack Query v5** - Server state management with intelligent caching
 - **XState 5** - Finite state machines for complex workflows
 - **React Context** - Global state for tutorials and onboarding
 - **IndexedDB (Dexie)** - Local caching of game data and chat history
 
 ### **UI & Styling**
+
 - **Chakra UI 2.10.7** - Component library with custom theme
 - **Tailwind CSS 3.4.1** - Utility-first styling with PostCSS
 - **React Joyride** - Interactive tutorial overlays
 - **Responsive Design** - Mobile-first approach with breakpoint optimization
 
 ### **Development & Testing**
+
 - **Jest** - Unit testing framework with React Testing Library
 - **ESLint** - Code quality and consistency
 - **TypeScript Strict Mode** - Enhanced type safety
@@ -310,12 +320,14 @@ stateDiagram-v2
 ### **Real-Time Game State**
 
 #### **Polling Strategy**
+
 - **500ms intervals** for active gameplay
 - **Incremental fetching** using cached data as baseline
 - **Optimistic updates** for immediate UI feedback
 - **Automatic cache invalidation** on user actions
 
 #### **Data Caching**
+
 - **IndexedDB storage** for persistent game history
 - **1-hour TTL** for cached events and chat messages
 - **Block-based pagination** for efficient data loading
@@ -324,12 +336,14 @@ stateDiagram-v2
 ### **Combat System**
 
 #### **Turn-Based Mechanics**
+
 - **Block-based timing** with 500ms block time
 - **Ability cooldowns** calculated in real-time
 - **Status effect tracking** with visual indicators
 - **Combat state management** with movement restrictions
 
 #### **Visual Feedback**
+
 - **Circular progress bars** for ability cooldowns
 - **Health bar animations** for damage visualization
 - **Combat event feed** with color-coded message types
@@ -338,12 +352,14 @@ stateDiagram-v2
 ### **Economic System**
 
 #### **Balance Management**
+
 - **Three balance types**: Wallet MON, Session MON, Bonded shMON
 - **Automatic warnings** for low balances with funding prompts
 - **Smart replenishment** with safe amount calculations
 - **Real-time balance tracking** with periodic updates
 
 #### **Risk Management**
+
 - **Character deletion prevention** with balance monitoring
 - **Death cost visualization** with balance redistribution details
 - **Economic strategy guides** integrated into documentation
@@ -351,12 +367,14 @@ stateDiagram-v2
 ### **Onboarding & Documentation**
 
 #### **Multi-Modal Learning**
+
 - **Progressive disclosure** - Information revealed based on user progress
 - **Interactive tutorials** - Hands-on learning with real UI elements
 - **Reference documentation** - Comprehensive written guides
 - **Interactive tools** - Calculators and simulators for experimentation
 
 #### **Tutorial System**
+
 - **Context awareness** - Tutorials trigger based on page and user state
 - **State persistence** - Progress saved across sessions
 - **Mobile optimization** - Touch-friendly interfaces and condensed content
@@ -365,46 +383,30 @@ stateDiagram-v2
 ## Performance Optimizations
 
 ### **Frontend Performance**
+
 - **Component memoization** for expensive renders
 - **Virtual scrolling** for large data lists (chat, events)
 - **Lazy loading** for non-critical components
 - **Code splitting** for route-based optimization
 
-### **Blockchain Efficiency**
-- **Session key batching** for gasless transactions
-- **Smart polling** with incremental data fetching
-- **Local state caching** to reduce RPC calls
-- **Transaction queue management** for reliability
-
 ### **Data Management**
+
 - **Normalized state structure** for efficient updates
 - **Selective re-rendering** with React Query selectors
 - **Background data synchronization** for smooth UX
 - **Storage optimization** with automatic cleanup
 
-## Security Considerations
-
-### **Wallet Security**
-- **Non-custodial design** - Players control their own keys
-- **Session key isolation** - Limited permissions and timeouts
-- **Transaction validation** - Client-side checks before submission
-- **Balance protection** - Warnings and confirmations for large actions
-
-### **Data Integrity**
-- **Blockchain verification** - All game state validated on-chain
-- **Client-side validation** - Input sanitization and bounds checking
-- **Error boundaries** - Graceful handling of unexpected states
-- **Audit logging** - Comprehensive action tracking
-
 ## Testing Strategy
 
 ### **Unit Testing**
+
 - **Component tests** - React Testing Library for UI components
 - **Hook tests** - Custom hook behavior and state management
 - **Utility tests** - Pure function validation
 - **Mapper tests** - Data transformation accuracy
 
 ### **Integration Testing**
+
 - **User workflows** - End-to-end critical paths
 - **Contract interactions** - Blockchain integration testing
 - **Error scenarios** - Failure mode validation
@@ -413,12 +415,14 @@ stateDiagram-v2
 ## Deployment Architecture
 
 ### **Frontend Deployment**
+
 - **Static generation** for documentation pages
 - **Client-side rendering** for interactive game components
 - **CDN distribution** for global performance
 - **Environment configuration** for different networks
 
 ### **Monitoring & Analytics**
+
 - **Error tracking** with comprehensive error boundaries
 - **Performance monitoring** for user experience metrics
 - **Usage analytics** for feature adoption tracking
@@ -429,18 +433,21 @@ stateDiagram-v2
 ### **Extending Current Systems**
 
 #### **Adding New Game Components**
+
 - Follow the established `GameContainer` → `GameView` → specific component pattern
 - Use existing hook patterns in `/src/hooks/game/` - see `useAbilityCooldowns.ts` as reference
 - Integrate with current polling system via `useUiSnapshot` for real-time data
 - All new components must include TypeScript interfaces and error boundaries
 
 #### **Component Development Patterns**
+
 - **Styling**: Chakra UI components with Tailwind CSS utilities (see existing components)
 - **State Management**: Use React Query for server state, React Context for global UI state
 - **Error Handling**: Wrap components in existing `ErrorBoundary` - see `/src/app/ErrorBoundary.tsx`
 - **Testing**: Follow patterns in `__tests__/` directories - unit tests required for all hooks
 
 #### **Blockchain Integration Guidelines**
+
 - Extend `BattleNadsClient.ts` for new contract methods
 - Use session key pattern for gasless transactions
 - Follow existing mapper pattern: Contract → Domain → UI transformations
@@ -449,6 +456,7 @@ stateDiagram-v2
 ### **Common Implementation Patterns**
 
 #### **Adding New Abilities**
+
 1. Add ability definition to `/src/data/abilities.ts`
 2. Update ability enum in `/src/types/domain/enums.ts`
 3. Add cooldown logic to `useAbilityCooldowns.ts`
@@ -456,6 +464,7 @@ stateDiagram-v2
 5. Add contract method to `BattleNadsClient.ts`
 
 #### **Adding New UI Screens**
+
 1. Create component in appropriate `/src/components/` subdirectory
 2. Add route to `/src/app/` directory structure
 3. Update navigation in `AppInitializer.tsx` logic
