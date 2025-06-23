@@ -486,7 +486,6 @@ export const processChatFeedsToDomain = (
                 // Map message content using blockChatLogIndex, NOT log.index
                 const messageContent = feed.chatLogs?.[blockChatLogIndex];
                 const logIndex = Number(log.index); // Use log's own index
-                blockChatLogIndex++; // Increment after accessing chatLogs
 
                 if (messageContent && senderInfo) {
                     allChatMessages.push({
@@ -501,8 +500,12 @@ export const processChatFeedsToDomain = (
                         message: messageContent,
                         isOptimistic: false // These are confirmed logs
                     });
+                    // Only increment when we successfully process the chat
+                    blockChatLogIndex++;
                 } else {
-                     console.warn(`[processChatFeedsToDomain] Skipping chat log due to missing content or sender info. Block: ${eventBlockNumber}, LogIndex: ${logIndex}, SenderIndex: ${senderIndex}`);
+                     console.warn(`[processChatFeedsToDomain] Skipping chat log due to missing ${!messageContent ? 'content' : 'sender info'}. Block: ${eventBlockNumber}, LogIndex: ${logIndex}, SenderIndex: ${senderIndex}, ChatLogIndex: ${blockChatLogIndex}`);
+                     // Still increment to keep chat logs synchronized
+                     blockChatLogIndex++;
                 }
             }
         });
@@ -658,7 +661,6 @@ export function contractToWorldSnapshot(
         case domain.LogType.Chat: {
           const sender = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character, characterLookup);
           const messageContent = feed.chatLogs?.[blockChatLogIndex] ?? "[Chat message content unavailable]";
-          blockChatLogIndex++;
           
           if (sender) {
             const newChatMessage: domain.ChatMessage = {
@@ -685,8 +687,12 @@ export function contractToWorldSnapshot(
             };
             allEventLogs.push(newEventMessageForChat);
             
+            // Only increment chat log index when we successfully process the chat
+            blockChatLogIndex++;
           } else {
-             console.warn(`[Mapper] Chat log found but sender index ${mainPlayerIdx} not resolved.`);
+             console.warn(`[Mapper] Chat log found but sender index ${mainPlayerIdx} not resolved. Skipping chat content at index ${blockChatLogIndex}.`);
+             // Still increment to keep chat logs synchronized, but don't create message
+             blockChatLogIndex++;
           }
           break;
         }
@@ -825,9 +831,7 @@ export function contractToWorldSnapshot(
     });
   });
 
-  if (allChatMessages.length > 0) {
-    console.log(`[contractToWorldSnapshot] Processed ${allChatMessages.length} chat messages and ${allEventLogs.length} event logs.`);
-  }
+  // Removed verbose processing logs to prevent spam during render loops
 
   // Sort by estimated timestamp, then log index
   allChatMessages.sort((a, b) => a.timestamp === b.timestamp ? a.logIndex - b.logIndex : a.timestamp - b.timestamp);

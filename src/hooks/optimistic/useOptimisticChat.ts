@@ -36,7 +36,7 @@ export function useOptimisticChat() {
       },
       message,
       blocknumber: currentBlockNumber,
-      timestamp: Date.now(),
+      timestamp: Date.now(), // Use consistent timestamp for 30-second deduplication window
       logIndex: 9999, // High number to sort last
       isOptimistic: true
     };
@@ -48,11 +48,10 @@ export function useOptimisticChat() {
 
     // Add with deduplication based on message content and sender
     return addOptimisticUpdate('chat', optimisticData, {
-      rollbackStrategy: 'timeout',
-      timeoutDuration: 30000, // 30 seconds
+      rollbackStrategy: 'explicit', // Only remove when confirmed message is received
       deduplicationKey: (data) => `${data.message.sender.id}-${data.originalMessage}`,
       onRollback: () => {
-        console.log('[useOptimisticChat] Chat message rolled back:', message);
+        console.log('[useOptimisticChat] Chat message removed due to confirmed version:', message);
       }
     });
   }, [addOptimisticUpdate]);
@@ -80,36 +79,26 @@ export function useOptimisticChat() {
   }, [rollback]);
 
   // Remove optimistic messages that have confirmed versions
-  const removeConfirmedOptimisticMessages = useCallback((
-    confirmedMessages: domain.ChatMessage[]
-  ) => {
-    const updates = getUpdatesByType<OptimisticChatData>('chat');
+  const removeConfirmedOptimisticMessages = useCallback((confirmedChatMessages: domain.ChatMessage[]) => {
+    // Get all optimistic chat updates
+    const optimisticUpdates = getUpdatesByType<OptimisticChatData>('chat');
+    const toRemove: string[] = [];
     
-    updates.forEach(update => {
-      const hasConfirmedVersion = confirmedMessages.some(confirmed => {
-        // Must be from the same player
-        const isSamePlayer = confirmed.sender.index === update.data.message.sender.index ||
-                            confirmed.sender.id === update.data.message.sender.id;
-        
-        if (!isSamePlayer) return false;
-        
-        // Must have the same message content
-        const sameContent = confirmed.message === update.data.originalMessage;
-        if (!sameContent) return false;
-        
-        // Must be within reasonable time window (30 seconds)
-        const timeDiff = Math.abs(confirmed.timestamp - update.data.message.timestamp);
-        const withinTimeWindow = timeDiff <= 30000;
-        
-        return sameContent && isSamePlayer && withinTimeWindow;
-      });
+    optimisticUpdates.forEach(optimisticUpdate => {
+      const hasConfirmedVersion = confirmedChatMessages.some(confirmedMessage => 
+        optimisticUpdate.data.originalMessage === confirmedMessage.message &&
+        optimisticUpdate.data.message.sender.id === confirmedMessage.sender.id
+      );
       
       if (hasConfirmedVersion) {
-        console.log('[useOptimisticChat] Removing optimistic message (confirmed version found):', update.data.originalMessage);
-        removeOptimisticUpdate(update.id);
+        toRemove.push(optimisticUpdate.id);
       }
     });
-  }, [getUpdatesByType, removeOptimisticUpdate, updates]);
+    
+    // Remove all confirmed updates
+    toRemove.forEach(id => removeOptimisticUpdate(id));
+  }, [getUpdatesByType, removeOptimisticUpdate]);
+
 
   return {
     optimisticChatMessages,
