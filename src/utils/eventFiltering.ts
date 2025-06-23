@@ -54,6 +54,41 @@ export function getUniqueAreaIds(events: domain.EventMessage[]): bigint[] {
 }
 
 /**
+ * Filters events for current area plus recent events regardless of area
+ * This approach shows current area events plus recent events from any area
+ * to maintain context during movement while being refresh-friendly
+ * @param events - Array of events to filter
+ * @param currentAreaId - Current player area ID
+ * @param recentTimeWindow - Time window in milliseconds for recent events (default: 5 minutes)
+ * @returns Events from current area plus any recent events
+ */
+export function filterEventsByRecentAreas(
+  events: domain.EventMessage[], 
+  currentAreaId: bigint,
+  recentTimeWindow: number = 5 * 60 * 1000 // 5 minutes
+): domain.EventMessage[] {
+  if (!events.length) return [];
+  
+  // Get cutoff time relative to the most recent event (handles page refresh)
+  const mostRecentEventTime = Math.max(...events.map(e => e.timestamp));
+  const recentCutoff = mostRecentEventTime - recentTimeWindow;
+  
+  return events.filter(event => {
+    // Include all events from current area (regardless of age)
+    if (event.areaId === currentAreaId) {
+      return true;
+    }
+    
+    // Include recent events from any area
+    if (event.timestamp >= recentCutoff) {
+      return true;
+    }
+    
+    return false;
+  });
+}
+
+/**
  * Filters events by time range and area
  * @param events - Array of events to filter
  * @param areaId - Area ID to filter by
