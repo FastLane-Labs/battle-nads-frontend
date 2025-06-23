@@ -392,35 +392,11 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       // Collect all confirmed messages before processing optimistic ones
       const allConfirmedMessages = Array.from(combinedChatLogsMap.values());
       
-      // 3. Add optimistic chat messages (but skip if we have a confirmed version)
-      // Also track which optimistic messages should be removed because confirmed versions exist
-      const optimisticToRemove: string[] = [];
-      
+      // 3. Add optimistic chat messages
+      // Note: Cleanup of confirmed optimistic messages is handled by useEffect
       optimisticChatMessages.forEach((optimistic) => {
-        const hasConfirmedVersion = allConfirmedMessages.some(confirmed => {
-          // Must be from the same player
-          const isSamePlayer = confirmed.sender.index === optimistic.sender.index ||
-                              confirmed.sender.id === optimistic.sender.id;
-          
-          if (!isSamePlayer) return false;
-          
-          // Must have the same message content
-          const sameContent = confirmed.message === optimistic.message;
-          if (!sameContent) return false;
-          
-          // Must be within reasonable time window (30 seconds)
-          const timeDiff = Math.abs(confirmed.timestamp - optimistic.timestamp);
-          const withinTimeWindow = timeDiff <= 30000;
-          
-          
-          return sameContent && isSamePlayer && withinTimeWindow;
-        });
-        
-        // Only add optimistic if no confirmed version exists
-        if (!hasConfirmedVersion) {
-          const key = `optimistic-${optimistic.timestamp}-${optimistic.sender.index}`;
-          combinedChatLogsMap.set(key, optimistic);
-        }
+        const key = `optimistic-${optimistic.timestamp}-${optimistic.sender.index}`;
+        combinedChatLogsMap.set(key, optimistic);
       });
 
 
