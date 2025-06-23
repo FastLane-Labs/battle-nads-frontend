@@ -1,6 +1,6 @@
 import { renderHook, act } from '@testing-library/react';
 import { useOptimisticChat } from '../useOptimisticChat';
-import { OptimisticUpdatesProvider } from '../../../providers/OptimisticUpdatesProvider';
+import { OptimisticUpdatesProvider } from '@/providers/OptimisticUpdatesProvider';
 import { ReactNode } from 'react';
 
 const wrapper = ({ children }: { children: ReactNode }) => (

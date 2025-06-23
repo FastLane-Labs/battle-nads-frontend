@@ -1,15 +1,14 @@
 import { render, screen } from '@testing-library/react';
-import { useContext } from 'react';
-import { OptimisticUpdatesProvider, OptimisticUpdatesContext } from '../OptimisticUpdatesProvider';
+import { OptimisticUpdatesProvider } from '../OptimisticUpdatesProvider';
+import { useOptimisticUpdatesContext } from '../OptimisticUpdatesProvider';
 
 const TestComponent = () => {
-  const context = useContext(OptimisticUpdatesContext);
-  
-  if (!context) {
+  try {
+    const context = useOptimisticUpdatesContext();
+    return <div>Context available</div>;
+  } catch {
     return <div>No context</div>;
   }
-  
-  return <div>Context available</div>;
 };
 
 describe('OptimisticUpdatesProvider', () => {
