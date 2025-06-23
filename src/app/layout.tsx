@@ -4,6 +4,7 @@ import { ReactNode } from 'react';
 import { PrivyAuthProvider } from '../providers/PrivyAuthProvider';
 import { WalletProvider } from '../providers/WalletProvider';
 import { ReactQueryProvider } from '../providers/ReactQueryProvider';
+import { OptimisticUpdatesProvider } from '../providers/OptimisticUpdatesProvider';
 import { ChakraProvider, ColorModeScript } from '@chakra-ui/react';
 import ErrorBoundary from './ErrorBoundary';
 import theme from './theme';
@@ -47,9 +48,11 @@ export default function RootLayout({
             <ReactQueryProvider>
               <PrivyAuthProvider>
                 <WalletProvider>
-                  <ChakraProvider theme={theme} toastOptions={{ defaultOptions: { position: 'bottom-right' } }} >
-                    {children}
-                  </ChakraProvider>
+                  <OptimisticUpdatesProvider>
+                    <ChakraProvider theme={theme} toastOptions={{ defaultOptions: { position: 'bottom-right' } }} >
+                      {children}
+                    </ChakraProvider>
+                  </OptimisticUpdatesProvider>
                 </WalletProvider>
               </PrivyAuthProvider>
             </ReactQueryProvider>
