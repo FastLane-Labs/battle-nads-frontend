@@ -120,20 +120,44 @@ export function useOptimisticUpdates(): UseOptimisticUpdatesReturn {
   }, []);
 
   const rollback = useCallback((id: string) => {
-    const update = updates.find(u => u.id === id);
-    if (update) {
-      // Call rollback callback if provided
-      if (update.onRollback) {
-        update.onRollback();
+    setUpdates(prev => {
+      const update = prev.find(u => u.id === id);
+      if (update) {
+        // Call rollback callback if provided
+        if (update.onRollback) {
+          update.onRollback();
+        }
+        // Remove the update from state
+        return prev.filter(u => u.id !== id);
       }
-      removeOptimisticUpdate(id);
+      return prev;
+    });
+    
+    // Clean up timeout and deduplication separately
+    const timeoutId = timeoutRefs.current.get(id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutRefs.current.delete(id);
     }
-  }, [updates, removeOptimisticUpdate]);
+  }, []);
 
   const rollbackByType = useCallback((type: OptimisticUpdateType) => {
-    const updatesOfType = updates.filter(u => u.type === type);
-    updatesOfType.forEach(update => rollback(update.id));
-  }, [updates, rollback]);
+    setUpdates(prev => {
+      const updatesOfType = prev.filter(u => u.type === type);
+      updatesOfType.forEach(update => {
+        if (update.onRollback) {
+          update.onRollback();
+        }
+        // Clean up timeout
+        const timeoutId = timeoutRefs.current.get(update.id);
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutRefs.current.delete(update.id);
+        }
+      });
+      return prev.filter(u => u.type !== type);
+    });
+  }, []);
 
   const getUpdatesByType = useCallback(<T>(type: OptimisticUpdateType): OptimisticUpdate<T>[] => {
     return updates.filter(u => u.type === type) as OptimisticUpdate<T>[];

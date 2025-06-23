@@ -334,7 +334,7 @@ const StatAllocationPanel: React.FC<{
         name="Strength" 
         abbr="STR" 
         currentValue={Number(character.stats.strength)}
-        allocation={allocation.strength)}
+        allocation={allocation.strength}
         onIncrement={() => {
           if (pointsUsed < unspentAttributePoints) {
             setAllocation({...allocation, strength: allocation.strength + 1});
@@ -350,7 +350,7 @@ const StatAllocationPanel: React.FC<{
         name="Vitality" 
         abbr="VIT" 
         currentValue={Number(character.stats.vitality)}
-        allocation={allocation.vitality)}
+        allocation={allocation.vitality}
         onIncrement={() => {
           if (pointsUsed < unspentAttributePoints) {
             setAllocation({...allocation, vitality: allocation.vitality + 1});
@@ -366,7 +366,7 @@ const StatAllocationPanel: React.FC<{
         name="Dexterity" 
         abbr="DEX" 
         currentValue={Number(character.stats.dexterity)}
-        allocation={allocation.dexterity)}
+        allocation={allocation.dexterity}
         onIncrement={() => {
           if (pointsUsed < unspentAttributePoints) {
             setAllocation({...allocation, dexterity: allocation.dexterity + 1});
@@ -382,7 +382,7 @@ const StatAllocationPanel: React.FC<{
         name="Quickness" 
         abbr="QCK" 
         currentValue={Number(character.stats.quickness)}
-        allocation={allocation.quickness)}
+        allocation={allocation.quickness}
         onIncrement={() => {
           if (pointsUsed < unspentAttributePoints) {
             setAllocation({...allocation, quickness: allocation.quickness + 1});
@@ -398,7 +398,7 @@ const StatAllocationPanel: React.FC<{
         name="Sturdiness" 
         abbr="STD" 
         currentValue={Number(character.stats.sturdiness)}
-        allocation={allocation.sturdiness)}
+        allocation={allocation.sturdiness}
         onIncrement={() => {
           if (pointsUsed < unspentAttributePoints) {
             setAllocation({...allocation, sturdiness: allocation.sturdiness + 1});
@@ -414,7 +414,7 @@ const StatAllocationPanel: React.FC<{
         name="Luck" 
         abbr="LCK" 
         currentValue={Number(character.stats.luck)}
-        allocation={allocation.luck)}
+        allocation={allocation.luck}
         onIncrement={() => {
           if (pointsUsed < unspentAttributePoints) {
             setAllocation({...allocation, luck: allocation.luck + 1});

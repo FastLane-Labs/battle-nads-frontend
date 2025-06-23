@@ -179,6 +179,7 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
           onSendChatMessage={handleSendChatMessage}
           isMoving={isMoving}
           isAttacking={isAttacking}
+          isSendingChat={isSendingChat}
           isInCombat={isInCombat}
           isCacheLoading={isCacheLoading}
           equipableWeaponIDs={equipableWeaponIDs}
