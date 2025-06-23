@@ -9,8 +9,23 @@ import { useToast } from '@chakra-ui/react';
 import { AVG_BLOCK_TIME_MS } from '@/config/gas';
 import { useGameMutation } from './useGameMutation';
 
-// Define the cooldown timeout period in blocks
-const ABILITY_TIMEOUT_BLOCKS = 200;
+// Define ability-specific cooldown durations in blocks (after final stage completion)
+const ABILITY_COOLDOWN_BLOCKS: Record<domain.Ability, number> = {
+  [domain.Ability.None]: 0,
+  [domain.Ability.ShieldBash]: 24,
+  [domain.Ability.ShieldWall]: 24, 
+  [domain.Ability.EvasiveManeuvers]: 18,
+  [domain.Ability.ApplyPoison]: 64,
+  [domain.Ability.Pray]: 72,
+  [domain.Ability.Smite]: 24,
+  [domain.Ability.Fireball]: 56,
+  [domain.Ability.ChargeUp]: 36,
+  [domain.Ability.SingSong]: 0, // Bard abilities have no cooldown
+  [domain.Ability.DoDance]: 0,  // Bard abilities have no cooldown
+};
+
+// Generic fallback for unknown abilities
+const DEFAULT_ABILITY_TIMEOUT_BLOCKS = 200;
 
 export interface AbilityStatus {
   ability: domain.Ability;
@@ -94,8 +109,9 @@ export const useAbilityCooldowns = (characterId: string | null) => {
           // Ready when charging completes
           readyAgainBlock = originalTargetBlock;
         } else if (stage === AbilityStage.ACTION || stage === AbilityStage.COOLDOWN) {
-          // Ready after the 200 block timeout period post-targetBlock
-          readyAgainBlock = originalTargetBlock + ABILITY_TIMEOUT_BLOCKS;
+          // Ready after the ability-specific cooldown period post-targetBlock
+          const cooldownBlocks = ABILITY_COOLDOWN_BLOCKS[ability] || DEFAULT_ABILITY_TIMEOUT_BLOCKS;
+          readyAgainBlock = originalTargetBlock + cooldownBlocks;
         }
         
         // Calculate seconds left until ready
@@ -117,7 +133,8 @@ export const useAbilityCooldowns = (characterId: string | null) => {
       
       let initialTotalSecondsForCurrentStage: number | undefined = undefined;
       if (stage === AbilityStage.COOLDOWN) {
-        initialTotalSecondsForCurrentStage = ABILITY_TIMEOUT_BLOCKS * (AVG_BLOCK_TIME_MS / 1000);
+        const cooldownBlocks = ABILITY_COOLDOWN_BLOCKS[ability] || DEFAULT_ABILITY_TIMEOUT_BLOCKS;
+        initialTotalSecondsForCurrentStage = cooldownBlocks * (AVG_BLOCK_TIME_MS / 1000);
       } else if (stage === AbilityStage.CHARGING || stage === AbilityStage.ACTION) {
         // For CHARGING/ACTION, targetBlock is the end. secondsLeft is (targetBlock - currentBlock).
         // The initial total would have been (targetBlock - block_stage_started_at).
@@ -151,7 +168,8 @@ export const useAbilityCooldowns = (characterId: string | null) => {
       // Check if the current status object is for the optimistically used ability
       if (status.ability === optimisticallyUsedAbility) {
         // Calculate optimistic cooldown properties regardless of the underlying gameState for this ability
-        const optimisticReadyAgainBlock = blockOfOptimisticUse + ABILITY_TIMEOUT_BLOCKS;
+        const cooldownBlocks = ABILITY_COOLDOWN_BLOCKS[optimisticallyUsedAbility] || DEFAULT_ABILITY_TIMEOUT_BLOCKS;
+        const optimisticReadyAgainBlock = blockOfOptimisticUse + cooldownBlocks;
         const optimisticSecondsLeft = Math.max(0, optimisticReadyAgainBlock - currentBlock) * (AVG_BLOCK_TIME_MS / 1000);
         const optimisticIsReady = currentBlock >= optimisticReadyAgainBlock;
         
@@ -164,7 +182,7 @@ export const useAbilityCooldowns = (characterId: string | null) => {
           optimisticDescription = getAbilityDescription(status.ability, AbilityStage.COOLDOWN, characterName);
         }
 
-        const optimisticInitialTotalSeconds = ABILITY_TIMEOUT_BLOCKS * (AVG_BLOCK_TIME_MS / 1000);
+        const optimisticInitialTotalSeconds = cooldownBlocks * (AVG_BLOCK_TIME_MS / 1000);
 
         return {
           ...status, // Spread the original status to keep other properties like base damage, etc.

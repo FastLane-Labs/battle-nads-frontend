@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Button,
   Box,
@@ -48,18 +48,18 @@ const getAbilityImagePath = (ability: domain.Ability): string => {
   return `/assets/abilities/${abilityName}.png`;
 };
 
-// TODO: Define these mappings centrally or fetch if dynamic
+// Ability-specific cooldown durations in seconds (blocks * 0.5s per block)
 const ABILITY_COOLDOWN_DURATIONS: { [key in domain.Ability]?: number } = {
-  [domain.Ability.ShieldBash]: 10, // Placeholder seconds
-  [domain.Ability.ShieldWall]: 30,
-  [domain.Ability.EvasiveManeuvers]: 15,
-  [domain.Ability.ApplyPoison]: 20,
-  [domain.Ability.Pray]: 25,
-  [domain.Ability.Smite]: 12,
-  [domain.Ability.Fireball]: 8,
-  [domain.Ability.ChargeUp]: 5,
-  [domain.Ability.SingSong]: 18,
-  [domain.Ability.DoDance]: 22,
+  [domain.Ability.ShieldBash]: 12,       // 24 blocks * 0.5s
+  [domain.Ability.ShieldWall]: 12,       // 24 blocks * 0.5s
+  [domain.Ability.EvasiveManeuvers]: 9,  // 18 blocks * 0.5s
+  [domain.Ability.ApplyPoison]: 32,      // 64 blocks * 0.5s
+  [domain.Ability.Pray]: 36,             // 72 blocks * 0.5s
+  [domain.Ability.Smite]: 12,            // 24 blocks * 0.5s
+  [domain.Ability.Fireball]: 28,         // 56 blocks * 0.5s
+  [domain.Ability.ChargeUp]: 18,         // 36 blocks * 0.5s
+  [domain.Ability.SingSong]: 0,          // Bard abilities have no cooldown
+  [domain.Ability.DoDance]: 0,           // Bard abilities have no cooldown
 };
 
 // Component for rendering ability icon with fallback
@@ -100,6 +100,25 @@ const AbilityIcon: React.FC<{ ability: domain.Ability }> = ({ ability }) => {
 
 export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, isMutationLoading, isActionDisabled }) => {
   const { isTransactionDisabled, insufficientBalanceMessage, minRequiredBalance } = useTransactionBalance();
+  
+  // State for real-time countdown display
+  const [displaySecondsLeft, setDisplaySecondsLeft] = useState(status.secondsLeft);
+  
+  // Update display seconds when status changes
+  useEffect(() => {
+    setDisplaySecondsLeft(status.secondsLeft);
+  }, [status.secondsLeft]);
+  
+  // Real-time countdown timer
+  useEffect(() => {
+    if (status.secondsLeft <= 0) return;
+    
+    const interval = setInterval(() => {
+      setDisplaySecondsLeft(prev => Math.max(0, prev - 1));
+    }, 1000);
+    
+    return () => clearInterval(interval);
+  }, [status.secondsLeft, status.isReady]);
   
   const isCoolingDown = !status.isReady && status.stage === AbilityStage.COOLDOWN && status.secondsLeft > 0;
   const isCharging = !status.isReady && status.stage === AbilityStage.CHARGING && status.secondsLeft > 0;
@@ -216,6 +235,11 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
                 color="teal.300"
                 trackColor="transparent"
               >
+                <CircularProgressLabel>
+                  <Text fontSize="xs" fontWeight="bold" color="white">
+                    {Math.ceil(displaySecondsLeft)}s
+                  </Text>
+                </CircularProgressLabel>
               </CircularProgress>
             </Box>
           )}
