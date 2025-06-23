@@ -1,11 +1,11 @@
+import React, { ReactNode } from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { useOptimisticChat } from '../useOptimisticChat';
 import { OptimisticUpdatesProvider } from '@/providers/OptimisticUpdatesProvider';
-import { ReactNode } from 'react';
 
-const wrapper = ({ children }: { children: ReactNode }) => (
-  <OptimisticUpdatesProvider>{children}</OptimisticUpdatesProvider>
-);
+const wrapper = ({ children }: { children: ReactNode }) => {
+  return React.createElement(OptimisticUpdatesProvider, { children });
+};
 
 describe('useOptimisticChat', () => {
   it('should add optimistic chat messages', () => {
