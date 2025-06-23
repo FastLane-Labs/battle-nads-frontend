@@ -262,11 +262,9 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     historicalBlocks.forEach((block: CachedDataBlock) => {
       block.events?.forEach((event) => {
         // Create event participant info from stored data with player substitution
-        // Determine if this event involves the current player by checking stored names
-        const attackerIsCurrentPlayer = currentPlayerIndex === event.mainPlayerIndex || 
-          (currentPlayerIndex === null && event.attackerName === "You");
-        const defenderIsCurrentPlayer = currentPlayerIndex === event.otherPlayerIndex || 
-          (currentPlayerIndex === null && event.defenderName === "You");
+        // Determine if this event involves the current player by checking indices
+        const attackerIsCurrentPlayer = currentPlayerIndex === event.mainPlayerIndex;
+        const defenderIsCurrentPlayer = currentPlayerIndex === event.otherPlayerIndex;
         
         // Helper function to get proper fallback name (matching storage logic)
         const getCharacterFallbackName = (playerIndex: number, isAttacker: boolean): string => {
