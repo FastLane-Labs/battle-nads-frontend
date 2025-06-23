@@ -584,11 +584,12 @@ export function contractToWorldSnapshot(
         case domain.LogType.InstigatedCombat: {
           const attacker = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character, characterLookup);
           const defender = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character, characterLookup);
-          const isPlayer = !!ownerCharacterId && !!attacker && attacker.id === ownerCharacterId;
+          const isAttackerPlayer = !!ownerCharacterId && !!attacker && attacker.id === ownerCharacterId;
+          const isDefenderPlayer = !!ownerCharacterId && !!defender && defender.id === ownerCharacterId;
           
           // Enhanced fallback for missing character names
-          const attackerName = isPlayer ? "You" : attacker?.name || `Character (Index ${mainPlayerIdx})`;
-          const defenderName = defender?.name || `Character (Index ${otherPlayerIdx})`;
+          const attackerName = isAttackerPlayer ? "You" : attacker?.name || `Character (Index ${mainPlayerIdx})`;
+          const defenderName = isDefenderPlayer ? "You" : defender?.name || `Character (Index ${otherPlayerIdx})`;
 
           let displayMessage = '';
 
@@ -637,7 +638,7 @@ export function contractToWorldSnapshot(
             attacker: attacker || undefined,
             defender: defender || undefined,
             areaId: snapshotAreaId, // Use determined snapshotAreaId
-            isPlayerInitiated: isPlayer, 
+            isPlayerInitiated: isAttackerPlayer, 
             details: { 
               hit: log.hit,
               critical: log.critical,
@@ -669,7 +670,7 @@ export function contractToWorldSnapshot(
             };
             allChatMessages.push(newChatMessage);
             
-            const isPlayer = !!ownerCharacterId && sender.id === ownerCharacterId;
+            const isSenderPlayer = !!ownerCharacterId && sender.id === ownerCharacterId;
             const newEventMessageForChat: domain.EventMessage = {
               logIndex: logIndex,
               blocknumber: eventBlockNumber,
@@ -678,7 +679,7 @@ export function contractToWorldSnapshot(
               attacker: sender,
               defender: undefined,
               areaId: snapshotAreaId, // Use determined snapshotAreaId
-              isPlayerInitiated: isPlayer,
+              isPlayerInitiated: isSenderPlayer,
               details: { value: messageContent }, 
               displayMessage: `Chat: ${sender.name}: ${messageContent}`
             };
@@ -724,11 +725,12 @@ export function contractToWorldSnapshot(
         case domain.LogType.Ability: { 
           const caster = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character, characterLookup);
           const target = findCharacterParticipantByIndex(otherPlayerIdx, combatants, noncombatants, raw.character, characterLookup);
-          const isPlayer = !!ownerCharacterId && !!caster && caster.id === ownerCharacterId;
+          const isCasterPlayer = !!ownerCharacterId && !!caster && caster.id === ownerCharacterId;
+          const isTargetPlayer = !!ownerCharacterId && !!target && target.id === ownerCharacterId;
           
           // Enhanced fallback for missing character names
-          const casterName = isPlayer ? "You" : caster?.name || `Character (Index ${mainPlayerIdx})`;
-          const targetName = target?.name || (otherPlayerIdx !== 0 ? `Character (Index ${otherPlayerIdx})` : undefined);
+          const casterName = isCasterPlayer ? "You" : caster?.name || `Character (Index ${mainPlayerIdx})`;
+          const targetName = isTargetPlayer ? "You" : target?.name || (otherPlayerIdx !== 0 ? `Character (Index ${otherPlayerIdx})` : undefined);
 
           const casterCharacter = [...combatants, ...noncombatants, ...(raw.character ? [mapCharacterToCharacterLite(raw.character)] : [])].find(c => c?.index === mainPlayerIdx);
 
@@ -750,7 +752,7 @@ export function contractToWorldSnapshot(
             attacker: caster || undefined,
             defender: target || undefined, 
             areaId: snapshotAreaId,
-            isPlayerInitiated: isPlayer, 
+            isPlayerInitiated: isCasterPlayer, 
             details: { value: log.value }, 
             displayMessage: displayMessage 
           };
