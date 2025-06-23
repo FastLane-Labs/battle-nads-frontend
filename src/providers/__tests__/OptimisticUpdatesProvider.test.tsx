@@ -26,9 +26,16 @@ describe('OptimisticUpdatesProvider', () => {
     // Suppress console.error for this test
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     
+    // The hook throws an error, but React catches it and renders error boundaries
+    // We need to test the hook directly
+    const TestHookComponent = () => {
+      useOptimisticUpdatesContext();
+      return <div>Should not render</div>;
+    };
+    
     expect(() => {
-      render(<TestComponent />);
-    }).toThrow();
+      render(<TestHookComponent />);
+    }).toThrow('useOptimisticUpdatesContext must be used within OptimisticUpdatesProvider');
     
     consoleSpy.mockRestore();
   });

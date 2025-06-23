@@ -13,15 +13,15 @@ describe('useOptimisticChat', () => {
 
     act(() => {
       const id = result.current.addOptimisticChatMessage(
-        'Hello world',
-        { id: 'user1', name: 'TestUser', index: 1 },
+        'Hello world test 1',
+        { id: 'user1-test1', name: 'TestUser1', index: 1 },
         BigInt(100)
       );
       
       expect(id).toBeTruthy();
       expect(result.current.optimisticChatMessages).toHaveLength(1);
-      expect(result.current.optimisticChatMessages[0].message).toBe('Hello world');
-      expect(result.current.optimisticChatMessages[0].sender.name).toBe('TestUser');
+      expect(result.current.optimisticChatMessages[0].message).toBe('Hello world test 1');
+      expect(result.current.optimisticChatMessages[0].sender.name).toBe('TestUser1');
       expect(result.current.optimisticChatMessages[0].isOptimistic).toBe(true);
     });
   });
@@ -30,10 +30,10 @@ describe('useOptimisticChat', () => {
     const { result } = renderHook(() => useOptimisticChat(), { wrapper });
 
     act(() => {
-      const character = { id: 'user1', name: 'TestUser', index: 1 };
+      const character = { id: 'user2-test2', name: 'TestUser2', index: 2 };
       
-      result.current.addOptimisticChatMessage('Hello', character, BigInt(100));
-      result.current.addOptimisticChatMessage('Hello', character, BigInt(101));
+      result.current.addOptimisticChatMessage('Hello test 2', character, BigInt(100));
+      result.current.addOptimisticChatMessage('Hello test 2', character, BigInt(101));
       
       expect(result.current.optimisticChatMessages).toHaveLength(1);
     });
@@ -44,15 +44,15 @@ describe('useOptimisticChat', () => {
 
     act(() => {
       result.current.addOptimisticChatMessage(
-        'Test message',
-        { id: 'user1', name: 'TestUser', index: 1 },
+        'Test message 3',
+        { id: 'user3-test3', name: 'TestUser3', index: 3 },
         BigInt(100)
       );
     });
 
-    expect(result.current.isMessageOptimistic('Test message', 'user1')).toBe(true);
-    expect(result.current.isMessageOptimistic('Other message', 'user1')).toBe(false);
-    expect(result.current.isMessageOptimistic('Test message', 'user2')).toBe(false);
+    expect(result.current.isMessageOptimistic('Test message 3', 'user3-test3')).toBe(true);
+    expect(result.current.isMessageOptimistic('Other message', 'user3-test3')).toBe(false);
+    expect(result.current.isMessageOptimistic('Test message 3', 'user4')).toBe(false);
   });
 
   it('should remove confirmed optimistic messages', () => {
@@ -61,13 +61,13 @@ describe('useOptimisticChat', () => {
     act(() => {
       // Add optimistic messages
       result.current.addOptimisticChatMessage(
-        'Message 1',
-        { id: 'user1', name: 'TestUser', index: 1 },
+        'Message 4a',
+        { id: 'user4-test4a', name: 'TestUser4a', index: 4 },
         BigInt(100)
       );
       result.current.addOptimisticChatMessage(
-        'Message 2', 
-        { id: 'user2', name: 'OtherUser', index: 2 },
+        'Message 4b', 
+        { id: 'user4-test4b', name: 'TestUser4b', index: 5 },
         BigInt(101)
       );
     });
@@ -78,8 +78,8 @@ describe('useOptimisticChat', () => {
       // Simulate confirmed messages from blockchain
       const confirmedMessages = [
         {
-          message: 'Message 1',
-          sender: { id: 'user1', name: 'TestUser', index: 1 },
+          message: 'Message 4a',
+          sender: { id: 'user4-test4a', name: 'TestUser4a', index: 4 },
           blocknumber: BigInt(105),
           timestamp: Date.now(),
           logIndex: 0,
@@ -92,7 +92,7 @@ describe('useOptimisticChat', () => {
 
     // Should remove the confirmed message but keep the unconfirmed one
     expect(result.current.optimisticChatMessages).toHaveLength(1);
-    expect(result.current.optimisticChatMessages[0].message).toBe('Message 2');
+    expect(result.current.optimisticChatMessages[0].message).toBe('Message 4b');
   });
 
   it('should remove optimistic message by ID', () => {
@@ -100,8 +100,8 @@ describe('useOptimisticChat', () => {
 
     act(() => {
       const id = result.current.addOptimisticChatMessage(
-        'Test message',
-        { id: 'user1', name: 'TestUser', index: 1 },
+        'Test message 5',
+        { id: 'user5-test5', name: 'TestUser5', index: 6 },
         BigInt(100)
       );
       
@@ -117,8 +117,8 @@ describe('useOptimisticChat', () => {
 
     act(() => {
       const id = result.current.addOptimisticChatMessage(
-        'Test message',
-        { id: 'user1', name: 'TestUser', index: 1 },
+        'Test message 6',
+        { id: 'user6-test6', name: 'TestUser6', index: 7 },
         BigInt(100)
       );
       
