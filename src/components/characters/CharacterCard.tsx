@@ -4,14 +4,12 @@ import { Character } from '@/types/domain/character';
 import { calculateMaxHealth } from '@/utils/calculateMaxHealth';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
 import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState';
+import { useCharacterExperience } from '@/hooks/game/useCharacterExperience';
 
 interface CharacterCardProps {
   character: Character; // Corrected type name
 }
 
-// Constants from the smart contract
-const EXP_BASE = 100; // Base experience points required per level
-const EXP_SCALE = 10; // Scaling factor for experience requirements
 
 // Helper to format Gold value (18 decimals)
 const formatGold = (value: number | bigint | undefined): string => {
@@ -41,6 +39,9 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
   
   // Get game state and actions
   const { worldSnapshot, allocatePoints, isAllocatingPoints } = useSimplifiedGameState();
+  
+  // Get experience info using the new helper
+  const experienceInfo = useCharacterExperience(character);
   
   // Update current stats when props change
   useEffect(() => {
@@ -110,17 +111,6 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
   const maxHealth = calculateMaxHealth(currentStats);
   const healthPercentage = health ? (Number(health) / maxHealth) * 100 : 0;
   
-  // Calculate experience progress using the same formula as the smart contract
-  const experienceProgress = useMemo(() => {
-    const currentLevel = Number(level);
-    const currentExperience = Number(currentStats?.experience);
-    
-    // Formula from Character.sol: (currentLevel * EXP_BASE) + (currentLevel * currentLevel * EXP_SCALE)
-    const experienceNeededForNextLevel = (currentLevel * EXP_BASE) + (currentLevel * currentLevel * EXP_SCALE);
-    
-    // Calculate percentage of progress to next level
-    return (currentExperience / experienceNeededForNextLevel) * 100;
-  }, [level, currentStats?.experience]);
 
   // TODO: Replace gameData usage with appropriate state/hook
   const unallocatedAttributePoints = worldSnapshot?.unallocatedAttributePoints || 0; // Get from game state
@@ -224,13 +214,13 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
             {/* Experience Bar */}
             <Box>
               <Flex justify="space-between" mb={1}>
-                <Text fontSize="sm">Experience</Text>
+                <Text fontSize="sm">Level {Number(level)}</Text>
                 <Text fontSize="sm">
-                  {Number(currentStats?.experience)} / {(Number(level) * EXP_BASE) + (Number(level) * Number(level) * EXP_SCALE)}
+                  {experienceInfo?.levelProgress.currentExp || 0} / {experienceInfo?.levelProgress.requiredExp || 0}
                 </Text>
               </Flex>
               <Progress 
-                value={experienceProgress} 
+                value={experienceInfo?.levelProgress.percentage || 0} 
                 colorScheme="blue" 
                 size="sm" 
                 mb={2}
