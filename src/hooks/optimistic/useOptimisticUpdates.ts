@@ -53,6 +53,28 @@ export function useOptimisticUpdates(): UseOptimisticUpdatesReturn {
   // Keep ref in sync with state
   updatesRef.current = updates;
 
+  const rollback = useCallback((id: string) => {
+    setUpdates(prev => {
+      const update = prev.find(u => u.id === id);
+      if (update) {
+        // Call rollback callback if provided
+        if (update.onRollback) {
+          update.onRollback();
+        }
+        // Remove the update from state
+        return prev.filter(u => u.id !== id);
+      }
+      return prev;
+    });
+    
+    // Clean up timeout and deduplication separately
+    const timeoutId = timeoutRefs.current.get(id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      timeoutRefs.current.delete(id);
+    }
+  }, []);
+
   const addOptimisticUpdate = useCallback(<T>(
     type: OptimisticUpdateType,
     data: T,
@@ -102,7 +124,7 @@ export function useOptimisticUpdates(): UseOptimisticUpdatesReturn {
     }
 
     return id;
-  }, []);
+  }, [rollback]);
 
   const removeOptimisticUpdate = useCallback((id: string) => {
     // Clear any pending timeout
@@ -126,28 +148,6 @@ export function useOptimisticUpdates(): UseOptimisticUpdatesReturn {
       
       return prev.filter(u => u.id !== id);
     });
-  }, []);
-
-  const rollback = useCallback((id: string) => {
-    setUpdates(prev => {
-      const update = prev.find(u => u.id === id);
-      if (update) {
-        // Call rollback callback if provided
-        if (update.onRollback) {
-          update.onRollback();
-        }
-        // Remove the update from state
-        return prev.filter(u => u.id !== id);
-      }
-      return prev;
-    });
-    
-    // Clean up timeout and deduplication separately
-    const timeoutId = timeoutRefs.current.get(id);
-    if (timeoutId) {
-      clearTimeout(timeoutId);
-      timeoutRefs.current.delete(id);
-    }
   }, []);
 
   const rollbackByType = useCallback((type: OptimisticUpdateType) => {
