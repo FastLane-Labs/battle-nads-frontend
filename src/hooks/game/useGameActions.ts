@@ -3,7 +3,7 @@ import { useWallet } from '../../providers/WalletProvider';
 import { domain } from '@/types';
 import { useGameMutations } from './useGameMutations';
 import { useGameData } from './useGameData';
-import { GameActions } from './types';
+import { GameActions } from '@/types/ui';
 
 export interface UseGameActionsOptions {
   /** Whether to include wallet integration (default: true) */
