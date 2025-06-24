@@ -78,7 +78,7 @@ export const GameButton = forwardRef<HTMLButtonElement, GameButtonProps>(
     
 
     return (
-      <div className={`relative mt-4 group ${height}`}>
+      <div className={`relative group ${height}`}>
         {/* button glow animation */}
         {hasGlow && (
           <div className="absolute inset-0 -m-1 bg-yellow-500/10 rounded-md blur-md z-0 animate-pulse-slow"></div>
