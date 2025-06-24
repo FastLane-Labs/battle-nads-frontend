@@ -13,8 +13,6 @@ export function useOptimisticAbilities() {
     addOptimisticUpdate, 
     removeOptimisticUpdate, 
     getUpdatesByType,
-    rollback,
-    rollbackByType,
     updates
   } = useOptimisticUpdatesContext();
 
@@ -36,14 +34,9 @@ export function useOptimisticAbilities() {
       characterId
     };
 
-    // Add with explicit rollback strategy
-    // We'll use confirmation strategy since abilities should be confirmed by blockchain state
+    // Add with deduplication to prevent duplicate ability uses
     return addOptimisticUpdate('ability', optimisticData, {
-      rollbackStrategy: 'confirmation',
-      deduplicationKey: (data) => `${data.characterId}-${data.abilityIndex}`,
-      onRollback: () => {
-        console.log('[useOptimisticAbilities] Ability use rolled back:', domain.Ability[abilityIndex]);
-      }
+      deduplicationKey: (data) => `${data.characterId}-${data.abilityIndex}`
     });
   }, [addOptimisticUpdate]);
 
@@ -81,10 +74,13 @@ export function useOptimisticAbilities() {
     }
   }, [getUpdatesByType, removeOptimisticUpdate, updates]);
 
-  // Rollback all ability uses (useful for error recovery)
-  const rollbackAllAbilityUses = useCallback(() => {
-    rollbackByType('ability');
-  }, [rollbackByType]);
+  // Clear all ability uses (useful for error recovery)
+  const clearAllAbilityUses = useCallback(() => {
+    const updates = getUpdatesByType<OptimisticAbilityData>('ability');
+    updates.forEach(update => {
+      removeOptimisticUpdate(update.id);
+    });
+  }, [getUpdatesByType, removeOptimisticUpdate]);
 
   // Check if a specific ability has an optimistic update
   const hasOptimisticAbilityUse = useCallback((
@@ -100,7 +96,7 @@ export function useOptimisticAbilities() {
     getOptimisticAbilityUse,
     removeOptimisticAbilityUse,
     confirmAbilityUse,
-    rollbackAllAbilityUses,
+    clearAllAbilityUses,
     hasOptimisticAbilityUse
   };
 }
