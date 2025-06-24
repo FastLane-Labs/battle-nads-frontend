@@ -89,7 +89,7 @@ const ONBOARDING_VERSION = 'v2.0';
 const ONBOARDING_STORAGE_KEY = `battlenads_onboarding_state_${ONBOARDING_VERSION}`;
 
 // Development flag - set to true to always show welcome screen on refresh
-const DEV_ALWAYS_SHOW_WELCOME = true; // Set to false for production
+const DEV_ALWAYS_SHOW_WELCOME = false; // Set to false for production
 
 // Main onboarding manager component
 function OnboardingManagerInner() {
