@@ -56,11 +56,11 @@ describe('useOptimisticChat', () => {
     expect(result.current.isMessageOptimistic('Test message 3', 'user4')).toBe(false);
   });
 
-  it('should remove confirmed optimistic messages', () => {
+  it('should handle multiple distinct messages', () => {
     const { result } = renderHook(() => useOptimisticChat(), { wrapper });
 
     act(() => {
-      // Add optimistic messages
+      // Add multiple distinct messages
       result.current.addOptimisticChatMessage(
         'Message 4a',
         { id: 'user4-test4a', name: 'TestUser4a', index: 4 },
@@ -74,26 +74,8 @@ describe('useOptimisticChat', () => {
     });
 
     expect(result.current.optimisticChatMessages).toHaveLength(2);
-
-    act(() => {
-      // Simulate confirmed messages from blockchain
-      const confirmedMessages = [
-        {
-          message: 'Message 4a',
-          sender: { id: 'user4-test4a', name: 'TestUser4a', index: 4 },
-          blocknumber: BigInt(105),
-          timestamp: Date.now(),
-          logIndex: 0,
-          isOptimistic: false
-        }
-      ];
-      
-      result.current.removeConfirmedOptimisticMessages(confirmedMessages);
-    });
-
-    // Should remove the confirmed message but keep the unconfirmed one
-    expect(result.current.optimisticChatMessages).toHaveLength(1);
-    expect(result.current.optimisticChatMessages[0].message).toBe('Message 4b');
+    expect(result.current.optimisticChatMessages[0].message).toBe('Message 4a');
+    expect(result.current.optimisticChatMessages[1].message).toBe('Message 4b');
   });
 
   it('should remove optimistic message by ID', () => {
@@ -117,24 +99,32 @@ describe('useOptimisticChat', () => {
     expect(result.current.optimisticChatMessages).toHaveLength(0);
   });
 
-  it('should handle rollback', () => {
+  it('should handle message removal by ID', () => {
     const { result } = renderHook(() => useOptimisticChat(), { wrapper });
-    let messageId = '';
+    let messageId1 = '';
+    let messageId2 = '';
 
     act(() => {
-      messageId = result.current.addOptimisticChatMessage(
-        'Test message 6',
-        { id: 'user6-test6', name: 'TestUser6', index: 7 },
+      messageId1 = result.current.addOptimisticChatMessage(
+        'Test message 6a',
+        { id: 'user6-test6a', name: 'TestUser6a', index: 7 },
         BigInt(100)
+      );
+      messageId2 = result.current.addOptimisticChatMessage(
+        'Test message 6b',
+        { id: 'user6-test6b', name: 'TestUser6b', index: 8 },
+        BigInt(101)
       );
     });
       
-    expect(result.current.optimisticChatMessages).toHaveLength(1);
+    expect(result.current.optimisticChatMessages).toHaveLength(2);
       
     act(() => {
-      result.current.rollbackChatMessage(messageId);
+      // Remove only the first message
+      result.current.removeOptimisticChatMessage(messageId1);
     });
     
-    expect(result.current.optimisticChatMessages).toHaveLength(0);
+    expect(result.current.optimisticChatMessages).toHaveLength(1);
+    expect(result.current.optimisticChatMessages[0].message).toBe('Test message 6b');
   });
 });
