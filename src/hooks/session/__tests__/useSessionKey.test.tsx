@@ -17,7 +17,6 @@ jest.mock('../../../providers/WalletProvider');
 // Define default values
 const ownerAddress = '0xOwnerAddress123';
 const embeddedAddress = '0xEmbeddedAddress456';
-const otherKeyAddress = '0xOtherKeyAddress789';
 
 // --- Mock useContractPolling --- 
 const mockUseContractPolling = useContractPolling as jest.Mock;
