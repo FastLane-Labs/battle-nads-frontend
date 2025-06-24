@@ -64,10 +64,10 @@ export const useGameActions = (options: UseGameActionsOptions = {}) => {
       isWalletInitialized,
 
       // Action functions (disabled)
-      moveCharacter: () => {},
-      attack: () => {},
-      allocatePoints: () => {},
-      sendChatMessage: () => {},
+      moveCharacter: (_direction: any) => {},
+      attack: (_targetCharacterIndex: number) => {},
+      allocatePoints: async (_strength: bigint, _vitality: bigint, _dexterity: bigint, _quickness: bigint, _sturdiness: bigint, _luck: bigint) => {},
+      sendChatMessage: (_message: string) => {},
       updateSessionKey: () => {},
 
       // Action states (all false)
@@ -83,6 +83,9 @@ export const useGameActions = (options: UseGameActionsOptions = {}) => {
       allocatePointsError: null,
       chatError: null,
       sessionKeyError: null,
+      
+      // Additional required functions
+      addOptimisticChatMessage: (_message: string) => {},
     };
   }
 
@@ -113,5 +116,8 @@ export const useGameActions = (options: UseGameActionsOptions = {}) => {
     allocatePointsError: mutations.allocatePointsError,
     chatError: mutations.chatError,
     sessionKeyError: mutations.sessionKeyError,
+    
+    // Additional required functions  
+    addOptimisticChatMessage,
   };
 };

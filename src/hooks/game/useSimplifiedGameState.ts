@@ -35,11 +35,34 @@ export const useSimplifiedGameState = (options: UseSimplifiedGameStateOptions = 
     readOnly: readOnly || !includeActions 
   });
 
+  // Always include actions but return empty functions if disabled
+  const actions = includeActions ? gameActions : {
+    hasWallet: false,
+    connectWallet: () => {},
+    isInitialized: false,
+    isWalletInitialized: false,
+    moveCharacter: (_direction: any) => {},
+    attack: (_targetCharacterIndex: number) => {},
+    allocatePoints: async (_strength: bigint, _vitality: bigint, _dexterity: bigint, _quickness: bigint, _sturdiness: bigint, _luck: bigint) => {},
+    sendChatMessage: (_message: string) => {},
+    updateSessionKey: () => {},
+    isMoving: false,
+    isAttacking: false,
+    isAllocatingPoints: false,
+    isSendingChat: false,
+    isUpdatingSessionKey: false,
+    moveError: null,
+    attackError: null,
+    allocatePointsError: null,
+    chatError: null,
+    sessionKeyError: null,
+  };
+
   return {
     // Core game state
     ...gameData,
     
-    // Actions (conditional)
-    ...(includeActions && gameActions),
+    // Actions (always included)
+    ...actions,
   };
 };
