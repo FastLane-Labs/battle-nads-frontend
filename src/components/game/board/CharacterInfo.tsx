@@ -14,10 +14,8 @@ import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
 import { StatDisplay } from './StatDisplay';
 import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState';
 import { useTransactionBalance } from '@/hooks/wallet/useWalletState';
+import { useCharacterExperience } from '@/hooks/game/useCharacterExperience';
 
-// Constants from the smart contract
-const EXP_BASE = 100; // Base experience points required per level
-const EXP_SCALE = 10; // Scaling factor for experience requirements
 
 // Helper to format Gold value (18 decimals)
 const formatGold = (value: number | bigint | undefined): string => {
@@ -56,6 +54,9 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   // Transaction balance validation
   const { isTransactionDisabled, insufficientBalanceMessage } = useTransactionBalance();
 
+  // Get experience info using the new helper
+  const experienceInfo = useCharacterExperience(character);
+
   // Destructure needed props from character
   const { inventory, level, stats, class: characterClass } = character;
   
@@ -70,14 +71,6 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
     return domain.CharacterClass[classValue] || 'Unknown';
   };
   
-  // Calculate experience progress (using stats from props)
-  const experienceProgress = useMemo(() => {
-    const currentExperience = Number(stats?.experience || 0);
-    if (displayLevel <= 0) return 0; // Avoid division by zero or weird results for level 0
-    const experienceNeededForNextLevel = (displayLevel * EXP_BASE) + (displayLevel * displayLevel * EXP_SCALE);
-    if (experienceNeededForNextLevel <= 0) return 0; // Avoid division by zero
-    return Math.min(100, (currentExperience / experienceNeededForNextLevel) * 100); // Cap at 100%
-  }, [displayLevel, stats?.experience]);
 
   return (
     <Box borderRadius="md" h="100%" overflowY="auto">
@@ -154,18 +147,22 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
             {/* Experience Bar */}
             <Box>
               <Flex justify="space-between" mb={1}>
-              <Text className="gold-text text-2xl font-serif mb-1 font-semibold">Experience</Text>
-              <span className="text-amber-300 font-black font-serif">
-              {Number(stats?.experience)} / {(displayLevel * EXP_BASE) + (displayLevel * displayLevel * EXP_SCALE)}
+                <Text className="gold-text text-2xl font-serif mb-1 font-semibold">Level {displayLevel}</Text>
+                <span className="text-amber-300 font-black font-serif">
+                  {experienceInfo?.levelProgress.currentExp || 0} / {experienceInfo?.levelProgress.requiredExp || 0}
                 </span>
               </Flex>
               <Progress 
-                value={experienceProgress} 
+                value={experienceInfo?.levelProgress.percentage || 0} 
                 colorScheme="blue" 
                 size="md"
                 borderRadius="sm" 
                 mb={2}
               />
+              <Flex justify="space-between" align="center" fontSize="sm" className="text-amber-200/80">
+                <Text>Total XP: {experienceInfo?.totalExperience || 0}</Text>
+                <Text>To next level: {experienceInfo?.experienceToNextLevel || 0}</Text>
+              </Flex>
             </Box>
             <Divider />
 

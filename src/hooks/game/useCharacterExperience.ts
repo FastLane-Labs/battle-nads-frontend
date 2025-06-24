@@ -17,8 +17,8 @@ export function useCharacterExperience(character: Character | null): CharacterEx
     if (!character) return null;
     
     return getCharacterExperienceInfo(
-      character.stats.experience,
-      character.level
+      Number(character.stats.experience),
+      Number(character.level)
     );
   }, [character?.stats.experience, character?.level]);
 }
