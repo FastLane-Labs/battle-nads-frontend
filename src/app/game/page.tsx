@@ -38,10 +38,10 @@ export default function GameV2Page() {
   }
 
   const position = game.position ? { x: game.position.x, y: game.position.y, z: game.position.depth } : { x: 0, y: 0, z: 0 };
-  const moveCharacter = async (direction: any) => { await game.moveCharacter?.(direction); };
-  const attack = async (targetIndex: number) => { await game.attack?.(targetIndex); };
-  const sendChatMessage = async (message: string) => { await game.sendChatMessage?.(message); };
-  const addOptimisticChatMessage = (message: string) => { game.addOptimisticChatMessage?.(message); };
+  const moveCharacter = game.moveCharacter;
+  const attack = game.attack;
+  const sendChatMessage = game.sendChatMessage;
+  const addOptimisticChatMessage = game.addOptimisticChatMessage;
 
   const isValidChar = isValidCharacterId(game.characterId);
   if (game.hasWallet && isValidChar && game.needsSessionKeyUpdate && !game.isLoading && game.character) {
