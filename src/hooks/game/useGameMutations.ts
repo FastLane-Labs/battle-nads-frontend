@@ -153,9 +153,9 @@ export const useGameMutations = (characterId: string | null, owner: string | nul
   return {
     // Action functions
     moveCharacter: (direction: domain.Direction) => 
-      moveCharacterMutation.mutate({ direction }),
+      moveCharacterMutation.mutateAsync({ direction }),
     attack: (targetCharacterIndex: number) => 
-      attackMutation.mutate({ targetCharacterIndex }),
+      attackMutation.mutateAsync({ targetCharacterIndex }),
     allocatePoints: (strength: bigint, vitality: bigint, dexterity: bigint, quickness: bigint, sturdiness: bigint, luck: bigint) => 
       allocatePointsMutation.mutateAsync({ 
         strength: Number(strength), 
@@ -166,9 +166,9 @@ export const useGameMutations = (characterId: string | null, owner: string | nul
         luck: Number(luck) 
       }),
     sendChatMessage: (message: string) => 
-      sendChatMutation.mutate({ message }),
+      sendChatMutation.mutateAsync({ message }),
     updateSessionKey: (endBlock: bigint) => 
-      updateSessionKeyMutation.mutate({ endBlock }),
+      updateSessionKeyMutation.mutateAsync({ endBlock }),
 
     // Action states
     isMoving: moveCharacterMutation.isPending,
