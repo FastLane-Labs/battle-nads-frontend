@@ -36,7 +36,7 @@ interface WelcomeSlide {
 const WELCOME_SLIDES: WelcomeSlide[] = [
   {
     id: 'welcome',
-    title: 'Welcome to Battlenads',
+    title: 'Welcome to Battle Nads!',
     content: 'Enter the eternal realm where heroes are forged on the Monad blockchain.',
     icon: FaShield,
     color: '#d4af37',
@@ -177,19 +177,19 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
 
           {/* Main Content */}
           <Box
-            bg="#10243b"
-            borderRadius="xl"
-            border="1px solid"
-            borderColor="#d4af37"
-            boxShadow="0 0 6px rgba(212,175,55,0.35)"
-            p={8}
-            maxW="600px"
+            backgroundImage="/assets/bg/tutorial-bg.png"
+            backgroundSize="100% 100%"
+            backgroundRepeat="no-repeat"
+            backgroundPosition="center"
+            px={8}
+            py={16}
+            maxW="650px"
             w="full"
             transform={isAnimating ? 'scale(0.95)' : 'scale(1)'}
             opacity={isAnimating ? 0.7 : 1}
             transition="all 0.15s ease-in-out"
           >
-            <VStack spacing={4} align="center" textAlign="center">
+            <VStack spacing={5} align="center" textAlign="center">
               {/* Icon */}
               <Box
                 p={4}
@@ -206,22 +206,22 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
                 {slide.title}
               </h2>
 
-              <div className='flex flex-col gap-4 py-4 px-8 border border-amber-600/20 rounded-xl items-center'>
+              <div className='flex flex-col gap-4 py-4 px-6 border border-amber-600/20 rounded-xl items-center bg-brown/40'>
               {/* Content */}
               <Text
                 fontSize="lg"
                 color="#f0e6c0"
                 lineHeight="1.6"
-                maxW="500px"
+                maxW="450px"
                 >
                 {slide.content}
               </Text>
 
               {/* Details */}
               {slide.details && (
-                <VStack spacing={2} align="start" w="full" maxW="400px">
+                <VStack spacing={1} align="start" w="full" maxW="400px">
                   {slide.details.map((detail, index) => (
-                    <HStack key={index} spacing={3} align="start">
+                    <HStack key={index} spacing={3} align="center">
                       <Text
                         color="#d4af37"
                         fontSize="md"
