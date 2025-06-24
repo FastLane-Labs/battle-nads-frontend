@@ -170,7 +170,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
               </GameTooltip>
               <Flex justify="space-between" align="center" fontSize="sm" className="text-amber-200/80">
                 <Text>Total XP: {experienceInfo?.totalExperience || 0}</Text>
-                <Text>To next level: {experienceInfo?.experienceToNextLevel || 0}</Text>
+                <Text>XP to next level: {experienceInfo?.experienceToNextLevel || 0}</Text>
               </Flex>
             </Box>
             <Divider />

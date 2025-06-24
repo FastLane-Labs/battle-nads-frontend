@@ -86,7 +86,7 @@ describe('useCharacterExperience', () => {
     
     expect(result.current).not.toBeNull();
     expect(result.current?.currentLevel).toBe(2);
-    expect(result.current?.totalExperience).toBe(305); // 105 (level 1) + 200 (current level)
+    expect(result.current?.totalExperience).toBe(200); // Contract value as-is
     expect(result.current?.levelProgress.currentExp).toBe(200); // XP within current level
     expect(result.current?.levelProgress.requiredExp).toBe(220);
     expect(result.current?.experienceToNextLevel).toBe(20); // 220 - 200
@@ -98,7 +98,7 @@ describe('useCharacterExperience', () => {
       { initialProps: { character: mockCharacter } }
     );
 
-    expect(result.current?.totalExperience).toBe(305); // 105 (level 1) + 200 (current level)
+    expect(result.current?.totalExperience).toBe(200); // Contract value as-is
 
     const updatedCharacter = {
       ...mockCharacter,
@@ -107,7 +107,7 @@ describe('useCharacterExperience', () => {
 
     rerender({ character: updatedCharacter });
 
-    expect(result.current?.totalExperience).toBe(405); // 105 (level 1) + 300 (current level)
+    expect(result.current?.totalExperience).toBe(300); // Contract value as-is
     expect(result.current?.levelProgress.currentExp).toBe(220); // Capped at level requirement
   });
 
@@ -128,7 +128,7 @@ describe('useCharacterExperience', () => {
     rerender({ character: leveledUpCharacter });
 
     expect(result.current?.currentLevel).toBe(3);
-    expect(result.current?.totalExperience).toBe(725); // 105 + 220 + 400 (cumulative to level 3 + current exp)
+    expect(result.current?.totalExperience).toBe(400); // Contract value as-is
   });
 });
 
@@ -137,7 +137,7 @@ describe('useExperienceProgress', () => {
     const { result } = renderHook(() => useExperienceProgress(200, 2));
     
     expect(result.current.currentLevel).toBe(2);
-    expect(result.current.totalExperience).toBe(305); // 105 (level 1) + 200 (current level)
+    expect(result.current.totalExperience).toBe(200); // Uses raw input value
     expect(result.current.levelProgress.currentExp).toBe(200); // XP within current level
     expect(result.current.levelProgress.requiredExp).toBe(220);
     expect(result.current.experienceToNextLevel).toBe(20); // 220 - 200
@@ -149,11 +149,11 @@ describe('useExperienceProgress', () => {
       { initialProps: { exp: 200, level: 2 } }
     );
 
-    expect(result.current.totalExperience).toBe(305); // 105 (level 1) + 200 (current level)
+    expect(result.current.totalExperience).toBe(200); // Uses raw input value
 
     rerender({ exp: 300, level: 2 });
 
-    expect(result.current.totalExperience).toBe(405); // 105 (level 1) + 300 (current level)
+    expect(result.current.totalExperience).toBe(300); // Uses raw input value
     expect(result.current.levelProgress.currentExp).toBe(220); // Capped at level requirement
   });
 
