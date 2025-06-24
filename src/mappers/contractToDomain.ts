@@ -390,7 +390,7 @@ export function mapSessionKeyData(
     targetBalance: String(rawData.targetBalance),
     ownerCommittedAmount: String(rawData.ownerCommittedAmount),
     ownerCommittedShares: String(rawData.ownerCommittedShares),
-    expiry: String(rawData.expiration)
+    expiration: String(rawData.expiration)
   };
 }
 

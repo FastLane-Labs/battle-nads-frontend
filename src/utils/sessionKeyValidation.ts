@@ -58,7 +58,7 @@ export const validateSessionKey = (
   }
   
   // Check if session key is expired - convert to number for comparison
-  if (sessionKeyData.expiry && currentBlock >= Number(sessionKeyData.expiry)) {
+  if (sessionKeyData.expiration && currentBlock >= Number(sessionKeyData.expiration)) {
     return {
       state: SessionKeyState.EXPIRED,
       message: 'Session key expired',
@@ -108,7 +108,7 @@ export const validateSessionKeyData = (
   }
   
   // Check if session key is expired - convert to number for comparison
-  if (sessionKeyData.expiry && currentBlock >= Number(sessionKeyData.expiry)) {
+  if (sessionKeyData.expiration && currentBlock >= Number(sessionKeyData.expiration)) {
     return {
       state: SessionKeyState.EXPIRED,
       message: 'Session key expired',

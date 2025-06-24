@@ -3,6 +3,8 @@
  * These types represent authentication and session management
  */
 
+import { BaseSessionKeyData } from '@/types/base';
+
 /**
  * Session key validation states
  */
@@ -17,14 +19,11 @@ export enum SessionKeyState {
 /**
  * Structure of the session key data
  */
-export interface SessionKeyData {
-  owner: string;
-  key: string;
+export interface SessionKeyData extends BaseSessionKeyData<string, string> {
   balance: string; // Representing bigint as string
   targetBalance: string; // Representing bigint as string
   ownerCommittedAmount: string; // Representing bigint as string
   ownerCommittedShares: string; // Representing bigint as string
-  expiry: string; // Representing block number as string
 }
 
 /**
@@ -46,5 +45,5 @@ export const DEFAULT_SESSION_KEY_DATA: SessionKeyData = {
   targetBalance: '0',
   ownerCommittedAmount: '0',
   ownerCommittedShares: '0',
-  expiry: '0'
+  expiration: '0'
 }; 
