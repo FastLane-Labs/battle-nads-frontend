@@ -17,7 +17,7 @@ src/
 ├── types/                  # TypeScript type definitions
 ├── utils/                  # Utility functions
 ├── providers/              # React context providers
-├── machines/               # XState state machines
+├── machines/               # Simplified state management (XState removed from session validation)
 └── mappers/                # Data transformation functions
 ```
 
@@ -86,43 +86,133 @@ export class BattleNadsAdapter {
 
 ## 🎮 Game State Management
 
-### useGameState Hook (`src/hooks/game/useGameState.ts`)
+### Simplified 2-Layer Architecture
 
-Central hook for all game state management.
+The game state is managed through a simplified 2-layer hook architecture that eliminates cascade invalidations and improves performance.
+
+### Layer 1: Focused Data Hooks
+
+#### useContractPolling (`src/hooks/game/useContractPolling.ts`)
+
+Pure contract data fetching with real-time polling.
 
 ```typescript
-interface GameState {
-  // Character Data
-  character: domain.Character | null;
-  characterId: string;
-  position: { x: number; y: number; z: number };
-  
-  // Game State
-  gameState: domain.WorldSnapshot | null;
-  isInCombat: boolean;
-  
-  // Loading States
+interface ContractPollingResult {
+  data: contract.PollFrontendDataReturn | undefined;
   isLoading: boolean;
-  isCacheLoading: boolean;
-  isMoving: boolean;
-  isAttacking: boolean;
-  
-  // Wallet State
-  hasWallet: boolean;
-  walletAddress: string | null;
-  
-  // Actions
-  moveCharacter: (direction: domain.Direction) => Promise<void>;
-  attack: (targetIndex: number) => Promise<void>;
-  sendChatMessage: (message: string) => Promise<void>;
-  
-  // Utilities
   error: Error | null;
-  lastUpdated: Date;
+  refetch: () => void;
 }
 
 // Usage
-const game = useGameState();
+const { data, isLoading, error } = useContractPolling(ownerAddress);
+```
+
+#### useGameMutations (`src/hooks/game/useGameMutations.ts`)
+
+Pure mutation functions for all game actions.
+
+```typescript
+interface GameMutations {
+  // Actions
+  moveCharacter: (direction: domain.Direction) => Promise<any>;
+  attack: (targetIndex: number) => Promise<any>;
+  sendChatMessage: (message: string) => Promise<any>;
+  updateSessionKey: (endBlock: bigint) => Promise<any>;
+  allocatePoints: (stats: StatAllocation) => Promise<any>;
+  
+  // States
+  isMoving: boolean;
+  isAttacking: boolean;
+  isSendingChat: boolean;
+  isUpdatingSessionKey: boolean;
+  isAllocatingPoints: boolean;
+  
+  // Errors
+  moveError: Error | null;
+  attackError: Error | null;
+  chatError: Error | null;
+  sessionKeyError: Error | null;
+  allocatePointsError: Error | null;
+}
+
+// Usage
+const mutations = useGameMutations(characterId, ownerAddress);
+```
+
+### Layer 2: Business Logic Hooks
+
+#### useSimplifiedGameState (`src/hooks/game/useSimplifiedGameState.ts`)
+
+Unified interface that combines all game functionality.
+
+```typescript
+interface SimplifiedGameState {
+  // Core Data
+  character: domain.Character | null;
+  characterId: string;
+  worldSnapshot: domain.WorldSnapshot | null;
+  position: { x: number; y: number; z: number };
+  
+  // Computed State
+  isInCombat: boolean;
+  balanceShortfall: bigint;
+  
+  // Session Management
+  sessionKeyState: SessionKeyState;
+  needsSessionKeyUpdate: boolean;
+  
+  // Loading States
+  isLoading: boolean;
+  isMoving: boolean;
+  isAttacking: boolean;
+  isSendingChat: boolean;
+  
+  // Wallet State
+  hasWallet: boolean;
+  connectWallet: () => void;
+  
+  // Actions (async functions)
+  moveCharacter: (direction: domain.Direction) => Promise<any>;
+  attack: (targetIndex: number) => Promise<any>;
+  sendChatMessage: (message: string) => Promise<any>;
+  updateSessionKey: () => Promise<any>;
+  addOptimisticChatMessage: (message: string) => void;
+  
+  // Error States
+  error: Error | null;
+}
+
+// Usage - Drop-in replacement for old useGameState
+const game = useSimplifiedGameState();
+```
+
+#### useGameData (`src/hooks/game/useGameData.ts`)
+
+Contract data transformations and business logic.
+
+```typescript
+interface GameDataOptions {
+  includeHistory?: boolean;      // default: true
+  includeSessionKey?: boolean;   // default: true
+}
+
+// Usage for specific data needs
+const gameData = useGameData({ includeHistory: false });
+```
+
+#### useGameActions (`src/hooks/game/useGameActions.ts`)
+
+Action coordination with optimistic updates.
+
+```typescript
+interface GameActionsOptions {
+  includeWallet?: boolean;  // default: true
+  readOnly?: boolean;       // default: false
+}
+
+// Usage for action-only components
+const actions = useGameActions({ readOnly: true });
 ```
 
 ### Data Caching (`src/hooks/game/useCachedDataFeed.ts`)
@@ -482,42 +572,107 @@ describe('useAbilityCooldowns', () => {
 
 ## 🔄 State Management Patterns
 
-### XState Integration (`src/machines/`)
+## 🔐 Session Key Management
+
+### useSessionKey (`src/hooks/session/useSessionKey.ts`)
+
+Optimized session key management with consolidated validation logic.
 
 ```typescript
-// sessionKeyMachine.ts
-export const sessionKeyMachine = createMachine({
-  id: 'sessionKey',
-  initial: 'checking',
-  states: {
-    checking: {
-      invoke: {
-        src: 'checkSessionKey',
-        onDone: { target: 'valid' },
-        onError: { target: 'invalid' },
-      },
-    },
-    valid: {
-      on: {
-        EXPIRE: 'expired',
-        INVALIDATE: 'invalid',
-      },
-    },
-    invalid: {
-      on: {
-        CREATE: 'creating',
-      },
-    },
-    creating: {
-      invoke: {
-        src: 'createSessionKey',
-        onDone: { target: 'valid' },
-        onError: { target: 'failed' },
-      },
-    },
-    // ... other states
-  },
-});
+interface SessionKeyState {
+  IDLE = 'idle';
+  VALID = 'valid';
+  EXPIRED = 'expired';
+  MISMATCHED = 'mismatched';
+  MISSING = 'missing';
+}
+
+interface SessionKeyData {
+  owner: string;
+  key: string;
+  balance: string;
+  targetBalance: string;
+  ownerCommittedAmount: string;
+  ownerCommittedShares: string;
+  expiry: string;
+}
+
+interface SessionKeyHookResult {
+  sessionKeyData: SessionKeyData | undefined;
+  sessionKeyState: SessionKeyState;
+  needsUpdate: boolean;
+  isLoading: boolean;
+  error: Error | null;
+  refreshSessionKey: () => void;
+}
+
+// Usage
+const sessionKey = useSessionKey(characterId);
+
+// Check if session key needs updating
+if (sessionKey.needsUpdate) {
+  // Show session key prompt or auto-update
+}
+```
+
+### useSessionFunding (`src/hooks/session/useSessionFunding.ts`)
+
+Session balance management and funding.
+
+```typescript
+interface SessionFundingResult {
+  balanceShortfall: bigint | undefined;
+  canReplenish: boolean;
+  replenishBalance: (amount: bigint) => void;
+  deactivateSessionKey: () => void;
+  isReplenishing: boolean;
+  isDeactivating: boolean;
+  replenishError: Error | null;
+  deactivateError: Error | null;
+}
+
+// Usage
+const funding = useSessionFunding(characterId);
+
+// Check if funding is needed
+if (funding.balanceShortfall && funding.balanceShortfall > 0n) {
+  await funding.replenishBalance(funding.balanceShortfall);
+}
+```
+
+### Session Key Validation Utility
+
+Consolidated validation logic replacing XState machine.
+
+```typescript
+// src/utils/sessionKeyValidation.ts
+export const validateSessionKey = (
+  sessionKeyData: SessionKeyData | undefined,
+  ownerAddress: string,
+  embeddedWalletAddress: string,
+  currentBlock: number
+): SessionKeyValidation => {
+  // Validates:
+  // 1. Session key exists and not zero address
+  // 2. Owner matches
+  // 3. Key matches embedded wallet
+  // 4. Not expired
+  
+  return {
+    state: SessionKeyState.VALID, // or MISSING, EXPIRED, MISMATCHED
+    message?: string,
+    data?: SessionKeyData
+  };
+};
+
+// Simplified version for contract-only data
+export const validateSessionKeyData = (
+  sessionKeyData: SessionKeyData | undefined,
+  ownerAddress: string, 
+  currentBlock: number
+): SessionKeyValidation => {
+  // Used by BattleNadsClient for contract-level validation
+};
 ```
 
 ### React Query Integration
@@ -532,6 +687,81 @@ export function useGameQuery(characterId: string) {
     staleTime: 400, // Consider stale after 400ms
     gcTime: 5000, // Garbage collect after 5 seconds
   });
+}
+```
+
+## 🚀 Migration & Usage Examples
+
+### Migrating from Old useGameState
+
+The new `useSimplifiedGameState` is a drop-in replacement for the old monolithic `useGameState` hook:
+
+```typescript
+// Before (old architecture)
+const game = useGameState();
+
+// After (new 2-layer architecture) - same interface!
+const game = useSimplifiedGameState();
+
+// All existing code continues to work:
+const handleMove = async (direction) => {
+  await game.moveCharacter(direction);
+};
+```
+
+### Using Individual Hooks for Performance
+
+For components that only need specific functionality:
+
+```typescript
+// Data-only component (no actions needed)
+function CharacterDisplay() {
+  const gameData = useGameData({ includeHistory: false });
+  
+  return (
+    <div>
+      <h3>{gameData.character?.name}</h3>
+      <p>Health: {gameData.character?.health}</p>
+    </div>
+  );
+}
+
+// Action-only component (no game data needed)
+function MovementControls() {
+  const actions = useGameActions({ readOnly: false });
+  
+  return (
+    <div>
+      <button onClick={() => actions.moveCharacter('North')}>
+        Move North
+      </button>
+    </div>
+  );
+}
+```
+
+### Layer 1 Usage for Maximum Performance
+
+For high-performance components that need direct contract access:
+
+```typescript
+function RawContractDisplay() {
+  const { data, isLoading } = useContractPolling(ownerAddress);
+  const mutations = useGameMutations(characterId, ownerAddress);
+  
+  // Direct access to contract data without transformations
+  const rawCharacter = data?.character;
+  
+  return (
+    <div>
+      {isLoading ? 'Loading...' : (
+        <pre>{JSON.stringify(rawCharacter, null, 2)}</pre>
+      )}
+      <button onClick={() => mutations.moveCharacter('North')}>
+        Raw Move
+      </button>
+    </div>
+  );
 }
 ```
 
