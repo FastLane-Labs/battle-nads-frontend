@@ -17,7 +17,6 @@ src/
 ├── types/                  # TypeScript type definitions
 ├── utils/                  # Utility functions
 ├── providers/              # React context providers
-├── machines/               # State machine utilities (currently minimal)
 └── mappers/                # Data transformation functions
 ```
 
