@@ -1,6 +1,8 @@
 // Raw Solidity contract types for BattleNads
 // These types exactly match the on-chain structures and use appropriate primitive types
 
+import { BaseWeapon, BaseArmor } from '@/types/base';
+
 // Session key data structure (Matches CashierTypes.SessionKeyData)
 export interface SessionKeyData {
   owner: string; // address
@@ -41,20 +43,14 @@ export interface BattleNadStats {
   combatantBitMap: bigint; // uint64
 }
 
-export interface Weapon {
-  name: string;
-  baseDamage: bigint; // uint256
-  bonusDamage: bigint; // uint256
-  accuracy: bigint; // uint256
-  speed: bigint; // uint256
+export interface Weapon extends BaseWeapon<bigint> {
+  // All fields inherited from BaseWeapon<bigint>
+  // Contract uses bigint for all numeric values
 }
 
-export interface Armor {
-  name: string;
-  armorFactor: bigint; // uint256
-  armorQuality: bigint; // uint256
-  flexibility: bigint; // uint256
-  weight: bigint; // uint256
+export interface Armor extends BaseArmor<bigint> {
+  // All fields inherited from BaseArmor<bigint>
+  // Contract uses bigint for all numeric values
 }
 
 export interface Inventory {
