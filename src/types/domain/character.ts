@@ -4,7 +4,7 @@
  */
 
 import { CharacterClass, StatusEffect, Ability } from './enums';
-import { BaseWeapon, BaseArmor } from '@/types/base';
+import { BaseWeapon, BaseArmor, BaseCharacter, BaseCharacterLite } from '@/types/base';
 
 export interface Position {
   x: number;
@@ -65,43 +65,24 @@ export interface AbilityState {
   targetBlock: number;
 }
 
-export interface Character {
-  id: string;
-  index: number;
-  name: string;
-  class: CharacterClass;
-  level: number;
-  health: number;
-  maxHealth: number;
-  buffs: StatusEffect[];
-  debuffs: StatusEffect[];
+export interface Character extends BaseCharacter<number, StatusEffect[], string> {
+  class: CharacterClass; // Override with typed enum instead of raw number
   stats: CharacterStats;
   weapon: Weapon;
   armor: Armor;
   position: Position;
   areaId: bigint;
-  owner: string;
   activeTask: string;
   ability: AbilityState;
   inventory: Inventory;
   isInCombat: boolean;
-  isDead: boolean;
   movementOptions: MovementOptions;
+  // Inherited from BaseCharacter: id, index, name, level, health, maxHealth, buffs, debuffs, weaponName, armorName, isDead, owner, experience
 }
 
-export interface CharacterLite {
-  id: string;
-  index: number;
-  name: string;
-  class: CharacterClass;
-  level: number;
-  health: number;
-  maxHealth: number;
-  buffs: StatusEffect[];
-  debuffs: StatusEffect[];
+export interface CharacterLite extends BaseCharacterLite<number, StatusEffect[]> {
+  class: CharacterClass; // Override with typed enum instead of raw number
   ability: AbilityState;
-  weaponName: string;
-  armorName: string;
   areaId: bigint;
-  isDead: boolean;
+  // All other fields inherited from BaseCharacterLite<number, StatusEffect[]>
 } 

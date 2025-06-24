@@ -51,21 +51,37 @@ export interface BaseSessionKeyData<TAddress = string, TExpiration = string> {
 }
 
 /**
- * Base character interface
+ * Base character lite interface (for enemies/NPCs in combat)
+ * Contains minimal data needed for combat display and interaction
+ * @template TNumeric - Numeric type (bigint for contract, number for domain)
+ * @template TStatus - Status type (bigint bitmap for contract, StatusEffect[] for domain)
+ */
+export interface BaseCharacterLite<TNumeric = number, TStatus = any> {
+  id: string;
+  index: TNumeric;
+  name: string;
+  class: TNumeric; // Raw class value, typed by layer
+  level: TNumeric;
+  health: TNumeric;
+  maxHealth: TNumeric;
+  buffs: TStatus;
+  debuffs: TStatus;
+  weaponName: string;
+  armorName: string;
+  isDead: boolean;
+}
+
+/**
+ * Base character interface (for main player data)
+ * Extends CharacterLite with full player information
  * @template TNumeric - Numeric type for stats
- * @template TStatus - Status type (bigint for contract, string for domain)
+ * @template TStatus - Status type (bigint for contract, StatusEffect[] for domain)
  * @template TAddress - Address type for owner
  */
-export interface BaseCharacter<TNumeric = number, TStatus = string, TAddress = string> {
+export interface BaseCharacter<TNumeric = number, TStatus = any, TAddress = string> extends BaseCharacterLite<TNumeric, TStatus> {
   owner: TAddress;
-  name: string;
-  class: number;
-  level: TNumeric;
   experience: TNumeric;
-  stats: BaseStats<TNumeric>;
-  currentHealth: TNumeric;
-  maxHealth: TNumeric;
-  status: TStatus;
+  // Note: stats, weapon and armor objects, inventory, position etc. are added by specific layers
 }
 
 /**
