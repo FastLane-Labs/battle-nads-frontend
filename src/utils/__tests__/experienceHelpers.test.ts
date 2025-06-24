@@ -7,8 +7,7 @@ import {
   cumulativeExperienceForLevel,
   calculateLevelFromExperience,
   calculateLevelProgress,
-  getExperienceTable,
-  getCharacterExperienceInfo
+  getExperienceTable
 } from '../experienceHelpers';
 
 describe('experienceHelpers', () => {
@@ -72,22 +71,27 @@ describe('experienceHelpers', () => {
     });
 
     it('should handle higher levels correctly', () => {
-      // Character with 400 total exp at level 3
-      // Cumulative: Level 1 = 105, Level 2 = 325, so level 3 starts at 325
-      // 400 - 325 = 75 exp into level 3 (out of 345 needed for level 3)
-      const progress = calculateLevelProgress(400, 3);
-      expect(progress.currentExp).toBe(75); 
+      // Character with 200 exp within level 3 (not cumulative)
+      const progress = calculateLevelProgress(200, 3);
+      expect(progress.currentExp).toBe(200); 
       expect(progress.requiredExp).toBe(345);
-      expect(progress.percentage).toBeCloseTo(21.74, 1);
+      expect(progress.percentage).toBeCloseTo(57.97, 1);
     });
 
     it('should handle partial progress in higher levels', () => {
-      // Character with 200 total exp at level 2
-      // Level 1 cumulative = 105, so 200 - 105 = 95 exp into level 2 (out of 220 needed)
-      const progress = calculateLevelProgress(200, 2);
+      // Character with 95 exp within level 2 (not cumulative)
+      const progress = calculateLevelProgress(95, 2);
       expect(progress.currentExp).toBe(95);
       expect(progress.requiredExp).toBe(220);
       expect(progress.percentage).toBeCloseTo(43.18, 1);
+    });
+
+    it('should handle the screenshot case correctly', () => {
+      // Level 7 character with 890 XP within the level
+      const progress = calculateLevelProgress(890, 7);
+      expect(progress.currentExp).toBe(890);
+      expect(progress.requiredExp).toBe(945);
+      expect(progress.percentage).toBeCloseTo(94.18, 1);
     });
   });
 
@@ -114,27 +118,6 @@ describe('experienceHelpers', () => {
     });
   });
 
-  describe('getCharacterExperienceInfo', () => {
-    it('should return comprehensive experience information', () => {
-      const info = getCharacterExperienceInfo(200, 2);
-      
-      expect(info.currentLevel).toBe(2);
-      expect(info.totalExperience).toBe(200);
-      expect(info.levelProgress.currentExp).toBe(95);
-      expect(info.levelProgress.requiredExp).toBe(220);
-      expect(info.experienceToNextLevel).toBe(125); // 220 - 95
-    });
-
-    it('should handle completed levels', () => {
-      const info = getCharacterExperienceInfo(325, 2);
-      
-      expect(info.currentLevel).toBe(2);
-      expect(info.totalExperience).toBe(325);
-      expect(info.levelProgress.currentExp).toBe(220);
-      expect(info.levelProgress.requiredExp).toBe(220);
-      expect(info.experienceToNextLevel).toBe(0);
-    });
-  });
 
   describe('edge cases', () => {
     it('should handle very high levels', () => {

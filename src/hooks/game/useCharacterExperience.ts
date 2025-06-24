@@ -3,7 +3,7 @@
  */
 
 import { useMemo } from 'react';
-import { getCharacterExperienceInfo } from '@/utils/experienceHelpers';
+import { calculateLevelProgress, cumulativeExperienceForLevel } from '@/utils/experienceHelpers';
 import type { Character } from '@/types/domain/character';
 import type { CharacterExperienceInfo } from '@/types/domain/experience';
 
@@ -16,24 +16,45 @@ export function useCharacterExperience(character: Character | null): CharacterEx
   return useMemo(() => {
     if (!character) return null;
     
-    return getCharacterExperienceInfo(
-      Number(character.stats.experience),
-      Number(character.level)
-    );
+    // The contract's experience field represents experience within the current level
+    const experienceInCurrentLevel = Number(character.stats.experience);
+    const currentLevel = Number(character.level);
+    
+    const levelProgress = calculateLevelProgress(experienceInCurrentLevel, currentLevel);
+    const experienceToNextLevel = levelProgress.requiredExp - levelProgress.currentExp;
+    
+    // Calculate total experience (cumulative) for display
+    const totalExperience = cumulativeExperienceForLevel(currentLevel - 1) + experienceInCurrentLevel;
+    
+    return {
+      currentLevel,
+      totalExperience,
+      levelProgress,
+      experienceToNextLevel
+    };
   }, [character?.stats.experience, character?.level]);
 }
 
 /**
  * Hook to calculate experience progress from raw values
- * @param totalExperience Total accumulated experience
+ * @param experienceInCurrentLevel Experience within the current level
  * @param currentLevel Current character level
  * @returns Experience information including level progress
  */
 export function useExperienceProgress(
-  totalExperience: number, 
+  experienceInCurrentLevel: number, 
   currentLevel: number
 ): CharacterExperienceInfo {
   return useMemo(() => {
-    return getCharacterExperienceInfo(totalExperience, currentLevel);
-  }, [totalExperience, currentLevel]);
+    const levelProgress = calculateLevelProgress(experienceInCurrentLevel, currentLevel);
+    const experienceToNextLevel = levelProgress.requiredExp - levelProgress.currentExp;
+    const totalExperience = cumulativeExperienceForLevel(currentLevel - 1) + experienceInCurrentLevel;
+    
+    return {
+      currentLevel,
+      totalExperience,
+      levelProgress,
+      experienceToNextLevel
+    };
+  }, [experienceInCurrentLevel, currentLevel]);
 }
