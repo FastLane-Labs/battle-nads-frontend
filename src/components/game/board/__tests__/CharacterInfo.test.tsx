@@ -4,11 +4,11 @@ import { ChakraProvider } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import CharacterInfo from '../CharacterInfo';
 import { domain } from '@/types'; // Assuming types are exported from domain
-import { useGameState } from '@/hooks/game/useGameState'; // Import the hook
+import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState'; // Import the hook
 
-// Mock the useGameState hook that CharacterInfo now uses
-jest.mock('@/hooks/game/useGameState', () => ({
-  useGameState: jest.fn(),
+// Mock the useSimplifiedGameState hook that CharacterInfo now uses
+jest.mock('@/hooks/game/useSimplifiedGameState', () => ({
+  useSimplifiedGameState: jest.fn(),
 }));
 
 // Mock the EquipmentPanel component since it's not the focus of this test
@@ -43,9 +43,9 @@ const mockCharacter: domain.Character = {
   isDead: false,
 };
 
-// Helper function to setup useGameState mock
+// Helper function to setup useSimplifiedGameState mock
 const setupMockUseGameState = (unallocatedAttributePoints: number = 0, isInCombat: boolean = false) => {
-  (useGameState as jest.Mock).mockReturnValue({
+  (useSimplifiedGameState as jest.Mock).mockReturnValue({
     worldSnapshot: {
       unallocatedAttributePoints,
       // Add other properties that might be needed

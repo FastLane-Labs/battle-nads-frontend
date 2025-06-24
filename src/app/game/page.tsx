@@ -38,10 +38,10 @@ export default function GameV2Page() {
   }
 
   const position = game.position ? { x: game.position.x, y: game.position.y, z: game.position.depth } : { x: 0, y: 0, z: 0 };
-  const moveCharacter = async (direction: any) => { await game.moveCharacter(direction); };
-  const attack = async (targetIndex: number) => { await game.attack(targetIndex); };
-  const sendChatMessage = async (message: string) => { await game.sendChatMessage(message); };
-  const addOptimisticChatMessage = (message: string) => { game.addOptimisticChatMessage(message); };
+  const moveCharacter = async (direction: any) => { await game.moveCharacter?.(direction); };
+  const attack = async (targetIndex: number) => { await game.attack?.(targetIndex); };
+  const sendChatMessage = async (message: string) => { await game.sendChatMessage?.(message); };
+  const addOptimisticChatMessage = (message: string) => { game.addOptimisticChatMessage?.(message); };
 
   const isValidChar = isValidCharacterId(game.characterId);
   if (game.hasWallet && isValidChar && game.needsSessionKeyUpdate && !game.isLoading && game.character) {
@@ -49,17 +49,17 @@ export default function GameV2Page() {
       <>
         <NavBar />
         <SessionKeyPrompt 
-          sessionKeyState={game.sessionKeyState}
+          sessionKeyState={game.sessionKeyState || 'missing'}
           onUpdate={async () => {
             try {
-              await game.updateSessionKey();
+              await game.updateSessionKey?.();
               return Promise.resolve();
             } catch (error) {
               console.error("Failed to update session key:", error);
               return Promise.reject(error);
             }
           }}
-          isUpdating={game.isUpdatingSessionKey}
+          isUpdating={game.isUpdatingSessionKey || false}
         />
       </>
     );
@@ -78,11 +78,11 @@ export default function GameV2Page() {
             attack={attack}
             sendChatMessage={sendChatMessage}
             addOptimisticChatMessage={addOptimisticChatMessage}
-            isMoving={game.isMoving}
-            isAttacking={game.isAttacking}
-            isSendingChat={game.isSendingChat}
-            isInCombat={game.isInCombat}
-            isCacheLoading={game.isCacheLoading}
+            isMoving={game.isMoving || false}
+            isAttacking={game.isAttacking || false}
+            isSendingChat={game.isSendingChat || false}
+            isInCombat={game.isInCombat || false}
+            isCacheLoading={game.isCacheLoading || false}
           />
         </Box>
       </>

@@ -438,6 +438,7 @@ export const useGameData = (options: UseGameDataOptions = {}) => {
     isLoading: isPollingLoading || (includeHistory && isHistoryLoading),
     isPollingLoading,
     isHistoryLoading: includeHistory ? isHistoryLoading : false,
+    isCacheLoading: includeHistory ? isHistoryLoading : false,
     
     // Error states
     error: pollingError,
