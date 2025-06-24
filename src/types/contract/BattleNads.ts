@@ -146,9 +146,9 @@ export interface PollFrontendDataReturn {
   character: Character; // Full BattleNad struct for the player
   combatants: CharacterLite[]; // BattleNadLite[] for enemies
   noncombatants: CharacterLite[]; // BattleNadLite[] for others in area
-  equipableWeaponIDs: number[]; // uint8[]
+  equipableWeaponIDs: bigint[]; // Contract actually returns bigint[]
   equipableWeaponNames: string[];
-  equipableArmorIDs: number[]; // uint8[]
+  equipableArmorIDs: bigint[]; // Contract actually returns bigint[]
   equipableArmorNames: string[];
   dataFeeds: DataFeed[]; // Array of per-block data feeds
   balanceShortfall: bigint; // uint256

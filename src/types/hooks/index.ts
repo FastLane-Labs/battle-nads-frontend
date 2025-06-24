@@ -64,11 +64,11 @@ export interface UseGameDataReturn {
   // Error states
   error: Error | null;
   
-  // Equipment data (from array destructuring - typed as any until contract provides proper return types)
-  rawEquipableWeaponIDs: any; // Will be number[] once contract provides typed returns
-  rawEquipableWeaponNames: any; // Will be string[] once contract provides typed returns
-  rawEquipableArmorIDs: any; // Will be number[] once contract provides typed returns
-  rawEquipableArmorNames: any; // Will be string[] once contract provides typed returns
+  // Equipment data (from array destructuring - some types are already properly typed)
+  rawEquipableWeaponIDs: bigint[] | undefined; // Already properly typed from contract
+  rawEquipableWeaponNames: string[] | undefined; // Already properly typed from contract
+  rawEquipableArmorIDs: bigint[] | undefined; // Already properly typed from contract
+  rawEquipableArmorNames: string[] | undefined; // Already properly typed from contract
   
   // Historical data functions (conditional based on includeHistory option)
   getAllCharactersForOwner?: (owner: string) => Promise<any[]>; // Returns StoredCharacterMetadata[] - keeping any for simplicity
