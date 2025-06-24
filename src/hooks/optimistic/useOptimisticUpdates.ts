@@ -42,7 +42,6 @@ export interface UseOptimisticUpdatesReturn {
   ) => void;
 }
 
-// Timeout duration removed - using explicit rollback strategy only
 
 export function useOptimisticUpdates(): UseOptimisticUpdatesReturn {
   const [updates, setUpdates] = useState<OptimisticUpdate[]>([]);
