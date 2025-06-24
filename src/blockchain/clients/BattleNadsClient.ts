@@ -114,7 +114,7 @@ export class BattleNadsClient {
       // Convert contract session key data to domain session key data
       const domainSessionKey: domain.SessionKeyData = {
         key: contractSessionKey.key,
-        expiry: String(contractSessionKey.expiration), // Convert bigint to string
+        expiration: String(contractSessionKey.expiration), // Convert bigint to string
         owner: owner,
         // Convert contract values (if they exist) or use default string '0'
         balance: String(contractSessionKey.balance ?? '0'), 

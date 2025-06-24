@@ -55,7 +55,7 @@ describe('useSimplifiedGameState', () => {
       characterID: 'char1',
       sessionKeyData: { 
         key: '0xsessionkey', 
-        expiry: '1000',
+        expiration: '1000',
         owner: '0x1234',
         balance: '1000000000000000000',
         targetBalance: '2000000000000000000',

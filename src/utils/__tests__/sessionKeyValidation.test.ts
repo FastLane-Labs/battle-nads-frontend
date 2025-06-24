@@ -21,7 +21,7 @@ describe('validateSessionKeyData', () => {
       targetBalance: '2000',
       ownerCommittedAmount: '500',
       ownerCommittedShares: '10',
-      expiry: '1500'
+      expiration: '1500'
     };
 
     const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
@@ -38,7 +38,7 @@ describe('validateSessionKeyData', () => {
       targetBalance: '2000',
       ownerCommittedAmount: '500',
       ownerCommittedShares: '10',
-      expiry: '1500'
+      expiration: '1500'
     };
 
     const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
@@ -56,7 +56,7 @@ describe('validateSessionKeyData', () => {
       targetBalance: '2000',
       ownerCommittedAmount: '500',
       ownerCommittedShares: '10',
-      expiry: '1500'
+      expiration: '1500'
     };
 
     const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress.toLowerCase(), currentBlock);
@@ -73,7 +73,7 @@ describe('validateSessionKeyData', () => {
       targetBalance: '2000',
       ownerCommittedAmount: '500',
       ownerCommittedShares: '10',
-      expiry: '500' // Expired (500 < 1000)
+      expiration: '500' // Expired (500 < 1000)
     };
 
     const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
@@ -91,7 +91,7 @@ describe('validateSessionKeyData', () => {
       targetBalance: '2000',
       ownerCommittedAmount: '500',
       ownerCommittedShares: '10',
-      expiry: '1000' // Expires exactly at current block
+      expiration: '1000' // Expires exactly at current block
     };
 
     const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
@@ -109,7 +109,7 @@ describe('validateSessionKeyData', () => {
       targetBalance: '2000',
       ownerCommittedAmount: '500',
       ownerCommittedShares: '10',
-      expiry: '1500' // Valid (1500 > 1000)
+      expiration: '1500' // Valid (1500 > 1000)
     };
 
     const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
@@ -119,7 +119,7 @@ describe('validateSessionKeyData', () => {
     expect(result.data).toBe(sessionKeyData);
   });
 
-  it('should handle session key data without expiry', () => {
+  it('should handle session key data without expiration', () => {
     const sessionKeyData = {
       owner: mockOwnerAddress,
       key: '0xsessionkey1234567890abcdef1234567890abcd',
@@ -127,7 +127,7 @@ describe('validateSessionKeyData', () => {
       targetBalance: '2000',
       ownerCommittedAmount: '500',
       ownerCommittedShares: '10',
-      expiry: undefined as any // No expiry
+      expiration: undefined as any // No expiration
     };
 
     const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
@@ -136,7 +136,7 @@ describe('validateSessionKeyData', () => {
     expect(result.data).toBe(sessionKeyData);
   });
 
-  it('should handle numeric expiry values', () => {
+  it('should handle numeric expiration values', () => {
     const sessionKeyData = {
       owner: mockOwnerAddress,
       key: '0xsessionkey1234567890abcdef1234567890abcd',
@@ -144,7 +144,7 @@ describe('validateSessionKeyData', () => {
       targetBalance: '2000',
       ownerCommittedAmount: '500',
       ownerCommittedShares: '10',
-      expiry: 1500 as any // Numeric expiry
+      expiration: 1500 as any // Numeric expiration
     };
 
     const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
@@ -153,7 +153,7 @@ describe('validateSessionKeyData', () => {
     expect(result.data).toBe(sessionKeyData);
   });
 
-  it('should convert string expiry to number for comparison', () => {
+  it('should convert string expiration to number for comparison', () => {
     const sessionKeyData = {
       owner: mockOwnerAddress,
       key: '0xsessionkey1234567890abcdef1234567890abcd',
@@ -161,7 +161,7 @@ describe('validateSessionKeyData', () => {
       targetBalance: '2000',
       ownerCommittedAmount: '500',
       ownerCommittedShares: '10',
-      expiry: '999' // String that converts to number less than currentBlock
+      expiration: '999' // String that converts to number less than currentBlock
     };
 
     const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
