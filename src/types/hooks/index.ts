@@ -65,9 +65,9 @@ export interface UseGameDataReturn {
   error: Error | null;
   
   // Equipment data (from array destructuring - some types are already properly typed)
-  rawEquipableWeaponIDs: bigint[] | undefined; // Already properly typed from contract
+  rawEquipableWeaponIDs: number[] | undefined; // uint8[] from contract
   rawEquipableWeaponNames: string[] | undefined; // Already properly typed from contract
-  rawEquipableArmorIDs: bigint[] | undefined; // Already properly typed from contract
+  rawEquipableArmorIDs: number[] | undefined; // uint8[] from contract
   rawEquipableArmorNames: string[] | undefined; // Already properly typed from contract
   
   // Historical data functions (conditional based on includeHistory option)
