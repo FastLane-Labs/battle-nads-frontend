@@ -40,7 +40,7 @@ export const useUiSnapshot = (owner: string | null) => {
   return useQuery<contract.PollFrontendDataReturn, Error>({
     queryKey: ['uiSnapshot', owner, embeddedWallet?.address],
     enabled: !!owner && !!client,
-    staleTime: POLL_INTERVAL,
+    staleTime: 0, // Always consider data stale to force fresh blockchain queries
     refetchInterval: POLL_INTERVAL,
     
     queryFn: async () => {
