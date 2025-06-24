@@ -28,17 +28,6 @@ export interface BaseArmor<T = number> {
 }
 
 /**
- * Base character stats interface
- * @template T - Numeric type (bigint for contract, number for domain/UI)
- */
-export interface BaseStats<T = number> {
-  attack: T;
-  defense: T;
-  speed: T;
-  luck: T;
-}
-
-/**
  * Base session key data interface
  * Standardizes field names across layers
  * @template TAddress - Address type (string)

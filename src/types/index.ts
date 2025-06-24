@@ -23,10 +23,3 @@ export {
   LogType,
 } from './domain';
 
-// Keep TransactionOptions if used independently
-export interface TransactionOptions {
-  gasLimit?: number | bigint;
-  value?: bigint;
-  gasPrice?: bigint;
-  nonce?: number;
-}
