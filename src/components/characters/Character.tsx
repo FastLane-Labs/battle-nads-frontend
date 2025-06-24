@@ -2,10 +2,10 @@
 
 import React, { useState } from 'react';
 import { Box, Heading, Flex, Text } from '@chakra-ui/react';
-import { useWallet } from '../../providers/WalletProvider';
-import { CharacterCard } from './CharacterCard';
-import { CharacterList } from './CharacterList';
-import { domain } from '../../types'; // Import domain namespace
+import { useWallet } from '@/providers/WalletProvider';
+import { CharacterCard } from '@/components/characters/CharacterCard';
+import { CharacterList } from '@/components/characters/CharacterList';
+import { domain } from '@/types'; // Import domain namespace
 
 const CharacterDashboard = () => {
   const { address } = useWallet();
