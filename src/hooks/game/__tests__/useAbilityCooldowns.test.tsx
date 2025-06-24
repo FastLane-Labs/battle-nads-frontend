@@ -25,8 +25,8 @@ jest.mock('@chakra-ui/react', () => ({
   ChakraProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-jest.mock('../useGameState', () => ({
-  useGameState: jest.fn(() => ({
+jest.mock('../useSimplifiedGameState', () => ({
+  useSimplifiedGameState: jest.fn(() => ({
     gameState: {
       character: {
         name: 'TestCharacter',

@@ -196,17 +196,17 @@ const AppInitializer: React.FC = () => {
   {
     return renderWithNav(
       <SessionKeyPrompt
-        sessionKeyState={game.sessionKeyState}
+        sessionKeyState={game.sessionKeyState || 'missing'}
         onUpdate={async () => {
           try {
-            await game.updateSessionKey();
+            await game.updateSessionKey?.();
             return Promise.resolve();
           } catch (error) {
             console.error("Failed to update session key:", error);
             return Promise.reject(error);
           }
         }}
-        isUpdating={game.isUpdatingSessionKey}
+        isUpdating={game.isUpdatingSessionKey || false}
       />,
       "Session Key Prompt"
     );
@@ -221,10 +221,10 @@ const AppInitializer: React.FC = () => {
       !game.isLoading)
   {
       const position = game.position ? { x: game.position.x, y: game.position.y, z: game.position.depth } : { x: 0, y: 0, z: 0 };
-      const moveCharacter = async (direction: any) => { await game.moveCharacter(direction); };
-      const attack = async (targetIndex: number) => { await game.attack(targetIndex); };
-      const sendChatMessage = async (message: string) => { await game.sendChatMessage(message); };
-      const addOptimisticChatMessage = (message: string) => { game.addOptimisticChatMessage(message); };
+      const moveCharacter = async (direction: any) => { await game.moveCharacter?.(direction); };
+      const attack = async (targetIndex: number) => { await game.attack?.(targetIndex); };
+      const sendChatMessage = async (message: string) => { await game.sendChatMessage?.(message); };
+      const addOptimisticChatMessage = (message: string) => { game.addOptimisticChatMessage?.(message); };
       const playerIndex = game.character?.index ?? null;
 
       return renderWithNav(
@@ -240,11 +240,11 @@ const AppInitializer: React.FC = () => {
            attack={attack}
            sendChatMessage={sendChatMessage}
            addOptimisticChatMessage={addOptimisticChatMessage}
-           isMoving={game.isMoving}
-           isAttacking={game.isAttacking}
-           isSendingChat={game.isSendingChat}
-           isInCombat={game.isInCombat}
-           isCacheLoading={game.isCacheLoading}
+           isMoving={game.isMoving || false}
+           isAttacking={game.isAttacking || false}
+           isSendingChat={game.isSendingChat || false}
+           isInCombat={game.isInCombat || false}
+           isCacheLoading={game.isCacheLoading || false}
            // Add equipment names data
            equipableWeaponIDs={rawEquipableWeaponIDs}
            equipableWeaponNames={rawEquipableWeaponNames}
