@@ -12,7 +12,6 @@ export function useOptimisticChat() {
     addOptimisticUpdate, 
     removeOptimisticUpdate, 
     getUpdatesByType,
-    rollback,
     updates
   } = useOptimisticUpdatesContext();
 
@@ -48,11 +47,7 @@ export function useOptimisticChat() {
 
     // Add with deduplication based on message content and sender
     return addOptimisticUpdate('chat', optimisticData, {
-      rollbackStrategy: 'explicit', // Remove only when confirmed message is received
-      deduplicationKey: (data) => `${data.message.sender.id}-${data.originalMessage}`,
-      onRollback: () => {
-        console.log('[useOptimisticChat] Chat message removed due to confirmed version:', message);
-      }
+      deduplicationKey: (data) => `${data.message.sender.id}-${data.originalMessage}`
     });
   }, [addOptimisticUpdate]);
 
@@ -73,47 +68,12 @@ export function useOptimisticChat() {
     );
   }, [getUpdatesByType, updates]);
 
-  // Rollback a specific chat message
-  const rollbackChatMessage = useCallback((updateId: string) => {
-    rollback(updateId);
-  }, [rollback]);
-
-  // Remove optimistic messages that have confirmed versions
-  const removeConfirmedOptimisticMessages = useCallback((confirmedChatMessages: domain.ChatMessage[]) => {
-    // Get all optimistic chat updates
-    const optimisticUpdates = getUpdatesByType<OptimisticChatData>('chat');
-    const toRemove: string[] = [];
-    
-    console.log(`[useOptimisticChat] Checking ${optimisticUpdates.length} optimistic messages against ${confirmedChatMessages.length} confirmed messages`);
-    
-    optimisticUpdates.forEach(optimisticUpdate => {
-      const matchingConfirmed = confirmedChatMessages.find(confirmedMessage => 
-        optimisticUpdate.data.originalMessage === confirmedMessage.message &&
-        optimisticUpdate.data.message.sender.id === confirmedMessage.sender.id
-      );
-      
-      if (matchingConfirmed) {
-        console.log(`[useOptimisticChat] Found confirmed version for optimistic message: "${optimisticUpdate.data.originalMessage}" - removing optimistic version`);
-        toRemove.push(optimisticUpdate.id);
-      } else {
-        console.log(`[useOptimisticChat] No confirmed version found for optimistic message: "${optimisticUpdate.data.originalMessage}"`);
-      }
-    });
-    
-    // Remove all confirmed updates
-    if (toRemove.length > 0) {
-      console.log(`[useOptimisticChat] Removing ${toRemove.length} confirmed optimistic messages`);
-      toRemove.forEach(id => removeOptimisticUpdate(id));
-    }
-  }, [getUpdatesByType, removeOptimisticUpdate]);
 
 
   return {
     optimisticChatMessages,
     addOptimisticChatMessage,
     removeOptimisticChatMessage,
-    isMessageOptimistic,
-    rollbackChatMessage,
-    removeConfirmedOptimisticMessages
+    isMessageOptimistic
   };
 }
