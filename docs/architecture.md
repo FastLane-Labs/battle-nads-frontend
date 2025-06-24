@@ -117,8 +117,7 @@ Battle Nads is a production-ready blockchain RPG with comprehensive documentatio
 ├── useStorageCleanup.ts     # Storage management ✅ IMPLEMENTED
 ├── utils.ts                 # Hook utilities ✅ IMPLEMENTED
 └── index.ts                 # Barrel exports
-/src/machines                # State machine definitions
-└── (simplified - XState removed from session validation)
+/src/machines                # State machine utilities (currently minimal)
 /src/mappers                 # Data transformation pipeline
 ├── contractToDomain.ts      # Contract → Domain mapping ✅ IMPLEMENTED
 ├── domainToUi.ts           # Domain → UI mapping ✅ IMPLEMENTED

@@ -17,7 +17,7 @@ src/
 ├── types/                  # TypeScript type definitions
 ├── utils/                  # Utility functions
 ├── providers/              # React context providers
-├── machines/               # Simplified state management (XState removed from session validation)
+├── machines/               # State machine utilities (currently minimal)
 └── mappers/                # Data transformation functions
 ```
 
@@ -642,7 +642,7 @@ if (funding.balanceShortfall && funding.balanceShortfall > 0n) {
 
 ### Session Key Validation Utility
 
-Consolidated validation logic replacing XState machine.
+Consolidated validation logic for session key management.
 
 ```typescript
 // src/utils/sessionKeyValidation.ts
