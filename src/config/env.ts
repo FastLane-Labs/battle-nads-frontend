@@ -25,7 +25,7 @@ export const RPC_URLS = {
 export const RPC = process.env.NEXT_PUBLIC_DEFAULT_RPC_URL || RPC_URLS.PRIMARY;
 
 // Polling settings
-export const POLL_INTERVAL = 500 ; // 500ms
+export const POLL_INTERVAL = 3000; // 3 seconds (10 blocks at 0.3s per block to align with Monad RPC 40-block increments)
 
 // Chain settings
 export const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '10143', 10143);
@@ -33,10 +33,10 @@ export const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '10143', 10
 // Game constants
 export const MAX_PLAYER_LEVEL = 100;
 export const INITIAL_SNAPSHOT_LOOKBACK_BLOCKS = 1200; // ~10-20 minutes depending on block time, used as fallback for initial UI snapshot fetch
-export const MAX_SESSION_KEY_VALIDITY_BLOCKS = 172800; // About 24 hours at 0.5s blocks (24*60*60 / 0.5)
+export const MAX_SESSION_KEY_VALIDITY_BLOCKS = 288000; // About 24 hours at 0.3s blocks (24*60*60 / 0.3)
 
 // Number of recent blocks to re-check on each poll to account for RPC lag
-export const POLL_LOOKBEHIND_BLOCKS = 10; // 10 seconds at 0.5s per block - sufficient for RPC lag
+export const POLL_LOOKBEHIND_BLOCKS = 10; // 3 seconds at 0.3s per block - sufficient for RPC lag
 
 // Maximum block range that can be queried in a single request (game limitation)
 export const MAX_BLOCK_RANGE_LIMIT = 20;
