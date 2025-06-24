@@ -3,7 +3,7 @@ import { act } from 'react';
 import { useSessionFunding } from '../useSessionFunding';
 import { useBattleNadsClient } from '../../contracts/useBattleNadsClient';
 import { useSessionKey } from '../useSessionKey';
-import { SessionKeyState } from '../../../machines/sessionKeyMachine';
+import { SessionKeyState } from '@/types/domain/session';
 import { useWallet } from '../../../providers/WalletProvider';
 import { useSimplifiedGameState } from '../../game/useSimplifiedGameState';
 

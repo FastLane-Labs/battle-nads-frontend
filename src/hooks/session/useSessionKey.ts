@@ -1,16 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { invalidateSessionKeyQueries } from '../utils';
-import { SessionKeyState, sessionKeyMachine } from '../../machines/sessionKeyMachine';
+import { SessionKeyState } from '@/types/domain/session';
+import { validateSessionKey } from '../../utils/sessionKeyValidation';
 import { useWallet } from '../../providers/WalletProvider';
 import { useContractPolling } from '../game/useContractPolling';
 import { ZeroAddress } from 'ethers';
-import { contract } from '../../types';
 
 /**
  * Hook for managing and validating session keys
  * Derives session key data and block number from useBattleNads (which uses useContractPolling)
- * Leverages the session key state machine for validation
+ * Uses consolidated session key validation utility
  */
 export const useSessionKey = (characterId: string | null) => {
   // Get wallets
@@ -92,20 +92,33 @@ export const useSessionKey = (characterId: string | null) => {
       if (snapshotError) {
         newSessionKeyState = SessionKeyState.MISSING; // Error prevents validation
       } else if (isInputAvailable) {
-          // We have the inputs, now check if they are valid for validation machine
-          const isReadyForValidationMachine = 
+          // We have the inputs, now check if they are valid for validation
+          const isReadyForValidation = 
              sessionKey && 
              sessionKey.toLowerCase() !== ZeroAddress.toLowerCase() &&
              currentBlock > 0;
 
-          if (isReadyForValidationMachine) {
+          if (isReadyForValidation) {
              // All checks passed, safe to assert non-null
-             newSessionKeyState = sessionKeyMachine.validate(
-                 sessionKey!, 
-                 embeddedAddr!, 
-                 expiration, 
+             // Convert raw session key data to domain format for validation
+             const sessionKeyData = rawSessionKeyData ? {
+               owner: ownerAddress!,
+               key: sessionKey!,
+               balance: String(rawSessionKeyData.balance || '0'),
+               targetBalance: String(rawSessionKeyData.targetBalance || '0'), 
+               ownerCommittedAmount: String(rawSessionKeyData.ownerCommittedAmount || '0'),
+               ownerCommittedShares: String(rawSessionKeyData.ownerCommittedShares || '0'),
+               expiry: String(rawSessionKeyData.expiration || '0')
+             } : undefined;
+             
+             const validation = validateSessionKey(
+                 sessionKeyData,
+                 ownerAddress!,
+                 embeddedAddr!,
                  currentBlock
              );
+             
+             newSessionKeyState = validation.state;
              
              // Only log if validation fails or shows problems, and state has changed
              if (newSessionKeyState !== SessionKeyState.VALID) {
@@ -145,7 +158,7 @@ export const useSessionKey = (characterId: string | null) => {
               if (prevState !== newSessionKeyState) {
                   // Handle session key state changes that require cache invalidation
                   if ((newSessionKeyState === SessionKeyState.EXPIRED || 
-                       newSessionKeyState === SessionKeyState.MISMATCH) && 
+                       newSessionKeyState === SessionKeyState.MISMATCHED) && 
                       prevState !== newSessionKeyState) {
                     // Use centralized utility for session key invalidation
                     invalidateSessionKeyQueries(queryClient);
@@ -193,7 +206,7 @@ export const useSessionKey = (characterId: string | null) => {
   // Determine if session key needs update (based on final state)
   const needsUpdate = 
     sessionKeyState === SessionKeyState.EXPIRED || 
-    sessionKeyState === SessionKeyState.MISMATCH ||
+    sessionKeyState === SessionKeyState.MISMATCHED ||
     sessionKeyState === SessionKeyState.MISSING;
 
   // Return values needed by consuming components

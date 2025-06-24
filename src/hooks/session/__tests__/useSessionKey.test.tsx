@@ -5,7 +5,7 @@ import { ZeroAddress } from 'ethers';
 import { useSessionKey } from '../useSessionKey';
 import { useWallet } from '../../../providers/WalletProvider';
 import { createTestWrapper } from '../../../test/helpers';
-import { sessionKeyMachine, SessionKeyState } from '../../../machines/sessionKeyMachine';
+import { SessionKeyState } from '@/types/domain/session';
 import { contract } from '../../../types';
 import { useContractPolling } from '../../game/useContractPolling';
 import { mockSessionKeyData } from '@/test/helpers';
@@ -43,7 +43,6 @@ const defaultUseWalletReturn = {
 describe('useSessionKey', () => {
   let queryClient: QueryClient;
   let wrapper: ({ children }: { children: React.ReactNode }) => JSX.Element;
-  let originalValidate: typeof sessionKeyMachine.validate;
 
   const characterId = 'char1';
   const sessionKeyAddress = '0xSessionKey';
@@ -130,30 +129,10 @@ describe('useSessionKey', () => {
 
     (useWallet as jest.Mock).mockReturnValue(defaultUseWalletReturn);
 
-    // Store original validate function
-    originalValidate = sessionKeyMachine.validate.bind(sessionKeyMachine);
-    
-    // Mock the validate function with proper logic
-    jest.spyOn(sessionKeyMachine, 'validate').mockImplementation((sessionKey, embeddedAddress, expiration, currentBlock) => {
-      // Mock the validation logic based on test scenarios
-      if (!sessionKey || sessionKey === ZeroAddress) {
-        return SessionKeyState.MISSING;
-      }
-      if (sessionKey.toLowerCase() !== embeddedAddress.toLowerCase()) {
-        return SessionKeyState.MISMATCH;
-      }
-      if (expiration < currentBlock) {
-        return SessionKeyState.EXPIRED;
-      }
-      return SessionKeyState.VALID;
-    });
   });
 
   afterEach(() => {
-    // Restore original validate function
-    if (originalValidate) {
-      sessionKeyMachine.validate = originalValidate;
-    }
+    // Clean up
   });
   
   it('should return IDLE state initially when loading', () => {
@@ -304,9 +283,9 @@ describe('useSessionKey', () => {
 
     await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
-        expect(result.current.sessionKeyState).toBe(SessionKeyState.MISMATCH);
+        expect(result.current.sessionKeyState).toBe(SessionKeyState.MISMATCHED);
     });
-    expect(result.current.sessionKeyState).toBe(SessionKeyState.MISMATCH);
+    expect(result.current.sessionKeyState).toBe(SessionKeyState.MISMATCHED);
     expect(result.current.needsUpdate).toBe(true);
   });
   
