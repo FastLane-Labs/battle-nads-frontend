@@ -56,7 +56,6 @@ export const useUiSnapshot = (owner: string | null) => {
       // Simple approach: increment startBlock with each request to prevent RPC caching
       const startBlock = BigInt(requestId);
       
-      console.log(`[useUiSnapshot] Request #${requestId}: polling from block ${startBlock}`);
       
       
       const rawArrayData = await client.getUiSnapshot(owner, startBlock);
@@ -91,8 +90,6 @@ export const useUiSnapshot = (owner: string | null) => {
           fetchTimestamp: fetchTimestamp,
         };
         
-        const blockRange = Number(mappedData.endBlock) - Number(startBlock);
-        console.log(`[useUiSnapshot] Request #${requestId} response: startBlock=${startBlock}, endBlock=${mappedData.endBlock}, range=${blockRange}, events=${mappedData.dataFeeds.length}`);
         
       } catch (mappingError) {
         console.error("[useUiSnapshot] Error during array mapping:", mappingError);

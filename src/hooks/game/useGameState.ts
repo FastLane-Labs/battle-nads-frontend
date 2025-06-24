@@ -405,8 +405,6 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
         if (!hasConfirmedVersion) {
           const key = `optimistic-${optimistic.timestamp}-${optimistic.sender.index}`;
           combinedChatLogsMap.set(key, optimistic);
-        } else {
-          console.log(`[useGameState] Skipping optimistic message "${optimistic.message}" - confirmed version exists`);
         }
       });
 
