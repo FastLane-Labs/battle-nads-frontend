@@ -177,7 +177,7 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
 
           {/* Main Content */}
           <Box
-            backgroundImage="/assets/bg/tutorial-bg.png"
+            backgroundImage="/assets/bg/tutorial-bg.webp"
             backgroundSize="100% 100%"
             backgroundRepeat="no-repeat"
             backgroundPosition="center"
