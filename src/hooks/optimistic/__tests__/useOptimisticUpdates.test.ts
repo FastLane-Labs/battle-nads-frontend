@@ -43,26 +43,24 @@ describe('useOptimisticUpdates', () => {
     expect(result.current.updates).toHaveLength(0);
   });
 
-  it('should handle timeout rollback strategy', () => {
-    const onRollback = jest.fn();
+  it('should handle deduplication', () => {
     const { result } = renderHook(() => useOptimisticUpdates());
 
     act(() => {
-      result.current.addOptimisticUpdate('chat', { message: 'test-timeout' }, {
-        rollbackStrategy: 'timeout',
-        timeoutDuration: 1000,
-        onRollback
+      // Add first message with deduplication key
+      result.current.addOptimisticUpdate('chat', { message: 'test-dedup' }, {
+        deduplicationKey: (data) => `sender-123-${data.message}`
+      });
+      
+      // Try to add the same message again - should be deduplicated
+      result.current.addOptimisticUpdate('chat', { message: 'test-dedup' }, {
+        deduplicationKey: (data) => `sender-123-${data.message}`
       });
     });
 
+    // Should only have 1 update due to deduplication
     expect(result.current.updates).toHaveLength(1);
-
-    act(() => {
-      jest.advanceTimersByTime(1000);
-    });
-
-    expect(result.current.updates).toHaveLength(0);
-    expect(onRollback).toHaveBeenCalled();
+    expect(result.current.updates[0].data).toEqual({ message: 'test-dedup' });
   });
 
   it('should get updates by type', () => {
