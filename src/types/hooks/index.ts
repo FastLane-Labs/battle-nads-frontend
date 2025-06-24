@@ -28,8 +28,8 @@ export interface UseGameDataReturn {
   
   // Raw contract data (from array destructuring - typed as any until contract provides proper return types)
   rawSessionKeyData: any; // Will be contract.SessionKeyData once contract provides typed returns
-  rawEndBlock: any; // Will be bigint once contract provides typed returns
-  balanceShortfall: any; // Will be bigint once contract provides typed returns
+  rawEndBlock: bigint | undefined; // Already properly typed from contract
+  balanceShortfall: bigint | undefined; // Already properly typed from contract
   
   // Character info  
   character: domain.Character | null;
