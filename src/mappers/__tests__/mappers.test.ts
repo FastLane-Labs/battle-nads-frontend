@@ -34,8 +34,9 @@ describe('Data Mappers', () => {
       const result = contractToWorldSnapshot(mockPollData as any, '0xOwnerAddress');
       
       // Basic assertions that focus on functionality
-      expect(result.characterID).toBe(mockPollData.characterID);
-      expect(result.sessionKeyData.key).toBe(mockPollData.sessionKeyData.key);
+      expect(result).toBeDefined();
+      expect(result?.characterID).toBe(mockPollData.characterID);
+      expect(result?.sessionKeyData?.key).toBe(mockPollData.sessionKeyData.key);
     });
   });
 }); 
