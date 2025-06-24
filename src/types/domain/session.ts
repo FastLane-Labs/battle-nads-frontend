@@ -7,10 +7,11 @@
  * Session key validation states
  */
 export enum SessionKeyState {
+  IDLE = 'idle',
   VALID = 'valid',
   EXPIRED = 'expired',
-  INVALID = 'invalid',
   MISMATCHED = 'mismatched',
+  MISSING = 'missing'
 }
 
 /**

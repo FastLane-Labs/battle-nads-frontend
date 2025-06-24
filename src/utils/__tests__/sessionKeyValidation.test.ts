@@ -1,19 +1,19 @@
-import { validateSessionKey } from '../sessionKeyValidation';
+import { validateSessionKeyData } from '../sessionKeyValidation';
 import { SessionKeyState } from '@/types/domain/session';
 
-describe('validateSessionKey', () => {
+describe('validateSessionKeyData', () => {
   const mockOwnerAddress = '0x1234567890abcdef1234567890abcdef12345678';
   const currentBlock = 1000;
 
-  it('should return INVALID when session key data is undefined', () => {
-    const result = validateSessionKey(undefined, mockOwnerAddress, currentBlock);
+  it('should return MISSING when session key data is undefined', () => {
+    const result = validateSessionKeyData(undefined, mockOwnerAddress, currentBlock);
     
-    expect(result.state).toBe(SessionKeyState.INVALID);
+    expect(result.state).toBe(SessionKeyState.MISSING);
     expect(result.message).toBe('No session key found');
     expect(result.data).toBeUndefined();
   });
 
-  it('should return INVALID when session key data has no key', () => {
+  it('should return MISSING when session key data has no key', () => {
     const sessionKeyData = {
       owner: mockOwnerAddress,
       key: '',
@@ -24,9 +24,9 @@ describe('validateSessionKey', () => {
       expiry: '1500'
     };
 
-    const result = validateSessionKey(sessionKeyData, mockOwnerAddress, currentBlock);
+    const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
     
-    expect(result.state).toBe(SessionKeyState.INVALID);
+    expect(result.state).toBe(SessionKeyState.MISSING);
     expect(result.message).toBe('No session key found');
   });
 
@@ -41,10 +41,10 @@ describe('validateSessionKey', () => {
       expiry: '1500'
     };
 
-    const result = validateSessionKey(sessionKeyData, mockOwnerAddress, currentBlock);
+    const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
     
     expect(result.state).toBe(SessionKeyState.MISMATCHED);
-    expect(result.message).toBe('Session key wallet mismatch');
+    expect(result.message).toBe('Session key owner mismatch');
     expect(result.data).toBe(sessionKeyData);
   });
 
@@ -59,7 +59,7 @@ describe('validateSessionKey', () => {
       expiry: '1500'
     };
 
-    const result = validateSessionKey(sessionKeyData, mockOwnerAddress.toLowerCase(), currentBlock);
+    const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress.toLowerCase(), currentBlock);
     
     expect(result.state).toBe(SessionKeyState.VALID);
     expect(result.data).toBe(sessionKeyData);
@@ -76,7 +76,7 @@ describe('validateSessionKey', () => {
       expiry: '500' // Expired (500 < 1000)
     };
 
-    const result = validateSessionKey(sessionKeyData, mockOwnerAddress, currentBlock);
+    const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
     
     expect(result.state).toBe(SessionKeyState.EXPIRED);
     expect(result.message).toBe('Session key expired');
@@ -94,7 +94,7 @@ describe('validateSessionKey', () => {
       expiry: '1000' // Expires exactly at current block
     };
 
-    const result = validateSessionKey(sessionKeyData, mockOwnerAddress, currentBlock);
+    const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
     
     expect(result.state).toBe(SessionKeyState.EXPIRED);
     expect(result.message).toBe('Session key expired');
@@ -112,7 +112,7 @@ describe('validateSessionKey', () => {
       expiry: '1500' // Valid (1500 > 1000)
     };
 
-    const result = validateSessionKey(sessionKeyData, mockOwnerAddress, currentBlock);
+    const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
     
     expect(result.state).toBe(SessionKeyState.VALID);
     expect(result.message).toBeUndefined();
@@ -130,7 +130,7 @@ describe('validateSessionKey', () => {
       expiry: undefined as any // No expiry
     };
 
-    const result = validateSessionKey(sessionKeyData, mockOwnerAddress, currentBlock);
+    const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
     
     expect(result.state).toBe(SessionKeyState.VALID);
     expect(result.data).toBe(sessionKeyData);
@@ -147,7 +147,7 @@ describe('validateSessionKey', () => {
       expiry: 1500 as any // Numeric expiry
     };
 
-    const result = validateSessionKey(sessionKeyData, mockOwnerAddress, currentBlock);
+    const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
     
     expect(result.state).toBe(SessionKeyState.VALID);
     expect(result.data).toBe(sessionKeyData);
@@ -164,7 +164,7 @@ describe('validateSessionKey', () => {
       expiry: '999' // String that converts to number less than currentBlock
     };
 
-    const result = validateSessionKey(sessionKeyData, mockOwnerAddress, currentBlock);
+    const result = validateSessionKeyData(sessionKeyData, mockOwnerAddress, currentBlock);
     
     expect(result.state).toBe(SessionKeyState.EXPIRED);
     expect(result.message).toBe('Session key expired');
