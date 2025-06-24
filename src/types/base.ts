@@ -21,10 +21,10 @@ export interface BaseWeapon<T = number> {
  */
 export interface BaseArmor<T = number> {
   name: string;
-  defense: T;
-  magicResist: T;
-  health: T;
-  evasion: T;
+  armorFactor: T;
+  armorQuality: T;
+  flexibility: T;
+  weight: T;
 }
 
 /**

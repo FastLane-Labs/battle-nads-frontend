@@ -4,6 +4,7 @@
  */
 
 import { CharacterClass, StatusEffect, Ability } from './enums';
+import { BaseWeapon, BaseArmor } from '@/types/base';
 
 export interface Position {
   x: number;
@@ -34,22 +35,16 @@ export interface CharacterStats {
   unspentAttributePoints: number;
 }
 
-export interface Weapon {
+export interface Weapon extends BaseWeapon<number> {
   id: number;
-  name: string;
-  baseDamage: number;
-  bonusDamage: number;
-  accuracy: number;
-  speed: number;
+  // All other fields inherited from BaseWeapon<number>
+  // Domain uses number for all numeric values
 }
 
-export interface Armor {
+export interface Armor extends BaseArmor<number> {
   id: number;
-  name: string;
-  armorFactor: number;
-  armorQuality: number;
-  flexibility: number;
-  weight: number;
+  // All other fields inherited from BaseArmor<number>
+  // Domain uses number for all numeric values
 }
 
 export interface Inventory {
