@@ -3,13 +3,13 @@ import { useQueryClient } from '@tanstack/react-query';
 import { invalidateSessionKeyQueries } from '../utils';
 import { SessionKeyState, sessionKeyMachine } from '../../machines/sessionKeyMachine';
 import { useWallet } from '../../providers/WalletProvider';
-import { useUiSnapshot } from '../game/useUiSnapshot';
+import { useContractPolling } from '../game/useContractPolling';
 import { ZeroAddress } from 'ethers';
 import { contract } from '../../types';
 
 /**
  * Hook for managing and validating session keys
- * Derives session key data and block number from useBattleNads (which uses useUiSnapshot)
+ * Derives session key data and block number from useBattleNads (which uses useContractPolling)
  * Leverages the session key state machine for validation
  */
 export const useSessionKey = (characterId: string | null) => {
@@ -37,12 +37,12 @@ export const useSessionKey = (characterId: string | null) => {
     }
   }, [ownerAddress, embeddedWallet?.address]);
   
-  // Get snapshot data directly from useUiSnapshot to avoid circular dependency
+  // Get snapshot data directly from useContractPolling to avoid circular dependency
   const { 
     data: snapshotData,
     isLoading: isSnapshotLoading, 
     error: snapshotError, 
-  } = useUiSnapshot(ownerAddress); // Pass owner address (now guaranteed string | null)
+  } = useContractPolling(ownerAddress); // Pass owner address (now guaranteed string | null)
 
   // Extract session key data from snapshot
   const rawSessionKeyData = snapshotData?.sessionKeyData;
@@ -185,7 +185,7 @@ export const useSessionKey = (characterId: string | null) => {
     // When embedded wallet address changes, invalidate the query to force refresh
     if (ownerAddress && embeddedWallet?.address) {
       queryClient.invalidateQueries({ 
-        queryKey: ['uiSnapshot', ownerAddress, embeddedWallet.address] 
+        queryKey: ['contractPolling', ownerAddress, embeddedWallet.address] 
       });
     }
   }, [embeddedWallet?.address, ownerAddress, queryClient]);
@@ -203,7 +203,7 @@ export const useSessionKey = (characterId: string | null) => {
   // Define refresh function using queryClient
   const refreshSessionKey = () => {
     if (ownerAddress) {
-      queryClient.invalidateQueries({ queryKey: ['uiSnapshot', ownerAddress, embeddedWallet?.address] });
+      queryClient.invalidateQueries({ queryKey: ['contractPolling', ownerAddress, embeddedWallet?.address] });
     }
   };
 

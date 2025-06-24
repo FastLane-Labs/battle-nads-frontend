@@ -1,8 +1,10 @@
-// Game hooks
-export * from './game/useGameState';
-export * from './game/useSimplifiedGameState'; // Consolidated game state management
+// Game hooks - Simplified 2-layer state architecture
+export * from './game/useSimplifiedGameState'; // Unified interface
+export * from './game/useContractPolling'; // Layer 1: Pure contract data
+export * from './game/useGameData'; // Layer 2: Business logic data
+export * from './game/useGameActions'; // Layer 2: Business logic actions
+export * from './game/useGameMutations'; // Layer 1: Pure mutations
 export * from './game/useEquipment';
-export * from './game/useUiSnapshot';
 
 // Session hooks
 export * from './session/useSessionKey';

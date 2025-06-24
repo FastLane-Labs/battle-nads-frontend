@@ -7,11 +7,11 @@ import { useWallet } from '../../../providers/WalletProvider';
 import { createTestWrapper } from '../../../test/helpers';
 import { sessionKeyMachine, SessionKeyState } from '../../../machines/sessionKeyMachine';
 import { contract } from '../../../types';
-import { useUiSnapshot } from '../../game/useUiSnapshot';
+import { useContractPolling } from '../../game/useContractPolling';
 import { mockSessionKeyData } from '@/test/helpers';
 
 // Mock dependencies
-jest.mock('../../game/useUiSnapshot');
+jest.mock('../../game/useContractPolling');
 jest.mock('../../../providers/WalletProvider');
 
 // Define default values
@@ -19,15 +19,15 @@ const ownerAddress = '0xOwnerAddress123';
 const embeddedAddress = '0xEmbeddedAddress456';
 const otherKeyAddress = '0xOtherKeyAddress789';
 
-// --- Mock useUiSnapshot --- 
-const mockUseUiSnapshot = useUiSnapshot as jest.Mock;
+// --- Mock useContractPolling --- 
+const mockUseContractPolling = useContractPolling as jest.Mock;
 // -------------------------
 
 // Type safety for mocks
 const mockUseWallet = useWallet as jest.Mock; 
 
 // Default mock return values (can be overridden in tests)
-const defaultUiSnapshotReturn = {
+const defaultContractPollingReturn = {
   data: undefined,
   isLoading: false, 
   error: null,
@@ -125,8 +125,8 @@ describe('useSessionKey', () => {
     jest.clearAllMocks();
     queryClient.clear();
     
-    mockUseUiSnapshot.mockReset();
-    mockUseUiSnapshot.mockReturnValue(defaultUiSnapshotReturn);
+    mockUseContractPolling.mockReset();
+    mockUseContractPolling.mockReturnValue(defaultContractPollingReturn);
 
     (useWallet as jest.Mock).mockReturnValue(defaultUseWalletReturn);
 
@@ -157,15 +157,15 @@ describe('useSessionKey', () => {
   });
   
   it('should return IDLE state initially when loading', () => {
-    mockUseUiSnapshot.mockReturnValueOnce({ ...defaultUiSnapshotReturn, isLoading: true });
+    mockUseContractPolling.mockReturnValueOnce({ ...defaultContractPollingReturn, isLoading: true });
     const { result } = renderHook(() => useSessionKey(characterId), { wrapper });
     expect(result.current.sessionKeyState).toBe(SessionKeyState.IDLE);
     expect(result.current.isLoading).toBe(true);
   });
 
   it('should show loading state initially and transition to MISSING', async () => {
-    mockUseUiSnapshot.mockReturnValue({ 
-      ...defaultUiSnapshotReturn, 
+    mockUseContractPolling.mockReturnValue({ 
+      ...defaultContractPollingReturn, 
       isLoading: false, 
       error: new Error('Snapshot Fetch Failed'), 
       data: undefined,
@@ -191,8 +191,8 @@ describe('useSessionKey', () => {
     const embeddedAddress = '0xValidSessionKey';
     const validKeyDataContract = { ...mockSessionKeyData(false), key: embeddedAddress };
 
-    mockUseUiSnapshot.mockReturnValue({
-      ...defaultUiSnapshotReturn,
+    mockUseContractPolling.mockReturnValue({
+      ...defaultContractPollingReturn,
       data: createMockSnapshotData(validKeyDataContract, 500n),
       isLoading: false,
       error: null,
@@ -217,8 +217,8 @@ describe('useSessionKey', () => {
   
   it('correctly identifies expired session key', async () => {
     const expiredKeyData = { ...mockSessionKeyData(true), key: embeddedAddress }; 
-    mockUseUiSnapshot.mockReturnValue({
-      ...defaultUiSnapshotReturn,
+    mockUseContractPolling.mockReturnValue({
+      ...defaultContractPollingReturn,
       data: createMockSnapshotData(expiredKeyData, 500n),
       isLoading: false,
       error: null,
@@ -240,8 +240,8 @@ describe('useSessionKey', () => {
   
   it('correctly identifies missing session key (zero address key)', async () => {
     const zeroKeyData = { ...mockSessionKeyData(false), key: ZeroAddress };
-    mockUseUiSnapshot.mockReturnValue({
-      ...defaultUiSnapshotReturn,
+    mockUseContractPolling.mockReturnValue({
+      ...defaultContractPollingReturn,
       data: createMockSnapshotData(zeroKeyData, 500n),
       isLoading: false,
       error: null,
@@ -263,8 +263,8 @@ describe('useSessionKey', () => {
   });
 
   it('correctly identifies missing session key (hook returns null/undefined data)', async () => {
-    mockUseUiSnapshot.mockReturnValueOnce({
-      ...defaultUiSnapshotReturn,
+    mockUseContractPolling.mockReturnValueOnce({
+      ...defaultContractPollingReturn,
       data: createMockSnapshotData(undefined, 500n),
       isLoading: false,
       error: null,
@@ -288,8 +288,8 @@ describe('useSessionKey', () => {
   
   it('correctly identifies mismatched session key', async () => {
     const mismatchKeyData = mockSessionKeyData(false);
-    mockUseUiSnapshot.mockReturnValue({
-      ...defaultUiSnapshotReturn,
+    mockUseContractPolling.mockReturnValue({
+      ...defaultContractPollingReturn,
       data: createMockSnapshotData(mismatchKeyData, 500n),
       isLoading: false,
       error: null,
@@ -317,7 +317,7 @@ describe('useSessionKey', () => {
         embeddedWallet: { address: embeddedAddress }
     });
     // Mock useUiSnapshot to reflect its state when owner is null (likely idle/no data)
-    mockUseUiSnapshot.mockReturnValue({
+    mockUseContractPolling.mockReturnValue({
         data: undefined,
         isLoading: false, // Assume it doesn't load if owner is null
         error: null,
@@ -338,7 +338,7 @@ describe('useSessionKey', () => {
   it('handles missing client', async () => {
     // Mock useUiSnapshot to simulate an error state (e.g., client missing upstream)
     const mockError = new Error("Client unavailable in useGameState");
-    mockUseUiSnapshot.mockReturnValue({
+    mockUseContractPolling.mockReturnValue({
         data: undefined,
         isLoading: false, // Finished loading (with error)
         error: mockError, // Set error state
@@ -365,7 +365,7 @@ describe('useSessionKey', () => {
 
   it('handles underlying snapshot error', async () => { 
     const mockError = new Error("Snapshot Fetch Failed");
-    mockUseUiSnapshot.mockReturnValue({
+    mockUseContractPolling.mockReturnValue({
         data: undefined,
         isLoading: false,
         error: mockError,

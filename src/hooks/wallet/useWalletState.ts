@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { ethers } from 'ethers';
 import { useWallet } from '../../providers/WalletProvider';
-import { useUiSnapshot } from '../game/useUiSnapshot';
+import { useContractPolling } from '../game/useContractPolling';
 import { RPC } from '@/config/env';
 import { 
   BALANCE_REFRESH_INTERVAL, 
@@ -77,7 +77,7 @@ export function useWalletState(options: UseWalletStateOptions = {}): WalletBalan
   const sessionKeyAddress = embeddedWallet?.address ?? null;
   
   // Get session key and balance data directly from UI snapshot
-  const { data: rawData, isLoading: isSnapshotLoading } = useUiSnapshot(ownerAddress);
+  const { data: rawData, isLoading: isSnapshotLoading } = useContractPolling(ownerAddress);
   
   // Owner balance state (fetched via direct RPC)
   const [ownerBalance, setOwnerBalance] = useState<string>('0');
