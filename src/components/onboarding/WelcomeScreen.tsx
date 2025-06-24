@@ -202,17 +202,17 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
               </Box>
 
               {/* Title */}
-              <h2 className='gold-text-light text-4xl text-nowrap font-bold'>
+              <h2 className='gold-text-light text-2xl md:text-4xl md:text-nowrap font-bold'>
                 {slide.title}
               </h2>
 
-              <div className='flex flex-col gap-4 py-4 px-6 border border-amber-600/20 rounded-xl items-center bg-brown/40'>
+              <div className='flex flex-col gap-4 py-4 px-6 md:border md:border-amber-600/20 rounded-xl items-center md:bg-brown/40'>
               {/* Content */}
               <Text
-                fontSize="lg"
                 color="#f0e6c0"
                 lineHeight="1.6"
                 maxW="450px"
+                className='md:text-lg'
                 >
                 {slide.content}
               </Text>
@@ -230,7 +230,7 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
                         >
                         ◆
                       </Text>
-                      <Text color="#f0e6c0" fontSize="sm">
+                      <Text color="#f0e6c0" fontSize="sm" className='text-nowrap'>
                         {detail}
                       </Text>
                     </HStack>
