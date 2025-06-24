@@ -16,6 +16,8 @@ import {
 } from '@chakra-ui/react';
 import { FaGamepad, FaCoins, FaUsers, FaArrowRight, FaSkull } from 'react-icons/fa';
 import { FaShield } from 'react-icons/fa6';
+import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { GameButton } from '@/components/ui/GameButton';
 
 interface WelcomeScreenProps {
   onComplete: () => void;
@@ -34,8 +36,8 @@ interface WelcomeSlide {
 const WELCOME_SLIDES: WelcomeSlide[] = [
   {
     id: 'welcome',
-    title: 'Adventure Awaits',
-    content: 'Welcome to Battle Nads! Enter the eternal realm where heroes are forged on the Monad blockchain.',
+    title: 'Welcome to Battlenads',
+    content: 'Enter the eternal realm where heroes are forged on the Monad blockchain.',
     icon: FaShield,
     color: '#d4af37',
     details: [
@@ -187,7 +189,7 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
             opacity={isAnimating ? 0.7 : 1}
             transition="all 0.15s ease-in-out"
           >
-            <VStack spacing={6} align="center" textAlign="center">
+            <VStack spacing={4} align="center" textAlign="center">
               {/* Icon */}
               <Box
                 p={4}
@@ -200,17 +202,18 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
               </Box>
 
               {/* Title */}
-              <h2 className='gold-text-light text-3xl'>
+              <h2 className='gold-text-light text-4xl text-nowrap font-bold'>
                 {slide.title}
               </h2>
 
+              <div className='flex flex-col gap-4 py-4 px-8 border border-amber-600/20 rounded-xl items-center'>
               {/* Content */}
               <Text
                 fontSize="lg"
                 color="#f0e6c0"
                 lineHeight="1.6"
                 maxW="500px"
-              >
+                >
                 {slide.content}
               </Text>
 
@@ -224,7 +227,7 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
                         fontSize="md"
                         mt={0.5}
                         flexShrink={0}
-                      >
+                        >
                         ◆
                       </Text>
                       <Text color="#f0e6c0" fontSize="sm">
@@ -234,6 +237,7 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
                   ))}
                 </VStack>
               )}
+              </div>
             </VStack>
           </Box>
 
@@ -258,7 +262,7 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
           </HStack>
 
           {/* Navigation */}
-          <HStack spacing={4}>
+          <HStack spacing={2}>
             <Button
               variant="ghost"
               color="#f0e6c0"
@@ -269,8 +273,9 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
               textTransform="uppercase"
               letterSpacing="0.5px"
               fontWeight="bold"
+              opacity={0.7}
             >
-              SKIP INTRODUCTION
+              SKIP
             </Button>
 
             <HStack spacing={2}>
@@ -278,54 +283,38 @@ export function WelcomeScreen({ onComplete, onSkip }: WelcomeScreenProps) {
                 as="button"
                 onClick={handlePrevious}
                 disabled={currentSlide === 0 || isAnimating}
-                px={6}
-                py={2}
-                border="1px solid #d4af37"
-                bg="#10243b"
-                color="#d4af37"
-                borderRadius="md"
-                boxShadow="inset 0 0 4px #000"
-                _hover={{ boxShadow: '0 0 6px #d4af37' }}
-                _active={{ transform: 'translateY(1px)' }}
-                transition="all 0.2s"
-                textTransform="uppercase"
-                letterSpacing="0.5px"
-                fontWeight="bold"
-                fontSize="sm"
-                opacity={currentSlide === 0 || isAnimating ? 0.5 : 1}
-                cursor={currentSlide === 0 || isAnimating ? 'not-allowed' : 'pointer'}
-                data-testid="previous-slide"
-              >
-                PREVIOUS
-              </Box>
-
-              <Box
-                as="button"
-                onClick={handleNext}
-                disabled={isAnimating}
-                px={6}
-                py={2}
-                border="1px solid #d4af37"
-                bg="#d4af37"
-                color="#05162b"
-                borderRadius="md"
-                boxShadow="inset 0 0 4px #000"
-                _hover={{ boxShadow: '0 0 8px #d4af37' }}
-                _active={{ transform: 'translateY(1px)' }}
-                transition="all 0.2s"
-                textTransform="uppercase"
-                letterSpacing="0.5px"
-                fontWeight="bold"
-                fontSize="sm"
-                opacity={isAnimating ? 0.5 : 1}
-                cursor={isAnimating ? 'not-allowed' : 'pointer'}
                 display="flex"
                 alignItems="center"
-                gap={2}
-                data-testid="next-slide"
+                justifyContent="center"
+                color="#d4af37"
+                _active={{ transform: 'translateY(1px)' }}
+                transition="all 0.2s"
+                opacity={currentSlide === 0 || isAnimating ? 0.3 : 1}
+                cursor={currentSlide === 0 || isAnimating ? 'not-allowed' : 'pointer'}
+                data-testid="previous-slide"
+                 className='px-2 h-[60px]'
               >
-                {currentSlide === WELCOME_SLIDES.length - 1 ? 'GET STARTED' : 'NEXT'}
-                {currentSlide !== WELCOME_SLIDES.length - 1 && <FaArrowRight />}
+                <Icon as={FaChevronLeft} boxSize={4} />
+              </Box>
+
+              <Box w="200px">
+                <GameButton
+                  variant="primary"
+                  onClick={handleNext}
+                  isDisabled={isAnimating}
+                  data-testid="next-slide"
+                  hasGlow={currentSlide === WELCOME_SLIDES.length - 1 ? true : false}
+
+                >
+                  <HStack spacing={2} align="center">
+                    <Text>
+                      {currentSlide === WELCOME_SLIDES.length - 1 ? 'GET STARTED' : 'NEXT'}
+                    </Text>
+                    {currentSlide !== WELCOME_SLIDES.length - 1 && (
+                      <Icon as={FaChevronRight} boxSize={4} color="#d4af37" />
+                    )}
+                  </HStack>
+                </GameButton>
               </Box>
             </HStack>
           </HStack>
