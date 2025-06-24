@@ -3,6 +3,7 @@ import { useWallet } from '../../providers/WalletProvider';
 import { domain } from '@/types';
 import { useGameMutations } from './useGameMutations';
 import { useGameData } from './useGameData';
+import { GameActions } from './types';
 
 export interface UseGameActionsOptions {
   /** Whether to include wallet integration (default: true) */
@@ -15,7 +16,7 @@ export interface UseGameActionsOptions {
  * Layer 2: Game actions business logic
  * Combines mutations with optimistic updates and coordination
  */
-export const useGameActions = (options: UseGameActionsOptions = {}) => {
+export const useGameActions = (options: UseGameActionsOptions = {}): GameActions => {
   const {
     includeWallet = true,
     readOnly = false
@@ -38,20 +39,20 @@ export const useGameActions = (options: UseGameActionsOptions = {}) => {
   const mutations = useGameMutations(characterId, owner);
 
   // Enhanced action functions with optimistic updates
-  const enhancedSendChatMessage = useCallback((message: string) => {
+  const enhancedSendChatMessage = useCallback(async (message: string) => {
     // Add optimistic message immediately
     addOptimisticChatMessage(message);
     
     // Then send the actual transaction
-    mutations.sendChatMessage(message);
+    return await mutations.sendChatMessage(message);
   }, [addOptimisticChatMessage, mutations.sendChatMessage]);
 
-  const enhancedUpdateSessionKey = useCallback(() => {
+  const enhancedUpdateSessionKey = useCallback(async () => {
     if (!rawEndBlock) {
       console.error('[useGameActions] Cannot update session key: no end block available');
       return;
     }
-    mutations.updateSessionKey(rawEndBlock);
+    return await mutations.updateSessionKey(rawEndBlock);
   }, [mutations.updateSessionKey, rawEndBlock]);
 
   // Return nothing if in read-only mode
@@ -64,11 +65,11 @@ export const useGameActions = (options: UseGameActionsOptions = {}) => {
       isWalletInitialized,
 
       // Action functions (disabled)
-      moveCharacter: (_direction: any) => {},
-      attack: (_targetCharacterIndex: number) => {},
+      moveCharacter: async (_direction: any) => {},
+      attack: async (_targetCharacterIndex: number) => {},
       allocatePoints: async (_strength: bigint, _vitality: bigint, _dexterity: bigint, _quickness: bigint, _sturdiness: bigint, _luck: bigint) => {},
-      sendChatMessage: (_message: string) => {},
-      updateSessionKey: () => {},
+      sendChatMessage: async (_message: string) => {},
+      updateSessionKey: async () => {},
 
       // Action states (all false)
       isMoving: false,

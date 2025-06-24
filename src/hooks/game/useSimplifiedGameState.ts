@@ -41,11 +41,11 @@ export const useSimplifiedGameState = (options: UseSimplifiedGameStateOptions = 
     connectWallet: () => {},
     isInitialized: false,
     isWalletInitialized: false,
-    moveCharacter: (_direction: any) => {},
-    attack: (_targetCharacterIndex: number) => {},
+    moveCharacter: async (_direction: any) => {},
+    attack: async (_targetCharacterIndex: number) => {},
     allocatePoints: async (_strength: bigint, _vitality: bigint, _dexterity: bigint, _quickness: bigint, _sturdiness: bigint, _luck: bigint) => {},
-    sendChatMessage: (_message: string) => {},
-    updateSessionKey: () => {},
+    sendChatMessage: async (_message: string) => {},
+    updateSessionKey: async () => {},
     isMoving: false,
     isAttacking: false,
     isAllocatingPoints: false,
@@ -56,11 +56,12 @@ export const useSimplifiedGameState = (options: UseSimplifiedGameStateOptions = 
     allocatePointsError: null,
     chatError: null,
     sessionKeyError: null,
+    addOptimisticChatMessage: (_message: string) => {},
   };
 
   return {
-    // Core game state
-    ...gameData,
+    // Core game state (with null safety)
+    ...(gameData || {}),
     
     // Actions (always included)
     ...actions,
