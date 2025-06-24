@@ -3,9 +3,14 @@
  * 
  * These interfaces provide explicit typing for complex hook return values,
  * improving type safety and developer experience when consuming hooks.
+ * 
+ * Note: Some fields are typed as `any` due to current contract limitations:
+ * - Raw contract data comes from array destructuring until contract provides proper return types
+ * - Complex aggregated data structures where full typing would be overly complex
+ * - These will be improved when the contract API is updated
  */
 
-import { domain } from '@/types';
+import { domain, contract } from '@/types';
 import { GameActions } from '@/types/ui';
 import { SessionKeyState } from '@/types/domain/session';
 
@@ -21,10 +26,10 @@ export interface UseGameDataReturn {
   worldSnapshot: domain.WorldSnapshot | null;
   gameState: domain.WorldSnapshot | null;
   
-  // Raw contract data
-  rawSessionKeyData: any;
-  rawEndBlock: any;
-  balanceShortfall: any;
+  // Raw contract data (from array destructuring - typed as any until contract provides proper return types)
+  rawSessionKeyData: any; // Will be contract.SessionKeyData once contract provides typed returns
+  rawEndBlock: any; // Will be bigint once contract provides typed returns
+  balanceShortfall: any; // Will be bigint once contract provides typed returns
   
   // Character info  
   character: domain.Character | null;
@@ -32,7 +37,7 @@ export interface UseGameDataReturn {
   position: { x: number; y: number; depth: number } | null;
   
   // Session key data (conditional based on includeSessionKey option)
-  sessionKeyData?: any;
+  sessionKeyData?: domain.SessionKeyData;
   sessionKeyState?: SessionKeyState;
   needsSessionKeyUpdate?: boolean;
   
@@ -57,18 +62,18 @@ export interface UseGameDataReturn {
   isCacheLoading: boolean;
   
   // Error states
-  error: any;
+  error: Error | null;
   
-  // Equipment data
-  rawEquipableWeaponIDs: any;
-  rawEquipableWeaponNames: any;
-  rawEquipableArmorIDs: any;
-  rawEquipableArmorNames: any;
+  // Equipment data (from array destructuring - typed as any until contract provides proper return types)
+  rawEquipableWeaponIDs: any; // Will be number[] once contract provides typed returns
+  rawEquipableWeaponNames: any; // Will be string[] once contract provides typed returns
+  rawEquipableArmorIDs: any; // Will be number[] once contract provides typed returns
+  rawEquipableArmorNames: any; // Will be string[] once contract provides typed returns
   
   // Historical data functions (conditional based on includeHistory option)
-  getAllCharactersForOwner?: (owner: string) => Promise<any[]>; // Returns StoredCharacterMetadata[]
-  getDataSummaryForOwner?: (owner: string) => any;
-  historicalBlocks?: any[];
+  getAllCharactersForOwner?: (owner: string) => Promise<any[]>; // Returns StoredCharacterMetadata[] - keeping any for simplicity
+  getDataSummaryForOwner?: (owner: string) => any; // Complex aggregated data - keeping any for simplicity  
+  historicalBlocks?: any[]; // Complex cached data - keeping any for simplicity
 }
 
 /**
@@ -81,7 +86,7 @@ export interface UseAbilityCooldownsReturn {
   isUsingAbility: boolean;
   abilityError: Error | null;
   isLoading: boolean;
-  error: any;
+  error: Error | null;
 }
 
 /**
@@ -98,10 +103,10 @@ export interface UseGameActionsReturn extends GameActions {
  * Provides session key validation and management
  */
 export interface UseSessionKeyReturn {
-  // Raw data used for validation
-  sessionKeyData: any;
+  // Raw data used for validation (from contract array destructuring)
+  sessionKeyData: any; // Will be contract.SessionKeyData once contract provides typed returns
   isLoading: boolean;
-  error: any;
+  error: Error | null;
   refreshSessionKey: () => void;
   sessionKeyState: SessionKeyState;
   needsUpdate: boolean;
@@ -113,9 +118,9 @@ export interface UseSessionKeyReturn {
  * Provides raw contract data polling
  */
 export interface UseContractPollingReturn {
-  data: any;
+  data: any; // Raw contract array data - will be contract.PollFrontendDataReturn once contract provides proper types
   isLoading: boolean;
-  error: any;
+  error: Error | null;
   refetch: () => void;
 }
 
