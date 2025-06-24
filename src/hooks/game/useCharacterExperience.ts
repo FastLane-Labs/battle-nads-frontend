@@ -3,7 +3,7 @@
  */
 
 import { useMemo } from 'react';
-import { calculateLevelProgress, cumulativeExperienceForLevel, experienceNeededForLevel } from '@/utils/experienceHelpers';
+import { calculateLevelProgress, experienceNeededForLevel } from '@/utils/experienceHelpers';
 import type { Character } from '@/types/domain/character';
 import type { CharacterExperienceInfo } from '@/types/domain/experience';
 
@@ -41,18 +41,23 @@ export function useCharacterExperience(character: Character | null): CharacterEx
 
 /**
  * Hook to calculate experience progress from raw values
- * @param experienceInCurrentLevel Experience within the current level
+ * @param totalExperience Total accumulated experience (contract value)
  * @param currentLevel Current character level
  * @returns Experience information including level progress
  */
 export function useExperienceProgress(
-  experienceInCurrentLevel: number, 
+  totalExperience: number, 
   currentLevel: number
 ): CharacterExperienceInfo {
   return useMemo(() => {
-    const levelProgress = calculateLevelProgress(experienceInCurrentLevel, currentLevel);
+    // Calculate how much experience is needed for the current level
+    const expRequiredForCurrentLevel = experienceNeededForLevel(currentLevel);
+    
+    // For progress within current level, we interpret the total XP as progress toward current level
+    const expInCurrentLevel = Math.min(totalExperience, expRequiredForCurrentLevel);
+    
+    const levelProgress = calculateLevelProgress(expInCurrentLevel, currentLevel);
     const experienceToNextLevel = levelProgress.requiredExp - levelProgress.currentExp;
-    const totalExperience = cumulativeExperienceForLevel(currentLevel - 1) + experienceInCurrentLevel;
     
     return {
       currentLevel,
@@ -60,5 +65,5 @@ export function useExperienceProgress(
       levelProgress,
       experienceToNextLevel
     };
-  }, [experienceInCurrentLevel, currentLevel]);
+  }, [totalExperience, currentLevel]);
 }

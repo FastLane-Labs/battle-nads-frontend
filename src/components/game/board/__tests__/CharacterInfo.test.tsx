@@ -107,10 +107,10 @@ describe('CharacterInfo Component', () => {
     // Check for Equipment section (mocked)
     expect(screen.getByTestId('equipment-panel')).toBeInTheDocument();
     
-    // Check for Experience section
-    expect(screen.getByText('Experience')).toBeInTheDocument();
+    // Check for Level section (replaces Experience heading)
+    expect(screen.getByText(`Level ${Number(mockCharacter.level)}`)).toBeInTheDocument();
     
-    // Check for experience values
+    // Check for experience values - should show current/required format
     expect(screen.getByText((content, element) => {
       return content.includes(`${Number(mockCharacter.stats.experience)}`) && 
              content.includes('/');
