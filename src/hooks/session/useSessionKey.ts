@@ -6,13 +6,14 @@ import { validateSessionKey } from '../../utils/sessionKeyValidation';
 import { useWallet } from '../../providers/WalletProvider';
 import { useContractPolling } from '../game/useContractPolling';
 import { ZeroAddress } from 'ethers';
+import { hooks } from '@/types';
 
 /**
  * Hook for managing and validating session keys
  * Derives session key data and block number from useBattleNads (which uses useContractPolling)
  * Uses consolidated session key validation utility
  */
-export const useSessionKey = (characterId: string | null) => {
+export const useSessionKey = (characterId: string | null): hooks.UseSessionKeyReturn => {
   // Get wallets
   const { embeddedWallet, injectedWallet } = useWallet();
   const ownerAddress = injectedWallet?.address ?? null; // Ensure ownerAddress is string | null
