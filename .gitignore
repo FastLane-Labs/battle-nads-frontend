@@ -48,5 +48,4 @@ coverage/
 tsconfig.tsbuildinfo
 
 # custom claude commands 
-session/
-commands/
+.claude/*
