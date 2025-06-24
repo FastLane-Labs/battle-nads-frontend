@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { domain } from '@/types';
+import { domain, hooks } from '@/types';
 import { AbilityStage } from '@/types/domain/enums';
 import { useSimplifiedGameState } from './useSimplifiedGameState';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
@@ -52,7 +52,7 @@ export interface AbilityStatus {
  * @param characterId The character ID
  * @returns Ability statuses and actions
  */
-export const useAbilityCooldowns = (characterId: string | null) => {
+export const useAbilityCooldowns = (characterId: string | null): hooks.UseAbilityCooldownsReturn => {
   const { injectedWallet } = useWallet();
   const { client } = useBattleNadsClient();
   const toast = useToast();

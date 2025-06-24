@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import { useWallet } from '../../providers/WalletProvider';
 import { useSessionKey } from '../session/useSessionKey';
-import { domain, contract } from '@/types';
+import { domain, contract, hooks } from '@/types';
 import { mapSessionKeyData } from '../../mappers/contractToDomain';
 import { contractToWorldSnapshot, mapCharacterLite } from '@/mappers';
 import { createAreaID } from '@/utils/areaId';
@@ -20,7 +20,7 @@ export interface UseGameDataOptions {
  * Layer 2: Game data business logic
  * Combines contract data with transformations and business rules
  */
-export const useGameData = (options: UseGameDataOptions = {}) => {
+export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameDataReturn => {
   const {
     includeHistory = true,
     includeSessionKey = true,

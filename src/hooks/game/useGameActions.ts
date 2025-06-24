@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import { useWallet } from '../../providers/WalletProvider';
-import { domain } from '@/types';
+import { domain, hooks } from '@/types';
 import { useGameMutations } from './useGameMutations';
 import { useGameData } from './useGameData';
 import { GameActions } from '@/types/ui';
@@ -16,7 +16,7 @@ export interface UseGameActionsOptions {
  * Layer 2: Game actions business logic
  * Combines mutations with optimistic updates and coordination
  */
-export const useGameActions = (options: UseGameActionsOptions = {}): GameActions => {
+export const useGameActions = (options: UseGameActionsOptions = {}): hooks.UseGameActionsReturn => {
   const {
     includeWallet = true,
     readOnly = false

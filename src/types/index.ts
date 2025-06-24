@@ -12,6 +12,7 @@
 export * as contract from './contract';
 export * as domain from './domain';
 export * as ui from './ui';
+export * as hooks from './hooks';
 
 // Optional: For backward compatibility, re-export some types directly
 // This can be useful during transition, but should be removed eventually
