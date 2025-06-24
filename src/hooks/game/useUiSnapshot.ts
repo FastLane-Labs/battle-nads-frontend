@@ -15,6 +15,9 @@ export const useUiSnapshot = (owner: string | null) => {
   const { embeddedWallet } = useWallet();
   const queryClient = useQueryClient();
 
+  // Request counter to ensure unique parameters (prevents RPC caching)
+  const requestCounterRef = React.useRef(0);
+
   // Only log when wallet addresses change or on first load
   const prevOwnerRef = React.useRef<string | null>(null);
   const prevEmbeddedRef = React.useRef<string | null>(null);
@@ -41,37 +44,20 @@ export const useUiSnapshot = (owner: string | null) => {
     queryKey: ['uiSnapshot', owner, embeddedWallet?.address],
     enabled: !!owner && !!client,
     staleTime: 0, // Always consider data stale to force fresh blockchain queries
+    gcTime: 0, // Don't cache in memory
     refetchInterval: POLL_INTERVAL,
     
     queryFn: async () => {
       if (!client || !owner) throw new Error('Missing client or owner');
       
-      const previousData = queryClient.getQueryData<contract.PollFrontendDataReturn>(['uiSnapshot', owner, embeddedWallet?.address]);
+      requestCounterRef.current += 1;
+      const requestId = requestCounterRef.current;
       
-      // Check if we have any cached data in IndexedDB to determine if this is initial load
-      const { db } = await import('../../lib/db');
-      const ENTRYPOINT_ADDRESS = (await import('../../config/env')).ENTRYPOINT_ADDRESS;
-      const contractAddress = ENTRYPOINT_ADDRESS.toLowerCase();
+      // Simple approach: increment startBlock with each request to prevent RPC caching
+      const startBlock = BigInt(requestId);
       
-      const existingEvents = await db.events
-        .where('[owner+contract]')
-        .equals([owner, contractAddress])
-        .limit(1)
-        .toArray();
+      console.log(`[useUiSnapshot] Request #${requestId}: polling from block ${startBlock}`);
       
-      const hasHistoricalData = existingEvents.length > 0;
-      
-      // Strategy: Always request from block 0 to get maximum coverage
-      // Contract automatically clamps to optimal range:
-      // - startBlock < block.number - 20 → startBlock = block.number - 20 (gives 20-block range)
-      // - startBlock >= block.number → startBlock = block.number - 1 (gives 1-block range)
-      // By using startBlock = 0, we get the maximum 20-block window [current-20, current]
-      const startBlock = BigInt(0);
-      
-      console.log(`[useUiSnapshot] Requesting from block 0 (contract will return last 20 blocks)`, {
-        hasHistoricalData,
-        previousEndBlock: previousData?.endBlock?.toString() || 'none'
-      });
       
       const rawArrayData = await client.getUiSnapshot(owner, startBlock);
 
@@ -105,14 +91,9 @@ export const useUiSnapshot = (owner: string | null) => {
           fetchTimestamp: fetchTimestamp,
         };
         
-        // Log the actual range the contract used
-        const actualRange = Number(mappedData.endBlock) - Number(startBlock);
-        console.log(`[useUiSnapshot] Contract returned endBlock=${mappedData.endBlock}, dataFeeds.length=${mappedData.dataFeeds.length}, actualRange=${actualRange}`, {
-          requestedStartBlock: startBlock.toString(),
-          contractEndBlock: mappedData.endBlock.toString(),
-          dataFeedsCount: mappedData.dataFeeds.length,
-          actualRange
-        });
+        const blockRange = Number(mappedData.endBlock) - Number(startBlock);
+        console.log(`[useUiSnapshot] Request #${requestId} response: startBlock=${startBlock}, endBlock=${mappedData.endBlock}, range=${blockRange}, events=${mappedData.dataFeeds.length}`);
+        
       } catch (mappingError) {
         console.error("[useUiSnapshot] Error during array mapping:", mappingError);
         const errorMessage = mappingError instanceof Error ? mappingError.message : String(mappingError);
@@ -143,6 +124,7 @@ export const useUiSnapshot = (owner: string | null) => {
       return mappedData;
     },
     refetchOnWindowFocus: true,
+    refetchOnMount: 'always', // Always refetch on mount
     structuralSharing: false
   });
 };
