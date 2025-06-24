@@ -38,4 +38,7 @@ export const MAX_SESSION_KEY_VALIDITY_BLOCKS = 172800; // About 24 hours at 0.5s
 // Number of recent blocks to re-check on each poll to account for RPC lag
 export const POLL_LOOKBEHIND_BLOCKS = 10; // 10 seconds at 0.5s per block - sufficient for RPC lag
 
+// Maximum block range that can be queried in a single request (game limitation)
+export const MAX_BLOCK_RANGE_LIMIT = 20;
+
 // Gas limits for different actions (adjust based on network and contract complexity) 

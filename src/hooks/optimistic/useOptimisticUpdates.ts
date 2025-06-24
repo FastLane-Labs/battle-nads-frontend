@@ -114,15 +114,6 @@ export function useOptimisticUpdates(): UseOptimisticUpdatesReturn {
 
     setUpdates(prev => [...prev, update]);
 
-    // Set up automatic rollback for timeout strategy
-    if (rollbackStrategy === 'timeout' && timeoutDuration) {
-      const timeoutId = setTimeout(() => {
-        rollback(id);
-      }, timeoutDuration);
-      
-      timeoutRefs.current.set(id, timeoutId);
-    }
-
     return id;
   }, [rollback]);
 

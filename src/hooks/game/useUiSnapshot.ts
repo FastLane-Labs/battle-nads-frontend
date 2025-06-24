@@ -3,8 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { contract } from '../../types';
-import { POLL_INTERVAL, INITIAL_SNAPSHOT_LOOKBACK_BLOCKS, POLL_LOOKBEHIND_BLOCKS } from '../../config/env';
-import { mapCharacterLite } from '@/mappers';
+import { POLL_INTERVAL } from '../../config/env';
 
 /**
  * Hook for polling UI snapshot data from the blockchain
@@ -62,10 +61,17 @@ export const useUiSnapshot = (owner: string | null) => {
       
       const hasHistoricalData = existingEvents.length > 0;
       
-      const startBlock = previousData?.endBlock && hasHistoricalData
-        ? previousData.endBlock - BigInt(POLL_LOOKBEHIND_BLOCKS)  // Normal polling - only recent blocks
-        : (await client.getLatestBlockNumber()) - BigInt(INITIAL_SNAPSHOT_LOOKBACK_BLOCKS); // Initial load - full history
+      // Strategy: Always request from block 0 to get maximum coverage
+      // Contract automatically clamps to optimal range:
+      // - startBlock < block.number - 20 → startBlock = block.number - 20 (gives 20-block range)
+      // - startBlock >= block.number → startBlock = block.number - 1 (gives 1-block range)
+      // By using startBlock = 0, we get the maximum 20-block window [current-20, current]
+      const startBlock = BigInt(0);
       
+      console.log(`[useUiSnapshot] Requesting from block 0 (contract will return last 20 blocks)`, {
+        hasHistoricalData,
+        previousEndBlock: previousData?.endBlock?.toString() || 'none'
+      });
       
       const rawArrayData = await client.getUiSnapshot(owner, startBlock);
 
@@ -98,6 +104,15 @@ export const useUiSnapshot = (owner: string | null) => {
           endBlock: dataAsAny[12],
           fetchTimestamp: fetchTimestamp,
         };
+        
+        // Log the actual range the contract used
+        const actualRange = Number(mappedData.endBlock) - Number(startBlock);
+        console.log(`[useUiSnapshot] Contract returned endBlock=${mappedData.endBlock}, dataFeeds.length=${mappedData.dataFeeds.length}, actualRange=${actualRange}`, {
+          requestedStartBlock: startBlock.toString(),
+          contractEndBlock: mappedData.endBlock.toString(),
+          dataFeedsCount: mappedData.dataFeeds.length,
+          actualRange
+        });
       } catch (mappingError) {
         console.error("[useUiSnapshot] Error during array mapping:", mappingError);
         const errorMessage = mappingError instanceof Error ? mappingError.message : String(mappingError);
