@@ -14,13 +14,16 @@ describe('useOptimisticUpdates', () => {
 
   it('should add optimistic updates without deduplication', () => {
     const { result } = renderHook(() => useOptimisticUpdates());
+    let updateId: string = '';
 
     act(() => {
-      const id = result.current.addOptimisticUpdate('chat', { message: 'test-basic' });
-      expect(id).toBeTruthy();
-      expect(result.current.updates).toHaveLength(1);
-      expect(result.current.updates[0].data).toEqual({ message: 'test-basic' });
+      updateId = result.current.addOptimisticUpdate('chat', { message: 'test-basic' });
     });
+
+    // Check state after act completes
+    expect(updateId).toBeTruthy();
+    expect(result.current.updates).toHaveLength(1);
+    expect(result.current.updates[0].data).toEqual({ message: 'test-basic' });
   });
 
   it('should remove optimistic updates', () => {
@@ -29,13 +32,15 @@ describe('useOptimisticUpdates', () => {
 
     act(() => {
       updateId = result.current.addOptimisticUpdate('chat', { message: 'test-remove' });
-      expect(result.current.updates).toHaveLength(1);
     });
+
+    expect(result.current.updates).toHaveLength(1);
 
     act(() => {
       result.current.removeOptimisticUpdate(updateId);
-      expect(result.current.updates).toHaveLength(0);
     });
+
+    expect(result.current.updates).toHaveLength(0);
   });
 
   it('should handle timeout rollback strategy', () => {
@@ -48,8 +53,9 @@ describe('useOptimisticUpdates', () => {
         timeoutDuration: 1000,
         onRollback
       });
-      expect(result.current.updates).toHaveLength(1);
     });
+
+    expect(result.current.updates).toHaveLength(1);
 
     act(() => {
       jest.advanceTimersByTime(1000);
@@ -68,6 +74,8 @@ describe('useOptimisticUpdates', () => {
       result.current.addOptimisticUpdate('chat', { message: 'chat2' });
     });
 
+    expect(result.current.updates).toHaveLength(3);
+    
     const chatUpdates = result.current.getUpdatesByType('chat');
     const abilityUpdates = result.current.getUpdatesByType('ability');
 
@@ -81,12 +89,14 @@ describe('useOptimisticUpdates', () => {
     act(() => {
       result.current.addOptimisticUpdate('chat', { message: 'test1' });
       result.current.addOptimisticUpdate('ability', { name: 'fireball' });
-      expect(result.current.updates).toHaveLength(2);
     });
+
+    expect(result.current.updates).toHaveLength(2);
 
     act(() => {
       result.current.clearAll();
-      expect(result.current.updates).toHaveLength(0);
     });
+
+    expect(result.current.updates).toHaveLength(0);
   });
 });

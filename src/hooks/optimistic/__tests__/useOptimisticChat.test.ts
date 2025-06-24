@@ -10,20 +10,21 @@ const wrapper = ({ children }: { children: ReactNode }) => {
 describe('useOptimisticChat', () => {
   it('should add optimistic chat messages', () => {
     const { result } = renderHook(() => useOptimisticChat(), { wrapper });
+    let messageId = '';
 
     act(() => {
-      const id = result.current.addOptimisticChatMessage(
+      messageId = result.current.addOptimisticChatMessage(
         'Hello world test 1',
         { id: 'user1-test1', name: 'TestUser1', index: 1 },
         BigInt(100)
       );
-      
-      expect(id).toBeTruthy();
-      expect(result.current.optimisticChatMessages).toHaveLength(1);
-      expect(result.current.optimisticChatMessages[0].message).toBe('Hello world test 1');
-      expect(result.current.optimisticChatMessages[0].sender.name).toBe('TestUser1');
-      expect(result.current.optimisticChatMessages[0].isOptimistic).toBe(true);
     });
+      
+    expect(messageId).toBeTruthy();
+    expect(result.current.optimisticChatMessages).toHaveLength(1);
+    expect(result.current.optimisticChatMessages[0].message).toBe('Hello world test 1');
+    expect(result.current.optimisticChatMessages[0].sender.name).toBe('TestUser1');
+    expect(result.current.optimisticChatMessages[0].isOptimistic).toBe(true);
   });
 
   it('should prevent duplicate messages', () => {
@@ -34,9 +35,9 @@ describe('useOptimisticChat', () => {
       
       result.current.addOptimisticChatMessage('Hello test 2', character, BigInt(100));
       result.current.addOptimisticChatMessage('Hello test 2', character, BigInt(101));
-      
-      expect(result.current.optimisticChatMessages).toHaveLength(1);
     });
+      
+    expect(result.current.optimisticChatMessages).toHaveLength(1);
   });
 
   it('should check if message is optimistic', () => {
@@ -97,35 +98,43 @@ describe('useOptimisticChat', () => {
 
   it('should remove optimistic message by ID', () => {
     const { result } = renderHook(() => useOptimisticChat(), { wrapper });
+    let messageId = '';
 
     act(() => {
-      const id = result.current.addOptimisticChatMessage(
+      messageId = result.current.addOptimisticChatMessage(
         'Test message 5',
         { id: 'user5-test5', name: 'TestUser5', index: 6 },
         BigInt(100)
       );
-      
-      expect(result.current.optimisticChatMessages).toHaveLength(1);
-      
-      result.current.removeOptimisticChatMessage(id);
-      expect(result.current.optimisticChatMessages).toHaveLength(0);
     });
+      
+    expect(result.current.optimisticChatMessages).toHaveLength(1);
+      
+    act(() => {
+      result.current.removeOptimisticChatMessage(messageId);
+    });
+    
+    expect(result.current.optimisticChatMessages).toHaveLength(0);
   });
 
   it('should handle rollback', () => {
     const { result } = renderHook(() => useOptimisticChat(), { wrapper });
+    let messageId = '';
 
     act(() => {
-      const id = result.current.addOptimisticChatMessage(
+      messageId = result.current.addOptimisticChatMessage(
         'Test message 6',
         { id: 'user6-test6', name: 'TestUser6', index: 7 },
         BigInt(100)
       );
-      
-      expect(result.current.optimisticChatMessages).toHaveLength(1);
-      
-      result.current.rollbackChatMessage(id);
-      expect(result.current.optimisticChatMessages).toHaveLength(0);
     });
+      
+    expect(result.current.optimisticChatMessages).toHaveLength(1);
+      
+    act(() => {
+      result.current.rollbackChatMessage(messageId);
+    });
+    
+    expect(result.current.optimisticChatMessages).toHaveLength(0);
   });
 });
