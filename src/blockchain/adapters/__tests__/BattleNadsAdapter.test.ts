@@ -109,10 +109,13 @@ describe('BattleNadsAdapter', () => {
     
     it('returns correct data structure', async () => {
       const mockReturn: ContractTypes.SessionKeyData = {
+        owner: '0xOwner',
         key: '0xSessionKey',
+        balance: 1000n,
+        targetBalance: 2000n,
+        ownerCommittedAmount: 500n,
+        ownerCommittedShares: 100n,
         expiration: 9999999n,
-        isValid: true,
-        // No 'balance' property expected here
       };
       mockContractMethods.getCurrentSessionKeyData.mockResolvedValueOnce(mockReturn);
       

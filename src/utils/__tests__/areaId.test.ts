@@ -68,12 +68,12 @@ describe('Area ID utilities', () => {
     });
 
     it('should reject invalid area IDs', () => {
-      expect(isValidAreaID('')).toBe(false);
-      expect(isValidAreaID('invalid')).toBe(false);
-      expect(isValidAreaID(123)).toBe(false); // number instead of bigint
+      expect(isValidAreaID('' as any)).toBe(false);
+      expect(isValidAreaID('invalid' as any)).toBe(false);
+      expect(isValidAreaID(123 as any)).toBe(false); // number instead of bigint
       expect(isValidAreaID(-1n)).toBe(false); // negative bigint
-      expect(isValidAreaID(null)).toBe(false);
-      expect(isValidAreaID(undefined)).toBe(false);
+      expect(isValidAreaID(null as any)).toBe(false);
+      expect(isValidAreaID(undefined as any)).toBe(false);
     });
   });
 });

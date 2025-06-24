@@ -68,11 +68,11 @@ describe('useCachedDataFeed', () => {
     };
     
     // Mock all database tables
-    mockDb.events.where.mockReturnValue(mockWhere as any);
-    mockDb.chatMessages.where.mockReturnValue(mockWhere as any);
-    mockDb.dataBlocks.where.mockReturnValue(mockWhere as any);
-    mockDb.characters.put.mockResolvedValue(undefined as any);
-    mockDb.transaction.mockImplementation(async (mode, tables, callback) => {
+    (mockDb.events.where as jest.Mock).mockReturnValue(mockWhere as any);
+    (mockDb.chatMessages.where as jest.Mock).mockReturnValue(mockWhere as any);
+    (mockDb.dataBlocks.where as jest.Mock).mockReturnValue(mockWhere as any);
+    (mockDb.characters.put as jest.Mock).mockResolvedValue(undefined as any);
+    (mockDb.transaction as jest.Mock).mockImplementation(async (mode: any, tables: any, callback: any) => {
       return await callback();
     });
   });
@@ -134,7 +134,7 @@ describe('useCachedDataFeed', () => {
       }),
     };
     
-    mockDb.dataBlocks.where.mockReturnValue(mockWhere as any);
+    (mockDb.dataBlocks.where as jest.Mock).mockReturnValue(mockWhere as any);
 
     const { result } = renderHook(() => useCachedDataFeed(mockOwner, mockCharacterId), {
       wrapper: createWrapper(),
@@ -165,7 +165,7 @@ describe('useCachedDataFeed', () => {
       }),
     };
     
-    mockDb.dataBlocks.where.mockReturnValue(mockWhere as any);
+    (mockDb.dataBlocks.where as jest.Mock).mockReturnValue(mockWhere as any);
 
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
@@ -216,8 +216,8 @@ describe('storeEventData', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    mockDb.events.add.mockResolvedValue(undefined as any);
-    mockDb.chatMessages.add.mockResolvedValue(undefined as any);
+    (mockDb.events.add as jest.Mock).mockResolvedValue(undefined as any);
+    (mockDb.chatMessages.add as jest.Mock).mockResolvedValue(undefined as any);
     
     // Mock first() to return null (no existing events)
     const mockWhere = {
@@ -225,10 +225,10 @@ describe('storeEventData', () => {
         first: jest.fn().mockResolvedValue(null),
       }),
     };
-    mockDb.events.where.mockReturnValue(mockWhere as any);
-    mockDb.chatMessages.where.mockReturnValue(mockWhere as any);
+    (mockDb.events.where as jest.Mock).mockReturnValue(mockWhere as any);
+    (mockDb.chatMessages.where as jest.Mock).mockReturnValue(mockWhere as any);
     
-    mockDb.transaction.mockImplementation(async (mode, tables, callback) => {
+    (mockDb.transaction as jest.Mock).mockImplementation(async (mode: any, tables: any, callback: any) => {
       return await callback();
     });
   });
@@ -269,7 +269,7 @@ describe('storeEventData', () => {
   });
 
   it('should handle database storage errors', async () => {
-    mockDb.events.add.mockRejectedValue(new Error('Storage error'));
+    (mockDb.events.add as jest.Mock).mockRejectedValue(new Error('Storage error'));
     
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
