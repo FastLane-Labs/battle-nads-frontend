@@ -46,3 +46,7 @@ screenshots/
 # Test coverage
 coverage/
 tsconfig.tsbuildinfo
+
+# custom claude commands 
+session/
+commands/

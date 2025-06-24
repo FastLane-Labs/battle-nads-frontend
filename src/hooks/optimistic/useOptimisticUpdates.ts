@@ -42,7 +42,7 @@ export interface UseOptimisticUpdatesReturn {
   ) => void;
 }
 
-const DEFAULT_TIMEOUT_DURATION = 30000; // 30 seconds
+// Timeout duration removed - using explicit rollback strategy only
 
 export function useOptimisticUpdates(): UseOptimisticUpdatesReturn {
   const [updates, setUpdates] = useState<OptimisticUpdate[]>([]);
@@ -81,8 +81,8 @@ export function useOptimisticUpdates(): UseOptimisticUpdatesReturn {
     options: OptimisticUpdateOptions<T> = {}
   ): string => {
     const {
-      rollbackStrategy = 'timeout',
-      timeoutDuration = DEFAULT_TIMEOUT_DURATION,
+      rollbackStrategy = 'explicit',
+      timeoutDuration,
       onRollback,
       deduplicationKey
     } = options;
