@@ -70,8 +70,8 @@ export const useSessionKey = (characterId: string | null) => {
       rawSessionKeyData !== undefined && 
       rawEndBlock !== undefined;
 
-    // Only log validation inputs if there's a problem or first time
-    if (!isInputAvailable || !sessionKey || sessionKey.toLowerCase() === ZeroAddress.toLowerCase()) {
+    // Only log validation inputs if there's a problem or first time (debug only)
+    if (process.env.NODE_ENV === 'development' && (!isInputAvailable || !sessionKey || sessionKey.toLowerCase() === ZeroAddress.toLowerCase())) {
       console.log('[useSessionKey] Validation issue detected:', {
         characterId,
         ownerAddress,
@@ -120,8 +120,8 @@ export const useSessionKey = (characterId: string | null) => {
              
              newSessionKeyState = validation.state;
              
-             // Only log if validation fails or shows problems, and state has changed
-             if (newSessionKeyState !== SessionKeyState.VALID) {
+             // Only log if validation fails or shows problems, and state has changed (debug only)
+             if (process.env.NODE_ENV === 'development' && newSessionKeyState !== SessionKeyState.VALID) {
                const stateKey = `${newSessionKeyState}-${sessionKey}-${embeddedAddr}`;
                if (lastLoggedStateRef.current !== stateKey) {
                  console.log('[useSessionKey] Session key validation failed:', {
