@@ -7,7 +7,8 @@ import {
   Flex, 
   Badge,
   VStack,
-  Image
+  Image,
+  Tooltip
 } from '@chakra-ui/react';
 import { domain } from '@/types';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
@@ -152,13 +153,20 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
                   {experienceInfo?.levelProgress.currentExp || 0} / {experienceInfo?.levelProgress.requiredExp || 0}
                 </span>
               </Flex>
-              <Progress 
-                value={experienceInfo?.levelProgress.percentage || 0} 
-                colorScheme="blue" 
-                size="md"
-                borderRadius="sm" 
-                mb={2}
-              />
+              <Tooltip 
+                label={`${(experienceInfo?.levelProgress.percentage || 0).toFixed(1)}% progress in level ${displayLevel}`}
+                placement="top"
+                hasArrow
+              >
+                <Progress 
+                  value={experienceInfo?.levelProgress.percentage || 0} 
+                  colorScheme="blue" 
+                  size="md"
+                  borderRadius="sm" 
+                  mb={2}
+                  cursor="pointer"
+                />
+              </Tooltip>
               <Flex justify="space-between" align="center" fontSize="sm" className="text-amber-200/80">
                 <Text>Total XP: {experienceInfo?.totalExperience || 0}</Text>
                 <Text>To next level: {experienceInfo?.experienceToNextLevel || 0}</Text>

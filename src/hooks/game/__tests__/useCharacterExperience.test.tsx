@@ -86,10 +86,10 @@ describe('useCharacterExperience', () => {
     
     expect(result.current).not.toBeNull();
     expect(result.current?.currentLevel).toBe(2);
-    expect(result.current?.totalExperience).toBe(200);
-    expect(result.current?.levelProgress.currentExp).toBe(95); // 200 - 105 (cumulative to level 1)
+    expect(result.current?.totalExperience).toBe(305); // 105 (level 1) + 200 (current level)
+    expect(result.current?.levelProgress.currentExp).toBe(200); // XP within current level
     expect(result.current?.levelProgress.requiredExp).toBe(220);
-    expect(result.current?.experienceToNextLevel).toBe(125); // 220 - 95
+    expect(result.current?.experienceToNextLevel).toBe(20); // 220 - 200
   });
 
   it('should recalculate when character experience changes', () => {
@@ -98,7 +98,7 @@ describe('useCharacterExperience', () => {
       { initialProps: { character: mockCharacter } }
     );
 
-    expect(result.current?.totalExperience).toBe(200);
+    expect(result.current?.totalExperience).toBe(305); // 105 (level 1) + 200 (current level)
 
     const updatedCharacter = {
       ...mockCharacter,
@@ -107,8 +107,8 @@ describe('useCharacterExperience', () => {
 
     rerender({ character: updatedCharacter });
 
-    expect(result.current?.totalExperience).toBe(300);
-    expect(result.current?.levelProgress.currentExp).toBe(195); // 300 - 105 (into level 2)
+    expect(result.current?.totalExperience).toBe(405); // 105 (level 1) + 300 (current level)
+    expect(result.current?.levelProgress.currentExp).toBe(220); // Capped at level requirement
   });
 
   it('should recalculate when character level changes', () => {
@@ -128,7 +128,7 @@ describe('useCharacterExperience', () => {
     rerender({ character: leveledUpCharacter });
 
     expect(result.current?.currentLevel).toBe(3);
-    expect(result.current?.totalExperience).toBe(400);
+    expect(result.current?.totalExperience).toBe(725); // 105 + 220 + 400 (cumulative to level 3 + current exp)
   });
 });
 
@@ -137,10 +137,10 @@ describe('useExperienceProgress', () => {
     const { result } = renderHook(() => useExperienceProgress(200, 2));
     
     expect(result.current.currentLevel).toBe(2);
-    expect(result.current.totalExperience).toBe(200);
-    expect(result.current.levelProgress.currentExp).toBe(95);
+    expect(result.current.totalExperience).toBe(305); // 105 (level 1) + 200 (current level)
+    expect(result.current.levelProgress.currentExp).toBe(200); // XP within current level
     expect(result.current.levelProgress.requiredExp).toBe(220);
-    expect(result.current.experienceToNextLevel).toBe(125);
+    expect(result.current.experienceToNextLevel).toBe(20); // 220 - 200
   });
 
   it('should recalculate when values change', () => {
@@ -149,18 +149,19 @@ describe('useExperienceProgress', () => {
       { initialProps: { exp: 200, level: 2 } }
     );
 
-    expect(result.current.totalExperience).toBe(200);
+    expect(result.current.totalExperience).toBe(305); // 105 (level 1) + 200 (current level)
 
     rerender({ exp: 300, level: 2 });
 
-    expect(result.current.totalExperience).toBe(300);
-    expect(result.current.levelProgress.currentExp).toBe(195); // 300 - 105 (into level 2)
+    expect(result.current.totalExperience).toBe(405); // 105 (level 1) + 300 (current level)
+    expect(result.current.levelProgress.currentExp).toBe(220); // Capped at level requirement
   });
 
   it('should handle level 1 correctly', () => {
     const { result } = renderHook(() => useExperienceProgress(50, 1));
     
     expect(result.current.currentLevel).toBe(1);
+    expect(result.current.totalExperience).toBe(50); // No previous levels for level 1
     expect(result.current.levelProgress.currentExp).toBe(50);
     expect(result.current.levelProgress.requiredExp).toBe(105);
     expect(result.current.experienceToNextLevel).toBe(55);

@@ -59,28 +59,18 @@ export function calculateLevelFromExperience(totalExperience: number): number {
 
 /**
  * Calculate experience progress within the current level
- * @param totalExperience The character's total accumulated experience
+ * @param experienceInCurrentLevel Experience points within the current level (not cumulative)
  * @param currentLevel The character's current level
  * @returns Object with current progress and total needed for this level
  */
-export function calculateLevelProgress(totalExperience: number, currentLevel: number): LevelProgress {
-  if (currentLevel <= 1) {
-    const requiredExp = experienceNeededForLevel(1);
-    return {
-      currentExp: Math.min(totalExperience, requiredExp),
-      requiredExp,
-      percentage: Math.min((totalExperience / requiredExp) * 100, 100)
-    };
-  }
-  
-  const expForPreviousLevels = cumulativeExperienceForLevel(currentLevel - 1);
+export function calculateLevelProgress(experienceInCurrentLevel: number, currentLevel: number): LevelProgress {
   const expRequiredForCurrentLevel = experienceNeededForLevel(currentLevel);
-  const expInCurrentLevel = Math.max(0, totalExperience - expForPreviousLevels);
+  const expInLevel = Math.max(0, Math.min(experienceInCurrentLevel, expRequiredForCurrentLevel));
   
   return {
-    currentExp: Math.min(expInCurrentLevel, expRequiredForCurrentLevel),
+    currentExp: expInLevel,
     requiredExp: expRequiredForCurrentLevel,
-    percentage: Math.min((expInCurrentLevel / expRequiredForCurrentLevel) * 100, 100)
+    percentage: expRequiredForCurrentLevel > 0 ? (expInLevel / expRequiredForCurrentLevel) * 100 : 0
   };
 }
 
@@ -107,20 +97,3 @@ export function getExperienceTable(maxLevel: number): ExperienceRequirement[] {
   return table;
 }
 
-/**
- * Get comprehensive experience information for a character
- * @param totalExperience The character's total accumulated experience
- * @param currentLevel The character's current level
- * @returns Complete experience information including progress and next level requirements
- */
-export function getCharacterExperienceInfo(totalExperience: number, currentLevel: number): CharacterExperienceInfo {
-  const levelProgress = calculateLevelProgress(totalExperience, currentLevel);
-  const experienceToNextLevel = levelProgress.requiredExp - levelProgress.currentExp;
-  
-  return {
-    currentLevel,
-    totalExperience,
-    levelProgress,
-    experienceToNextLevel
-  };
-}

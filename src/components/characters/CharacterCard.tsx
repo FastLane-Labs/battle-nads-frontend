@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Button, Stat, StatLabel, StatNumber } from '@chakra-ui/react';
+import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Button, Stat, StatLabel, StatNumber, Tooltip } from '@chakra-ui/react';
 import { Character } from '@/types/domain/character';
 import { calculateMaxHealth } from '@/utils/calculateMaxHealth';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
@@ -219,12 +219,19 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
                   {experienceInfo?.levelProgress.currentExp || 0} / {experienceInfo?.levelProgress.requiredExp || 0}
                 </Text>
               </Flex>
-              <Progress 
-                value={experienceInfo?.levelProgress.percentage || 0} 
-                colorScheme="blue" 
-                size="sm" 
-                mb={2}
-              />
+              <Tooltip 
+                label={`${(experienceInfo?.levelProgress.percentage || 0).toFixed(1)}% progress in level ${Number(level)}`}
+                placement="top"
+                hasArrow
+              >
+                <Progress 
+                  value={experienceInfo?.levelProgress.percentage || 0} 
+                  colorScheme="blue" 
+                  size="sm" 
+                  mb={2}
+                  cursor="pointer"
+                />
+              </Tooltip>
             </Box>
             <Flex justify="space-between">
               <Text fontSize="sm">Gold <Badge bg="gold" color="black" fontSize="xs" ml={1}>SHMONAD</Badge></Text>
