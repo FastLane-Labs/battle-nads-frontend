@@ -77,8 +77,7 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
   const { 
     optimisticChatMessages, 
     addOptimisticChatMessage: addOptimisticChat,
-    isMessageOptimistic,
-    removeConfirmedOptimisticMessages
+    isMessageOptimistic
   } = useOptimisticChat();
   
   // Runtime event state - keeps new events until they're persisted to localStorage
@@ -434,47 +433,8 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
     }
   }, [rawData, includeHistory, historicalEventMessages, historicalChatMessages, optimisticChatMessages, runtimeEvents, owner, characterId]);
 
-  // Create a stable identifier for confirmed messages to prevent re-processing
-  const confirmedMessageIds = useMemo(() => {
-    if (!gameState?.chatLogs || gameState.chatLogs.length === 0) return '';
-    
-    return gameState.chatLogs
-      .filter(chat => !chat.isOptimistic)
-      .map(chat => `${chat.blocknumber}-${chat.logIndex}`)
-      .sort()
-      .join(',');
-  }, [gameState?.chatLogs]);
-
-
-  // Track processed confirmed messages to avoid duplicate optimistic cleanup
-  const processedConfirmedMessages = useRef(new Set<string>());
-
-  // Effect to remove optimistic messages when confirmed versions are detected
-  useEffect(() => {
-    if (!gameState?.chatLogs) return;
-    
-    // Get only confirmed chat messages (not optimistic) from the final merged state
-    const confirmedChatMessages = gameState.chatLogs.filter(chat => !chat.isOptimistic);
-    
-    // Find new confirmed messages we haven't processed yet
-    const newConfirmedMessages = confirmedChatMessages.filter(chat => {
-      const messageKey = `${chat.blocknumber}-${chat.logIndex}-${chat.message}`;
-      return !processedConfirmedMessages.current.has(messageKey);
-    });
-    
-    if (newConfirmedMessages.length > 0) {
-      console.log(`[useGameState] Processing ${newConfirmedMessages.length} NEW confirmed messages for optimistic cleanup`);
-      
-      // Mark these messages as processed
-      newConfirmedMessages.forEach(chat => {
-        const messageKey = `${chat.blocknumber}-${chat.logIndex}-${chat.message}`;
-        processedConfirmedMessages.current.add(messageKey);
-      });
-      
-      // Only clean up optimistic messages for the NEW confirmed messages
-      removeConfirmedOptimisticMessages(newConfirmedMessages);
-    }
-  }, [gameState?.chatLogs, removeConfirmedOptimisticMessages]);
+  // Manual deduplication: optimistic messages are filtered out in the UI layer when confirmed versions exist
+  // No automatic cleanup needed - we handle this through UI-level deduplication
 
 
   /* ---------- Unified world snapshot with session data ---------- */
