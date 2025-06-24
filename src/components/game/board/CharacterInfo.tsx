@@ -7,7 +7,8 @@ import {
   Flex, 
   Badge,
   VStack,
-  Image
+  Image,
+  Tooltip
 } from '@chakra-ui/react';
 import { domain } from '@/types';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
@@ -15,7 +16,6 @@ import { StatDisplay } from './StatDisplay';
 import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState';
 import { useTransactionBalance } from '@/hooks/wallet/useWalletState';
 import { useCharacterExperience } from '@/hooks/game/useCharacterExperience';
-import { GameTooltip } from '../../ui';
 
 
 // Helper to format Gold value (18 decimals)
@@ -153,10 +153,10 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
                   {experienceInfo?.levelProgress.currentExp || 0} / {experienceInfo?.levelProgress.requiredExp || 0}
                 </span>
               </Flex>
-              <GameTooltip 
-                customLabel={`${(experienceInfo?.levelProgress.percentage || 0).toFixed(1)}% progress in level ${displayLevel}`}
-                variant="simple"
+              <Tooltip 
+                label={`${(experienceInfo?.levelProgress.percentage || 0).toFixed(1)}% progress in level ${displayLevel}`}
                 placement="top"
+                hasArrow
               >
                 <Progress 
                   value={experienceInfo?.levelProgress.percentage || 0} 
@@ -166,7 +166,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
                   mb={2}
                   cursor="help"
                 />
-              </GameTooltip>
+              </Tooltip>
               <Flex justify="space-between" align="center" fontSize="sm" className="text-amber-200/80">
                 <Text>Total XP: {experienceInfo?.totalExperience || 0}</Text>
                 <Text>To next level: {experienceInfo?.experienceToNextLevel || 0}</Text>
