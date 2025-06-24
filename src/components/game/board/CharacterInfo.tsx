@@ -164,7 +164,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
                   size="md"
                   borderRadius="sm" 
                   mb={2}
-                  cursor="pointer"
+                  cursor="help"
                 />
               </Tooltip>
               <Flex justify="space-between" align="center" fontSize="sm" className="text-amber-200/80">

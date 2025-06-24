@@ -229,7 +229,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
                   colorScheme="blue" 
                   size="sm" 
                   mb={2}
-                  cursor="pointer"
+                  cursor="help"
                 />
               </Tooltip>
             </Box>
