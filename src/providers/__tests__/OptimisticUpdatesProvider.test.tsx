@@ -23,7 +23,7 @@ describe('OptimisticUpdatesProvider', () => {
   });
 
   it('should throw error when used outside provider', () => {
-    // Suppress console.error for this test
+    // Suppress console.error for this test to avoid verbose JSDOM error output
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
     
     // The hook throws an error, but React catches it and renders error boundaries
@@ -33,10 +33,16 @@ describe('OptimisticUpdatesProvider', () => {
       return <div>Should not render</div>;
     };
     
+    // Suppress JSDOM error reporting for this specific test
+    const originalOnError = window.onerror;
+    window.onerror = () => true; // Prevent JSDOM from logging the error
+    
     expect(() => {
       render(<TestHookComponent />);
     }).toThrow('useOptimisticUpdatesContext must be used within OptimisticUpdatesProvider');
     
+    // Restore original error handling
+    window.onerror = originalOnError;
     consoleSpy.mockRestore();
   });
 });
