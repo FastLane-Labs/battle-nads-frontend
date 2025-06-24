@@ -156,8 +156,15 @@ export const useGameMutations = (characterId: string | null, owner: string | nul
       moveCharacterMutation.mutate({ direction }),
     attack: (targetCharacterIndex: number) => 
       attackMutation.mutate({ targetCharacterIndex }),
-    allocatePoints: (strength: number, vitality: number, dexterity: number, quickness: number, sturdiness: number, luck: number) => 
-      allocatePointsMutation.mutate({ strength, vitality, dexterity, quickness, sturdiness, luck }),
+    allocatePoints: (strength: bigint, vitality: bigint, dexterity: bigint, quickness: bigint, sturdiness: bigint, luck: bigint) => 
+      allocatePointsMutation.mutateAsync({ 
+        strength: Number(strength), 
+        vitality: Number(vitality), 
+        dexterity: Number(dexterity), 
+        quickness: Number(quickness), 
+        sturdiness: Number(sturdiness), 
+        luck: Number(luck) 
+      }),
     sendChatMessage: (message: string) => 
       sendChatMutation.mutate({ message }),
     updateSessionKey: (endBlock: bigint) => 

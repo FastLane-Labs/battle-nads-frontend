@@ -14,7 +14,7 @@ export const useSessionFunding = (characterId: string | null) => {
   const { injectedWallet, embeddedWallet } = useWallet();
   const ownerAddress = injectedWallet?.address ?? null;
 
-  const { rawBalanceShortfall } = useSimplifiedGameState();
+  const { balanceShortfall: rawBalanceShortfall } = useSimplifiedGameState();
   const balanceShortfall = rawBalanceShortfall ?? BigInt(0);
 
   // Mutation for replenishing gas balance

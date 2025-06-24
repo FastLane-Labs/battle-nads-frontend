@@ -11,7 +11,7 @@ import ErrorScreen from '../../components/game/screens/ErrorScreen';
 import { isValidCharacterId } from '../../utils/getCharacterLocalStorageKey';
 
 export default function CharacterPage() {
-  const game = useSimplifiedGameState();
+  const game = useSimplifiedGameState({ includeActions: true });
   const router = useRouter();
 
   useEffect(() => {

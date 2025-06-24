@@ -108,7 +108,7 @@ describe('useSessionFunding', () => {
     (useWallet as jest.Mock).mockReturnValue(mockUseWalletResult);
     
     mockUseSimplifiedGameState.mockReturnValue({
-      rawBalanceShortfall: 0n,
+      balanceShortfall: 0n,
       isLoading: false,
       error: null,
       refetch: jest.fn(), 
@@ -123,7 +123,7 @@ describe('useSessionFunding', () => {
   it('reports funding needed when shortfall is positive', () => {
     const mockShortfall = 1000000000000000000n;
     mockUseSimplifiedGameState.mockReturnValueOnce({
-        rawBalanceShortfall: mockShortfall,
+        balanceShortfall: mockShortfall,
         isLoading: false,
         error: null,
         refetch: jest.fn(),
@@ -136,7 +136,7 @@ describe('useSessionFunding', () => {
   it('successfully calls replenishBalance mutation', () => {
     const mockShortfall = 1000000000000000000n;
     mockUseSimplifiedGameState.mockReturnValueOnce({
-        rawBalanceShortfall: mockShortfall,
+        balanceShortfall: mockShortfall,
         isLoading: false,
         error: null,
         refetch: jest.fn(),
@@ -176,7 +176,7 @@ describe('useSessionFunding', () => {
     const mockError = new Error('Funding failed');
     
     mockUseSimplifiedGameState.mockReturnValue({
-        rawBalanceShortfall: mockShortfall,
+        balanceShortfall: mockShortfall,
         isLoading: false,
         error: null,
         refetch: jest.fn(),
@@ -206,7 +206,7 @@ describe('useSessionFunding', () => {
     const clientError = 'Client creation failed';
     (useBattleNadsClient as jest.Mock).mockReturnValue({ client: null, error: clientError });
     mockUseSimplifiedGameState.mockReturnValueOnce({
-        rawBalanceShortfall: 0n,
+        balanceShortfall: 0n,
         isLoading: false,
         error: clientError,
         refetch: jest.fn(),
