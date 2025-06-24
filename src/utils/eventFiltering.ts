@@ -3,6 +3,7 @@
  */
 
 import { domain } from '@/types';
+import { createAreaID } from '@/utils/areaId';
 
 /**
  * Filters events by area ID
@@ -146,6 +147,6 @@ export function filterEventsByPosition(
   y: number
 ): domain.EventMessage[] {
   // Calculate the area ID for the given position
-  const targetAreaId = BigInt(depth) | (BigInt(x) << 8n) | (BigInt(y) << 16n);
+  const targetAreaId = createAreaID(depth, x, y);
   return filterEventsByArea(events, targetAreaId);
 }
