@@ -19,13 +19,14 @@ export interface GameUpdates {
   error: boolean;
 }
 
-// UI-specific particle effect for animations
+// UI-specific particle effect for animations (damage numbers, healing, status effects)
 export interface ParticleEffect {
   id: number;
   x: number;
   y: number;
-  type: 'damage' | 'heal';
+  type: 'damage' | 'heal' | 'buff' | 'debuff';
   value: number;
+  duration?: number; // Optional animation duration
 }
 
 // UI state type to centralize all UI states

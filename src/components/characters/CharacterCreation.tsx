@@ -1,13 +1,12 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { GameButton, StatIncrementControl, LoadingIndicator, GameModal } from '../ui';
+import { GameButton, StatIncrementControl, LoadingIndicator, GameModal } from '@/components/ui';
 import { 
   Button, 
   FormControl, 
   FormLabel, 
   Input, 
-  Spinner,
   useToast,
   useDisclosure,
 } from '@chakra-ui/react';
