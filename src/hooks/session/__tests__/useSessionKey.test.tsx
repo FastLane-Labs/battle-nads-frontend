@@ -44,7 +44,6 @@ describe('useSessionKey', () => {
   let wrapper: ({ children }: { children: React.ReactNode }) => JSX.Element;
 
   const characterId = 'char1';
-  const sessionKeyAddress = '0xSessionKey';
 
   // Helper to create mock contract session key data
   const createMockContractKeyData = (
