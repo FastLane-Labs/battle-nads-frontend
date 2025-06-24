@@ -13,6 +13,12 @@ interface GameTooltipProps extends Omit<TooltipProps, 'label'> {
   variant?: TooltipVariant;
   customLabel?: ReactNode;
   children: ReactNode;
+  /** 
+   * Whether to wrap children in a positioned Box. 
+   * Disable for block-level elements like Progress bars.
+   * @default true
+   */
+  useWrapper?: boolean;
 }
 
 export const GameTooltip: React.FC<GameTooltipProps> = ({
@@ -26,6 +32,7 @@ export const GameTooltip: React.FC<GameTooltipProps> = ({
   placement = 'top',
   hasArrow = true,
   className = '',
+  useWrapper = true,
   ...props
 }) => {
   // Create tooltip label based on variant
@@ -105,9 +112,13 @@ export const GameTooltip: React.FC<GameTooltipProps> = ({
       className={tooltipClasses}
       {...props}
     >
-      <Box position="relative" display="inline-block">
-        {children}
-      </Box>
+      {useWrapper ? (
+        <Box position="relative" display="inline-block">
+          {children}
+        </Box>
+      ) : (
+        children
+      )}
     </Tooltip>
   );
 };

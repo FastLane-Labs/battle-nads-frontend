@@ -1,10 +1,11 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Button, Stat, StatLabel, StatNumber, Tooltip } from '@chakra-ui/react';
+import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Button, Stat, StatLabel, StatNumber } from '@chakra-ui/react';
 import { Character } from '@/types/domain/character';
 import { calculateMaxHealth } from '@/utils/calculateMaxHealth';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
 import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState';
 import { useCharacterExperience } from '@/hooks/game/useCharacterExperience';
+import { GameTooltip } from '@/components/ui/GameTooltip';
 
 interface CharacterCardProps {
   character: Character; // Corrected type name
@@ -219,10 +220,11 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
                   {experienceInfo?.levelProgress.currentExp || 0} / {experienceInfo?.levelProgress.requiredExp || 0}
                 </Text>
               </Flex>
-              <Tooltip 
-                label={`${(experienceInfo?.levelProgress.percentage || 0).toFixed(1)}% progress in level ${Number(level)}`}
+              <GameTooltip 
+                customLabel={`${(experienceInfo?.levelProgress.percentage || 0).toFixed(1)}% progress in level ${Number(level)}`}
+                variant="simple"
                 placement="top"
-                hasArrow
+                useWrapper={false}
               >
                 <Progress 
                   value={experienceInfo?.levelProgress.percentage || 0} 
@@ -231,7 +233,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
                   mb={2}
                   cursor="help"
                 />
-              </Tooltip>
+              </GameTooltip>
             </Box>
             <Flex justify="space-between">
               <Text fontSize="sm">Gold <Badge bg="gold" color="black" fontSize="xs" ml={1}>SHMONAD</Badge></Text>
