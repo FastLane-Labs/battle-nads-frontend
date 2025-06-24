@@ -7,3 +7,4 @@ export * from './useGameMutations'; // Layer 1: Pure mutations
 export * from './useEquipment';
 export * from './useCachedDataFeed';
 export * from './useAbilityCooldowns';
+export * from './useCharacterExperience';
