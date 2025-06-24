@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from '@/providers/WalletProvider';
-import { useGameState } from '@/hooks/game/useGameState';
+import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState';
 import { isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
 import { useSessionFunding } from '@/hooks/session/useSessionFunding';
 
@@ -25,7 +25,7 @@ const NavBar: React.FC = () => {
     characterId,
     hasWallet,
     sessionKeyData
-  } = useGameState();
+  } = useSimplifiedGameState();
   
   const { 
     deactivateKey, 

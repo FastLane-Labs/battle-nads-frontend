@@ -19,7 +19,7 @@ import {
   Divider
 } from '@chakra-ui/react';
 import { useQueryClient } from '@tanstack/react-query';
-import { useGameState } from '../hooks/game/useGameState';
+import { useSimplifiedGameState } from '../hooks/game/useSimplifiedGameState';
 import { useWallet } from '../providers/WalletProvider';
 import { useBattleNadsClient } from '../hooks/contracts/useBattleNadsClient';
 import { invalidateSnapshot } from '../hooks/utils';
@@ -43,7 +43,7 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
   const [fetchedCharacterId, setFetchedCharacterId] = useState<string | null>(null);
 
   // Hooks
-  const { gameState, isLoading, error } = useGameState({ readOnly: true });
+  const { gameState, isLoading, error } = useSimplifiedGameState({ readOnly: true });
   const { client } = useBattleNadsClient();
   const { injectedWallet, embeddedWallet } = useWallet();
   const toast = useToast();

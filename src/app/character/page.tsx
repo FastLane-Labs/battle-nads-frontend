@@ -5,13 +5,13 @@ import { Box } from '@chakra-ui/react';
 import NavBar from '../../components/NavBar';
 import CharacterDashboard from '../../components/characters/Character';
 import { useRouter } from 'next/navigation';
-import { useGameState } from '../../hooks/game/useGameState';
+import { useSimplifiedGameState } from '../../hooks/game/useSimplifiedGameState';
 import LoadingScreen from '../../components/game/screens/LoadingScreen';
 import ErrorScreen from '../../components/game/screens/ErrorScreen';
 import { isValidCharacterId } from '../../utils/getCharacterLocalStorageKey';
 
 export default function CharacterPage() {
-  const game = useGameState();
+  const game = useSimplifiedGameState();
   const router = useRouter();
 
   useEffect(() => {

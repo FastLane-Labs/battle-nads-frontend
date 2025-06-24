@@ -1,5 +1,6 @@
 // Game hooks
-export * from './game/useGameState'; // Consolidated game state management
+export * from './game/useGameState';
+export * from './game/useSimplifiedGameState'; // Consolidated game state management
 export * from './game/useEquipment';
 export * from './game/useUiSnapshot';
 
