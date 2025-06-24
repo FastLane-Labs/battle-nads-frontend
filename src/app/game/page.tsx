@@ -3,7 +3,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useGameState } from '@/hooks/game/useGameState';
+import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState';
 import LoadingScreen from '@/components/game/screens/LoadingScreen';
 import ErrorScreen from '@/components/game/screens/ErrorScreen';
 import SessionKeyPrompt from '@/components/game/screens/SessionKeyPrompt';
@@ -15,7 +15,7 @@ import { useEffect } from 'react';
 
 export default function GameV2Page() {
   const router = useRouter();
-  const game = useGameState();
+  const game = useSimplifiedGameState();
   const zeroCharacterId = "0x0000000000000000000000000000000000000000000000000000000000000000";
 
   useEffect(() => {

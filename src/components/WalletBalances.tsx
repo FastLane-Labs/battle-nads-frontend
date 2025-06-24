@@ -4,7 +4,7 @@ import { ethers } from "ethers";
 import { useWallet } from "@/providers/WalletProvider";
 import { useWalletBalances } from "@/hooks/wallet/useWalletState";
 import { useBattleNadsClient } from "@/hooks/contracts/useBattleNadsClient";
-import { useGameState } from "@/hooks/game/useGameState";
+import { useSimplifiedGameState } from "@/hooks/game/useSimplifiedGameState";
 import {
   DIRECT_FUNDING_AMOUNT,
   LOW_SESSION_KEY_THRESHOLD,
@@ -30,7 +30,7 @@ const WalletBalances: React.FC = () => {
   } = useWalletBalances(owner);
 
   // Get gameState directly from useGameState
-  const { gameState, error: gameStateError } = useGameState({
+  const { gameState, error: gameStateError } = useSimplifiedGameState({
     includeActions: false,
     includeHistory: false,
   });

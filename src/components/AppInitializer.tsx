@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useGameState } from '../hooks/game/useGameState';
+import { useSimplifiedGameState } from '../hooks/game/useSimplifiedGameState';
 import Login from './auth/Login';
 import LoadingScreen from './game/screens/LoadingScreen';
 import ErrorScreen from './game/screens/ErrorScreen';
@@ -18,7 +18,7 @@ import { useWelcomeScreen } from './onboarding/WelcomeScreen';
 import { useWallet } from '../providers/WalletProvider';
 
 const AppInitializer: React.FC = () => {
-  const game = useGameState();
+  const game = useSimplifiedGameState();
   const router = useRouter();
   const toast = useToast();
   const { currentWallet } = useWallet();

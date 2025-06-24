@@ -12,7 +12,7 @@ import {
 import { domain } from '@/types';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
 import { StatDisplay } from './StatDisplay';
-import { useGameState } from '@/hooks/game/useGameState';
+import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState';
 import { useTransactionBalance } from '@/hooks/wallet/useWalletState';
 
 // Constants from the smart contract
@@ -51,7 +51,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   if (!character) return null;
 
   // Get game state and actions
-  const { worldSnapshot, allocatePoints, isAllocatingPoints, isInCombat } = useGameState();
+  const { worldSnapshot, allocatePoints, isAllocatingPoints, isInCombat } = useSimplifiedGameState();
 
   // Transaction balance validation
   const { isTransactionDisabled, insufficientBalanceMessage } = useTransactionBalance();
