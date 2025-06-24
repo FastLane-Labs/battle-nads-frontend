@@ -108,7 +108,7 @@ export const useSessionKey = (characterId: string | null) => {
                targetBalance: String(rawSessionKeyData.targetBalance || '0'), 
                ownerCommittedAmount: String(rawSessionKeyData.ownerCommittedAmount || '0'),
                ownerCommittedShares: String(rawSessionKeyData.ownerCommittedShares || '0'),
-               expiry: String(rawSessionKeyData.expiration || '0')
+               expiration: String(rawSessionKeyData.expiration || '0')
              } : undefined;
              
              const validation = validateSessionKey(
