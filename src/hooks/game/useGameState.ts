@@ -394,11 +394,21 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       });
       
       
-      // 3. Add optimistic chat messages
-      // Note: Cleanup of confirmed optimistic messages is handled automatically by timeout
+      // 3. Add optimistic chat messages (but only if no confirmed version exists)
       optimisticChatMessages.forEach((optimistic) => {
-        const key = `optimistic-${optimistic.timestamp}-${optimistic.sender.index}`;
-        combinedChatLogsMap.set(key, optimistic);
+        // Check if a confirmed version already exists
+        const hasConfirmedVersion = Array.from(combinedChatLogsMap.values()).some(confirmed => 
+          !confirmed.isOptimistic && 
+          confirmed.message === optimistic.message &&
+          confirmed.sender.id === optimistic.sender.id
+        );
+        
+        if (!hasConfirmedVersion) {
+          const key = `optimistic-${optimistic.timestamp}-${optimistic.sender.index}`;
+          combinedChatLogsMap.set(key, optimistic);
+        } else {
+          console.log(`[useGameState] Skipping optimistic message "${optimistic.message}" - confirmed version exists`);
+        }
       });
 
 
@@ -435,23 +445,36 @@ export const useGameState = (options: UseGameStateOptions = {}): any => {
       .join(',');
   }, [gameState?.chatLogs]);
 
-  // Track last processed to avoid duplicate processing
-  const lastProcessedIds = useRef('');
+
+  // Track processed confirmed messages to avoid duplicate optimistic cleanup
+  const processedConfirmedMessages = useRef(new Set<string>());
 
   // Effect to remove optimistic messages when confirmed versions are detected
   useEffect(() => {
-    if (!confirmedMessageIds || confirmedMessageIds === lastProcessedIds.current) return;
+    if (!gameState?.chatLogs) return;
     
-    lastProcessedIds.current = confirmedMessageIds;
+    // Get only confirmed chat messages (not optimistic) from the final merged state
+    const confirmedChatMessages = gameState.chatLogs.filter(chat => !chat.isOptimistic);
     
-    // Get only confirmed chat messages (not optimistic)
-    const confirmedChatMessages = gameState?.chatLogs?.filter(chat => !chat.isOptimistic) || [];
+    // Find new confirmed messages we haven't processed yet
+    const newConfirmedMessages = confirmedChatMessages.filter(chat => {
+      const messageKey = `${chat.blocknumber}-${chat.logIndex}-${chat.message}`;
+      return !processedConfirmedMessages.current.has(messageKey);
+    });
     
-    if (confirmedChatMessages.length > 0) {
-      console.log(`[useGameState] Processing ${confirmedChatMessages.length} confirmed messages for optimistic cleanup`);
-      removeConfirmedOptimisticMessages(confirmedChatMessages);
+    if (newConfirmedMessages.length > 0) {
+      console.log(`[useGameState] Processing ${newConfirmedMessages.length} NEW confirmed messages for optimistic cleanup`);
+      
+      // Mark these messages as processed
+      newConfirmedMessages.forEach(chat => {
+        const messageKey = `${chat.blocknumber}-${chat.logIndex}-${chat.message}`;
+        processedConfirmedMessages.current.add(messageKey);
+      });
+      
+      // Only clean up optimistic messages for the NEW confirmed messages
+      removeConfirmedOptimisticMessages(newConfirmedMessages);
     }
-  }, [confirmedMessageIds, removeConfirmedOptimisticMessages]);
+  }, [gameState?.chatLogs, removeConfirmedOptimisticMessages]);
 
 
   /* ---------- Unified world snapshot with session data ---------- */
