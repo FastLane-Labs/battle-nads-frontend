@@ -5,6 +5,7 @@
 
 import { contract, domain } from '@/types';
 import { estimateBlockTimestamp } from '@/utils/blockUtils';
+import { validateCharacterHealth } from '@/utils/validateCharacterHealth';
 import { createAreaID } from '@/utils/areaId'; 
 
 /**
@@ -339,13 +340,18 @@ export function mapCharacterLite(
      } as domain.CharacterLite;
   }
  
-  const health = Number(raw.health || 0);
-  const maxHealth = Number(raw.maxHealth || 0);
+  // Use centralized health validation to fix contract bugs
+  const healthValidation = validateCharacterHealth(
+    Number(raw.health), 
+    Number(raw.maxHealth), 
+    Boolean(raw.isDead),
+    raw.id
+  );
   
-  // Defensive validation: If health is 0 OR maxHealth is 0, the character should be dead
-  // This fixes contract bugs where isDead is false but health/maxHealth is 0
-  const shouldBeDead = health <= 0 || maxHealth <= 0;
-  const actuallyDead = Boolean(raw.isDead) || shouldBeDead;
+  // Log warnings for debugging contract inconsistencies
+  if (healthValidation.warnings.length > 0) {
+    console.warn('Character health validation warnings:', healthValidation.warnings);
+  }
 
   // Map properties directly, applying necessary conversions
   const result = {
@@ -354,8 +360,8 @@ export function mapCharacterLite(
     name: raw.name || 'Unknown',
     class: mapContractClassToDomain(raw.class), // Use the class directly now
     level: Number(raw.level || 0),
-    health: health,
-    maxHealth: maxHealth, 
+    health: healthValidation.normalizedHealth,
+    maxHealth: healthValidation.normalizedMaxHealth, 
     buffs: mapStatusEffects(Number(raw.buffs || 0)), 
     debuffs: mapStatusEffects(Number(raw.debuffs || 0)),
     ability: {
@@ -368,7 +374,7 @@ export function mapCharacterLite(
     weaponName: raw.weaponName || '',
     armorName: raw.armorName || '',
     areaId: 0n, // CharacterLite doesn't have position data, so areaId defaults to 0n
-    isDead: actuallyDead // Use our validated death status instead of raw contract value
+    isDead: healthValidation.actuallyDead // Use centralized health validation for death status
   };
 
   return result;

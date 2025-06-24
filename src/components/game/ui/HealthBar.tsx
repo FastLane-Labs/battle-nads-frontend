@@ -1,5 +1,6 @@
 import React from 'react';
 import { Box } from '@chakra-ui/react';
+import { getHealthPercentage } from '@/utils/validateCharacterHealth';
 
 interface HealthBarProps {
   health: number;
@@ -14,9 +15,7 @@ const HealthBar: React.FC<HealthBarProps> = ({
   size = 'medium',
   showLabel = true 
 }) => {
-  const currentHealth = Math.max(0, Number(health));
-  const currentMaxHealth = Number(maxHealth || 100);
-  const healthPercentage = currentMaxHealth > 0 ? (currentHealth / currentMaxHealth) * 100 : 0;
+  const healthPercentage = getHealthPercentage(health, maxHealth) * 100;
 
   // Size configurations
   const sizeConfig = {
@@ -56,7 +55,7 @@ const HealthBar: React.FC<HealthBarProps> = ({
           <div className={`absolute inset-0 flex justify-between items-center ${config.padding}`}>
             <span className={`text-amber-300 font-black font-serif ${config.textSize}`}>HP</span>
             <span className={`text-amber-300 font-black font-serif ${config.textSize}`}>
-              {currentHealth}/{currentMaxHealth}
+              {health}/{maxHealth}
             </span>
           </div>
         )}
