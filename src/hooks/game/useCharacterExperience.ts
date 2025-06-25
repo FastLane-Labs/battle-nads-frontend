@@ -20,9 +20,6 @@ export function useCharacterExperience(character: Character | null): CharacterEx
     const totalExperience = Number(character.stats.experience);
     const currentLevel = Number(character.level);
     
-    // For now, implement the exact behavior described by user:
-    // Level 8 spans 940-1120 total XP, so we need to find the correct start threshold
-    
     // Calculate XP threshold where current level starts
     const currentLevelStartThreshold = cumulativeExperienceForLevel(currentLevel - 1);
     
