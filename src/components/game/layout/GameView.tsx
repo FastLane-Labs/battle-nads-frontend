@@ -53,7 +53,7 @@ const GameView: React.FC<GameViewProps> = ({
   equipableArmorNames
 }) => {
   const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'character' | 'actions'>('character');
+  const [activeTab, setActiveTab] = useState<'character' | 'actions' | 'map'>('character');
 
   // Check if we're in development mode
   const isDev = false; // process.env.NODE_ENV === 'development';
