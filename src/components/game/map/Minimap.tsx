@@ -138,7 +138,21 @@ const Minimap: React.FC<MinimapProps> = memo(({
         height="fit-content"
       >
         {gridCells.map((cell) => {
-          // Build tooltip content
+          // Only show tooltips for revealed areas
+          if (!cell.isRevealed && !cell.isCurrentPosition) {
+            return (
+              <GridItem
+                key={cell.key}
+                className={`
+                  cursor-pointer transition-all duration-200 w-4 h-4 rounded-sm relative
+                  bg-black/60 opacity-50 hover:opacity-70 border border-gray-800 fog-overlay
+                `}
+                onClick={() => onCellClick?.(cell.x, cell.y)}
+              />
+            );
+          }
+          
+          // Build tooltip content for revealed areas
           let tooltipContent = `(${cell.x}, ${cell.y})`;
           if (cell.hasStairsUp || cell.hasStairsDown) {
             const stairInfo = [];
@@ -158,11 +172,8 @@ const Minimap: React.FC<MinimapProps> = memo(({
                 cursor-pointer transition-all duration-200 w-4 h-4 rounded-sm relative
                 ${cell.isCurrentPosition 
                   ? 'bg-yellow-400 animate-pulse border-2 border-amber-300' 
-                  : cell.isRevealed 
-                    ? 'bg-amber-800/60 hover:bg-amber-700/80 border border-amber-600/40' 
-                    : 'bg-black/60 opacity-50 hover:opacity-70 border border-gray-800'
+                  : 'bg-amber-800/60 hover:bg-amber-700/80 border border-amber-600/40'
                 }
-                ${!cell.isRevealed && !cell.isCurrentPosition ? 'fog-overlay' : ''}
               `}
               onClick={() => onCellClick?.(cell.x, cell.y)}
             >
