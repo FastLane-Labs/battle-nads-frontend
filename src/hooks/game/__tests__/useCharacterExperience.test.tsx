@@ -11,10 +11,13 @@ const mockCharacter: Character = {
   id: 'test-character',
   index: 1,
   name: 'Test Character',
-  class: CharacterClass.WARRIOR,
+  class: CharacterClass.Warrior,
   level: 2,
   health: 100,
   maxHealth: 100,
+  experience: 200,
+  weaponName: 'Test Weapon',
+  armorName: 'Test Armor',
   buffs: [],
   debuffs: [],
   stats: {
@@ -166,8 +169,8 @@ describe('useExperienceProgress', () => {
     
     expect(result.current.currentLevel).toBe(1);
     expect(result.current.totalExperience).toBe(50); // No previous levels for level 1
-    expect(result.current.levelProgress.currentExp).toBe(0); // XP within level 1 (50 - 105, clamped to 0)
-    expect(result.current.levelProgress.requiredExp).toBe(115); // Level 1 range (220 - 105)  
+    expect(result.current.levelProgress.currentExp).toBe(50); // XP within level 1 (50 - 0)
+    expect(result.current.levelProgress.requiredExp).toBe(220); // Level 1 range (220 - 0)  
     expect(result.current.experienceToNextLevel).toBe(170); // XP to level 2 (220 - 50)
   });
 
@@ -179,15 +182,34 @@ describe('useExperienceProgress', () => {
     expect(result.current.totalExperience).toBe(280);
     
     // Level thresholds:
-    // - Level 3 starts at: 325 total XP (105 + 220)
-    // - Level 4 starts at: 480 total XP
-    // - Level 3 range: 260 XP (480 - 220)
-    // - With 280 total XP: 60 XP within level 3 (280 - 220)
+    // - Level 3 starts at: 345 total XP
+    // - Level 4 starts at: 480 total XP  
+    // - Level 3 range: 135 XP (480 - 345)
+    // - With 280 total XP: 0 XP within level 3 (280 - 345, clamped to 0)
     // - XP to next level: 480 - 280 = 200
     
     expect(result.current.levelProgress.currentExp).toBe(0); // XP within level 3 (280 - 345, clamped to 0)
     expect(result.current.levelProgress.requiredExp).toBe(135); // Level 3 range (480 - 345)
     expect(result.current.experienceToNextLevel).toBe(200); // XP to level 4 (480 - 280)
     expect(result.current.levelProgress.percentage).toBe(0); // Progress percentage (no progress into level 3)
+  });
+
+  it('should handle level 8 with realistic XP values', () => {
+    // Level 8 character with 985 total XP
+    const { result } = renderHook(() => useExperienceProgress(985, 8));
+    
+    expect(result.current.currentLevel).toBe(8);
+    expect(result.current.totalExperience).toBe(985);
+    
+    // Level thresholds:
+    // - Level 8 starts at: 940 total XP
+    // - Level 9 starts at: 1120 total XP
+    // - Level 8 range: 180 XP (1120 - 940)
+    // - With 985 total XP: 45 XP within level 8 (985 - 940)
+    // - XP to next level: 1120 - 985 = 135
+    
+    expect(result.current.levelProgress.currentExp).toBe(45); // XP within level 8 (985 - 940)
+    expect(result.current.levelProgress.requiredExp).toBe(180); // Level 8 range (1120 - 940)
+    expect(result.current.experienceToNextLevel).toBe(135); // XP to level 9 (1120 - 985)
   });
 });
