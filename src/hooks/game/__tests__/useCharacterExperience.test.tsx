@@ -87,9 +87,9 @@ describe('useCharacterExperience', () => {
     expect(result.current).not.toBeNull();
     expect(result.current?.currentLevel).toBe(2);
     expect(result.current?.totalExperience).toBe(200); // Contract value as-is
-    expect(result.current?.levelProgress.currentExp).toBe(95); // XP within current level (200 - 105)
-    expect(result.current?.levelProgress.requiredExp).toBe(220);
-    expect(result.current?.experienceToNextLevel).toBe(125); // 220 - 95
+    expect(result.current?.levelProgress.currentExp).toBe(95); // XP within level 2 (200 - 105)
+    expect(result.current?.levelProgress.requiredExp).toBe(115); // Level 2 range (220 - 105)
+    expect(result.current?.experienceToNextLevel).toBe(20); // XP to level 3 (220 - 200)
   });
 
   it('should recalculate when character experience changes', () => {
@@ -109,7 +109,7 @@ describe('useCharacterExperience', () => {
 
     expect(result.current?.totalExperience).toBe(300); // Contract value as-is
     expect(result.current?.levelProgress.currentExp).toBe(195); // XP within level 2 (300 - 105)
-    expect(result.current?.experienceToNextLevel).toBe(25); // 220 - 195
+    expect(result.current?.experienceToNextLevel).toBe(0); // Already exceeded level 2 threshold (220)
   });
 
   it('should recalculate when character level changes', () => {
@@ -130,8 +130,8 @@ describe('useCharacterExperience', () => {
 
     expect(result.current?.currentLevel).toBe(3);
     expect(result.current?.totalExperience).toBe(400); // Contract value as-is
-    expect(result.current?.levelProgress.currentExp).toBe(75); // XP within level 3 (400 - 325)
-    expect(result.current?.experienceToNextLevel).toBe(270); // 345 - 75
+    expect(result.current?.levelProgress.currentExp).toBe(180); // XP within level 3 (400 - 220)
+    expect(result.current?.experienceToNextLevel).toBe(0); // Already exceeded level 3 threshold (345)
   });
 });
 
@@ -141,9 +141,9 @@ describe('useExperienceProgress', () => {
     
     expect(result.current.currentLevel).toBe(2);
     expect(result.current.totalExperience).toBe(200); // Uses raw input value
-    expect(result.current.levelProgress.currentExp).toBe(95); // XP within current level (200 - 105)
-    expect(result.current.levelProgress.requiredExp).toBe(220);
-    expect(result.current.experienceToNextLevel).toBe(125); // 220 - 95
+    expect(result.current.levelProgress.currentExp).toBe(95); // XP within level 2 (200 - 105)
+    expect(result.current.levelProgress.requiredExp).toBe(115); // Level 2 range (220 - 105)
+    expect(result.current.experienceToNextLevel).toBe(20); // XP to level 3 (220 - 200)
   });
 
   it('should recalculate when values change', () => {
@@ -158,7 +158,7 @@ describe('useExperienceProgress', () => {
 
     expect(result.current.totalExperience).toBe(300); // Uses raw input value
     expect(result.current.levelProgress.currentExp).toBe(195); // XP within level 2 (300 - 105)
-    expect(result.current.experienceToNextLevel).toBe(25); // 220 - 195
+    expect(result.current.experienceToNextLevel).toBe(0); // Already exceeded level 2 threshold (220)
   });
 
   it('should handle level 1 correctly', () => {
