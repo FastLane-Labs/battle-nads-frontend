@@ -15,28 +15,9 @@ export const useBattleNadsClient = () => {
   const [error, setError] = useState<string | null>(null);
   const wsManagerRef = useRef<WebSocketProviderManager | null>(null);
 
-  // Initialize WebSocket provider manager for future event subscriptions
+  // WebSocket provider manager ready for future event subscriptions
+  // Currently disabled to avoid premature connections
   useEffect(() => {
-    if (!wsManagerRef.current) {
-      wsManagerRef.current = new WebSocketProviderManager({
-        reconnectAttempts: 3,
-        reconnectDelay: 1000,
-        fallbackToHttp: true,
-      });
-    }
-
-    // Initialize WebSocket connection in background for event subscriptions
-    const initializeProvider = async () => {
-      try {
-        await wsManagerRef.current!.getProvider();
-        setError(null);
-      } catch (err) {
-        setError(null); // Don't show error to user, HTTP fallback works
-      }
-    };
-
-    initializeProvider();
-
     return () => {
       if (wsManagerRef.current) {
         try {
@@ -98,7 +79,19 @@ export const useBattleNadsClient = () => {
     }
   }, [readProvider, injectedWallet?.signer, embeddedWallet?.signer]);
 
-  return { client, error };
+  // Function to initialize WebSocket when needed for real-time features
+  const initializeWebSocket = async () => {
+    if (!wsManagerRef.current) {
+      wsManagerRef.current = new WebSocketProviderManager({
+        reconnectAttempts: 3,
+        reconnectDelay: 1000,
+        fallbackToHttp: true,
+      });
+    }
+    return wsManagerRef.current.getProvider();
+  };
+
+  return { client, error, initializeWebSocket };
 };
 
 // Export a new index file that will replace the old contracts hooks
