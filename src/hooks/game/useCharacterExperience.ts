@@ -3,7 +3,7 @@
  */
 
 import { useMemo } from 'react';
-import { calculateLevelProgress, experienceNeededForLevel } from '@/utils/experienceHelpers';
+import { calculateLevelProgress, experienceNeededForLevel, cumulativeExperienceForLevel } from '@/utils/experienceHelpers';
 import type { Character } from '@/types/domain/character';
 import type { CharacterExperienceInfo } from '@/types/domain/experience';
 
@@ -23,9 +23,11 @@ export function useCharacterExperience(character: Character | null): CharacterEx
     // Calculate how much experience is needed for the current level
     const expRequiredForCurrentLevel = experienceNeededForLevel(currentLevel);
     
-    // For progress within current level, we interpret the total XP as progress toward current level
-    // This handles the case where a level 7 character has 890 XP (should show 890/945 progress)
-    const expInCurrentLevel = Math.min(totalExperience, expRequiredForCurrentLevel);
+    // Calculate cumulative experience needed to reach the current level (from previous levels)
+    const expForPreviousLevels = cumulativeExperienceForLevel(currentLevel - 1);
+    
+    // Calculate experience within the current level (should start from 0 after level up)
+    const expInCurrentLevel = Math.max(0, totalExperience - expForPreviousLevels);
     
     const levelProgress = calculateLevelProgress(expInCurrentLevel, currentLevel);
     const experienceToNextLevel = levelProgress.requiredExp - levelProgress.currentExp;
@@ -53,8 +55,11 @@ export function useExperienceProgress(
     // Calculate how much experience is needed for the current level
     const expRequiredForCurrentLevel = experienceNeededForLevel(currentLevel);
     
-    // For progress within current level, we interpret the total XP as progress toward current level
-    const expInCurrentLevel = Math.min(totalExperience, expRequiredForCurrentLevel);
+    // Calculate cumulative experience needed to reach the current level (from previous levels)
+    const expForPreviousLevels = cumulativeExperienceForLevel(currentLevel - 1);
+    
+    // Calculate experience within the current level (should start from 0 after level up)
+    const expInCurrentLevel = Math.max(0, totalExperience - expForPreviousLevels);
     
     const levelProgress = calculateLevelProgress(expInCurrentLevel, currentLevel);
     const experienceToNextLevel = levelProgress.requiredExp - levelProgress.currentExp;
