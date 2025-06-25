@@ -62,19 +62,28 @@ export const useBattleNadsClient = () => {
     try {
       // Try to use an existing wallet provider first to save costs
       if (injectedWallet?.provider) {
+        console.log('🔗 [BattleNads] Using injected wallet provider for contract reads');
         return injectedWallet.provider;
       }
       
       if (embeddedWallet?.provider) {
+        console.log('🔗 [BattleNads] Using embedded wallet provider for contract reads');
         return embeddedWallet.provider;
       }
       
       // Use WebSocket provider if available, otherwise fallback to HTTP
       if (wsProvider) {
+        const providerType = wsProvider.constructor.name;
+        if (providerType === 'WebSocketProvider') {
+          console.log('🔌 [BattleNads] Using WebSocket provider for contract reads');
+        } else {
+          console.log('📡 [BattleNads] Using HTTP provider for contract reads');
+        }
         return wsProvider;
       }
       
       // Final fallback to HTTP JsonRpcProvider
+      console.log('📡 [BattleNads] Using fallback HTTP provider for contract reads');
       return new JsonRpcProvider(RPC_URLS.PRIMARY_HTTP);
     } catch (err) {
       setError(`Provider creation failed: ${(err as Error)?.message || "Unknown error"}`);
