@@ -3,7 +3,7 @@
  */
 
 import { useMemo } from 'react';
-import { calculateLevelProgress, experienceNeededForLevel, cumulativeExperienceForLevel } from '@/utils/experienceHelpers';
+import { cumulativeExperienceForLevel } from '@/utils/experienceHelpers';
 import type { Character } from '@/types/domain/character';
 import type { CharacterExperienceInfo } from '@/types/domain/experience';
 
@@ -20,22 +20,30 @@ export function useCharacterExperience(character: Character | null): CharacterEx
     const totalExperience = Number(character.stats.experience);
     const currentLevel = Number(character.level);
     
-    // Calculate how much experience is needed for the current level
-    const expRequiredForCurrentLevel = experienceNeededForLevel(currentLevel);
+    // For now, implement the exact behavior described by user:
+    // Level 8 spans 940-1120 total XP, so we need to find the correct start threshold
     
-    // Calculate cumulative experience needed to reach the current level (from previous levels)
-    const expForPreviousLevels = cumulativeExperienceForLevel(currentLevel - 1);
+    // Calculate XP threshold where current level starts
+    const currentLevelStartThreshold = cumulativeExperienceForLevel(currentLevel - 1);
     
-    // Calculate experience within the current level (should start from 0 after level up)
-    const expInCurrentLevel = Math.max(0, totalExperience - expForPreviousLevels);
+    // Calculate XP threshold where next level starts (current level ends)
+    const nextLevelStartThreshold = cumulativeExperienceForLevel(currentLevel);
     
-    const levelProgress = calculateLevelProgress(expInCurrentLevel, currentLevel);
-    const experienceToNextLevel = levelProgress.requiredExp - levelProgress.currentExp;
+    // Calculate experience within current level range
+    const expInCurrentLevel = Math.max(0, totalExperience - currentLevelStartThreshold);
+    const expRequiredForCurrentLevel = nextLevelStartThreshold - currentLevelStartThreshold;
+    
+    // Calculate XP needed to reach next level
+    const experienceToNextLevel = Math.max(0, nextLevelStartThreshold - totalExperience);
     
     return {
       currentLevel,
       totalExperience,
-      levelProgress,
+      levelProgress: {
+        currentExp: expInCurrentLevel,
+        requiredExp: expRequiredForCurrentLevel,
+        percentage: expRequiredForCurrentLevel > 0 ? (expInCurrentLevel / expRequiredForCurrentLevel) * 100 : 0
+      },
       experienceToNextLevel
     };
   }, [character?.stats.experience, character?.level]);
@@ -52,22 +60,27 @@ export function useExperienceProgress(
   currentLevel: number
 ): CharacterExperienceInfo {
   return useMemo(() => {
-    // Calculate how much experience is needed for the current level
-    const expRequiredForCurrentLevel = experienceNeededForLevel(currentLevel);
+    // Calculate XP threshold where current level starts
+    const currentLevelStartThreshold = cumulativeExperienceForLevel(currentLevel - 1);
     
-    // Calculate cumulative experience needed to reach the current level (from previous levels)
-    const expForPreviousLevels = cumulativeExperienceForLevel(currentLevel - 1);
+    // Calculate XP threshold where next level starts (current level ends)
+    const nextLevelStartThreshold = cumulativeExperienceForLevel(currentLevel);
     
-    // Calculate experience within the current level (should start from 0 after level up)
-    const expInCurrentLevel = Math.max(0, totalExperience - expForPreviousLevels);
+    // Calculate experience within current level range
+    const expInCurrentLevel = Math.max(0, totalExperience - currentLevelStartThreshold);
+    const expRequiredForCurrentLevel = nextLevelStartThreshold - currentLevelStartThreshold;
     
-    const levelProgress = calculateLevelProgress(expInCurrentLevel, currentLevel);
-    const experienceToNextLevel = levelProgress.requiredExp - levelProgress.currentExp;
+    // Calculate XP needed to reach next level
+    const experienceToNextLevel = Math.max(0, nextLevelStartThreshold - totalExperience);
     
     return {
       currentLevel,
       totalExperience,
-      levelProgress,
+      levelProgress: {
+        currentExp: expInCurrentLevel,
+        requiredExp: expRequiredForCurrentLevel,
+        percentage: expRequiredForCurrentLevel > 0 ? (expInCurrentLevel / expRequiredForCurrentLevel) * 100 : 0
+      },
       experienceToNextLevel
     };
   }, [totalExperience, currentLevel]);
