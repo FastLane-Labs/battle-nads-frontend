@@ -32,10 +32,13 @@ describe('experienceHelpers', () => {
       expect(cumulativeExperienceForLevel(-1)).toBe(0);
     });
 
-    it('should calculate cumulative experience correctly', () => {
-      expect(cumulativeExperienceForLevel(1)).toBe(105);
-      expect(cumulativeExperienceForLevel(2)).toBe(325); // 105 + 220
-      expect(cumulativeExperienceForLevel(3)).toBe(670); // 105 + 220 + 345
+    it('should return absolute XP thresholds matching smart contract logic', () => {
+      // Now returns the XP threshold to reach each level (not cumulative sum)
+      expect(cumulativeExperienceForLevel(1)).toBe(105); // Threshold to reach level 1
+      expect(cumulativeExperienceForLevel(2)).toBe(220); // Threshold to reach level 2  
+      expect(cumulativeExperienceForLevel(3)).toBe(345); // Threshold to reach level 3
+      expect(cumulativeExperienceForLevel(7)).toBe(945); // Threshold to reach level 7
+      expect(cumulativeExperienceForLevel(8)).toBe(1120); // Threshold to reach level 8
     });
   });
 
