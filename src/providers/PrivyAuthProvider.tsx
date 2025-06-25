@@ -2,18 +2,20 @@
 
 import React, { ReactNode } from 'react';
 import { PrivyProvider } from '@privy-io/react-auth';
+import { RPC_URLS } from '@/config/env';
 
 interface PrivyAuthProviderProps {
   children: ReactNode;
 }
 
-// Define Monad testnet chain
+// Define Monad testnet chain with WebSocket support
 const MONAD_TESTNET_CHAIN = {
   name: 'Monad Testnet',
   id: 10143,
   rpcUrls: {
     default: {
-      http: ['https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24']
+      http: [RPC_URLS.PRIMARY_HTTP],
+      webSocket: [RPC_URLS.PRIMARY_WS]
     }
   },
   nativeCurrency: {
