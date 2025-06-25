@@ -6,8 +6,7 @@
  * with the game's position updates to automatically reveal visited areas.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useDebounce } from 'use-debounce';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import { 
   loadFogOfWar, 
   saveFogOfWar, 
@@ -17,11 +16,11 @@ import {
   getFloorBounds,
   getExplorationStats,
 } from '@/utils/fogOfWar';
-import { positionToAreaId } from '@/utils/areaId';
+import { createAreaID } from '@/utils/areaId';
 import { DEFAULT_FOG_CONFIG } from '@/types/domain/fogOfWar';
 import type { Position } from '@/types/domain/character';
 
-interface UseFogOfWarReturn {
+export interface UseFogOfWarReturn {
   /** Set of all revealed areaIds */
   revealedAreas: Set<bigint>;
   
@@ -74,11 +73,9 @@ export function useFogOfWar(
     percentageExplored: 0,
   });
   
-  // Debounce the revealed areas for saving
-  const [debouncedRevealedAreas] = useDebounce(
-    revealedAreas,
-    DEFAULT_FOG_CONFIG.saveDebounceMs
-  );
+  // Debounce saving with useRef and setTimeout
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingSaveRef = useRef<Set<bigint> | null>(null);
   
   // Load initial data
   useEffect(() => {
@@ -101,21 +98,42 @@ export function useFogOfWar(
     }
   }, [characterId]);
   
-  // Save debounced changes
+  // Debounced save effect
   useEffect(() => {
     if (!characterId || isLoading || !DEFAULT_FOG_CONFIG.autoSave) {
       return;
     }
     
-    if (debouncedRevealedAreas.size > 0) {
-      try {
-        saveFogOfWar(characterId, debouncedRevealedAreas);
-        setStats(getExplorationStats(characterId));
-      } catch (error) {
-        console.error('Error saving fog-of-war data:', error);
-      }
+    // Clear any existing timeout
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
-  }, [characterId, debouncedRevealedAreas, isLoading]);
+    
+    // Set pending save data
+    pendingSaveRef.current = revealedAreas;
+    
+    // Schedule save after debounce delay
+    saveTimeoutRef.current = setTimeout(() => {
+      if (pendingSaveRef.current && pendingSaveRef.current.size > 0) {
+        try {
+          saveFogOfWar(characterId, pendingSaveRef.current);
+          setStats(getExplorationStats(characterId));
+        } catch (error) {
+          console.error('Error saving fog-of-war data:', error);
+        }
+      }
+      saveTimeoutRef.current = null;
+      pendingSaveRef.current = null;
+    }, DEFAULT_FOG_CONFIG.saveDebounceMs);
+    
+    // Cleanup on unmount
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+        saveTimeoutRef.current = null;
+      }
+    };
+  }, [characterId, revealedAreas, isLoading]);
   
   // Auto-reveal current position
   useEffect(() => {
@@ -123,7 +141,11 @@ export function useFogOfWar(
       return;
     }
     
-    const currentAreaId = positionToAreaId(currentPosition);
+    const currentAreaId = createAreaID(
+      currentPosition.depth,
+      currentPosition.x,
+      currentPosition.y
+    );
     
     if (!revealedAreas.has(currentAreaId)) {
       setRevealedAreas(prev => {
@@ -136,7 +158,7 @@ export function useFogOfWar(
   
   // Check if a position is revealed
   const isRevealed = useCallback((position: Position): boolean => {
-    const areaId = positionToAreaId(position);
+    const areaId = createAreaID(position.depth, position.x, position.y);
     return revealedAreas.has(areaId);
   }, [revealedAreas]);
   
@@ -160,7 +182,7 @@ export function useFogOfWar(
   
   // Reveal a position
   const revealPosition = useCallback((position: Position): void => {
-    const areaId = positionToAreaId(position);
+    const areaId = createAreaID(position.depth, position.x, position.y);
     revealArea(areaId);
   }, [revealArea]);
   

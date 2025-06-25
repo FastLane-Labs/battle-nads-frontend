@@ -8,6 +8,7 @@ import { createAreaID } from '@/utils/areaId';
 import { useCachedDataFeed, CachedDataBlock, storeEventData, buildCharacterLookup } from './useCachedDataFeed';
 import { useContractPolling } from './useContractPolling';
 import { useOptimisticChat } from '../optimistic/useOptimisticChat';
+import { useFogOfWar } from './useFogOfWar';
 
 export interface UseGameDataOptions {
   /** Whether to include historical data processing (default: true) */
@@ -74,6 +75,7 @@ export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameData
   const sessionKeyHook = useSessionKey(includeSessionKey ? characterId : null);
   const sessionKeyData = sessionKeyHook?.sessionKeyData || null;
   const sessionKeyState = sessionKeyHook?.sessionKeyState || null;
+
 
   // Runtime logs processing
   const processAndMergeRuntimeLogs = useCallback((uiSnapshot: contract.PollFrontendDataReturn) => {
@@ -394,6 +396,24 @@ export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameData
     );
   }, [rawData, gameState, addOptimisticChat, isMessageOptimistic]);
 
+  // Character ID for fog-of-war (combining owner and character for uniqueness)
+  const fogCharacterId = useMemo(() => {
+    if (!owner || !characterId) return null;
+    return `${owner}:${characterId}`;
+  }, [owner, characterId]);
+
+  // Current position for fog-of-war from processed gameState
+  const currentPosition = useMemo(() => {
+    return gameState?.character ? {
+      x: gameState.character.position.x,
+      y: gameState.character.position.y,
+      depth: gameState.character.position.depth
+    } : null;
+  }, [gameState]);
+
+  // Fog-of-war management
+  const fogOfWar = useFogOfWar(fogCharacterId, currentPosition);
+
   return {
     // Core data
     worldSnapshot,
@@ -455,5 +475,19 @@ export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameData
       getDataSummaryForOwner,
       historicalBlocks,
     }),
+    
+    // Fog-of-war data
+    fogOfWar: {
+      revealedAreas: fogOfWar.revealedAreas,
+      isRevealed: fogOfWar.isRevealed,
+      isAreaRevealed: fogOfWar.isAreaRevealed,
+      revealArea: fogOfWar.revealArea,
+      revealPosition: fogOfWar.revealPosition,
+      getFloorCells: fogOfWar.getFloorCells,
+      getFloorExplorationBounds: fogOfWar.getFloorExplorationBounds,
+      clearFog: fogOfWar.clearFog,
+      stats: fogOfWar.stats,
+      isLoading: fogOfWar.isLoading,
+    },
   };
 };

@@ -13,6 +13,7 @@
 import { domain, contract } from '@/types';
 import { GameActions } from '@/types/ui';
 import { SessionKeyState } from '@/types/domain/session';
+import type { UseFogOfWarReturn } from '@/hooks/game/useFogOfWar';
 
 // Import AbilityStatus from the hook that defines it
 import type { AbilityStatus } from '@/hooks/game/useAbilityCooldowns';
@@ -74,6 +75,9 @@ export interface UseGameDataReturn {
   getAllCharactersForOwner?: (owner: string) => Promise<any[]>; // Returns StoredCharacterMetadata[] - keeping any for simplicity
   getDataSummaryForOwner?: (owner: string) => any; // Complex aggregated data - keeping any for simplicity  
   historicalBlocks?: any[]; // Complex cached data - keeping any for simplicity
+  
+  // Fog-of-war data
+  fogOfWar: UseFogOfWarReturn;
 }
 
 /**
