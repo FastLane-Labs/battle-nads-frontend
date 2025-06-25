@@ -250,6 +250,7 @@ const AppInitializer: React.FC = () => {
            equipableWeaponNames={rawEquipableWeaponNames}
            equipableArmorIDs={rawEquipableArmorIDs}
            equipableArmorNames={rawEquipableArmorNames}
+           fogOfWar={game.fogOfWar}
          />,
          "Game Container"
       );

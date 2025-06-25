@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Flex, Badge } from '@chakra-ui/react';
-import { domain } from '@/types';
+import { domain, hooks } from '@/types';
 import CharacterInfo from '@/components/game/board/CharacterInfo';
 import { AbilityControls } from '@/components/game/controls/AbilityControls';
 import MovementControls from '@/components/game/controls/MovementControls';
@@ -21,6 +21,7 @@ interface CharacterActionsTabsProps {
   isInCombat: boolean;
   activeTab: 'character' | 'actions' | 'map';
   setActiveTab: (tab: 'character' | 'actions' | 'map') => void;
+  fogOfWar?: hooks.UseGameDataReturn['fogOfWar'];
 }
 
 const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
@@ -36,7 +37,8 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
   isAttacking,
   isInCombat,
   activeTab,
-  setActiveTab
+  setActiveTab,
+  fogOfWar
 }) => {
   return (
     <div className="flex flex-col h-full">
@@ -183,6 +185,7 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
               depth: Number(position.z)
             } : null}
             characterId={character?.id?.toString() || null}
+            fogOfWar={fogOfWar}
           />
         </div>
       </div>

@@ -63,7 +63,10 @@ export const useSimplifiedGameState = (options: UseSimplifiedGameStateOptions = 
     // Core game state (with null safety)
     ...(gameData || {}),
     
-    // Actions (always included)
+    // Actions (always included) - spread after to allow action overrides
     ...actions,
+    
+    // Explicitly preserve fogOfWar from gameData if it exists
+    ...(gameData?.fogOfWar ? { fogOfWar: gameData.fogOfWar } : {}),
   };
 };
