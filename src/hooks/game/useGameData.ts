@@ -9,6 +9,7 @@ import { useCachedDataFeed, CachedDataBlock, storeEventData, buildCharacterLooku
 import { useContractPolling } from './useContractPolling';
 import { useOptimisticChat } from '../optimistic/useOptimisticChat';
 import { useFogOfWar } from './useFogOfWar';
+import { ENTRYPOINT_ADDRESS } from '@/config/env';
 
 export interface UseGameDataOptions {
   /** Whether to include historical data processing (default: true) */
@@ -411,11 +412,12 @@ export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameData
     } : null;
   }, [gameState]);
 
-  // Fog-of-war management
+  // Fog-of-war management  
   const fogOfWar = useFogOfWar(
     fogCharacterId, 
     currentPosition,
-    gameState?.character?.movementOptions
+    gameState?.character?.movementOptions,
+    ENTRYPOINT_ADDRESS.toLowerCase()
   );
 
   return {

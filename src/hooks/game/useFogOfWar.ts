@@ -14,7 +14,8 @@ import {
   getExplorationStats,
   loadStairsData,
   saveStairsData,
-} from '@/utils/fogOfWar';
+} from '@/lib/fogOfWar';
+import { ENTRYPOINT_ADDRESS } from '@/config/env';
 import { createAreaID } from '@/utils/areaId';
 import { DEFAULT_FOG_CONFIG } from '@/types/domain/fogOfWar';
 import type { Position } from '@/types/domain/character';
@@ -70,8 +71,10 @@ export interface UseFogOfWarReturn {
 export function useFogOfWar(
   characterId: string | null,
   currentPosition?: Position | null,
-  movementOptions?: { canMoveUp?: boolean; canMoveDown?: boolean } | null
+  movementOptions?: { canMoveUp?: boolean; canMoveDown?: boolean } | null,
+  contractAddress?: string
 ): UseFogOfWarReturn {
+  const currentContract = contractAddress?.toLowerCase() || ENTRYPOINT_ADDRESS.toLowerCase();
   const [revealedAreas, setRevealedAreas] = useState<Set<bigint>>(new Set());
   const [stairsUp, setStairsUp] = useState<Set<string>>(new Set()); // "x,y,depth" format
   const [stairsDown, setStairsDown] = useState<Set<string>>(new Set()); // "x,y,depth" format
@@ -98,12 +101,12 @@ export function useFogOfWar(
     
     setIsLoading(true);
     try {
-      const loaded = loadFogOfWar(characterId);
-      const stairsData = loadStairsData(characterId);
+      const loaded = loadFogOfWar(characterId, currentContract);
+      const stairsData = loadStairsData(characterId, currentContract);
       setRevealedAreas(loaded);
       setStairsUp(stairsData.stairsUp);
       setStairsDown(stairsData.stairsDown);
-      setStats(getExplorationStats(characterId));
+      setStats(getExplorationStats(characterId, currentContract));
     } catch (error) {
       console.error('Error loading fog-of-war data:', error);
       setRevealedAreas(new Set());
@@ -112,7 +115,7 @@ export function useFogOfWar(
     } finally {
       setIsLoading(false);
     }
-  }, [characterId]);
+  }, [characterId, currentContract]);
   
   // Debounced save effect
   useEffect(() => {
@@ -132,8 +135,8 @@ export function useFogOfWar(
     saveTimeoutRef.current = setTimeout(() => {
       if (pendingSaveRef.current && pendingSaveRef.current.size > 0) {
         try {
-          saveFogOfWar(characterId, pendingSaveRef.current, stairsUp, stairsDown);
-          setStats(getExplorationStats(characterId));
+          saveFogOfWar(characterId, pendingSaveRef.current, stairsUp, stairsDown, currentContract);
+          setStats(getExplorationStats(characterId, currentContract));
         } catch (error) {
           console.error('Error saving fog-of-war data:', error);
         }
@@ -149,7 +152,7 @@ export function useFogOfWar(
         saveTimeoutRef.current = null;
       }
     };
-  }, [characterId, revealedAreas, stairsUp, stairsDown, isLoading]);
+  }, [characterId, currentContract, revealedAreas, stairsUp, stairsDown, isLoading]);
   
   // Auto-reveal current position and track stairs
   useEffect(() => {
@@ -191,7 +194,7 @@ export function useFogOfWar(
         });
       }
     }
-  }, [characterId, currentPosition, movementOptions, isLoading, revealedAreas]);
+  }, [characterId, currentContract, currentPosition, movementOptions, isLoading, revealedAreas]);
   
   // Check if a position is revealed
   const isRevealed = useCallback((position: Position): boolean => {
@@ -298,7 +301,7 @@ export function useFogOfWar(
   const clearFog = useCallback(() => {
     if (!characterId) return;
     
-    clearFogStorage(characterId);
+    clearFogStorage(characterId, currentContract);
     setRevealedAreas(new Set());
     setStairsUp(new Set());
     setStairsDown(new Set());
@@ -307,7 +310,7 @@ export function useFogOfWar(
       floorsVisited: 0,
       percentageExplored: 0,
     });
-  }, [characterId]);
+  }, [characterId, currentContract]);
   
   return {
     revealedAreas,

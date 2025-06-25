@@ -74,8 +74,6 @@ export const clearPreviousContractData = async (): Promise<void> => {
     // Clear character data from localStorage
     // We need to clear all battleNads:character:* keys since they contain the old contract address
     const keysToRemove: string[] = [];
-    
-    // First, collect all keys to remove (don't modify localStorage during iteration)
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith('battleNads:character:')) {
@@ -83,7 +81,6 @@ export const clearPreviousContractData = async (): Promise<void> => {
       }
     }
     
-    // Then remove all collected keys
     keysToRemove.forEach(key => {
       localStorage.removeItem(key);
       logger.debug('[contractChangeDetection] Removed localStorage key', { key });
