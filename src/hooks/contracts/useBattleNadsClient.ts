@@ -19,7 +19,6 @@ export const useBattleNadsClient = () => {
   useEffect(() => {
     if (!ENABLE_WEBSOCKET) {
       // WebSocket disabled, use HTTP directly
-      console.log('📡 [BattleNads] WebSocket disabled by feature flag - Using HTTP polling');
       setWsProvider(new JsonRpcProvider(RPC_URLS.PRIMARY_HTTP));
       return;
     }
@@ -36,16 +35,7 @@ export const useBattleNadsClient = () => {
         const provider = await wsManager.getProvider();
         setWsProvider(provider);
         setError(null);
-        
-        // Log provider type for debugging
-        const providerType = provider.constructor.name;
-        if (providerType === 'WebSocketProvider') {
-          console.log('🔌 [BattleNads] Using WebSocket for contract polling - Real-time updates enabled');
-        } else {
-          console.log('📡 [BattleNads] Using HTTP fallback for contract polling');
-        }
       } catch (err) {
-        console.warn('❌ [BattleNads] WebSocket initialization failed, using HTTP fallback:', (err as Error)?.message || 'Unknown error');
         // Fallback to HTTP provider
         setWsProvider(new JsonRpcProvider(RPC_URLS.PRIMARY_HTTP));
         setError(null);
@@ -57,33 +47,24 @@ export const useBattleNadsClient = () => {
     // No cleanup needed - singleton manages its own lifecycle
   }, []);
 
-  // Create a read-only provider that prefers WebSocket for polling
+  // Create a read-only provider that uses WebSocket for polling only
   const readProvider = useMemo(() => {
     try {
-      // Try to use an existing wallet provider first to save costs
+      // Use WebSocket for read-only polling when enabled and available
+      if (ENABLE_WEBSOCKET && wsProvider) {
+        return wsProvider;
+      }
+      
+      // Fallback to wallet providers when WebSocket disabled or unavailable
       if (injectedWallet?.provider) {
-        console.log('🔗 [BattleNads] Using injected wallet provider for contract reads');
         return injectedWallet.provider;
       }
       
       if (embeddedWallet?.provider) {
-        console.log('🔗 [BattleNads] Using embedded wallet provider for contract reads');
         return embeddedWallet.provider;
       }
       
-      // Use WebSocket provider if available, otherwise fallback to HTTP
-      if (wsProvider) {
-        const providerType = wsProvider.constructor.name;
-        if (providerType === 'WebSocketProvider') {
-          console.log('🔌 [BattleNads] Using WebSocket provider for contract reads');
-        } else {
-          console.log('📡 [BattleNads] Using HTTP provider for contract reads');
-        }
-        return wsProvider;
-      }
-      
       // Final fallback to HTTP JsonRpcProvider
-      console.log('📡 [BattleNads] Using fallback HTTP provider for contract reads');
       return new JsonRpcProvider(RPC_URLS.PRIMARY_HTTP);
     } catch (err) {
       setError(`Provider creation failed: ${(err as Error)?.message || "Unknown error"}`);
