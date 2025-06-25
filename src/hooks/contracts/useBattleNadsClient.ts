@@ -3,7 +3,7 @@ import { JsonRpcProvider, WebSocketProvider } from 'ethers';
 import { useWallet } from '@/providers/WalletProvider';
 import { BattleNadsAdapter } from '@/blockchain/adapters/BattleNadsAdapter';
 import { BattleNadsClient } from '@/blockchain/clients/BattleNadsClient';
-import { ENTRYPOINT_ADDRESS, RPC_URLS } from '@/config/env';
+import { ENTRYPOINT_ADDRESS, RPC_URLS, ENABLE_WEBSOCKET } from '@/config/env';
 import { WebSocketProviderManager } from '@/utils/websocketProvider';
 
 /**
@@ -16,8 +16,14 @@ export const useBattleNadsClient = () => {
   const wsManagerRef = useRef<WebSocketProviderManager | null>(null);
   const [wsProvider, setWsProvider] = useState<WebSocketProvider | JsonRpcProvider | null>(null);
 
-  // Initialize WebSocket provider manager
+  // Initialize WebSocket provider manager (if enabled)
   useEffect(() => {
+    if (!ENABLE_WEBSOCKET) {
+      // WebSocket disabled, use HTTP directly
+      setWsProvider(new JsonRpcProvider(RPC_URLS.PRIMARY_HTTP));
+      return;
+    }
+
     if (!wsManagerRef.current) {
       wsManagerRef.current = new WebSocketProviderManager({
         reconnectAttempts: 2,
