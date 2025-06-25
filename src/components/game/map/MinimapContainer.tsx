@@ -53,33 +53,16 @@ const MinimapContainer: React.FC<MinimapContainerProps> = ({
   }, [currentPosition, viewingDepth]);
   
   return (
-    <Flex direction="column" gap={4}>
+    <Flex direction="column" gap={3}>
       {/* Header with stats */}
-      <Box className="bg-gray-800 border border-amber-600 rounded-lg p-4">
-        <Flex justify="space-between" align="center">
-          <Box>
-            <Text className="gold-text text-xl font-serif uppercase">
-              World Map
-            </Text>
-            <Text className="gold-text-light text-sm mt-1">
-              {stats.totalRevealed} areas explored ({stats.percentageExplored}%)
-            </Text>
-          </Box>
-          
-          <GameTooltip title="Clear all exploration data" placement="left">
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-red-600 text-red-400 hover:bg-red-900/20"
-              onClick={() => {
-                if (window.confirm('Clear all exploration data? This cannot be undone.')) {
-                  clearFog();
-                }
-              }}
-            >
-              Clear Map
-            </Button>
-          </GameTooltip>
+      <Box className="bg-dark-brown border border-black/40 rounded-lg p-3">
+        <Flex direction="column" gap={2}>
+          <Text className="gold-text text-xl font-serif font-semibold">
+            World Map
+          </Text>
+          <Text className="text-amber-200/80 text-sm">
+            {stats.totalRevealed} areas explored ({stats.percentageExplored}%)
+          </Text>
         </Flex>
       </Box>
       
@@ -101,10 +84,29 @@ const MinimapContainer: React.FC<MinimapContainerProps> = ({
       />
       
       {/* Instructions */}
-      <Box className="bg-gray-800 border border-amber-600 rounded-lg p-3">
-        <Text className="gold-text-light text-xs">
+      <Box className="bg-dark-brown border border-black/40 rounded-lg p-3">
+        <Text className="text-amber-200/80 text-xs text-center">
           Click on any explored cell to navigate there. The map reveals as you explore new areas.
         </Text>
+      </Box>
+
+      {/* Clear Map Button */}
+      <Box className="bg-dark-brown border border-black/40 rounded-lg p-3">
+        <GameTooltip title="Clear all exploration data" placement="top">
+          <Button
+            size="sm"
+            variant="outline"
+            width="100%"
+            className="border-red-600/60 text-red-400 hover:bg-red-900/20 hover:border-red-500 transition-all duration-200"
+            onClick={() => {
+              if (window.confirm('Clear all exploration data? This cannot be undone.')) {
+                clearFog();
+              }
+            }}
+          >
+            Clear Map Data
+          </Button>
+        </GameTooltip>
       </Box>
     </Flex>
   );

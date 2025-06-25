@@ -65,12 +65,13 @@
   bottom: 0;
   background: repeating-linear-gradient(
     45deg,
-    rgba(0, 0, 0, 0.3),
-    rgba(0, 0, 0, 0.3) 2px,
+    rgba(26, 23, 5, 0.6),
+    rgba(26, 23, 5, 0.6) 2px,
     transparent 2px,
-    transparent 4px
+    transparent 3px
   );
   pointer-events: none;
+  border-radius: 2px;
 }
 
 /* State Change Animations */
