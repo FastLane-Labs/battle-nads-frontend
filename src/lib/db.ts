@@ -93,6 +93,7 @@ export interface StoredCharacterMetadata {
   lastActive: number;   // Timestamp of last activity (for switching back to recent character)
 }
 
+
 // Define the Dexie database instance
 // We use casting to provide type safety for our tables
 // Changed database name to force fresh start with event-level schema

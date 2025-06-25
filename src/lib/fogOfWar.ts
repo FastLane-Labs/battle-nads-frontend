@@ -14,19 +14,23 @@ const FOG_STORAGE_VERSION = 1;
 
 /**
  * Get the localStorage key for a character's fog-of-war data
+ * @param characterId - The character's unique identifier
+ * @param contractAddress - The contract address (optional, uses env default)
  */
-function getStorageKey(characterId: string): string {
-  return `${FOG_STORAGE_PREFIX}${characterId}`;
+function getStorageKey(characterId: string, contractAddress?: string): string {
+  const contract = contractAddress?.toLowerCase() || 'default';
+  return `${FOG_STORAGE_PREFIX}${contract}:${characterId}`;
 }
 
 /**
  * Load fog-of-war data for a character from localStorage
  * @param characterId - The character's unique identifier
+ * @param contractAddress - The contract address (optional, uses env default)
  * @returns Set of revealed areaIds, or empty set if no data exists
  */
-export function loadFogOfWar(characterId: string): Set<bigint> {
+export function loadFogOfWar(characterId: string, contractAddress?: string): Set<bigint> {
   try {
-    const key = getStorageKey(characterId);
+    const key = getStorageKey(characterId, contractAddress);
     const stored = localStorage.getItem(key);
     
     if (!stored) {
@@ -57,15 +61,17 @@ export function loadFogOfWar(characterId: string): Set<bigint> {
  * @param revealedAreas - Set of revealed areaIds
  * @param stairsUp - Set of stairs up positions ("x,y,depth" format)
  * @param stairsDown - Set of stairs down positions ("x,y,depth" format)
+ * @param contractAddress - The contract address (optional, uses env default)
  */
 export function saveFogOfWar(
   characterId: string, 
   revealedAreas: Set<bigint>,
   stairsUp?: Set<string>,
-  stairsDown?: Set<string>
+  stairsDown?: Set<string>,
+  contractAddress?: string
 ): void {
   try {
-    const key = getStorageKey(characterId);
+    const key = getStorageKey(characterId, contractAddress);
     
     // Load existing data to preserve other characters' data
     let existingData: FogOfWarStorage = {
@@ -141,14 +147,15 @@ export function saveFogOfWar(
  * Add a newly revealed area for a character
  * @param characterId - The character's unique identifier
  * @param areaId - The areaId to reveal
+ * @param contractAddress - The contract address (optional, uses env default)
  * @returns Updated set of revealed areas
  */
-export function addRevealedArea(characterId: string, areaId: bigint): Set<bigint> {
-  const revealedAreas = loadFogOfWar(characterId);
+export function addRevealedArea(characterId: string, areaId: bigint, contractAddress?: string): Set<bigint> {
+  const revealedAreas = loadFogOfWar(characterId, contractAddress);
   
   if (!revealedAreas.has(areaId)) {
     revealedAreas.add(areaId);
-    saveFogOfWar(characterId, revealedAreas);
+    saveFogOfWar(characterId, revealedAreas, undefined, undefined, contractAddress);
   }
   
   return revealedAreas;
@@ -158,20 +165,22 @@ export function addRevealedArea(characterId: string, areaId: bigint): Set<bigint
  * Check if an area is revealed for a character
  * @param characterId - The character's unique identifier
  * @param areaId - The areaId to check
+ * @param contractAddress - The contract address (optional, uses env default)
  * @returns True if the area is revealed
  */
-export function isAreaRevealed(characterId: string, areaId: bigint): boolean {
-  const revealedAreas = loadFogOfWar(characterId);
+export function isAreaRevealed(characterId: string, areaId: bigint, contractAddress?: string): boolean {
+  const revealedAreas = loadFogOfWar(characterId, contractAddress);
   return revealedAreas.has(areaId);
 }
 
 /**
  * Clear fog-of-war data for a character
  * @param characterId - The character's unique identifier
+ * @param contractAddress - The contract address (optional, uses env default)
  */
-export function clearFogOfWar(characterId: string): void {
+export function clearFogOfWar(characterId: string, contractAddress?: string): void {
   try {
-    const key = getStorageKey(characterId);
+    const key = getStorageKey(characterId, contractAddress);
     localStorage.removeItem(key);
   } catch (error) {
     console.error('Error clearing fog-of-war data:', error);
@@ -212,9 +221,10 @@ function clearOldFogData(): void {
  */
 export function getRevealedCellsForFloor(
   characterId: string,
-  depth: number
+  depth: number,
+  contractAddress?: string
 ): Set<string> {
-  const revealedAreas = loadFogOfWar(characterId);
+  const revealedAreas = loadFogOfWar(characterId, contractAddress);
   const revealedCells = new Set<string>();
   
   for (const areaId of revealedAreas) {
@@ -236,9 +246,10 @@ export function getRevealedCellsForFloor(
  */
 export function getFloorBounds(
   characterId: string,
-  depth: number
+  depth: number,
+  contractAddress?: string
 ): { minX: number; maxX: number; minY: number; maxY: number } | null {
-  const revealedCells = getRevealedCellsForFloor(characterId, depth);
+  const revealedCells = getRevealedCellsForFloor(characterId, depth, contractAddress);
   
   if (revealedCells.size === 0) {
     return null;
@@ -262,12 +273,12 @@ export function getFloorBounds(
  * @param characterId - The character's unique identifier
  * @returns Exploration statistics
  */
-export function getExplorationStats(characterId: string): {
+export function getExplorationStats(characterId: string, contractAddress?: string): {
   totalRevealed: number;
   floorsVisited: number;
   percentageExplored: number;
 } {
-  const revealedAreas = loadFogOfWar(characterId);
+  const revealedAreas = loadFogOfWar(characterId, contractAddress);
   const floorSet = new Set<number>();
   let validRevealedCount = 0;
   
@@ -293,14 +304,15 @@ export function getExplorationStats(characterId: string): {
 /**
  * Load stairs data for a character from localStorage
  * @param characterId - The character's unique identifier
+ * @param contractAddress - The contract address (optional, uses env default)
  * @returns Object with stairs up and down sets
  */
-export function loadStairsData(characterId: string): {
+export function loadStairsData(characterId: string, contractAddress?: string): {
   stairsUp: Set<string>;
   stairsDown: Set<string>;
 } {
   try {
-    const key = getStorageKey(characterId);
+    const key = getStorageKey(characterId, contractAddress);
     const data = localStorage.getItem(key);
     
     if (!data) {
@@ -325,13 +337,15 @@ export function loadStairsData(characterId: string): {
  * @param characterId - The character's unique identifier
  * @param stairsUp - Set of stairs up positions ("x,y,depth" format)
  * @param stairsDown - Set of stairs down positions ("x,y,depth" format)
+ * @param contractAddress - The contract address (optional, uses env default)
  */
 export function saveStairsData(
   characterId: string,
   stairsUp: Set<string>,
-  stairsDown: Set<string>
+  stairsDown: Set<string>,
+  contractAddress?: string
 ): void {
   // Load existing revealed areas and save everything together
-  const revealedAreas = loadFogOfWar(characterId);
-  saveFogOfWar(characterId, revealedAreas, stairsUp, stairsDown);
+  const revealedAreas = loadFogOfWar(characterId, contractAddress);
+  saveFogOfWar(characterId, revealedAreas, stairsUp, stairsDown, contractAddress);
 }
