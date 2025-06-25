@@ -4,7 +4,7 @@ import { domain } from '@/types';
 import { useFogOfWar } from '@/hooks/game/useFogOfWar';
 import Minimap from './Minimap';
 import FloorSelector from './FloorSelector';
-import GameTooltip from '@/components/ui/GameTooltip';
+import { GameTooltip } from '@/components/ui/GameTooltip';
 
 interface MinimapContainerProps {
   /** Current character position */
@@ -65,7 +65,7 @@ const MinimapContainer: React.FC<MinimapContainerProps> = ({
             </Text>
           </Box>
           
-          <GameTooltip label="Clear all exploration data" placement="left">
+          <GameTooltip title="Clear all exploration data" placement="left">
             <Button
               size="sm"
               variant="outline"

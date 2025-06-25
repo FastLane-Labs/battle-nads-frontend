@@ -2,7 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Box, Grid, GridItem, Text, Flex } from '@chakra-ui/react';
 import { domain } from '@/types';
 import { useFogOfWar } from '@/hooks/game/useFogOfWar';
-import GameTooltip from '@/components/ui/GameTooltip';
+import { GameTooltip } from '@/components/ui/GameTooltip';
 
 interface MinimapProps {
   /** Current character position */
@@ -107,7 +107,7 @@ const Minimap: React.FC<MinimapProps> = ({
         {gridCells.map((cell) => (
           <GameTooltip
             key={cell.key}
-            label={`(${cell.x}, ${cell.y})`}
+            title={`(${cell.x}, ${cell.y})`}
             placement="top"
           >
             <GridItem

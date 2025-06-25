@@ -7,7 +7,7 @@
  */
 
 import { FogOfWarStorage, FogOfWarState, DEFAULT_FOG_CONFIG } from '@/types/domain/fogOfWar';
-import { areaIdToPosition, positionToAreaId } from '@/utils/areaId';
+import { parseAreaID, createAreaID } from '@/utils/areaId';
 
 const FOG_STORAGE_PREFIX = 'battleNads:fogOfWar:';
 const FOG_STORAGE_VERSION = 1;
@@ -181,7 +181,7 @@ export function getRevealedCellsForFloor(
   const revealedCells = new Set<string>();
   
   for (const areaId of revealedAreas) {
-    const position = areaIdToPosition(areaId);
+    const position = parseAreaID(areaId);
     if (position.depth === depth) {
       revealedCells.add(`${position.x},${position.y}`);
     }
@@ -233,7 +233,7 @@ export function getExplorationStats(characterId: string): {
   const floorSet = new Set<number>();
   
   for (const areaId of revealedAreas) {
-    const position = areaIdToPosition(areaId);
+    const position = parseAreaID(areaId);
     floorSet.add(position.depth);
   }
   
