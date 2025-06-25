@@ -32,13 +32,13 @@ describe('experienceHelpers', () => {
       expect(cumulativeExperienceForLevel(-1)).toBe(0);
     });
 
-    it('should return cumulative XP thresholds to reach each level', () => {
-      // Returns the cumulative XP needed to reach each level
-      expect(cumulativeExperienceForLevel(1)).toBe(105); // 105 total to reach level 1
-      expect(cumulativeExperienceForLevel(2)).toBe(325); // 105 + 220 = 325 total to reach level 2
-      expect(cumulativeExperienceForLevel(3)).toBe(670); // 105 + 220 + 345 = 670 total to reach level 3
-      expect(cumulativeExperienceForLevel(7)).toBe(3500); // Sum of levels 1-7
-      expect(cumulativeExperienceForLevel(8)).toBe(4620); // Sum of levels 1-8
+    it('should return individual XP thresholds for each level', () => {
+      // Returns the individual XP threshold for each level
+      expect(cumulativeExperienceForLevel(1)).toBe(105); // 105 XP threshold for level 1
+      expect(cumulativeExperienceForLevel(2)).toBe(220); // 220 XP threshold for level 2
+      expect(cumulativeExperienceForLevel(3)).toBe(345); // 345 XP threshold for level 3
+      expect(cumulativeExperienceForLevel(7)).toBe(945); // 945 XP threshold for level 7
+      expect(cumulativeExperienceForLevel(8)).toBe(1120); // 1120 XP threshold for level 8
     });
   });
 

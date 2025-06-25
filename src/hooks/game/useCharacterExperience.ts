@@ -21,10 +21,10 @@ export function useCharacterExperience(character: Character | null): CharacterEx
     const currentLevel = Number(character.level);
     
     // Calculate XP threshold where current level starts
-    const currentLevelStartThreshold = cumulativeExperienceForLevel(currentLevel - 1);
+    const currentLevelStartThreshold = cumulativeExperienceForLevel(currentLevel);
     
-    // Calculate XP threshold where next level starts (current level ends)
-    const nextLevelStartThreshold = cumulativeExperienceForLevel(currentLevel);
+    // Calculate XP threshold where current level ends (next level starts)
+    const nextLevelStartThreshold = cumulativeExperienceForLevel(currentLevel + 1);
     
     // Calculate experience within current level range
     const expInCurrentLevel = Math.max(0, totalExperience - currentLevelStartThreshold);
@@ -58,10 +58,10 @@ export function useExperienceProgress(
 ): CharacterExperienceInfo {
   return useMemo(() => {
     // Calculate XP threshold where current level starts
-    const currentLevelStartThreshold = cumulativeExperienceForLevel(currentLevel - 1);
+    const currentLevelStartThreshold = cumulativeExperienceForLevel(currentLevel);
     
-    // Calculate XP threshold where next level starts (current level ends)
-    const nextLevelStartThreshold = cumulativeExperienceForLevel(currentLevel);
+    // Calculate XP threshold where current level ends (next level starts)
+    const nextLevelStartThreshold = cumulativeExperienceForLevel(currentLevel + 1);
     
     // Calculate experience within current level range
     const expInCurrentLevel = Math.max(0, totalExperience - currentLevelStartThreshold);
