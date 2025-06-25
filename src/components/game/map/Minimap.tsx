@@ -11,7 +11,7 @@ interface MinimapProps {
   characterId: string | null;
   /** Callback when a cell is clicked */
   onCellClick?: (x: number, y: number) => void;
-  /** Size of the viewport (e.g., 11 means 11x11 grid) */
+  /** Size of the viewport (e.g., 21 means 21x21 grid) */
   viewportSize?: number;
   /** Current floor depth being displayed */
   currentDepth?: number;
@@ -21,7 +21,7 @@ const Minimap: React.FC<MinimapProps> = ({
   currentPosition,
   characterId,
   onCellClick,
-  viewportSize = 11,
+  viewportSize = 21,
   currentDepth,
 }) => {
   // Use the current position's depth if not specified
@@ -99,10 +99,12 @@ const Minimap: React.FC<MinimapProps> = ({
       
       {/* Grid */}
       <Grid
-        templateColumns={`repeat(${gridColumns}, 1fr)`}
-        templateRows={`repeat(${gridRows}, 1fr)`}
-        gap={0.5}
+        templateColumns={`repeat(${gridColumns}, 16px)`}
+        templateRows={`repeat(${gridRows}, 16px)`}
+        gap="1px"
         className="bg-gray-900 p-2 rounded"
+        width="fit-content"
+        height="fit-content"
       >
         {gridCells.map((cell) => (
           <GameTooltip
@@ -112,9 +114,9 @@ const Minimap: React.FC<MinimapProps> = ({
           >
             <GridItem
               className={`
-                aspect-square cursor-pointer transition-all duration-200
+                cursor-pointer transition-all duration-200 w-4 h-4
                 ${cell.isCurrentPosition 
-                  ? 'bg-blue-500 animate-pulse shadow-lg shadow-blue-400/50' 
+                  ? 'bg-blue-500 animate-pulse' 
                   : cell.isRevealed 
                     ? 'bg-gray-700 hover:bg-gray-600' 
                     : 'bg-gray-900 opacity-50 hover:opacity-70'
