@@ -8,8 +8,8 @@ export interface ProviderConfig {
 }
 
 const DEFAULT_CONFIG: Required<ProviderConfig> = {
-  reconnectAttempts: 3,
-  reconnectDelay: 1000,
+  reconnectAttempts: 2, // Reduce attempts to avoid overwhelming endpoint
+  reconnectDelay: 2000, // Increase delay between attempts
   fallbackToHttp: true,
 };
 
@@ -67,7 +67,7 @@ export class WebSocketProviderManager {
     const wsUrl = RPC_URLS.PRIMARY_WS;
     
     try {
-      // Create provider with manual network specification to avoid eth_chainId call
+      // Create provider with manual network specification and connection options
       const provider = new WebSocketProvider(wsUrl, {
         chainId: CHAIN_ID,
         name: 'monad-testnet'
@@ -76,12 +76,32 @@ export class WebSocketProviderManager {
       // Set up event handlers
       this.setupWebSocketHandlers(provider);
       
+      // Test the connection before returning
+      await this.testConnection(provider);
+      
       return provider;
       
     } catch (error) {
       console.error('WebSocket connection failed:', (error as Error).message);
       throw error;
     }
+  }
+
+  private async testConnection(provider: WebSocketProvider): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('WebSocket connection test timeout'));
+      }, 5000);
+
+      // Test with a simple network call
+      provider.getNetwork().then(() => {
+        clearTimeout(timeout);
+        resolve();
+      }).catch((error) => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+    });
   }
 
   private createHttpProvider(): JsonRpcProvider {

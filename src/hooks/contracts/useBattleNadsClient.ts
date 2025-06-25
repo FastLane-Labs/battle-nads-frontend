@@ -20,8 +20,8 @@ export const useBattleNadsClient = () => {
   useEffect(() => {
     if (!wsManagerRef.current) {
       wsManagerRef.current = new WebSocketProviderManager({
-        reconnectAttempts: 3,
-        reconnectDelay: 1000,
+        reconnectAttempts: 2,
+        reconnectDelay: 3000, // Longer delay to avoid overwhelming endpoint
         fallbackToHttp: true,
       });
     }
