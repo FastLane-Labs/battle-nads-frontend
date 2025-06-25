@@ -348,10 +348,7 @@ export function mapCharacterLite(
     raw.id
   );
   
-  // Log warnings for debugging contract inconsistencies
-  if (healthValidation.warnings.length > 0) {
-    console.warn('Character health validation warnings:', healthValidation.warnings);
-  }
+  // Note: Health validation warnings suppressed - needs smart contract fix
 
   // Map properties directly, applying necessary conversions
   const result = {

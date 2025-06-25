@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react';
-import { JsonRpcProvider, Signer } from 'ethers';
-import { useWallet } from '../../providers/WalletProvider';
-import { BattleNadsAdapter } from '../../blockchain/adapters/BattleNadsAdapter';
-import { BattleNadsClient } from '../../blockchain/clients/BattleNadsClient';
-import { ENTRYPOINT_ADDRESS, RPC } from '../../config/env';
+import { useMemo, useState, useEffect, useRef } from 'react';
+import { JsonRpcProvider, WebSocketProvider } from 'ethers';
+import { useWallet } from '@/providers/WalletProvider';
+import { BattleNadsAdapter } from '@/blockchain/adapters/BattleNadsAdapter';
+import { BattleNadsClient } from '@/blockchain/clients/BattleNadsClient';
+import { ENTRYPOINT_ADDRESS, RPC_URLS } from '@/config/env';
+import { WebSocketProviderManager } from '@/utils/websocketProvider';
 
 /**
  * Hook for accessing the BattleNadsClient
@@ -12,11 +13,46 @@ import { ENTRYPOINT_ADDRESS, RPC } from '../../config/env';
 export const useBattleNadsClient = () => {
   const { injectedWallet, embeddedWallet } = useWallet();
   const [error, setError] = useState<string | null>(null);
+  const wsManagerRef = useRef<WebSocketProviderManager | null>(null);
 
-  // Create a read-only provider that falls back to RPC if needed
+  // Initialize WebSocket provider manager for future event subscriptions
+  useEffect(() => {
+    if (!wsManagerRef.current) {
+      wsManagerRef.current = new WebSocketProviderManager({
+        reconnectAttempts: 3,
+        reconnectDelay: 1000,
+        fallbackToHttp: true,
+      });
+    }
+
+    // Initialize WebSocket connection in background for event subscriptions
+    const initializeProvider = async () => {
+      try {
+        await wsManagerRef.current!.getProvider();
+        setError(null);
+      } catch (err) {
+        setError(null); // Don't show error to user, HTTP fallback works
+      }
+    };
+
+    initializeProvider();
+
+    return () => {
+      if (wsManagerRef.current) {
+        try {
+          wsManagerRef.current.destroy();
+        } catch (error) {
+          // Ignore cleanup errors
+        }
+        wsManagerRef.current = null;
+      }
+    };
+  }, []);
+
+  // Create a read-only provider that prioritizes reliability for contract reads
   const readProvider = useMemo(() => {
     try {
-      // Try to use an existing wallet provider first to save RPC costs
+      // Try to use an existing wallet provider first to save costs
       if (injectedWallet?.provider) {
         return injectedWallet.provider;
       }
@@ -25,11 +61,12 @@ export const useBattleNadsClient = () => {
         return embeddedWallet.provider;
       }
       
-      // Fallback to a JsonRpcProvider
-      return new JsonRpcProvider(RPC);
+      // For read operations, use HTTP provider to ensure compatibility
+      // WebSocket is reserved for future event subscriptions
+      return new JsonRpcProvider(RPC_URLS.PRIMARY_HTTP);
     } catch (err) {
       setError(`Provider creation failed: ${(err as Error)?.message || "Unknown error"}`);
-      return new JsonRpcProvider(RPC);
+      return new JsonRpcProvider(RPC_URLS.PRIMARY_HTTP);
     }
   }, [injectedWallet?.provider, embeddedWallet?.provider]);
 
