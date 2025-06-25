@@ -87,9 +87,9 @@ describe('useCharacterExperience', () => {
     expect(result.current).not.toBeNull();
     expect(result.current?.currentLevel).toBe(2);
     expect(result.current?.totalExperience).toBe(200); // Contract value as-is
-    expect(result.current?.levelProgress.currentExp).toBe(200); // XP within current level
+    expect(result.current?.levelProgress.currentExp).toBe(95); // XP within current level (200 - 105)
     expect(result.current?.levelProgress.requiredExp).toBe(220);
-    expect(result.current?.experienceToNextLevel).toBe(20); // 220 - 200
+    expect(result.current?.experienceToNextLevel).toBe(125); // 220 - 95
   });
 
   it('should recalculate when character experience changes', () => {
@@ -108,7 +108,8 @@ describe('useCharacterExperience', () => {
     rerender({ character: updatedCharacter });
 
     expect(result.current?.totalExperience).toBe(300); // Contract value as-is
-    expect(result.current?.levelProgress.currentExp).toBe(220); // Capped at level requirement
+    expect(result.current?.levelProgress.currentExp).toBe(195); // XP within level 2 (300 - 105)
+    expect(result.current?.experienceToNextLevel).toBe(25); // 220 - 195
   });
 
   it('should recalculate when character level changes', () => {
@@ -129,6 +130,8 @@ describe('useCharacterExperience', () => {
 
     expect(result.current?.currentLevel).toBe(3);
     expect(result.current?.totalExperience).toBe(400); // Contract value as-is
+    expect(result.current?.levelProgress.currentExp).toBe(75); // XP within level 3 (400 - 325)
+    expect(result.current?.experienceToNextLevel).toBe(270); // 345 - 75
   });
 });
 
@@ -138,9 +141,9 @@ describe('useExperienceProgress', () => {
     
     expect(result.current.currentLevel).toBe(2);
     expect(result.current.totalExperience).toBe(200); // Uses raw input value
-    expect(result.current.levelProgress.currentExp).toBe(200); // XP within current level
+    expect(result.current.levelProgress.currentExp).toBe(95); // XP within current level (200 - 105)
     expect(result.current.levelProgress.requiredExp).toBe(220);
-    expect(result.current.experienceToNextLevel).toBe(20); // 220 - 200
+    expect(result.current.experienceToNextLevel).toBe(125); // 220 - 95
   });
 
   it('should recalculate when values change', () => {
@@ -154,7 +157,8 @@ describe('useExperienceProgress', () => {
     rerender({ exp: 300, level: 2 });
 
     expect(result.current.totalExperience).toBe(300); // Uses raw input value
-    expect(result.current.levelProgress.currentExp).toBe(220); // Capped at level requirement
+    expect(result.current.levelProgress.currentExp).toBe(195); // XP within level 2 (300 - 105)
+    expect(result.current.experienceToNextLevel).toBe(25); // 220 - 195
   });
 
   it('should handle level 1 correctly', () => {
@@ -165,5 +169,25 @@ describe('useExperienceProgress', () => {
     expect(result.current.levelProgress.currentExp).toBe(50);
     expect(result.current.levelProgress.requiredExp).toBe(105);
     expect(result.current.experienceToNextLevel).toBe(55);
+  });
+
+  it('should handle the reported bug scenario: Level 8 with 947 total XP', () => {
+    // Level 8 character with 947 total XP
+    // Cumulative XP for levels 1-7: 105+220+345+480+625+780+945 = 3500
+    // So 947 total XP means they're actually at a much lower level than 8
+    // But if they're level 8 in the contract, we calculate progress within level 8
+    const { result } = renderHook(() => useExperienceProgress(947, 8));
+    
+    expect(result.current.currentLevel).toBe(8);
+    expect(result.current.totalExperience).toBe(947);
+    
+    // Calculate cumulative XP needed to reach level 8 (levels 1-7)
+    // Level 1: 105, Level 2: 220, Level 3: 345, Level 4: 480, Level 5: 625, Level 6: 780, Level 7: 945
+    // Cumulative for levels 1-7: 3500
+    // Since total XP (947) < cumulative for previous levels (3500), XP within level 8 should be 0
+    expect(result.current.levelProgress.currentExp).toBe(0); // Max(0, 947 - 3500) = 0
+    expect(result.current.levelProgress.requiredExp).toBe(1120); // Level 8 requirement: 8*100 + 8²*5 = 1120
+    expect(result.current.experienceToNextLevel).toBe(1120); // 1120 - 0
+    expect(result.current.levelProgress.percentage).toBe(0); // Should show 0% progress
   });
 });
