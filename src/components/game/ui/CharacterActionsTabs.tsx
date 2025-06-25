@@ -178,9 +178,9 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
         >
           <MinimapContainer 
             currentPosition={position ? {
-              x: position.x,
-              y: position.y,
-              depth: position.z
+              x: Number(position.x),
+              y: Number(position.y),
+              depth: Number(position.z)
             } : null}
             characterId={character?.id?.toString() || null}
           />

@@ -11,7 +11,7 @@ interface MinimapProps {
   characterId: string | null;
   /** Callback when a cell is clicked */
   onCellClick?: (x: number, y: number) => void;
-  /** Size of the viewport (e.g., 15 means 15x15 grid) */
+  /** Size of the viewport (e.g., 11 means 11x11 grid) */
   viewportSize?: number;
   /** Current floor depth being displayed */
   currentDepth?: number;
@@ -21,11 +21,11 @@ const Minimap: React.FC<MinimapProps> = ({
   currentPosition,
   characterId,
   onCellClick,
-  viewportSize = 15,
+  viewportSize = 11,
   currentDepth,
 }) => {
   // Use the current position's depth if not specified
-  const displayDepth = currentDepth ?? currentPosition?.depth ?? 0;
+  const displayDepth = currentDepth ?? (currentPosition?.depth ? Number(currentPosition.depth) : 1);
   
   // Get fog-of-war data
   const { getFloorCells, isLoading } = useFogOfWar(characterId, currentPosition);
@@ -37,8 +37,8 @@ const Minimap: React.FC<MinimapProps> = ({
   // Calculate viewport bounds centered on player
   const viewportBounds = useMemo(() => {
     const halfSize = Math.floor(viewportSize / 2);
-    const centerX = currentPosition?.x ?? 25;
-    const centerY = currentPosition?.y ?? 25;
+    const centerX = currentPosition?.x ? Number(currentPosition.x) : 25;
+    const centerY = currentPosition?.y ? Number(currentPosition.y) : 25;
     
     return {
       minX: Math.max(0, centerX - halfSize),
@@ -55,9 +55,9 @@ const Minimap: React.FC<MinimapProps> = ({
     for (let y = viewportBounds.minY; y <= viewportBounds.maxY; y++) {
       for (let x = viewportBounds.minX; x <= viewportBounds.maxX; x++) {
         const isCurrentPosition = 
-          currentPosition?.x === x && 
-          currentPosition?.y === y && 
-          currentPosition?.depth === displayDepth;
+          currentPosition?.x && Number(currentPosition.x) === x && 
+          currentPosition?.y && Number(currentPosition.y) === y && 
+          currentPosition?.depth && Number(currentPosition.depth) === displayDepth;
         
         const isRevealed = revealedCells.has(`${x},${y}`);
         

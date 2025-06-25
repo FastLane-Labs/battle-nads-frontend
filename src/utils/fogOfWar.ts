@@ -182,7 +182,8 @@ export function getRevealedCellsForFloor(
   
   for (const areaId of revealedAreas) {
     const position = parseAreaID(areaId);
-    if (position.depth === depth) {
+    // Skip floor 0 as it doesn't exist in the game  
+    if (position.depth === depth && position.depth > 0) {
       revealedCells.add(`${position.x},${position.y}`);
     }
   }
@@ -231,17 +232,22 @@ export function getExplorationStats(characterId: string): {
 } {
   const revealedAreas = loadFogOfWar(characterId);
   const floorSet = new Set<number>();
+  let validRevealedCount = 0;
   
   for (const areaId of revealedAreas) {
     const position = parseAreaID(areaId);
-    floorSet.add(position.depth);
+    // Only count floors 1-50 (skip floor 0 as it doesn't exist)
+    if (position.depth > 0) {
+      floorSet.add(position.depth);
+      validRevealedCount++;
+    }
   }
   
-  const totalPossibleAreas = 51 * 51 * 51; // 0-50 for each dimension
-  const percentageExplored = (revealedAreas.size / totalPossibleAreas) * 100;
+  const totalPossibleAreas = 50 * 51 * 51; // 1-50 for depth, 0-50 for x,y
+  const percentageExplored = (validRevealedCount / totalPossibleAreas) * 100;
   
   return {
-    totalRevealed: revealedAreas.size,
+    totalRevealed: validRevealedCount,
     floorsVisited: floorSet.size,
     percentageExplored: Math.round(percentageExplored * 100) / 100,
   };

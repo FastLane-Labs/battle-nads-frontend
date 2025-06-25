@@ -22,7 +22,7 @@ const MinimapContainer: React.FC<MinimapContainerProps> = ({
 }) => {
   // Track which floor we're viewing (defaults to character's floor)
   const [viewingDepth, setViewingDepth] = useState<number>(
-    currentPosition?.depth ?? 0
+    currentPosition?.depth ? Number(currentPosition.depth) : 1
   );
   
   // Get fog-of-war stats
@@ -42,11 +42,12 @@ const MinimapContainer: React.FC<MinimapContainerProps> = ({
   
   // Sync viewing depth with character position when it changes
   React.useEffect(() => {
-    if (currentPosition && currentPosition.depth !== viewingDepth) {
+    if (currentPosition && Number(currentPosition.depth) !== viewingDepth) {
+      const currentDepthNum = Number(currentPosition.depth);
       // Only auto-follow if we're already viewing the character's floor
-      if (viewingDepth === (currentPosition.depth - 1) || 
-          viewingDepth === (currentPosition.depth + 1)) {
-        setViewingDepth(currentPosition.depth);
+      if (viewingDepth === (currentDepthNum - 1) || 
+          viewingDepth === (currentDepthNum + 1)) {
+        setViewingDepth(currentDepthNum);
       }
     }
   }, [currentPosition, viewingDepth]);
@@ -87,7 +88,7 @@ const MinimapContainer: React.FC<MinimapContainerProps> = ({
         currentDepth={viewingDepth}
         onDepthChange={handleDepthChange}
         characterId={characterId}
-        characterDepth={currentPosition?.depth}
+        characterDepth={currentPosition?.depth ? Number(currentPosition.depth) : undefined}
       />
       
       {/* Minimap */}
@@ -96,7 +97,7 @@ const MinimapContainer: React.FC<MinimapContainerProps> = ({
         characterId={characterId}
         onCellClick={handleCellClick}
         currentDepth={viewingDepth}
-        viewportSize={15}
+        viewportSize={11}
       />
       
       {/* Instructions */}

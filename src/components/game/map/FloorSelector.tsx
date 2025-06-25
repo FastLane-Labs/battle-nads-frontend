@@ -34,13 +34,26 @@ const FloorSelector: React.FC<FloorSelectorProps> = ({
     return floors;
   }, [revealedAreas]);
   
-  // Generate floor options (0-50)
+  // Generate floor options - only show discovered floors starting from 1
   const floorOptions = useMemo(() => {
     const options = [];
     
-    for (let depth = 0; depth <= 50; depth++) {
+    // Get sorted discovered floors
+    const discoveredFloors = Array.from(exploredFloors).sort((a, b) => a - b);
+    
+    // Always include current character floor even if not fully explored yet
+    const currentFloor = characterDepth !== undefined ? Number(characterDepth) : null;
+    if (currentFloor !== null && !discoveredFloors.includes(currentFloor)) {
+      discoveredFloors.push(currentFloor);
+      discoveredFloors.sort((a, b) => a - b);
+    }
+    
+    for (const depth of discoveredFloors) {
+      // Skip floor 0 as it doesn't exist in the game
+      if (depth === 0) continue;
+      
       const isExplored = exploredFloors.has(depth);
-      const isCurrent = depth === characterDepth;
+      const isCurrent = currentFloor !== null && depth === currentFloor;
       
       options.push({
         value: depth,
@@ -84,9 +97,9 @@ const FloorSelector: React.FC<FloorSelectorProps> = ({
           <Text className="gold-text-light">
             {exploredFloors.size} floors explored
           </Text>
-          {characterDepth !== undefined && characterDepth !== currentDepth && (
+          {characterDepth !== undefined && Number(characterDepth) !== currentDepth && (
             <Text className="text-blue-400">
-              You are on floor {characterDepth}
+              You are on floor {Number(characterDepth)}
             </Text>
           )}
         </Flex>
