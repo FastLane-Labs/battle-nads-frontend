@@ -11,6 +11,21 @@ jest.mock('../../../blockchain/adapters/BattleNadsAdapter');
 jest.mock('../../../blockchain/clients/BattleNadsClient');
 jest.mock('ethers');
 
+// Mock the config to disable WebSocket for consistent tests
+jest.mock('../../../config/env', () => ({
+  ENABLE_WEBSOCKET: false,
+  RPC_URLS: {
+    PRIMARY_HTTP: 'http://localhost:8545',
+    PRIMARY_WS: 'ws://localhost:8546'
+  },
+  ENTRYPOINT_ADDRESS: '0x123'
+}));
+
+// Mock the WebSocket provider module
+jest.mock('../../../utils/websocketProvider', () => ({
+  createWebSocketProvider: jest.fn()
+}));
+
 describe('useBattleNadsClient', () => {
   // Setup mock implementations
   beforeEach(() => {
@@ -77,8 +92,8 @@ describe('useBattleNadsClient', () => {
     expect(result.current.client).not.toBeNull();
     expect(result.current.error).toBeNull();
     
-    // Should have created only 1 adapter (read)
-    expect(BattleNadsAdapter).toHaveBeenCalledTimes(1);
+    // Should have created 2 adapters (1 for websocket fallback, 1 for read) 
+    expect(BattleNadsAdapter).toHaveBeenCalledTimes(2);
     
     // Check that client was created with only read adapter
     expect(BattleNadsClient).toHaveBeenCalledWith({
@@ -133,8 +148,8 @@ describe('useBattleNadsClient', () => {
 
     const { result } = renderHook(() => useBattleNadsClient());
 
-    // Assertions
-    expect(JsonRpcProvider).toHaveBeenCalledTimes(2); // First throws, second succeeds in catch
+    // Assertions - includes WebSocket fallback providers and read providers
+    expect(JsonRpcProvider).toHaveBeenCalledTimes(4); // WebSocket fallback + read provider creation
     expect(result.current.error).toMatch(/Provider creation failed/);
     // Check client is not null because fallback provider succeeded
     expect(result.current.client).not.toBeNull(); 
