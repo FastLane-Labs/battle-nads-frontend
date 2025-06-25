@@ -19,22 +19,32 @@ export class WebSocketProviderManager {
   private config: Required<ProviderConfig>;
   private reconnectCount = 0;
   private isConnecting = false;
+  private connectionPromise: Promise<WebSocketProvider | JsonRpcProvider> | null = null;
 
   constructor(config: ProviderConfig = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
   async getProvider(): Promise<WebSocketProvider | JsonRpcProvider> {
+    // Return existing provider if available
     if (this.wsProvider && !this.wsProvider.destroyed) {
       return this.wsProvider;
     }
 
-    if (this.isConnecting) {
-      await this.waitForConnection();
-      return this.getProvider();
+    // If already connecting, wait for that connection
+    if (this.connectionPromise) {
+      return this.connectionPromise;
     }
 
-    return this.createProvider();
+    // Create new connection
+    this.connectionPromise = this.createProvider();
+    
+    try {
+      const provider = await this.connectionPromise;
+      return provider;
+    } finally {
+      this.connectionPromise = null;
+    }
   }
 
   async getProviderForReads(): Promise<JsonRpcProvider> {
@@ -171,6 +181,12 @@ export class WebSocketProviderManager {
   }
 }
 
+// Global singleton to prevent multiple WebSocket connections
+let globalWebSocketManager: WebSocketProviderManager | null = null;
+
 export const createWebSocketProvider = (config?: ProviderConfig): WebSocketProviderManager => {
-  return new WebSocketProviderManager(config);
+  if (!globalWebSocketManager) {
+    globalWebSocketManager = new WebSocketProviderManager(config);
+  }
+  return globalWebSocketManager;
 };

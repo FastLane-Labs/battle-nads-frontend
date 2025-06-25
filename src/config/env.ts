@@ -19,7 +19,7 @@ export const ENTRYPOINT_ADDRESS = process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS || 
 // RPC URLs - WebSocket and HTTP fallback
 export const RPC_URLS = {
   // WebSocket URL for real-time connection (port 443 confirmed working)
-  PRIMARY_WS: process.env.NEXT_PUBLIC_MONAD_WS_URL || 'wss://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24',
+  PRIMARY_WS: process.env.NEXT_PUBLIC_MONAD_WS_URL || 'wss://monad-testnet.g.alchemy.com/v2/FVyVNn1QOFk_kJqz6TasVDqYIPPqmFXE',
   
   // HTTP URLs for fallback
   PRIMARY_HTTP: process.env.NEXT_PUBLIC_MONAD_RPC_URL || 'https://rpc-testnet.monadinfra.com/rpc/Dp2u0HD0WxKQEvgmaiT4dwCeH9J14C24',
@@ -35,7 +35,7 @@ export const POLL_INTERVAL = 500; // 500ms - back to frequent polling with fresh
 export const CHAIN_ID = parseInt(process.env.NEXT_PUBLIC_CHAIN_ID || '10143', 10);
 
 // Feature flags
-export const ENABLE_WEBSOCKET = process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET === 'true'; // Default: false
+export const ENABLE_WEBSOCKET = true; // process.env.NEXT_PUBLIC_ENABLE_WEBSOCKET === 'true'; // Default: false
 
 // Game constants
 export const MAX_PLAYER_LEVEL = 100;
