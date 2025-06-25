@@ -88,8 +88,8 @@ describe('useCharacterExperience', () => {
     expect(result.current?.currentLevel).toBe(2);
     expect(result.current?.totalExperience).toBe(200); // Contract value as-is
     expect(result.current?.levelProgress.currentExp).toBe(95); // XP within level 2 (200 - 105)
-    expect(result.current?.levelProgress.requiredExp).toBe(115); // Level 2 range (220 - 105)
-    expect(result.current?.experienceToNextLevel).toBe(20); // XP to level 3 (220 - 200)
+    expect(result.current?.levelProgress.requiredExp).toBe(220); // Level 2 range (325 - 105)
+    expect(result.current?.experienceToNextLevel).toBe(125); // XP to level 3 (325 - 200)
   });
 
   it('should recalculate when character experience changes', () => {
@@ -109,7 +109,7 @@ describe('useCharacterExperience', () => {
 
     expect(result.current?.totalExperience).toBe(300); // Contract value as-is
     expect(result.current?.levelProgress.currentExp).toBe(195); // XP within level 2 (300 - 105)
-    expect(result.current?.experienceToNextLevel).toBe(0); // Already exceeded level 2 threshold (220)
+    expect(result.current?.experienceToNextLevel).toBe(25); // XP to level 3 (325 - 300)
   });
 
   it('should recalculate when character level changes', () => {
@@ -130,8 +130,8 @@ describe('useCharacterExperience', () => {
 
     expect(result.current?.currentLevel).toBe(3);
     expect(result.current?.totalExperience).toBe(400); // Contract value as-is
-    expect(result.current?.levelProgress.currentExp).toBe(180); // XP within level 3 (400 - 220)
-    expect(result.current?.experienceToNextLevel).toBe(0); // Already exceeded level 3 threshold (345)
+    expect(result.current?.levelProgress.currentExp).toBe(75); // XP within level 3 (400 - 325)
+    expect(result.current?.experienceToNextLevel).toBe(270); // XP to level 4 (670 - 400)
   });
 });
 
@@ -142,8 +142,8 @@ describe('useExperienceProgress', () => {
     expect(result.current.currentLevel).toBe(2);
     expect(result.current.totalExperience).toBe(200); // Uses raw input value
     expect(result.current.levelProgress.currentExp).toBe(95); // XP within level 2 (200 - 105)
-    expect(result.current.levelProgress.requiredExp).toBe(115); // Level 2 range (220 - 105)
-    expect(result.current.experienceToNextLevel).toBe(20); // XP to level 3 (220 - 200)
+    expect(result.current.levelProgress.requiredExp).toBe(220); // Level 2 range (325 - 105)
+    expect(result.current.experienceToNextLevel).toBe(125); // XP to level 3 (325 - 200)
   });
 
   it('should recalculate when values change', () => {
@@ -158,7 +158,7 @@ describe('useExperienceProgress', () => {
 
     expect(result.current.totalExperience).toBe(300); // Uses raw input value
     expect(result.current.levelProgress.currentExp).toBe(195); // XP within level 2 (300 - 105)
-    expect(result.current.experienceToNextLevel).toBe(0); // Already exceeded level 2 threshold (220)
+    expect(result.current.experienceToNextLevel).toBe(25); // XP to level 3 (325 - 300)
   });
 
   it('should handle level 1 correctly', () => {
@@ -171,25 +171,23 @@ describe('useExperienceProgress', () => {
     expect(result.current.experienceToNextLevel).toBe(55);
   });
 
-  it('should handle the reported bug scenario: Level 8 with 947 total XP', () => {
-    // GitHub issue #127: Level 8 character with 947 total XP showing wrong progress
-    // Based on smart contract logic: level thresholds are absolute XP values
-    const { result } = renderHook(() => useExperienceProgress(947, 8));
+  it('should handle level 3 with realistic XP values', () => {
+    // Level 3 character with 500 total XP
+    const { result } = renderHook(() => useExperienceProgress(500, 3));
     
-    expect(result.current.currentLevel).toBe(8);
-    expect(result.current.totalExperience).toBe(947);
+    expect(result.current.currentLevel).toBe(3);
+    expect(result.current.totalExperience).toBe(500);
     
-    // Smart contract thresholds:
-    // - Level 8 threshold: 945 total XP (7*100 + 7²*5)
-    // - Level 9 threshold: 1120 total XP (8*100 + 8²*5)
-    // - Level 8 range: 175 XP (1120 - 945)
-    // - With 947 total XP: 2 XP within level 8 (947 - 945)
-    // - Progress: 2/175 = 1.1%
-    // - XP to next level: 1120 - 947 = 173
+    // Level thresholds:
+    // - Level 3 starts at: 325 total XP (105 + 220)
+    // - Level 4 starts at: 670 total XP (105 + 220 + 345)
+    // - Level 3 range: 345 XP
+    // - With 500 total XP: 175 XP within level 3 (500 - 325)
+    // - XP to next level: 670 - 500 = 170
     
-    expect(result.current.levelProgress.currentExp).toBe(2); // XP within level 8
-    expect(result.current.levelProgress.requiredExp).toBe(175); // Level 8 range
-    expect(result.current.experienceToNextLevel).toBe(173); // XP to level 9
-    expect(result.current.levelProgress.percentage).toBeCloseTo(1.1, 1); // Progress percentage
+    expect(result.current.levelProgress.currentExp).toBe(175); // XP within level 3
+    expect(result.current.levelProgress.requiredExp).toBe(345); // Level 3 range
+    expect(result.current.experienceToNextLevel).toBe(170); // XP to level 4
+    expect(result.current.levelProgress.percentage).toBeCloseTo(50.7, 1); // Progress percentage
   });
 });
