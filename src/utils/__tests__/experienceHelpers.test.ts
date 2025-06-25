@@ -32,13 +32,13 @@ describe('experienceHelpers', () => {
       expect(cumulativeExperienceForLevel(-1)).toBe(0);
     });
 
-    it('should return absolute XP thresholds matching smart contract logic', () => {
-      // Now returns the XP threshold to reach each level (not cumulative sum)
-      expect(cumulativeExperienceForLevel(1)).toBe(105); // Threshold to reach level 1
-      expect(cumulativeExperienceForLevel(2)).toBe(220); // Threshold to reach level 2  
-      expect(cumulativeExperienceForLevel(3)).toBe(345); // Threshold to reach level 3
-      expect(cumulativeExperienceForLevel(7)).toBe(945); // Threshold to reach level 7
-      expect(cumulativeExperienceForLevel(8)).toBe(1120); // Threshold to reach level 8
+    it('should return cumulative XP thresholds to reach each level', () => {
+      // Returns the cumulative XP needed to reach each level
+      expect(cumulativeExperienceForLevel(1)).toBe(105); // 105 total to reach level 1
+      expect(cumulativeExperienceForLevel(2)).toBe(325); // 105 + 220 = 325 total to reach level 2
+      expect(cumulativeExperienceForLevel(3)).toBe(670); // 105 + 220 + 345 = 670 total to reach level 3
+      expect(cumulativeExperienceForLevel(7)).toBe(3500); // Sum of levels 1-7
+      expect(cumulativeExperienceForLevel(8)).toBe(4620); // Sum of levels 1-8
     });
   });
 
@@ -51,10 +51,13 @@ describe('experienceHelpers', () => {
     it('should calculate correct level from total experience', () => {
       expect(calculateLevelFromExperience(50)).toBe(1); // Partial level 1
       expect(calculateLevelFromExperience(104)).toBe(1); // Almost level 1 complete
-      expect(calculateLevelFromExperience(105)).toBe(2); // Start of level 2
+      expect(calculateLevelFromExperience(105)).toBe(2); // Exactly at level 1 threshold, now level 2
+      expect(calculateLevelFromExperience(106)).toBe(2); // Start of level 2
       expect(calculateLevelFromExperience(324)).toBe(2); // Almost level 2 complete
-      expect(calculateLevelFromExperience(325)).toBe(3); // Start of level 3
+      expect(calculateLevelFromExperience(325)).toBe(3); // Exactly at level 2 threshold, now level 3
+      expect(calculateLevelFromExperience(326)).toBe(3); // Start of level 3
       expect(calculateLevelFromExperience(669)).toBe(3); // Almost level 3 complete
+      expect(calculateLevelFromExperience(235)).toBe(2); // Screenshot case: 235 XP should be level 2
     });
   });
 
