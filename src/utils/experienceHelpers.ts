@@ -19,19 +19,18 @@ export function experienceNeededForLevel(level: number): number {
 }
 
 /**
- * Calculate cumulative experience required to reach a level
- * This sums up all experience needed from level 1 to the target level
+ * Calculate total experience threshold needed to reach a specific level
+ * Based on smart contract logic: each level has an absolute XP threshold
  * @param level The target level
- * @returns Total cumulative experience needed
+ * @returns Total experience threshold needed to reach this level
  */
 export function cumulativeExperienceForLevel(level: number): number {
   if (level <= 0) return 0;
   
-  let total = 0;
-  for (let i = 1; i <= level; i++) {
-    total += experienceNeededForLevel(i);
-  }
-  return total;
+  // The smart contract uses: experienceNeededForNextLevel = (currentLevel * EXP_BASE) + (currentLevel * currentLevel * EXP_SCALE)
+  // This gives the absolute XP threshold to reach the NEXT level
+  // So to reach level N, we need the threshold calculated from level N-1
+  return experienceNeededForLevel(level);
 }
 
 /**
