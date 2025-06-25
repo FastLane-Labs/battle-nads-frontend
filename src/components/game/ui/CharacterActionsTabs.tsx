@@ -5,6 +5,7 @@ import CharacterInfo from '@/components/game/board/CharacterInfo';
 import { AbilityControls } from '@/components/game/controls/AbilityControls';
 import MovementControls from '@/components/game/controls/MovementControls';
 import HealthBar from '@/components/game/ui/HealthBar';
+import MinimapContainer from '@/components/game/map/MinimapContainer';
 
 interface CharacterActionsTabsProps {
   character: domain.Character;
@@ -18,8 +19,8 @@ interface CharacterActionsTabsProps {
   isMoving: boolean;
   isAttacking: boolean;
   isInCombat: boolean;
-  activeTab: 'character' | 'actions';
-  setActiveTab: (tab: 'character' | 'actions') => void;
+  activeTab: 'character' | 'actions' | 'map';
+  setActiveTab: (tab: 'character' | 'actions' | 'map') => void;
 }
 
 const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
@@ -42,23 +43,33 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
       {/* Tab Buttons */}
       <div className="flex ">
         <button
-          className={`uppercase bg-brown rounded-lg border-black/40 border-t border-x w-1/2 !rounded-b-none py-2 hover:transform-none hover:translate-y-0 border-b-2 ${activeTab === 'character' ? 'border-b-brown' : 'border-b-black/40'}`}
+          className={`uppercase bg-brown rounded-lg border-black/40 border-t border-x w-1/3 !rounded-b-none py-2 hover:transform-none hover:translate-y-0 border-b-2 ${activeTab === 'character' ? 'border-b-brown' : 'border-b-black/40'}`}
           onClick={() => setActiveTab('character')}
           style={{ transform: 'none' }}
         >
           {activeTab === 'character' ? 
-            <span className="gold-text-light font-semibold text-2xl">Character</span> : 
-            <span className="gray-text font-semibold text-2xl">Character</span>
+            <span className="gold-text-light font-semibold text-xl">Character</span> : 
+            <span className="gray-text font-semibold text-xl">Character</span>
           }
         </button>
         <button
-          className={`uppercase bg-brown rounded-lg border-black/40 border-t border-x w-1/2 !rounded-b-none py-2 hover:transform-none hover:translate-y-0 border-b-2 ${activeTab === 'actions' ? 'border-b-brown' : 'border-b-black/40'}`}
+          className={`uppercase bg-brown rounded-lg border-black/40 border-t border-x w-1/3 !rounded-b-none py-2 hover:transform-none hover:translate-y-0 border-b-2 ${activeTab === 'actions' ? 'border-b-brown' : 'border-b-black/40'}`}
           onClick={() => setActiveTab('actions')}
           style={{ transform: 'none' }}
         >
           {activeTab === 'actions' ? 
-            <span className="gold-text-light font-semibold text-2xl">Actions</span> : 
-            <span className="gray-text font-semibold text-2xl">Actions</span>
+            <span className="gold-text-light font-semibold text-xl">Actions</span> : 
+            <span className="gray-text font-semibold text-xl">Actions</span>
+          }
+        </button>
+        <button
+          className={`uppercase bg-brown rounded-lg border-black/40 border-t border-x w-1/3 !rounded-b-none py-2 hover:transform-none hover:translate-y-0 border-b-2 ${activeTab === 'map' ? 'border-b-brown' : 'border-b-black/40'}`}
+          onClick={() => setActiveTab('map')}
+          style={{ transform: 'none' }}
+        >
+          {activeTab === 'map' ? 
+            <span className="gold-text-light font-semibold text-xl">Map</span> : 
+            <span className="gray-text font-semibold text-xl">Map</span>
           }
         </button>
       </div>
@@ -159,6 +170,20 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
               movementOptions={character.movementOptions}
             />
           </Box>
+        </div>
+
+        {/* Map tab content */}
+        <div 
+          className={`p-4 h-fit ${activeTab === 'map' ? 'block' : 'hidden'}`}
+        >
+          <MinimapContainer 
+            currentPosition={position ? {
+              x: position.x,
+              y: position.y,
+              depth: position.z
+            } : null}
+            characterId={character?.id?.toString() || null}
+          />
         </div>
       </div>
     </div>
