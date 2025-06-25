@@ -77,6 +77,8 @@ export class WebSocketProviderManager {
     const wsUrl = RPC_URLS.PRIMARY_WS;
     
     try {
+      console.log('🔌 [WebSocket] Connecting to:', wsUrl.replace(/\/v2\/.*/, '/v2/***'));
+      
       // Create provider with manual network specification and connection options
       const provider = new WebSocketProvider(wsUrl, {
         chainId: CHAIN_ID,
@@ -89,10 +91,11 @@ export class WebSocketProviderManager {
       // Test the connection before returning
       await this.testConnection(provider);
       
+      console.log('✅ [WebSocket] Connection established successfully');
       return provider;
       
     } catch (error) {
-      console.error('WebSocket connection failed:', (error as Error).message);
+      console.error('❌ [WebSocket] Connection failed:', (error as Error).message);
       throw error;
     }
   }
