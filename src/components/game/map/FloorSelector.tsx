@@ -34,11 +34,11 @@ const FloorSelector: React.FC<FloorSelectorProps> = ({
     return floors;
   }, [revealedAreas]);
   
-  // Generate floor options - only show discovered floors starting from 1
+  // Generate floor options - show all visited floors for easy navigation
   const floorOptions = useMemo(() => {
     const options = [];
     
-    // Get sorted discovered floors
+    // Get all discovered floors
     const discoveredFloors = Array.from(exploredFloors).sort((a, b) => a - b);
     
     // Always include current character floor even if not fully explored yet
@@ -48,6 +48,7 @@ const FloorSelector: React.FC<FloorSelectorProps> = ({
       discoveredFloors.sort((a, b) => a - b);
     }
     
+    // Show all discovered floors - user can select any of them
     for (const depth of discoveredFloors) {
       // Skip floor 0 as it doesn't exist in the game
       if (depth === 0) continue;
@@ -67,17 +68,22 @@ const FloorSelector: React.FC<FloorSelectorProps> = ({
   }, [exploredFloors, characterDepth]);
   
   return (
-    <Box className="bg-gray-800 border border-amber-600 rounded-lg p-4">
+    <Box className="bg-dark-brown border border-black/40 rounded-lg p-3">
       <Flex direction="column" gap={2}>
-        <Text className="gold-text text-sm font-serif uppercase">
+        <Text className="gold-text text-lg font-serif font-semibold">
           Select Floor
         </Text>
         
         <Select
           value={currentDepth}
           onChange={(e) => onDepthChange(Number(e.target.value))}
-          className="bg-gray-700 border-amber-600"
+          className="border border-yellow-800/80 rounded-md bg-dark-brown text-amber-200"
           size="sm"
+          bg="var(--chakra-colors-dark-brown)"
+          borderColor="rgb(133 77 14 / 0.8)"
+          color="rgb(253 230 138 / 0.8)"
+          _hover={{ borderColor: "rgb(217 119 6)" }}
+          _focus={{ borderColor: "rgb(217 119 6)", boxShadow: "0 0 0 1px rgb(217 119 6)" }}
         >
           {floorOptions.map((option) => (
             <option 
@@ -94,11 +100,11 @@ const FloorSelector: React.FC<FloorSelectorProps> = ({
         </Select>
         
         <Flex gap={3} className="text-xs mt-1">
-          <Text className="gold-text-light">
+          <Text className="text-amber-200/80">
             {exploredFloors.size} floors explored
           </Text>
           {characterDepth !== undefined && Number(characterDepth) !== currentDepth && (
-            <Text className="text-blue-400">
+            <Text className="text-yellow-400">
               You are on floor {Number(characterDepth)}
             </Text>
           )}

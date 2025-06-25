@@ -79,20 +79,20 @@ const Minimap: React.FC<MinimapProps> = ({
   
   if (isLoading) {
     return (
-      <Box className="bg-gray-800 border border-amber-600 rounded-lg p-4">
+      <Box className="bg-dark-brown border border-black/40 rounded-lg p-3">
         <Text className="gold-text text-center">Loading map...</Text>
       </Box>
     );
   }
   
   return (
-    <Box className="bg-gray-800 border border-amber-600 rounded-lg p-4">
+    <Box className="bg-dark-brown border border-black/40 rounded-lg p-3">
       {/* Header */}
       <Flex justify="space-between" align="center" mb={3}>
-        <Text className="gold-text text-lg font-serif uppercase">
+        <Text className="gold-text text-xl font-serif font-semibold">
           Map - Floor {displayDepth}
         </Text>
-        <Text className="gold-text-light text-sm">
+        <Text className="text-amber-200/80 text-xs">
           ({viewportBounds.minX},{viewportBounds.minY}) - ({viewportBounds.maxX},{viewportBounds.maxY})
         </Text>
       </Flex>
@@ -102,7 +102,7 @@ const Minimap: React.FC<MinimapProps> = ({
         templateColumns={`repeat(${gridColumns}, 16px)`}
         templateRows={`repeat(${gridRows}, 16px)`}
         gap="1px"
-        className="bg-gray-900 p-2 rounded"
+        className="bg-brown border border-black/40 rounded-md p-2"
         width="fit-content"
         height="fit-content"
       >
@@ -114,18 +114,16 @@ const Minimap: React.FC<MinimapProps> = ({
           >
             <GridItem
               className={`
-                cursor-pointer transition-all duration-200 w-4 h-4
+                cursor-pointer transition-all duration-200 w-4 h-4 rounded-sm
                 ${cell.isCurrentPosition 
-                  ? 'bg-blue-500 animate-pulse' 
+                  ? 'bg-yellow-400 animate-pulse border-2 border-amber-300' 
                   : cell.isRevealed 
-                    ? 'bg-gray-700 hover:bg-gray-600' 
-                    : 'bg-gray-900 opacity-50 hover:opacity-70'
+                    ? 'bg-amber-800/60 hover:bg-amber-700/80 border border-amber-600/40' 
+                    : 'bg-black/60 opacity-50 hover:opacity-70 border border-gray-800'
                 }
                 ${!cell.isRevealed && !cell.isCurrentPosition ? 'fog-overlay' : ''}
               `}
               onClick={() => onCellClick?.(cell.x, cell.y)}
-              border="1px solid"
-              borderColor={cell.isCurrentPosition ? 'blue.300' : 'gray.700'}
             />
           </GameTooltip>
         ))}
@@ -134,16 +132,16 @@ const Minimap: React.FC<MinimapProps> = ({
       {/* Legend */}
       <Flex mt={3} gap={4} justify="center" className="text-xs">
         <Flex align="center" gap={1}>
-          <Box w={3} h={3} className="bg-blue-500 rounded" />
-          <Text className="gold-text-light">You</Text>
+          <Box w={3} h={3} className="bg-yellow-400 rounded-sm border border-amber-300" />
+          <Text className="text-amber-200/80">You</Text>
         </Flex>
         <Flex align="center" gap={1}>
-          <Box w={3} h={3} className="bg-gray-700 rounded" />
-          <Text className="gold-text-light">Explored</Text>
+          <Box w={3} h={3} className="bg-amber-800/60 rounded-sm border border-amber-600/40" />
+          <Text className="text-amber-200/80">Explored</Text>
         </Flex>
         <Flex align="center" gap={1}>
-          <Box w={3} h={3} className="bg-gray-900 opacity-50 rounded" />
-          <Text className="gold-text-light">Unexplored</Text>
+          <Box w={3} h={3} className="bg-black/60 opacity-50 rounded-sm border border-gray-800" />
+          <Text className="text-amber-200/80">Unexplored</Text>
         </Flex>
       </Flex>
     </Box>
