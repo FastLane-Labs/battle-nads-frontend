@@ -14,10 +14,34 @@ export const useBattleNadsClient = () => {
   const { injectedWallet, embeddedWallet } = useWallet();
   const [error, setError] = useState<string | null>(null);
   const wsManagerRef = useRef<WebSocketProviderManager | null>(null);
+  const [wsProvider, setWsProvider] = useState<WebSocketProvider | JsonRpcProvider | null>(null);
 
-  // WebSocket provider manager ready for future event subscriptions
-  // Currently disabled to avoid premature connections
+  // Initialize WebSocket provider manager
   useEffect(() => {
+    if (!wsManagerRef.current) {
+      wsManagerRef.current = new WebSocketProviderManager({
+        reconnectAttempts: 3,
+        reconnectDelay: 1000,
+        fallbackToHttp: true,
+      });
+    }
+
+    // Initialize WebSocket connection for polling
+    const initializeProvider = async () => {
+      try {
+        const provider = await wsManagerRef.current!.getProvider();
+        setWsProvider(provider);
+        setError(null);
+      } catch (err) {
+        console.warn('WebSocket initialization failed, using HTTP fallback:', (err as Error)?.message || 'Unknown error');
+        // Fallback to HTTP provider
+        setWsProvider(new JsonRpcProvider(RPC_URLS.PRIMARY_HTTP));
+        setError(null);
+      }
+    };
+
+    initializeProvider();
+
     return () => {
       if (wsManagerRef.current) {
         try {
@@ -30,7 +54,7 @@ export const useBattleNadsClient = () => {
     };
   }, []);
 
-  // Create a read-only provider that prioritizes reliability for contract reads
+  // Create a read-only provider that prefers WebSocket for polling
   const readProvider = useMemo(() => {
     try {
       // Try to use an existing wallet provider first to save costs
@@ -42,14 +66,18 @@ export const useBattleNadsClient = () => {
         return embeddedWallet.provider;
       }
       
-      // For read operations, use HTTP provider to ensure compatibility
-      // WebSocket is reserved for future event subscriptions
+      // Use WebSocket provider if available, otherwise fallback to HTTP
+      if (wsProvider) {
+        return wsProvider;
+      }
+      
+      // Final fallback to HTTP JsonRpcProvider
       return new JsonRpcProvider(RPC_URLS.PRIMARY_HTTP);
     } catch (err) {
       setError(`Provider creation failed: ${(err as Error)?.message || "Unknown error"}`);
       return new JsonRpcProvider(RPC_URLS.PRIMARY_HTTP);
     }
-  }, [injectedWallet?.provider, embeddedWallet?.provider]);
+  }, [injectedWallet?.provider, embeddedWallet?.provider, wsProvider]);
 
   // Create the client with all three adapter types
   const client = useMemo(() => {
@@ -79,19 +107,7 @@ export const useBattleNadsClient = () => {
     }
   }, [readProvider, injectedWallet?.signer, embeddedWallet?.signer]);
 
-  // Function to initialize WebSocket when needed for real-time features
-  const initializeWebSocket = async () => {
-    if (!wsManagerRef.current) {
-      wsManagerRef.current = new WebSocketProviderManager({
-        reconnectAttempts: 3,
-        reconnectDelay: 1000,
-        fallbackToHttp: true,
-      });
-    }
-    return wsManagerRef.current.getProvider();
-  };
-
-  return { client, error, initializeWebSocket };
+  return { client, error };
 };
 
 // Export a new index file that will replace the old contracts hooks
