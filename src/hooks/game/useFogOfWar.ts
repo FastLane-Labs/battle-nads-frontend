@@ -194,7 +194,8 @@ export function useFogOfWar(
     const cells = new Set<string>();
     for (const areaId of revealedAreas) {
       const areaDepth = Number(areaId & 0xFFn);
-      if (areaDepth === depth) {
+      // Skip floor 0 as it doesn't exist in the game
+      if (areaDepth === depth && areaDepth > 0) {
         const x = Number((areaId >> 8n) & 0xFFn);
         const y = Number((areaId >> 16n) & 0xFFn);
         cells.add(`${x},${y}`);
