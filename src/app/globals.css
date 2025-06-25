@@ -51,6 +51,28 @@
   }
 }
 
+/* Fog of War Effects */
+.fog-overlay {
+  position: relative;
+}
+
+.fog-overlay::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.3),
+    rgba(0, 0, 0, 0.3) 2px,
+    transparent 2px,
+    transparent 4px
+  );
+  pointer-events: none;
+}
+
 /* State Change Animations */
 @keyframes level-up {
   0% {
