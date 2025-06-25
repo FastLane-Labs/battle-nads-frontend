@@ -19,6 +19,7 @@ export const useBattleNadsClient = () => {
   useEffect(() => {
     if (!ENABLE_WEBSOCKET) {
       // WebSocket disabled, use HTTP directly
+      console.log('📡 [BattleNads] WebSocket disabled by feature flag - Using HTTP polling');
       setWsProvider(new JsonRpcProvider(RPC_URLS.PRIMARY_HTTP));
       return;
     }
@@ -35,8 +36,16 @@ export const useBattleNadsClient = () => {
         const provider = await wsManager.getProvider();
         setWsProvider(provider);
         setError(null);
+        
+        // Log provider type for debugging
+        const providerType = provider.constructor.name;
+        if (providerType === 'WebSocketProvider') {
+          console.log('🔌 [BattleNads] Using WebSocket for contract polling - Real-time updates enabled');
+        } else {
+          console.log('📡 [BattleNads] Using HTTP fallback for contract polling');
+        }
       } catch (err) {
-        console.warn('WebSocket initialization failed, using HTTP fallback:', (err as Error)?.message || 'Unknown error');
+        console.warn('❌ [BattleNads] WebSocket initialization failed, using HTTP fallback:', (err as Error)?.message || 'Unknown error');
         // Fallback to HTTP provider
         setWsProvider(new JsonRpcProvider(RPC_URLS.PRIMARY_HTTP));
         setError(null);
