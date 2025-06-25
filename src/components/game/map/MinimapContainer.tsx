@@ -1,7 +1,6 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, memo } from 'react';
 import { Box, Flex, Text, Button } from '@chakra-ui/react';
-import { domain } from '@/types';
-import { useFogOfWar } from '@/hooks/game/useFogOfWar';
+import { domain, hooks } from '@/types';
 import Minimap from './Minimap';
 import FloorSelector from './FloorSelector';
 import { GameTooltip } from '@/components/ui/GameTooltip';
@@ -13,20 +12,24 @@ interface MinimapContainerProps {
   characterId: string | null;
   /** Optional callback when trying to move to a location */
   onNavigate?: (x: number, y: number, depth: number) => void;
+  /** Fog-of-war data from parent hook */
+  fogOfWar?: hooks.UseGameDataReturn['fogOfWar'];
 }
 
-const MinimapContainer: React.FC<MinimapContainerProps> = ({
+const MinimapContainer: React.FC<MinimapContainerProps> = memo(({
   currentPosition,
   characterId,
   onNavigate,
+  fogOfWar,
 }) => {
   // Track which floor we're viewing (defaults to character's floor)
   const [viewingDepth, setViewingDepth] = useState<number>(
     currentPosition?.depth ? Number(currentPosition.depth) : 1
   );
   
-  // Get fog-of-war stats
-  const { stats, clearFog } = useFogOfWar(characterId, currentPosition);
+  // Use fog-of-war data from parent
+  const stats = fogOfWar?.stats || { totalRevealed: 0, floorsVisited: 0, percentageExplored: 0 };
+  const clearFog = fogOfWar?.clearFog || (() => {});
   
   // Handle cell clicks on the minimap
   const handleCellClick = useCallback((x: number, y: number) => {
@@ -38,19 +41,23 @@ const MinimapContainer: React.FC<MinimapContainerProps> = ({
   // Handle floor changes
   const handleDepthChange = useCallback((depth: number) => {
     setViewingDepth(depth);
+    setUserSelectedFloor(true);
+    
+    // Reset user selection flag after a delay to allow auto-follow again
+    setTimeout(() => setUserSelectedFloor(false), 2000);
   }, []);
   
-  // Sync viewing depth with character position when it changes
+  // Update viewing depth only when character moves to a new floor (not when user manually selects)
+  const [userSelectedFloor, setUserSelectedFloor] = React.useState(false);
+  
   React.useEffect(() => {
-    if (currentPosition && Number(currentPosition.depth) !== viewingDepth) {
+    if (currentPosition && !userSelectedFloor) {
       const currentDepthNum = Number(currentPosition.depth);
-      // Only auto-follow if we're already viewing the character's floor
-      if (viewingDepth === (currentDepthNum - 1) || 
-          viewingDepth === (currentDepthNum + 1)) {
+      if (currentDepthNum !== viewingDepth) {
         setViewingDepth(currentDepthNum);
       }
     }
-  }, [currentPosition, viewingDepth]);
+  }, [currentPosition?.depth, userSelectedFloor, viewingDepth]);
   
   return (
     <Flex direction="column" gap={3}>
@@ -72,6 +79,7 @@ const MinimapContainer: React.FC<MinimapContainerProps> = ({
         onDepthChange={handleDepthChange}
         characterId={characterId}
         characterDepth={currentPosition?.depth ? Number(currentPosition.depth) : undefined}
+        fogOfWar={fogOfWar}
       />
       
       {/* Minimap */}
@@ -81,6 +89,7 @@ const MinimapContainer: React.FC<MinimapContainerProps> = ({
         onCellClick={handleCellClick}
         currentDepth={viewingDepth}
         viewportSize={21}
+        fogOfWar={fogOfWar}
       />
       
       {/* Instructions */}
@@ -110,6 +119,8 @@ const MinimapContainer: React.FC<MinimapContainerProps> = ({
       </Box>
     </Flex>
   );
-};
+});
+
+MinimapContainer.displayName = 'MinimapContainer';
 
 export default MinimapContainer;

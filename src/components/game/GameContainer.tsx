@@ -18,7 +18,7 @@ import {
 
 import DebugPanel from '../DebugPanel';
 import GameView from './layout/GameView';
-import { domain } from '../../types';
+import { domain, hooks } from '../../types';
 
 // Use the result from useGame as the props type
 interface GameContainerProps {
@@ -39,6 +39,8 @@ interface GameContainerProps {
   equipableWeaponNames?: string[];
   equipableArmorIDs?: number[];
   equipableArmorNames?: string[];
+  // Add fog-of-war data
+  fogOfWar?: hooks.UseGameDataReturn['fogOfWar'];
 }
 
 const GameContainer: React.FC<GameContainerProps> = (props) => {
@@ -58,7 +60,8 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
     equipableWeaponIDs,
     equipableWeaponNames,
     equipableArmorIDs,
-    equipableArmorNames
+    equipableArmorNames,
+    fogOfWar
   } = props;
 
   const isSpawned = !(position.x === 0 && position.y === 0 && position.z === 0);
@@ -186,6 +189,7 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
           equipableWeaponNames={equipableWeaponNames}
           equipableArmorIDs={equipableArmorIDs}
           equipableArmorNames={equipableArmorNames}
+          fogOfWar={fogOfWar}
         />
       </Flex>
     </Box>

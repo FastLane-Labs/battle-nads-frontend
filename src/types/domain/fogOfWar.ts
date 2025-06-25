@@ -32,6 +32,12 @@ export interface FogOfWarStorage {
   
   /** Map of characterId to array of revealed areaId strings */
   states: Record<string, string[]>;
+  
+  /** Map of characterId to stairs data */
+  stairs?: Record<string, {
+    up: string[]; // Array of "x,y,depth" position keys
+    down: string[]; // Array of "x,y,depth" position keys
+  }>;
 }
 
 /**
@@ -44,6 +50,12 @@ export interface FogOfWarFloor {
   
   /** Set of revealed coordinates in "x,y" format for quick lookup */
   revealedCells: Set<string>;
+  
+  /** Stairs going up from this position (to higher depth) */
+  stairsUp: Set<string>; // "x,y" format (filtered by floor)
+  
+  /** Stairs going down from this position (to lower depth) */
+  stairsDown: Set<string>; // "x,y" format (filtered by floor)
   
   /** Bounds of explored area for viewport optimization */
   bounds: {

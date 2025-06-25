@@ -1,7 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, memo } from 'react';
 import { Box, Grid, GridItem, Text, Flex } from '@chakra-ui/react';
-import { domain } from '@/types';
-import { useFogOfWar } from '@/hooks/game/useFogOfWar';
+import { domain, hooks } from '@/types';
 import { GameTooltip } from '@/components/ui/GameTooltip';
 
 interface MinimapProps {
@@ -15,26 +14,41 @@ interface MinimapProps {
   viewportSize?: number;
   /** Current floor depth being displayed */
   currentDepth?: number;
+  /** Fog-of-war data from parent hook */
+  fogOfWar?: hooks.UseGameDataReturn['fogOfWar'];
 }
 
-const Minimap: React.FC<MinimapProps> = ({
+const Minimap: React.FC<MinimapProps> = memo(({
   currentPosition,
   characterId,
   onCellClick,
   viewportSize = 21,
   currentDepth,
+  fogOfWar,
 }) => {
   // Use the current position's depth if not specified
   const displayDepth = currentDepth ?? (currentPosition?.depth ? Number(currentPosition.depth) : 1);
   
-  // Get fog-of-war data
-  const { getFloorCells, isLoading } = useFogOfWar(characterId, currentPosition);
+  // Use fog-of-war data from parent
+  const getFloorCells = fogOfWar?.getFloorCells || (() => new Set<string>());
+  const getStairsUp = fogOfWar?.getStairsUp || (() => new Set<string>());
+  const getStairsDown = fogOfWar?.getStairsDown || (() => new Set<string>());
+  const isLoading = fogOfWar?.isLoading || false;
+  
   const revealedCells = useMemo(
     () => getFloorCells(displayDepth),
     [getFloorCells, displayDepth]
   );
+  const stairsUpCells = useMemo(
+    () => getStairsUp(displayDepth),
+    [getStairsUp, displayDepth]
+  );
+  const stairsDownCells = useMemo(
+    () => getStairsDown(displayDepth),
+    [getStairsDown, displayDepth]
+  );
   
-  // Calculate viewport bounds centered on player
+  // Calculate viewport bounds centered on player - only recalculate when position or viewport size changes
   const viewportBounds = useMemo(() => {
     const halfSize = Math.floor(viewportSize / 2);
     const centerX = currentPosition?.x ? Number(currentPosition.x) : 25;
@@ -46,9 +60,9 @@ const Minimap: React.FC<MinimapProps> = ({
       minY: Math.max(0, centerY - halfSize),
       maxY: Math.min(50, centerY + halfSize),
     };
-  }, [currentPosition, viewportSize]);
+  }, [currentPosition?.x, currentPosition?.y, viewportSize]);
   
-  // Generate grid cells
+  // Generate grid cells - only recalculate when key dependencies change
   const gridCells = useMemo(() => {
     const cells = [];
     
@@ -60,19 +74,36 @@ const Minimap: React.FC<MinimapProps> = ({
           currentPosition?.depth && Number(currentPosition.depth) === displayDepth;
         
         const isRevealed = revealedCells.has(`${x},${y}`);
+        const cellKey = `${x},${y}`;
+        const hasStairsUp = stairsUpCells.has(cellKey);
+        const hasStairsDown = stairsDownCells.has(cellKey);
         
         cells.push({
           x,
           y,
-          key: `${x},${y}`,
+          key: cellKey,
           isCurrentPosition,
           isRevealed,
+          hasStairsUp,
+          hasStairsDown,
         });
       }
     }
     
     return cells;
-  }, [viewportBounds, currentPosition, displayDepth, revealedCells]);
+  }, [
+    viewportBounds.minX,
+    viewportBounds.minY,
+    viewportBounds.maxX,
+    viewportBounds.maxY,
+    currentPosition?.x,
+    currentPosition?.y,
+    currentPosition?.depth,
+    displayDepth,
+    revealedCells,
+    stairsUpCells,
+    stairsDownCells
+  ]);
   
   const gridColumns = viewportBounds.maxX - viewportBounds.minX + 1;
   const gridRows = viewportBounds.maxY - viewportBounds.minY + 1;
@@ -114,7 +145,7 @@ const Minimap: React.FC<MinimapProps> = ({
           >
             <GridItem
               className={`
-                cursor-pointer transition-all duration-200 w-4 h-4 rounded-sm
+                cursor-pointer transition-all duration-200 w-4 h-4 rounded-sm relative
                 ${cell.isCurrentPosition 
                   ? 'bg-yellow-400 animate-pulse border-2 border-amber-300' 
                   : cell.isRevealed 
@@ -124,28 +155,71 @@ const Minimap: React.FC<MinimapProps> = ({
                 ${!cell.isRevealed && !cell.isCurrentPosition ? 'fog-overlay' : ''}
               `}
               onClick={() => onCellClick?.(cell.x, cell.y)}
-            />
+            >
+              {/* Stair indicators */}
+              {cell.isRevealed && (cell.hasStairsUp || cell.hasStairsDown) && (
+                <Box
+                  position="absolute"
+                  top="0"
+                  left="0"
+                  right="0"
+                  bottom="0"
+                  display="flex"
+                  alignItems="center"
+                  justifyContent="center"
+                  fontSize="8px"
+                  fontWeight="bold"
+                  color="gold"
+                  textShadow="1px 1px 1px black"
+                >
+                  {cell.hasStairsUp && cell.hasStairsDown ? '⇕' : 
+                   cell.hasStairsUp ? '⇑' : 
+                   cell.hasStairsDown ? '⇓' : null}
+                </Box>
+              )}
+            </GridItem>
           </GameTooltip>
         ))}
       </Grid>
       
       {/* Legend */}
-      <Flex mt={3} gap={4} justify="center" className="text-xs">
-        <Flex align="center" gap={1}>
-          <Box w={3} h={3} className="bg-yellow-400 rounded-sm border border-amber-300" />
-          <Text className="text-amber-200/80">You</Text>
+      <Box mt={3}>
+        {/* Map Legend */}
+        <Flex gap={4} justify="center" className="text-xs mb-2">
+          <Flex align="center" gap={1}>
+            <Box w={3} h={3} className="bg-yellow-400 rounded-sm border border-amber-300" />
+            <Text className="text-amber-200/80">You</Text>
+          </Flex>
+          <Flex align="center" gap={1}>
+            <Box w={3} h={3} className="bg-amber-800/60 rounded-sm border border-amber-600/40" />
+            <Text className="text-amber-200/80">Explored</Text>
+          </Flex>
+          <Flex align="center" gap={1}>
+            <Box w={3} h={3} className="bg-black/60 opacity-50 rounded-sm border border-gray-800" />
+            <Text className="text-amber-200/80">Unexplored</Text>
+          </Flex>
         </Flex>
-        <Flex align="center" gap={1}>
-          <Box w={3} h={3} className="bg-amber-800/60 rounded-sm border border-amber-600/40" />
-          <Text className="text-amber-200/80">Explored</Text>
+        
+        {/* Stairs Legend */}
+        <Flex gap={4} justify="center" className="text-xs">
+          <Flex align="center" gap={1}>
+            <Text className="text-yellow-400 font-bold" style={{ textShadow: '1px 1px 1px black' }}>⇑</Text>
+            <Text className="text-amber-200/80">Stairs Up</Text>
+          </Flex>
+          <Flex align="center" gap={1}>
+            <Text className="text-yellow-400 font-bold" style={{ textShadow: '1px 1px 1px black' }}>⇓</Text>
+            <Text className="text-amber-200/80">Stairs Down</Text>
+          </Flex>
+          <Flex align="center" gap={1}>
+            <Text className="text-yellow-400 font-bold" style={{ textShadow: '1px 1px 1px black' }}>⇕</Text>
+            <Text className="text-amber-200/80">Both</Text>
+          </Flex>
         </Flex>
-        <Flex align="center" gap={1}>
-          <Box w={3} h={3} className="bg-black/60 opacity-50 rounded-sm border border-gray-800" />
-          <Text className="text-amber-200/80">Unexplored</Text>
-        </Flex>
-      </Flex>
+      </Box>
     </Box>
   );
-};
+});
+
+Minimap.displayName = 'Minimap';
 
 export default Minimap;

@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { Select, Text, Flex, Box } from '@chakra-ui/react';
-import { useFogOfWar } from '@/hooks/game/useFogOfWar';
+import { hooks } from '@/types';
 
 interface FloorSelectorProps {
   /** Current floor depth */
@@ -11,16 +11,19 @@ interface FloorSelectorProps {
   characterId: string | null;
   /** Character's actual depth (to show current floor indicator) */
   characterDepth?: number;
+  /** Fog-of-war data from parent hook */
+  fogOfWar?: hooks.UseGameDataReturn['fogOfWar'];
 }
 
-const FloorSelector: React.FC<FloorSelectorProps> = ({
+const FloorSelector: React.FC<FloorSelectorProps> = memo(({
   currentDepth,
   onDepthChange,
   characterId,
   characterDepth,
+  fogOfWar,
 }) => {
-  // Get fog-of-war data to know which floors have been explored
-  const { revealedAreas } = useFogOfWar(characterId);
+  // Use fog-of-war data from parent to know which floors have been explored
+  const revealedAreas = fogOfWar?.revealedAreas || new Set<bigint>();
   
   // Calculate which floors have revealed areas
   const exploredFloors = useMemo(() => {
@@ -112,6 +115,8 @@ const FloorSelector: React.FC<FloorSelectorProps> = ({
       </Flex>
     </Box>
   );
-};
+});
+
+FloorSelector.displayName = 'FloorSelector';
 
 export default FloorSelector;

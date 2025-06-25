@@ -6,15 +6,14 @@
  * with the game's position updates to automatically reveal visited areas.
  */
 
-import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { 
   loadFogOfWar, 
   saveFogOfWar, 
-  addRevealedArea,
   clearFogOfWar as clearFogStorage,
-  getRevealedCellsForFloor,
-  getFloorBounds,
   getExplorationStats,
+  loadStairsData,
+  saveStairsData,
 } from '@/utils/fogOfWar';
 import { createAreaID } from '@/utils/areaId';
 import { DEFAULT_FOG_CONFIG } from '@/types/domain/fogOfWar';
@@ -39,6 +38,12 @@ export interface UseFogOfWarReturn {
   /** Get revealed cells for a specific floor */
   getFloorCells: (depth: number) => Set<string>;
   
+  /** Get stairs up for a specific floor */
+  getStairsUp: (depth: number) => Set<string>;
+  
+  /** Get stairs down for a specific floor */
+  getStairsDown: (depth: number) => Set<string>;
+  
   /** Get bounds of explored area on a floor */
   getFloorExplorationBounds: (depth: number) => { minX: number; maxX: number; minY: number; maxY: number } | null;
   
@@ -60,12 +65,16 @@ export interface UseFogOfWarReturn {
  * Hook for managing fog-of-war state
  * @param characterId - The character's unique identifier
  * @param currentPosition - The character's current position (optional, for auto-reveal)
+ * @param movementOptions - Movement options for stair detection (optional)
  */
 export function useFogOfWar(
   characterId: string | null,
-  currentPosition?: Position | null
+  currentPosition?: Position | null,
+  movementOptions?: { canMoveUp?: boolean; canMoveDown?: boolean } | null
 ): UseFogOfWarReturn {
   const [revealedAreas, setRevealedAreas] = useState<Set<bigint>>(new Set());
+  const [stairsUp, setStairsUp] = useState<Set<string>>(new Set()); // "x,y,depth" format
+  const [stairsDown, setStairsDown] = useState<Set<string>>(new Set()); // "x,y,depth" format
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
     totalRevealed: 0,
@@ -81,6 +90,8 @@ export function useFogOfWar(
   useEffect(() => {
     if (!characterId) {
       setRevealedAreas(new Set());
+      setStairsUp(new Set());
+      setStairsDown(new Set());
       setIsLoading(false);
       return;
     }
@@ -88,11 +99,16 @@ export function useFogOfWar(
     setIsLoading(true);
     try {
       const loaded = loadFogOfWar(characterId);
+      const stairsData = loadStairsData(characterId);
       setRevealedAreas(loaded);
+      setStairsUp(stairsData.stairsUp);
+      setStairsDown(stairsData.stairsDown);
       setStats(getExplorationStats(characterId));
     } catch (error) {
       console.error('Error loading fog-of-war data:', error);
       setRevealedAreas(new Set());
+      setStairsUp(new Set());
+      setStairsDown(new Set());
     } finally {
       setIsLoading(false);
     }
@@ -116,7 +132,7 @@ export function useFogOfWar(
     saveTimeoutRef.current = setTimeout(() => {
       if (pendingSaveRef.current && pendingSaveRef.current.size > 0) {
         try {
-          saveFogOfWar(characterId, pendingSaveRef.current);
+          saveFogOfWar(characterId, pendingSaveRef.current, stairsUp, stairsDown);
           setStats(getExplorationStats(characterId));
         } catch (error) {
           console.error('Error saving fog-of-war data:', error);
@@ -133,9 +149,9 @@ export function useFogOfWar(
         saveTimeoutRef.current = null;
       }
     };
-  }, [characterId, revealedAreas, isLoading]);
+  }, [characterId, revealedAreas, stairsUp, stairsDown, isLoading]);
   
-  // Auto-reveal current position
+  // Auto-reveal current position and track stairs
   useEffect(() => {
     if (!characterId || !currentPosition || isLoading) {
       return;
@@ -154,7 +170,28 @@ export function useFogOfWar(
         return updated;
       });
     }
-  }, [characterId, currentPosition, isLoading, revealedAreas]);
+    
+    // Track stair positions based on movement options
+    if (movementOptions) {
+      const positionKey = `${currentPosition.x},${currentPosition.y},${currentPosition.depth}`;
+      
+      if (movementOptions.canMoveUp) {
+        setStairsUp(prev => {
+          const updated = new Set(prev);
+          updated.add(positionKey);
+          return updated;
+        });
+      }
+      
+      if (movementOptions.canMoveDown) {
+        setStairsDown(prev => {
+          const updated = new Set(prev);
+          updated.add(positionKey);
+          return updated;
+        });
+      }
+    }
+  }, [characterId, currentPosition, movementOptions, isLoading, revealedAreas]);
   
   // Check if a position is revealed
   const isRevealed = useCallback((position: Position): boolean => {
@@ -203,6 +240,34 @@ export function useFogOfWar(
     }
     return cells;
   }, [characterId, revealedAreas]);
+
+  // Get stairs up for a floor
+  const getStairsUpForFloor = useCallback((depth: number): Set<string> => {
+    if (!characterId) return new Set();
+    
+    const floorStairs = new Set<string>();
+    for (const stairKey of stairsUp) {
+      const parts = stairKey.split(',');
+      if (parts.length === 3 && Number(parts[2]) === depth) {
+        floorStairs.add(`${parts[0]},${parts[1]}`); // Return as "x,y" for display
+      }
+    }
+    return floorStairs;
+  }, [characterId, stairsUp]);
+
+  // Get stairs down for a floor
+  const getStairsDownForFloor = useCallback((depth: number): Set<string> => {
+    if (!characterId) return new Set();
+    
+    const floorStairs = new Set<string>();
+    for (const stairKey of stairsDown) {
+      const parts = stairKey.split(',');
+      if (parts.length === 3 && Number(parts[2]) === depth) {
+        floorStairs.add(`${parts[0]},${parts[1]}`); // Return as "x,y" for display
+      }
+    }
+    return floorStairs;
+  }, [characterId, stairsDown]);
   
   // Get floor exploration bounds
   const getFloorExplorationBounds = useCallback((depth: number): { 
@@ -235,6 +300,8 @@ export function useFogOfWar(
     
     clearFogStorage(characterId);
     setRevealedAreas(new Set());
+    setStairsUp(new Set());
+    setStairsDown(new Set());
     setStats({
       totalRevealed: 0,
       floorsVisited: 0,
@@ -249,6 +316,8 @@ export function useFogOfWar(
     revealArea,
     revealPosition,
     getFloorCells,
+    getStairsUp: getStairsUpForFloor,
+    getStairsDown: getStairsDownForFloor,
     getFloorExplorationBounds,
     clearFog,
     stats,

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Box, Grid, GridItem, Flex, Badge } from '@chakra-ui/react';
-import { domain } from '@/types';
+import { domain, hooks } from '@/types';
 import Minimap from '@/components/game/board/Minimap';
 import CombatTargets from '@/components/game/controls/CombatTargets';
 import EventFeed from '@/components/game/feed/EventFeed';
@@ -30,6 +30,7 @@ interface GameViewProps {
   equipableWeaponNames?: string[];
   equipableArmorIDs?: number[];
   equipableArmorNames?: string[];
+  fogOfWar?: hooks.UseGameDataReturn['fogOfWar'];
 }
 
 const GameView: React.FC<GameViewProps> = ({
@@ -50,7 +51,8 @@ const GameView: React.FC<GameViewProps> = ({
   equipableWeaponIDs,
   equipableWeaponNames,
   equipableArmorIDs,
-  equipableArmorNames
+  equipableArmorNames,
+  fogOfWar
 }) => {
   const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'character' | 'actions' | 'map'>('character');
@@ -127,6 +129,7 @@ const GameView: React.FC<GameViewProps> = ({
           isInCombat={isInCombat}
           activeTab={activeTab}
           setActiveTab={setActiveTab}
+          fogOfWar={fogOfWar}
         />
       </GridItem>
 

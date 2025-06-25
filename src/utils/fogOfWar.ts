@@ -55,10 +55,37 @@ export function loadFogOfWar(characterId: string): Set<bigint> {
  * Save fog-of-war data for a character to localStorage
  * @param characterId - The character's unique identifier
  * @param revealedAreas - Set of revealed areaIds
+ * @param stairsUp - Set of stairs up positions ("x,y,depth" format)
+ * @param stairsDown - Set of stairs down positions ("x,y,depth" format)
  */
-export function saveFogOfWar(characterId: string, revealedAreas: Set<bigint>): void {
+export function saveFogOfWar(
+  characterId: string, 
+  revealedAreas: Set<bigint>,
+  stairsUp?: Set<string>,
+  stairsDown?: Set<string>
+): void {
   try {
     const key = getStorageKey(characterId);
+    
+    // Load existing data to preserve other characters' data
+    let existingData: FogOfWarStorage = {
+      version: FOG_STORAGE_VERSION,
+      states: {},
+      stairs: {},
+    };
+    
+    const existingRaw = localStorage.getItem(key);
+    if (existingRaw) {
+      try {
+        existingData = JSON.parse(existingRaw);
+        // Ensure stairs object exists
+        if (!existingData.stairs) {
+          existingData.stairs = {};
+        }
+      } catch (e) {
+        console.warn('[saveFogOfWar] Failed to parse existing data, using defaults');
+      }
+    }
     
     // Convert Set to array of strings for JSON serialization
     const areaIdStrings = Array.from(revealedAreas).map(id => id.toString());
@@ -69,14 +96,18 @@ export function saveFogOfWar(characterId: string, revealedAreas: Set<bigint>): v
       areaIdStrings.splice(0, areaIdStrings.length - DEFAULT_FOG_CONFIG.maxStoredAreas);
     }
     
-    const data: FogOfWarStorage = {
-      version: FOG_STORAGE_VERSION,
-      states: {
-        [characterId]: areaIdStrings,
-      },
-    };
+    // Update revealed areas
+    existingData.states[characterId] = areaIdStrings;
     
-    localStorage.setItem(key, JSON.stringify(data));
+    // Update stairs data if provided
+    if (stairsUp || stairsDown) {
+      existingData.stairs![characterId] = {
+        up: stairsUp ? Array.from(stairsUp) : (existingData.stairs![characterId]?.up || []),
+        down: stairsDown ? Array.from(stairsDown) : (existingData.stairs![characterId]?.down || []),
+      };
+    }
+    
+    localStorage.setItem(key, JSON.stringify(existingData));
   } catch (error) {
     console.error('Error saving fog-of-war data:', error);
     
@@ -91,6 +122,12 @@ export function saveFogOfWar(characterId: string, revealedAreas: Set<bigint>): v
           states: {
             [characterId]: Array.from(revealedAreas).map(id => id.toString()),
           },
+          stairs: stairsUp || stairsDown ? {
+            [characterId]: {
+              up: stairsUp ? Array.from(stairsUp) : [],
+              down: stairsDown ? Array.from(stairsDown) : [],
+            }
+          } : {},
         };
         localStorage.setItem(key, JSON.stringify(data));
       } catch (retryError) {
@@ -251,4 +288,50 @@ export function getExplorationStats(characterId: string): {
     floorsVisited: floorSet.size,
     percentageExplored: Math.round(percentageExplored * 100) / 100,
   };
+}
+
+/**
+ * Load stairs data for a character from localStorage
+ * @param characterId - The character's unique identifier
+ * @returns Object with stairs up and down sets
+ */
+export function loadStairsData(characterId: string): {
+  stairsUp: Set<string>;
+  stairsDown: Set<string>;
+} {
+  try {
+    const key = getStorageKey(characterId);
+    const data = localStorage.getItem(key);
+    
+    if (!data) {
+      return { stairsUp: new Set(), stairsDown: new Set() };
+    }
+    
+    const parsed: FogOfWarStorage = JSON.parse(data);
+    const stairsData = parsed.stairs?.[characterId];
+    
+    return {
+      stairsUp: new Set(stairsData?.up || []),
+      stairsDown: new Set(stairsData?.down || []),
+    };
+  } catch (error) {
+    console.error('Error loading stairs data:', error);
+    return { stairsUp: new Set(), stairsDown: new Set() };
+  }
+}
+
+/**
+ * Save only stairs data for a character (preserves existing revealed areas)
+ * @param characterId - The character's unique identifier
+ * @param stairsUp - Set of stairs up positions ("x,y,depth" format)
+ * @param stairsDown - Set of stairs down positions ("x,y,depth" format)
+ */
+export function saveStairsData(
+  characterId: string,
+  stairsUp: Set<string>,
+  stairsDown: Set<string>
+): void {
+  // Load existing revealed areas and save everything together
+  const revealedAreas = loadFogOfWar(characterId);
+  saveFogOfWar(characterId, revealedAreas, stairsUp, stairsDown);
 }

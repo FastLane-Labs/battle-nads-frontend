@@ -412,7 +412,11 @@ export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameData
   }, [gameState]);
 
   // Fog-of-war management
-  const fogOfWar = useFogOfWar(fogCharacterId, currentPosition);
+  const fogOfWar = useFogOfWar(
+    fogCharacterId, 
+    currentPosition,
+    gameState?.character?.movementOptions
+  );
 
   return {
     // Core data
@@ -484,6 +488,8 @@ export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameData
       revealArea: fogOfWar.revealArea,
       revealPosition: fogOfWar.revealPosition,
       getFloorCells: fogOfWar.getFloorCells,
+      getStairsUp: fogOfWar.getStairsUp,
+      getStairsDown: fogOfWar.getStairsDown,
       getFloorExplorationBounds: fogOfWar.getFloorExplorationBounds,
       clearFog: fogOfWar.clearFog,
       stats: fogOfWar.stats,

@@ -83,6 +83,7 @@ export default function GameV2Page() {
             isSendingChat={game.isSendingChat || false}
             isInCombat={game.isInCombat || false}
             isCacheLoading={game.isCacheLoading || false}
+            fogOfWar={game.fogOfWar}
           />
         </Box>
       </>
