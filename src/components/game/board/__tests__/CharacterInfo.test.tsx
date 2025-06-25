@@ -110,10 +110,10 @@ describe('CharacterInfo Component', () => {
     // Check for Level section (replaces Experience heading)
     expect(screen.getByText(`Level ${Number(mockCharacter.level)}`)).toBeInTheDocument();
     
-    // Check for experience values - should show current/required format
+    // Check for experience values - should show XP within current level / level range format
+    // Level 5 character with 550 total XP should show 70 / 145 (XP within level 5 / level 5 range)
     expect(screen.getByText((content, element) => {
-      return content.includes(`${Number(mockCharacter.stats.experience)}`) && 
-             content.includes('/');
+      return content.includes('70') && content.includes('/') && content.includes('145');
     })).toBeInTheDocument();
     
     // Check for Gold section
