@@ -4,7 +4,7 @@ import { useWallet } from '@/providers/WalletProvider';
 import { BattleNadsAdapter } from '@/blockchain/adapters/BattleNadsAdapter';
 import { BattleNadsClient } from '@/blockchain/clients/BattleNadsClient';
 import { ENTRYPOINT_ADDRESS, RPC_URLS, ENABLE_WEBSOCKET } from '@/config/env';
-import { WebSocketProviderManager } from '@/utils/websocketProvider';
+import { createWebSocketProvider } from '@/utils/websocketProvider';
 
 /**
  * Hook for accessing the BattleNadsClient
@@ -13,7 +13,6 @@ import { WebSocketProviderManager } from '@/utils/websocketProvider';
 export const useBattleNadsClient = () => {
   const { injectedWallet, embeddedWallet } = useWallet();
   const [error, setError] = useState<string | null>(null);
-  const wsManagerRef = useRef<WebSocketProviderManager | null>(null);
   const [wsProvider, setWsProvider] = useState<WebSocketProvider | JsonRpcProvider | null>(null);
 
   // Initialize WebSocket provider manager (if enabled)
@@ -24,18 +23,16 @@ export const useBattleNadsClient = () => {
       return;
     }
 
-    if (!wsManagerRef.current) {
-      wsManagerRef.current = new WebSocketProviderManager({
-        reconnectAttempts: 2,
-        reconnectDelay: 3000, // Longer delay to avoid overwhelming endpoint
-        fallbackToHttp: true,
-      });
-    }
-
-    // Initialize WebSocket connection for polling
+    // Initialize WebSocket connection for polling (using singleton)
     const initializeProvider = async () => {
       try {
-        const provider = await wsManagerRef.current!.getProvider();
+        const wsManager = createWebSocketProvider({
+          reconnectAttempts: 1, // Reduce to prevent connection spam
+          reconnectDelay: 5000, // Longer delay to respect rate limits
+          fallbackToHttp: true,
+        });
+        
+        const provider = await wsManager.getProvider();
         setWsProvider(provider);
         setError(null);
       } catch (err) {
@@ -48,16 +45,7 @@ export const useBattleNadsClient = () => {
 
     initializeProvider();
 
-    return () => {
-      if (wsManagerRef.current) {
-        try {
-          wsManagerRef.current.destroy();
-        } catch (error) {
-          // Ignore cleanup errors
-        }
-        wsManagerRef.current = null;
-      }
-    };
+    // No cleanup needed - singleton manages its own lifecycle
   }, []);
 
   // Create a read-only provider that prefers WebSocket for polling
