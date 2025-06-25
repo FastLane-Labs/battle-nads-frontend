@@ -111,9 +111,9 @@ describe('CharacterInfo Component', () => {
     expect(screen.getByText(`Level ${Number(mockCharacter.level)}`)).toBeInTheDocument();
     
     // Check for experience values - should show XP within current level / level range format
-    // Level 4 character with 700 total XP should show 220 / 145 (XP within level 4 / level 4 range)
+    // Level 4 character with 700 total XP should show 355 / 135 (XP within level 4 / level 4 range)
     expect(screen.getByText((content, element) => {
-      return content.includes('220') && content.includes('/') && content.includes('145');
+      return content.includes('355') && content.includes('/') && content.includes('135');
     })).toBeInTheDocument();
     
     // Check for Gold section

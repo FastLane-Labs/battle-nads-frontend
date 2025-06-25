@@ -32,14 +32,14 @@ describe('experienceHelpers', () => {
       expect(cumulativeExperienceForLevel(-1)).toBe(0);
     });
 
-    it('should return cumulative XP thresholds for each level', () => {
-      // Returns the total cumulative XP needed to reach each level
+    it('should return level start thresholds for each level', () => {
+      // Returns the XP threshold where each level starts
       expect(cumulativeExperienceForLevel(1)).toBe(0); // Level 1 starts at 0 XP
-      expect(cumulativeExperienceForLevel(2)).toBe(220); // Level 2 needs 220 total XP
-      expect(cumulativeExperienceForLevel(3)).toBe(345); // Level 3 needs 345 total XP
-      expect(cumulativeExperienceForLevel(4)).toBe(480); // Level 4 needs 480 total XP
-      expect(cumulativeExperienceForLevel(8)).toBe(940); // Level 8 needs 940 total XP
-      expect(cumulativeExperienceForLevel(9)).toBe(1120); // Level 9 needs 1120 total XP
+      expect(cumulativeExperienceForLevel(2)).toBe(105); // Level 2 starts at 105 XP
+      expect(cumulativeExperienceForLevel(3)).toBe(220); // Level 3 starts at 220 XP
+      expect(cumulativeExperienceForLevel(4)).toBe(345); // Level 4 starts at 345 XP
+      expect(cumulativeExperienceForLevel(8)).toBe(945); // Level 8 starts at 945 XP
+      expect(cumulativeExperienceForLevel(9)).toBe(1120); // Level 9 starts at 1120 XP
     });
   });
 
