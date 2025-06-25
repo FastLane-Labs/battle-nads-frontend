@@ -217,6 +217,25 @@ All promises must be handled (ESLint enforced). This is especially critical for:
 - Debounce user inputs that trigger contract reads
 - Optimize re-renders with proper dependency arrays
 
+## WebSocket Configuration
+
+WebSocket support is available but **disabled by default**. To enable:
+
+```bash
+# Enable WebSocket for development
+NEXT_PUBLIC_ENABLE_WEBSOCKET=true npm run dev
+
+# Or add to .env.local
+echo "NEXT_PUBLIC_ENABLE_WEBSOCKET=true" >> .env.local
+```
+
+**Benefits of WebSocket:**
+- Real-time contract state updates
+- Lower latency for game polling
+- Persistent connection reduces overhead
+
+**Current Status:** Infrastructure ready, disabled by default for stability
+
 ## Commands
 
 ### Development
