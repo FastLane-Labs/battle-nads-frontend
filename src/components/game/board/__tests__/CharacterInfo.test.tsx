@@ -29,7 +29,7 @@ const mockCharacter: domain.Character = {
   maxHealth: 100,
   buffs: [],
   debuffs: [],
-  stats: { strength: 10, vitality: 8, dexterity: 5, quickness: 6, sturdiness: 7, luck: 4, experience: 1300, unspentAttributePoints: 0 },
+  stats: { strength: 10, vitality: 8, dexterity: 5, quickness: 6, sturdiness: 7, luck: 4, experience: 700, unspentAttributePoints: 0 },
   weapon: { id: 1, name: 'Sword', baseDamage: 10, bonusDamage: 2, accuracy: 90, speed: 10 },
   armor: { id: 1, name: 'Leather Armor', armorFactor: 5, armorQuality: 5, flexibility: 8, weight: 10 },
   position: { x: 1, y: 1, depth: 1 },
@@ -111,9 +111,9 @@ describe('CharacterInfo Component', () => {
     expect(screen.getByText(`Level ${Number(mockCharacter.level)}`)).toBeInTheDocument();
     
     // Check for experience values - should show XP within current level / level range format
-    // Level 5 character with 1300 total XP should show 150 / 625 (XP within level 5 / level 5 range)
+    // Level 5 character with 700 total XP should show 75 / 155 (XP within level 5 / level 5 range)
     expect(screen.getByText((content, element) => {
-      return content.includes('150') && content.includes('/') && content.includes('625');
+      return content.includes('75') && content.includes('/') && content.includes('155');
     })).toBeInTheDocument();
     
     // Check for Gold section
