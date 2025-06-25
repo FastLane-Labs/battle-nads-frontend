@@ -97,7 +97,7 @@ const MinimapContainer: React.FC<MinimapContainerProps> = ({
         characterId={characterId}
         onCellClick={handleCellClick}
         currentDepth={viewingDepth}
-        viewportSize={11}
+        viewportSize={21}
       />
       
       {/* Instructions */}
