@@ -137,10 +137,20 @@ const Minimap: React.FC<MinimapProps> = memo(({
         width="fit-content"
         height="fit-content"
       >
-        {gridCells.map((cell) => (
+        {gridCells.map((cell) => {
+          // Build tooltip content
+          let tooltipContent = `(${cell.x}, ${cell.y})`;
+          if (cell.hasStairsUp || cell.hasStairsDown) {
+            const stairInfo = [];
+            if (cell.hasStairsUp) stairInfo.push('Stairs Up');
+            if (cell.hasStairsDown) stairInfo.push('Stairs Down');
+            tooltipContent += ` - ${stairInfo.join(' & ')}`;
+          }
+          
+          return (
           <GameTooltip
             key={cell.key}
-            title={`(${cell.x}, ${cell.y})`}
+            title={tooltipContent}
             placement="top"
           >
             <GridItem
@@ -179,7 +189,8 @@ const Minimap: React.FC<MinimapProps> = memo(({
               )}
             </GridItem>
           </GameTooltip>
-        ))}
+          );
+        })}
       </Grid>
       
       {/* Legend */}
