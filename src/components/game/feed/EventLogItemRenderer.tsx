@@ -85,18 +85,26 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
   combatants
 }) => {
 
-  // Enrich the event log with better formatting
-  const enrichedLog = React.useMemo(() => {
-    const logEntryRaw: LogEntryRaw = {
-      ...event,
-      actor: event.attacker ? createCharacterLiteFromEvent(event.attacker, event, combatants) : undefined,
-      target: event.defender ? createCharacterLiteFromEvent(event.defender, event, combatants) : undefined,
-    };
-    return enrichLog(logEntryRaw);
-  }, [event, combatants]);
+  // Helper to extract numeric ID from equipment names (if they follow a pattern)
+  const extractIdFromName = React.useCallback((name: string): number | undefined => {
+    // This is a simple heuristic - equipment names might not have IDs
+    // For now, return undefined and rely on other data sources
+    return undefined;
+  }, []);
+
+  // Helper to infer character class from participant data
+  const inferCharacterClass = React.useCallback((participant: domain.EventParticipant): domain.CharacterClass => {
+    // If it's the player, use the provided class
+    if (playerIndex !== null && Number(participant.index) === Number(playerIndex) && playerCharacterClass) {
+      return playerCharacterClass;
+    }
+    
+    // For NPCs, default to Basic monster class
+    return domain.CharacterClass.Basic;
+  }, [playerIndex, playerCharacterClass]);
 
   // Helper function to create CharacterLite from event data
-  const createCharacterLiteFromEvent = (
+  const createCharacterLiteFromEvent = React.useCallback((
     participant: domain.EventParticipant,
     event: domain.EventMessage,
     combatants?: domain.CharacterLite[]
@@ -120,25 +128,17 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
       class: inferCharacterClass(participant),
       level: 1, // Default level
     });
-  };
+  }, [extractIdFromName, inferCharacterClass]);
 
-  // Helper to extract numeric ID from equipment names (if they follow a pattern)
-  const extractIdFromName = (name: string): number | undefined => {
-    // This is a simple heuristic - equipment names might not have IDs
-    // For now, return undefined and rely on other data sources
-    return undefined;
-  };
-
-  // Helper to infer character class from participant data
-  const inferCharacterClass = (participant: domain.EventParticipant): domain.CharacterClass => {
-    // If it's the player, use the provided class
-    if (playerIndex !== null && Number(participant.index) === Number(playerIndex) && playerCharacterClass) {
-      return playerCharacterClass;
-    }
-    
-    // For NPCs, default to Basic monster class
-    return domain.CharacterClass.Basic;
-  };
+  // Enrich the event log with better formatting
+  const enrichedLog = React.useMemo(() => {
+    const logEntryRaw: LogEntryRaw = {
+      ...event,
+      actor: event.attacker ? createCharacterLiteFromEvent(event.attacker, event, combatants) : undefined,
+      target: event.defender ? createCharacterLiteFromEvent(event.defender, event, combatants) : undefined,
+    };
+    return enrichLog(logEntryRaw);
+  }, [event, combatants, createCharacterLiteFromEvent]);
 
   // Generate display message based on event data (fallback)
   const generateDisplayMessage = (): string => {
