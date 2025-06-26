@@ -10,6 +10,7 @@ import {
   DIRECT_FUNDING_AMOUNT,
   MIN_SAFE_OWNER_BALANCE 
 } from '@/config/wallet';
+import { safeFormatEther, safeFormatUnits } from '@/utils/safeNumberConversion';
 
 export interface WalletBalanceData {
   // Balance values (formatted strings)
@@ -136,19 +137,19 @@ export function useWalletState(options: UseWalletStateOptions = {}): WalletBalan
 
   // Format balance values
   const sessionKeyBalance = useMemo(() => {
-    return hasValidSessionKeyData ? ethers.formatUnits(sessionKeyBalanceBigInt, 18) : '0';
+    return hasValidSessionKeyData ? safeFormatUnits(sessionKeyBalanceBigInt, 18) : '0';
   }, [hasValidSessionKeyData, sessionKeyBalanceBigInt]);
 
   const bondedBalance = useMemo(() => {
-    return hasValidSessionKeyData ? ethers.formatUnits(bondedBalanceBigInt, 18) : '0';
+    return hasValidSessionKeyData ? safeFormatUnits(bondedBalanceBigInt, 18) : '0';
   }, [hasValidSessionKeyData, bondedBalanceBigInt]);
 
   const targetBalance = useMemo(() => {
-    return hasValidSessionKeyData ? ethers.formatUnits(targetBalanceBigInt, 18) : '0';
+    return hasValidSessionKeyData ? safeFormatUnits(targetBalanceBigInt, 18) : '0';
   }, [hasValidSessionKeyData, targetBalanceBigInt]);
 
   const formattedShortfall = useMemo(() => {
-    return hasValidSessionKeyData && shortfall > 0 ? ethers.formatEther(shortfall) : '0';
+    return hasValidSessionKeyData && shortfall > 0 ? safeFormatEther(shortfall) : '0';
   }, [hasValidSessionKeyData, shortfall]);
 
   // Transaction validation (if enabled)

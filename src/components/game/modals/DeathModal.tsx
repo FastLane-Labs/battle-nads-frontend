@@ -17,7 +17,7 @@ interface DeathModalProps {
   isOpen: boolean;
   onClose?: () => void; // Optional since death modal might not be dismissible
   characterName?: string;
-  balanceLost?: string; // Formatted balance string
+  balanceLost?: string; // Optional - not currently displayed but kept for future use
 }
 
 const DeathModal: React.FC<DeathModalProps> = ({ 
