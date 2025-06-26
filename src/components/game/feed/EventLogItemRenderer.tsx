@@ -55,6 +55,9 @@ interface EventLogItemRendererProps {
   getArmorName?: ((armorId: number | null | undefined) => string) | null;
   playerCharacterClass?: domain.CharacterClass;
   combatants?: domain.CharacterLite[];
+  playerWeaponName?: string;
+  currentAreaId?: bigint;
+  playerCharacterName?: string;
 }
 
 const getEventColor = (type: domain.LogType | number) => {
@@ -82,7 +85,10 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
   getWeaponName, 
   getArmorName,
   playerCharacterClass,
-  combatants
+  combatants,
+  playerWeaponName,
+  currentAreaId,
+  playerCharacterName
 }) => {
 
   // Helper to extract numeric ID from equipment names (if they follow a pattern)
@@ -94,14 +100,17 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
 
   // Helper to infer character class from participant data
   const inferCharacterClass = React.useCallback((participant: domain.EventParticipant): domain.CharacterClass => {
-    // If it's the player, use the provided class
-    if (playerIndex !== null && Number(participant.index) === Number(playerIndex) && playerCharacterClass) {
+    // Check if it's the player by name (since indices can change between areas)
+    const isPlayerByName = participant.name === "You" || 
+                          (playerCharacterName && participant.name === playerCharacterName);
+    
+    if (isPlayerByName && playerCharacterClass) {
       return playerCharacterClass;
     }
     
     // For NPCs, default to Basic monster class
     return domain.CharacterClass.Basic;
-  }, [playerIndex, playerCharacterClass]);
+  }, [playerCharacterName, playerCharacterClass]);
 
   // Helper function to create CharacterLite from event data
   const createCharacterLiteFromEvent = React.useCallback((
@@ -111,14 +120,17 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
   ): CharacterLite => {
     // Try to find more detailed character info from combatants list
     const fullCharacter = combatants?.find(c => c.id === participant.id);
+    
     if (fullCharacter) {
+      const weaponId = extractIdFromName(fullCharacter.weaponName);
+      
       return {
         class: fullCharacter.class,
         index: participant.index,
         level: fullCharacter.level,
         name: participant.name,
         // Try to extract weapon/armor IDs from names if possible
-        weaponId: extractIdFromName(fullCharacter.weaponName),
+        weaponId: weaponId,
         armorId: extractIdFromName(fullCharacter.armorName),
       };
     }
@@ -137,8 +149,8 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
       actor: event.attacker ? createCharacterLiteFromEvent(event.attacker, event, combatants) : undefined,
       target: event.defender ? createCharacterLiteFromEvent(event.defender, event, combatants) : undefined,
     };
-    return enrichLog(logEntryRaw, playerIndex);
-  }, [event, combatants, createCharacterLiteFromEvent]);
+    return enrichLog(logEntryRaw, playerIndex, playerWeaponName, currentAreaId, playerCharacterName);
+  }, [event, combatants, createCharacterLiteFromEvent, playerIndex, playerWeaponName, currentAreaId, playerCharacterName]);
 
   // Generate display message based on event data (fallback)
   const generateDisplayMessage = (): string => {
@@ -262,7 +274,7 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
             {/* Weapon looted */}
             {event.details?.lootedWeaponID && !isNaN(Number(event.details.lootedWeaponID)) && Number(event.details.lootedWeaponID) > 0 && (
               <chakra.span color="yellow.400" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(251, 191, 36, 0.1)" px={1} borderRadius="sm">
-                Weapon: {(() => {
+                Looted: {(() => {
                   try {
                     const weaponId = Number(event.details.lootedWeaponID);
                     if (getWeaponName && typeof getWeaponName === 'function') {
@@ -280,7 +292,7 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
             {/* Armor looted */}
             {event.details?.lootedArmorID && !isNaN(Number(event.details.lootedArmorID)) && Number(event.details.lootedArmorID) > 0 && (
               <chakra.span color="yellow.400" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(251, 191, 36, 0.1)" px={1} borderRadius="sm">
-                Armor: {(() => {
+                Looted: {(() => {
                   try {
                     const armorId = Number(event.details.lootedArmorID);
                     if (getArmorName && typeof getArmorName === 'function') {

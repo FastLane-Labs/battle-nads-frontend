@@ -163,6 +163,8 @@ const GameView: React.FC<GameViewProps> = ({
             equipableArmorNames={equipableArmorNames}
             playerCharacterClass={character.class}
             currentAreaId={currentAreaId}
+            playerWeaponName={character.weapon?.name}
+            playerCharacterName={character.name}
           />
         </Box>
       </GridItem>

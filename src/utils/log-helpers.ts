@@ -20,8 +20,9 @@ export interface CharacterLite {
 }
 
 export function formatActorName(char: CharacterLite, isPlayer: boolean = false, isTarget: boolean = false): string {
-  if (char.class <= CharacterClass.Boss) {
-    const baseName = MONSTER_NAMES[char.index] || `Unknown Monster ${char.index}`;
+  if (char.class >= CharacterClass.Basic && char.class <= CharacterClass.Boss) {
+    // Use the pre-resolved name from the event data if available, otherwise lookup by index
+    const baseName = char.name || MONSTER_NAMES[char.index] || `Unknown Monster ${char.index}`;
     
     if (char.class === CharacterClass.Elite) {
       return `Elite ${baseName}`;
@@ -31,6 +32,11 @@ export function formatActorName(char: CharacterLite, isPlayer: boolean = false, 
       if (char.level < 16) {
         return "Dungeon Floor Boss";
       }
+      // For bosses, if we have a pre-resolved name, use it directly
+      if (char.name && char.name !== baseName) {
+        return char.name; // Use the pre-resolved boss name from event data
+      }
+      
       if (char.level >= 46 && char.level <= 60) {
         const namedBoss = NAMED_BOSSES[char.level];
         if (namedBoss) return namedBoss;
@@ -47,7 +53,7 @@ export function formatActorName(char: CharacterLite, isPlayer: boolean = false, 
     }
     
     return baseName;
-  } else {
+  } else if (char.class >= CharacterClass.Bard && char.class <= CharacterClass.Sorcerer) {
     // For player characters, show "You"/"you" if it's the current player, otherwise show name with title
     if (isPlayer) {
       return isTarget ? "you" : "You";
@@ -55,6 +61,12 @@ export function formatActorName(char: CharacterLite, isPlayer: boolean = false, 
     
     const title = getPlayerTitle(char);
     return title ? `${title} ${char.name}` : char.name;
+  } else {
+    // For Null or unknown classes, just use the name directly
+    if (isPlayer) {
+      return isTarget ? "you" : "You";
+    }
+    return char.name;
   }
 }
 

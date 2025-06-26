@@ -3,7 +3,7 @@ import { Box, Text, Spinner, Center } from '@chakra-ui/react';
 import { domain } from '@/types';
 import { EventLogItemRenderer } from './EventLogItemRenderer';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { filterEventsByArea, filterEventsByRecentAreas } from '@/utils/eventFiltering';
+import { filterEventsByRecentAreas } from '@/utils/eventFiltering';
 
 interface EventFeedProps {
   playerIndex: number | null;
@@ -19,6 +19,10 @@ interface EventFeedProps {
   playerCharacterClass?: domain.CharacterClass;
   // Add current player area ID for filtering
   currentAreaId?: bigint;
+  // Add player weapon name for combat log enrichment
+  playerWeaponName?: string;
+  // Add player character name for player detection
+  playerCharacterName?: string;
 }
 
 const EventFeed: React.FC<EventFeedProps> = ({ 
@@ -31,7 +35,9 @@ const EventFeed: React.FC<EventFeedProps> = ({
   equipableArmorIDs,
   equipableArmorNames,
   playerCharacterClass,
-  currentAreaId
+  currentAreaId,
+  playerWeaponName,
+  playerCharacterName
 }) => {
   
   const parentRef = useRef<HTMLDivElement>(null);
@@ -147,13 +153,57 @@ const EventFeed: React.FC<EventFeedProps> = ({
     scrollMargin: 0, // Remove default scroll margin
   });
   
+  // Create enhanced combatants array that includes the main player
+  const enhancedCombatants = useMemo(() => {
+    if (!combatants || !Array.isArray(combatants)) {
+      return [];
+    }
+    
+    // Check if player is already in combatants array
+    const playerInCombatants = combatants.some(c => 
+      c && typeof c.index === 'number' && Number(c.index) === Number(playerIndex)
+    );
+    
+    if (playerInCombatants || !playerIndex) {
+      return combatants;
+    }
+    
+    // Create a CharacterLite entry for the main player
+    const playerCharacterLite: domain.CharacterLite = {
+      id: `index_${playerIndex}`,
+      index: playerIndex,
+      name: "You", // This will be shown as "You" anyway in formatActorName
+      class: playerCharacterClass || domain.CharacterClass.Null,
+      level: 1, // We don't have level data here, could be enhanced later
+      health: 100, // Default health values
+      maxHealth: 100,
+      buffs: [], // No buffs/debuffs for simplified player entry
+      debuffs: [],
+      weaponName: "", // We could enhance this with actual weapon data
+      armorName: "", // We could enhance this with actual armor data
+      isDead: false,
+      ability: {
+        ability: domain.Ability.None,
+        stage: 0,
+        targetIndex: 0,
+        taskAddress: "",
+        targetBlock: 0,
+      },
+      areaId: BigInt(0), // Default area ID
+    };
+    
+    
+    // Return combatants array with player added
+    return [...combatants, playerCharacterLite];
+  }, [combatants, playerIndex, playerCharacterClass]);
+
   // Handle undefined/null combatants array safely
   const combatantIds = useMemo(() => {
-    if (!combatants || !Array.isArray(combatants)) {
+    if (!enhancedCombatants || !Array.isArray(enhancedCombatants)) {
       return new Set();
     }
-    return new Set(combatants.map(c => String(c?.id)).filter(Boolean));
-  }, [combatants]);
+    return new Set(enhancedCombatants.map(c => String(c?.id)).filter(Boolean));
+  }, [enhancedCombatants]);
 
   // Create equipment name lookup functions with comprehensive safety checks
   const getWeaponName = useMemo(() => {
@@ -353,7 +403,10 @@ const EventFeed: React.FC<EventFeedProps> = ({
                           getWeaponName={getWeaponName}
                           getArmorName={getArmorName}
                           playerCharacterClass={playerCharacterClass}
-                          combatants={combatants}
+                          combatants={enhancedCombatants}
+                          playerWeaponName={playerWeaponName}
+                          currentAreaId={currentAreaId}
+                          playerCharacterName={playerCharacterName}
                         />
                       </Box>
                     </Box>

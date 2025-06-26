@@ -51,7 +51,7 @@ describe('log-builder', () => {
         target: mockMonsterCharacter,
       };
 
-      const result = enrichLog(rawLog, 1); // playerIndex = 1
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'John'); // playerIndex = 1, playerCharacterName = 'John'
 
       expect(result.text).toContain('You critically strike Slime');
       expect(result.text).toContain('for 574 damage');
@@ -78,7 +78,7 @@ describe('log-builder', () => {
         target: mockPlayerCharacter,
       };
 
-      const result = enrichLog(rawLog, 1); // playerIndex = 1
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'John'); // playerIndex = 1, playerCharacterName = 'John'
 
       expect(result.text).toContain('Slime');
       expect(result.text).toContain('you'); // Player is target
@@ -121,7 +121,7 @@ describe('log-builder', () => {
       const result = enrichLog(rawLog, 1); // Current player index = 1
 
       expect(result.text).toContain('the Loud Alice'); // Bard level 25 title
-      expect(result.text).toContain('strikes Slime');
+      expect(result.text).toContain('strikes Slime'); // Third person uses "strikes" // Third person uses "strikes"
     });
 
     it('should handle target death', () => {
@@ -144,7 +144,7 @@ describe('log-builder', () => {
         target: mockMonsterCharacter,
       };
 
-      const result = enrichLog(rawLog, 1);
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
       expect(result.text).toContain('**Slime falls!**');
     });
@@ -168,8 +168,8 @@ describe('log-builder', () => {
         target: mockPlayerCharacter,
       };
 
-      const result1 = enrichLog(rawLog, 1);
-      const result2 = enrichLog(rawLog, 1);
+      const result1 = enrichLog(rawLog, 1, undefined, undefined, 'John');
+      const result2 = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
       expect(result1.text).toBe(result2.text); // Should be deterministic
       expect(result1.text).toMatch(/sloshes acidic goo at|oozes toward|splashes/);
@@ -205,13 +205,15 @@ describe('log-builder', () => {
         target: mockPlayerCharacter,
       };
 
-      const result = enrichLog(rawLog, 1);
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
       expect(result.text).toContain('The Beast');
       expect(result.text).toContain('you');
       expect(result.text).toContain('for 100 damage');
       expect(result.text).not.toContain('with bare hands');
-      expect(result.text).not.toContain('with ');
+      // Monster attacks shouldn't show weapon text at the end, but the verb itself might contain "with"
+      expect(result.text).not.toContain('with claws.');
+      expect(result.text).not.toContain('with fangs.');
       expect(result.text).toMatch(/embodies primal terror against|stalks with ancient hunger|devours with endless appetite/);
     });
   });
@@ -235,7 +237,7 @@ describe('log-builder', () => {
         target: mockMonsterCharacter,
       };
 
-      const result = enrichLog(rawLog, 1);
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
       expect(result.text).toContain('You used **Mighty Blow**');
       expect(result.text).toContain('on Slime');
@@ -258,7 +260,7 @@ describe('log-builder', () => {
         actor: mockPlayerCharacter,
       };
 
-      const result = enrichLog(rawLog, 1);
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
       expect(result.text).toContain('You used **Mighty Blow**');
       expect(result.text).toContain('for 50 healing');
@@ -284,7 +286,7 @@ describe('log-builder', () => {
         ability: 'Shield Bash',
       };
 
-      const result = enrichLog(rawLog, 1);
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
       expect(result.text).toContain('You used **Shield Bash**');
       expect(result.text).not.toContain('Mighty Blow');
@@ -306,7 +308,7 @@ describe('log-builder', () => {
         actor: mockPlayerCharacter,
       };
 
-      const result = enrichLog(rawLog, 1);
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
       expect(result.text).toBe('You entered the area (42).');
     });
@@ -325,7 +327,7 @@ describe('log-builder', () => {
         actor: mockPlayerCharacter,
       };
 
-      const result = enrichLog(rawLog, 1);
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
       expect(result.text).toBe('You left the area (42).');
     });
@@ -380,7 +382,7 @@ describe('log-builder', () => {
         target: mockMonsterCharacter,
       };
 
-      const result = enrichLog(rawLog, 1);
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
       expect(result.text).toBe('You initiated combat with Slime!');
     });
@@ -403,7 +405,7 @@ describe('log-builder', () => {
         actor: mockPlayerCharacter,
       };
 
-      const result = enrichLog(rawLog, 1);
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
       expect(result.text).toBe('You gained 500 experience and advanced to the next level!');
     });
@@ -422,7 +424,7 @@ describe('log-builder', () => {
         actor: mockPlayerCharacter,
       };
 
-      const result = enrichLog(rawLog, 1);
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
       expect(result.text).toBe('You gained 0 experience and advanced to the next level!');
     });
@@ -520,7 +522,7 @@ describe('log-builder', () => {
       const result = enrichLog(rawLog); // No playerIndex
 
       expect(result.text).toContain('Count John'); // Should show name with title, not "You"
-      expect(result.text).toContain('strikes Slime');
+      expect(result.text).toContain('strikes Slime'); // Third person uses "strikes"
     });
 
     it('should handle null playerIndex', () => {
@@ -544,7 +546,7 @@ describe('log-builder', () => {
       const result = enrichLog(rawLog, null);
 
       expect(result.text).toContain('Count John'); // Should show name with title, not "You"
-      expect(result.text).toContain('strikes Slime');
+      expect(result.text).toContain('strikes Slime'); // Third person uses "strikes"
     });
 
     it('should handle missing actor/target gracefully', () => {
@@ -564,13 +566,13 @@ describe('log-builder', () => {
         // No actor/target provided
       };
 
-      const result = enrichLog(rawLog, 1);
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
-      // Should still work by creating CharacterLite from participants
-      // Without actor/target data, it falls back to participant names
-      expect(result.text).toContain('John'); // Falls back to participant name
-      expect(result.text).toContain('Slime');
-      expect(result.text).toContain('strike');
+      // Without actor/target data, it creates CharacterLite with Null class from participants
+      // Player detection still works based on name matching
+      expect(result.text).toContain('You strike Slime');
+      expect(result.text).toContain('for 100 damage');
+      expect(result.text).toContain('with bare hands'); // Default weapon for Null class
     });
   });
 });

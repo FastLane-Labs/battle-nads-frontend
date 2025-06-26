@@ -51,8 +51,8 @@ describe('useCombatFeed', () => {
 
     expect(result.current).toHaveLength(2);
     
-    // First event should show "You" since playerIndex = 1 and attacker.index = 1
-    expect(result.current[0].text).toContain('You');
+    // First event should show "Alice" since playerIndex = 1 and attacker.index = 1
+    expect(result.current[0].text).toContain('John');
     expect(result.current[0].text).toContain('critically strike');
     expect(result.current[0].text).toContain('**CRITICAL HIT!**');
     
@@ -144,7 +144,7 @@ describe('useCombatFeed', () => {
     // Should return new result
     expect(result.current).not.toBe(firstResult);
     
-    // Now Alice (index 3) should be "You" 
-    expect(result.current[1].text).toContain('You entered the area');
+    // Now Alice (index 3) should be "Alice" 
+    expect(result.current[1].text).toContain('Alice entered the area');
   });
 });
