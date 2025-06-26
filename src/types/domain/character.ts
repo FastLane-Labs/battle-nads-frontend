@@ -85,4 +85,11 @@ export interface CharacterLite extends BaseCharacterLite<number, StatusEffect[]>
   ability: AbilityState;
   areaId: bigint;
   // All other fields inherited from BaseCharacterLite<number, StatusEffect[]>
+}
+
+export type ThreatLevel = 'low' | 'equal' | 'high' | 'extreme';
+
+export interface ThreatInfo {
+  level: ThreatLevel;
+  levelDifference: number;
 } 

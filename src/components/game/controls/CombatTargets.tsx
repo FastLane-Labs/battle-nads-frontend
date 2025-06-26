@@ -2,6 +2,7 @@ import React from 'react';
 import { Box, Button, VStack, Text, Flex } from '@chakra-ui/react';
 import { domain } from '../../../types';
 import HealthBar from '../ui/HealthBar';
+import { calculateThreatLevel, getThreatColors } from '@/utils/threatLevel';
 
 interface CombatTargetsProps {
   combatants: domain.CharacterLite[];
@@ -9,6 +10,7 @@ interface CombatTargetsProps {
   selectedTargetIndex: number | null;
   onSelectTarget: (index: number | null) => void;
   currentPlayerId?: string; // Add current player ID to filter them out
+  currentPlayerLevel?: number; // Add current player level for threat calculation
 }
 
 const CombatTargets: React.FC<CombatTargetsProps> = ({ 
@@ -16,7 +18,8 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
   noncombatants,
   selectedTargetIndex,
   onSelectTarget,
-  currentPlayerId
+  currentPlayerId,
+  currentPlayerLevel
 }) => {
   // Helper function to check if a character class is a player class
   const isPlayerClass = (classValue: domain.CharacterClass): boolean => {
@@ -69,8 +72,21 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
     const positionIndex = character.index;
     const isSelected = selectedTargetIndex === positionIndex;
     
-    // Determine styling based on character type
+    // Calculate threat level for players, enemies, and combatants (except current player)
+    const shouldApplyThreat = currentPlayerLevel && (
+      characterType === 'player' || 
+      characterType === 'enemy' || 
+      (characterType === 'combatant' && character.id !== currentPlayerId)
+    );
+    
+    const threatInfo = shouldApplyThreat 
+      ? calculateThreatLevel(currentPlayerLevel, character.level)
+      : null;
+    const threatColors = threatInfo ? getThreatColors(threatInfo.level) : null;
+    
+    // Determine styling based on character type and threat level
     const getBorderStyle = () => {
+      if (threatColors) return { border: "1px dashed", borderColor: threatColors.chakraColor + ".500" };
       if (characterType === 'combatant') return { border: "1px solid", borderColor: "transparent" };
       if (characterType === 'player') return { border: "1px dashed", borderColor: "gray.500" };
       if (characterType === 'enemy') return { border: "1px dashed", borderColor: "red.400" };
@@ -107,17 +123,27 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
         {/* Top row: Name, Class, Level */}
         <Flex justify="space-between" align="center" w="100%" mb={2}>
           <Flex align="center" gap={2}>
-            <Text fontSize="sm" className={characterType === 'combatant' ? 'gold-text-light' : characterType === 'player' ? 'text-gray-300' : 'text-red-300'}>
+            <Text fontSize="sm" className={
+              threatColors ? threatColors.text : 
+              characterType === 'combatant' ? 'gold-text-light' : 
+              characterType === 'player' ? 'text-gray-300' : 
+              'text-red-300'
+            }>
               {character.name || getDefaultName()}
             </Text>
             {characterType === 'player' && (
-              <Text fontSize="xs" className="text-gray-400 italic">
-                (player)
+              <Text fontSize="xs" className={threatColors ? threatColors.text + ' italic' : 'text-gray-400 italic'}>
+                (player{threatInfo && currentPlayerLevel && Math.abs(Number(character.level) - Number(currentPlayerLevel)) > 2 ? ` ${Number(character.level) > Number(currentPlayerLevel) ? '+' : ''}${Number(character.level) - Number(currentPlayerLevel)}` : ''})
               </Text>
             )}
             {characterType === 'enemy' && (
-              <Text fontSize="xs" className="text-red-400 italic">
-                (enemy)
+              <Text fontSize="xs" className={threatColors ? threatColors.text + ' italic' : 'text-red-400 italic'}>
+                (enemy{threatInfo && currentPlayerLevel && Math.abs(Number(character.level) - Number(currentPlayerLevel)) > 2 ? ` ${Number(character.level) > Number(currentPlayerLevel) ? '+' : ''}${Number(character.level) - Number(currentPlayerLevel)}` : ''})
+              </Text>
+            )}
+            {characterType === 'combatant' && threatInfo && character.id !== currentPlayerId && (
+              <Text fontSize="xs" className={threatColors ? threatColors.text + ' italic' : 'text-yellow-400/80 italic'}>
+                ({isEnemyClass(character.class) ? 'enemy' : 'target'}{currentPlayerLevel && Math.abs(Number(character.level) - Number(currentPlayerLevel)) > 2 ? ` ${Number(character.level) > Number(currentPlayerLevel) ? '+' : ''}${Number(character.level) - Number(currentPlayerLevel)}` : ''})
               </Text>
             )}
           </Flex>
@@ -134,7 +160,12 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
               justifyContent="center"
               minWidth="60px"
               height="24px"
-              className={characterType === 'combatant' ? 'text-yellow-400/90 text-center font-serif text-sm' : characterType === 'player' ? 'text-gray-400 text-center font-serif text-sm' : 'text-red-400 text-center font-serif text-sm'}
+              className={
+                threatColors ? threatColors.text + ' text-center font-serif text-sm' : 
+                characterType === 'combatant' ? 'text-yellow-400/90 text-center font-serif text-sm' : 
+                characterType === 'player' ? 'text-gray-400 text-center font-serif text-sm' : 
+                'text-red-400 text-center font-serif text-sm'
+              }
             >
               {getClassDisplayName(character.class)}
             </Box>
@@ -150,7 +181,12 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
               justifyContent="center"
               minWidth="50px"
               height="24px"
-              className={characterType === 'combatant' ? 'text-yellow-400/90 text-center font-serif text-sm' : characterType === 'player' ? 'text-gray-400 text-center font-serif text-sm' : 'text-red-400 text-center font-serif text-sm'}
+              className={
+                threatColors ? threatColors.text + ' text-center font-serif text-sm' : 
+                characterType === 'combatant' ? 'text-yellow-400/90 text-center font-serif text-sm' : 
+                characterType === 'player' ? 'text-gray-400 text-center font-serif text-sm' : 
+                'text-red-400 text-center font-serif text-sm'
+              }
             >
               Lvl {character.level || '?'}
             </Box>
