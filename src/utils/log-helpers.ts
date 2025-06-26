@@ -19,7 +19,7 @@ export interface CharacterLite {
   armorId?: number;
 }
 
-export function formatActorName(char: CharacterLite, isPlayer: boolean = false): string {
+export function formatActorName(char: CharacterLite, isPlayer: boolean = false, isTarget: boolean = false): string {
   if (char.class <= CharacterClass.Boss) {
     const baseName = MONSTER_NAMES[char.index] || `Unknown Monster ${char.index}`;
     
@@ -48,9 +48,9 @@ export function formatActorName(char: CharacterLite, isPlayer: boolean = false):
     
     return baseName;
   } else {
-    // For player characters, show "You" if it's the current player, otherwise show name with title
+    // For player characters, show "You"/"you" if it's the current player, otherwise show name with title
     if (isPlayer) {
-      return "You";
+      return isTarget ? "you" : "You";
     }
     
     const title = getPlayerTitle(char);
