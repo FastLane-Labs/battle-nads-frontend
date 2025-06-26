@@ -38,16 +38,20 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
                               (playerCharacterName && raw.attacker?.name === playerCharacterName);
       const isPlayerDefender = raw.defender?.name === "You" || 
                               (playerCharacterName && raw.defender?.name === playerCharacterName);
-      
-      const isCurrentArea = currentAreaId === undefined || raw.areaId === currentAreaId;
-      
-      const isActorPlayer = isPlayerAttacker && isCurrentArea;
-      const isTargetPlayer = isPlayerDefender && isCurrentArea;
-      
-      
+      console.log('🔍 Player detection debug:', {
+        isPlayerAttacker,
+        isPlayerDefender,
+        playerCharacterName,
+        attackerName: raw.attacker?.name,
+        defenderName: raw.defender?.name
+      });
+    
+      const isActorPlayer = isPlayerAttacker
+      const isTargetPlayer = isPlayerDefender
+            
       const actorName = formatActorName(actor, isActorPlayer || false, false);
       const targetName = formatActorName(target, isTargetPlayer || false, true);
-      
+
       // Get weapon name - different logic for monsters vs players
       let weaponName = "";
       if (isMonster(actor)) {
