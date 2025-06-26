@@ -143,6 +143,7 @@ const GameView: React.FC<GameViewProps> = ({
               selectedTargetIndex={selectedTargetIndex}
               onSelectTarget={handleSelectTarget}
               currentPlayerId={character.id}
+              currentPlayerLevel={character.level}
             />
             
           </Box>
