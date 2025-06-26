@@ -16,6 +16,7 @@ import { logger } from '../utils/logger';
 import { OnboardingManager } from './onboarding';
 import { useWelcomeScreen } from './onboarding/WelcomeScreen';
 import { useWallet } from '../providers/WalletProvider';
+import { safeFormatEther } from '@/utils/safeNumberConversion';
 
 const AppInitializer: React.FC = () => {
   const game = useSimplifiedGameState();
@@ -172,16 +173,10 @@ const AppInitializer: React.FC = () => {
       game.character && 
       game.character.isDead) 
   {
-    // Calculate balance lost (what the player had before death)
-    const balanceLost = game.character.inventory.balance 
-      ? `${formatEther(game.character.inventory.balance)} MON`
-      : undefined;
-
     return renderWithNav(
       <DeathModal
         isOpen={true}
         characterName={game.character.name}
-        balanceLost={balanceLost}
       />,
       "Death Modal"
     );
