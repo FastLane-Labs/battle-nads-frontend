@@ -168,19 +168,19 @@ const EventFeed: React.FC<EventFeedProps> = ({
       return combatants;
     }
     
-    // Create a CharacterLite entry for the main player
+    // Create a CharacterLite entry for the main player using available data
     const playerCharacterLite: domain.CharacterLite = {
       id: `index_${playerIndex}`,
       index: playerIndex,
-      name: "You", // This will be shown as "You" anyway in formatActorName
+      name: playerCharacterName || "You", // Use actual character name if available
       class: playerCharacterClass || domain.CharacterClass.Null,
-      level: 1, // We don't have level data here, could be enhanced later
+      level: 1, // Default level - could be enhanced with actual level data
       health: 100, // Default health values
       maxHealth: 100,
       buffs: [], // No buffs/debuffs for simplified player entry
       debuffs: [],
-      weaponName: "", // We could enhance this with actual weapon data
-      armorName: "", // We could enhance this with actual armor data
+      weaponName: playerWeaponName || "", // Use actual weapon name if available
+      armorName: "", // Could enhance with actual armor data if needed
       isDead: false,
       ability: {
         ability: domain.Ability.None,
@@ -189,13 +189,13 @@ const EventFeed: React.FC<EventFeedProps> = ({
         taskAddress: "",
         targetBlock: 0,
       },
-      areaId: BigInt(0), // Default area ID
+      areaId: currentAreaId || BigInt(0), // Use current area ID if available
     };
     
     
     // Return combatants array with player added
     return [...combatants, playerCharacterLite];
-  }, [combatants, playerIndex, playerCharacterClass]);
+  }, [combatants, playerIndex, playerCharacterClass, playerCharacterName, playerWeaponName, currentAreaId]);
 
   // Handle undefined/null combatants array safely
   const combatantIds = useMemo(() => {
