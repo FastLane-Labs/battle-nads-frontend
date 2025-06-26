@@ -2,9 +2,9 @@ import { useMemo } from "react";
 import type { EventMessage } from "@/types/domain/dataFeed";
 import { enrichLog, type LogEntryRaw, type LogEntryRich } from "@/utils/log-builder";
 
-export function useCombatFeed(rawLogs: EventMessage[]): LogEntryRich[] {
+export function useCombatFeed(rawLogs: EventMessage[], playerIndex?: number | null): LogEntryRich[] {
   return useMemo(
-    () => rawLogs.map((log) => enrichLog(log as LogEntryRaw)),
-    [rawLogs]
+    () => rawLogs.map((log) => enrichLog(log as LogEntryRaw, playerIndex)),
+    [rawLogs, playerIndex]
   );
 }
