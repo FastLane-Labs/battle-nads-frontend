@@ -38,14 +38,7 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
                               (playerCharacterName && raw.attacker?.name === playerCharacterName);
       const isPlayerDefender = raw.defender?.name === "You" || 
                               (playerCharacterName && raw.defender?.name === playerCharacterName);
-      console.log('🔍 Player detection debug:', {
-        isPlayerAttacker,
-        isPlayerDefender,
-        playerCharacterName,
-        attackerName: raw.attacker?.name,
-        defenderName: raw.defender?.name
-      });
-    
+
       const isActorPlayer = isPlayerAttacker
       const isTargetPlayer = isPlayerDefender
             
@@ -85,6 +78,24 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
         }
       }
 
+      // Check if it was a hit or miss
+      if (!raw.details.hit) {
+        // Handle misses - simpler message structure
+        if (isMonster(actor)) {
+          const targetText = isTargetPlayer ? "you" : targetName;
+          return {
+            ...raw,
+            text: `${actorName} ${verb} but misses ${targetText}.`,
+          };
+        } else {
+          return {
+            ...raw,
+            text: `${actorName} ${isActorPlayer ? "miss" : "misses"} ${targetName}.`,
+          };
+        }
+      }
+
+      // Handle hits
       const damageText = raw.details.damageDone ? ` for ${raw.details.damageDone} damage` : "";
       const criticalText = raw.details.critical ? " **CRITICAL HIT!**" : "";
       const deathText = raw.details.targetDied ? ` **${targetName} falls!**` : "";
