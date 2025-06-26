@@ -193,7 +193,6 @@ export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameData
     if (!includeHistory || !historicalBlocks || historicalBlocks.length === 0) return [];
     
     const messages: domain.EventMessage[] = [];
-    const currentPlayerIndex = rawData?.character ? Number(rawData.character.stats.index) : null;
     
     const currentAreaId = rawData?.character ? 
       createAreaID(
@@ -204,9 +203,6 @@ export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameData
     
     historicalBlocks.forEach((block: CachedDataBlock) => {
       block.events?.forEach((event) => {
-        const attackerIsCurrentPlayer = currentPlayerIndex === event.mainPlayerIndex;
-        const defenderIsCurrentPlayer = currentPlayerIndex === event.otherPlayerIndex;
-        
         const getCharacterFallbackName = (playerIndex: number, isAttacker: boolean): string => {
           if (playerIndex <= 0) return 'Unknown';
           if (playerIndex <= 64) {
@@ -218,13 +214,13 @@ export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameData
           
         const attacker: domain.EventParticipant | undefined = event.mainPlayerIndex > 0 ? {
           id: `index_${event.mainPlayerIndex}`,
-          name: attackerIsCurrentPlayer ? "You" : (event.attackerName || getCharacterFallbackName(event.mainPlayerIndex, true)),
+          name: event.attackerName || getCharacterFallbackName(event.mainPlayerIndex, true),
           index: event.mainPlayerIndex
         } : undefined;
         
         const defender: domain.EventParticipant | undefined = event.otherPlayerIndex > 0 ? {
           id: `index_${event.otherPlayerIndex}`,
-          name: defenderIsCurrentPlayer ? "You" : (event.defenderName || getCharacterFallbackName(event.otherPlayerIndex, false)),
+          name: event.defenderName || getCharacterFallbackName(event.otherPlayerIndex, false),
           index: event.otherPlayerIndex
         } : undefined;
         
