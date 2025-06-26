@@ -267,7 +267,7 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
             )}
             {/* Experience gained */}
             {event.details?.experience && !isNaN(Number(event.details.experience)) && Number(event.details.experience) > 0 && (
-              <chakra.span color="green.300" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(34, 197, 94, 0.1)" px={1} borderRadius="sm">
+              <chakra.span color="purple.300" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(147, 51, 234, 0.1)" px={1} borderRadius="sm">
                 +{Number(event.details.experience)} XP
               </chakra.span>
             )}
