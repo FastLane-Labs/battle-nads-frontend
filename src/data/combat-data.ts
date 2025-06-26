@@ -151,52 +151,57 @@ export const MONSTER_ATTACKS: Record<number, string[]> = {
 };
 
 export const CLASS_SIGNATURES = {
-  Bard: (lvl: number) => ({ name: "Crescendo", power: 40 + lvl * 8 }),
-  Warrior: (lvl: number) => ({ name: "Mighty Blow", power: 50 + lvl * 10 }),
-  Rogue: (lvl: number) => ({ name: "Shadow Strike", power: 30 + lvl * 9 }),
-  Monk: (lvl: number) => ({ name: "Divine Palm", power: 35 + lvl * 9 }),
-  Sorcerer: (lvl: number) => ({ name: "Arcane Surge", power: 45 + lvl * 11 }),
+  Bard: (lvl: number) => ({ name: "Crescendo", power: 40 + Math.min(lvl, 50) * 8 }),
+  Warrior: (lvl: number) => ({ name: "Mighty Blow", power: 50 + Math.min(lvl, 50) * 10 }),
+  Rogue: (lvl: number) => ({ name: "Shadow Strike", power: 30 + Math.min(lvl, 50) * 9 }),
+  Monk: (lvl: number) => ({ name: "Divine Palm", power: 35 + Math.min(lvl, 50) * 9 }),
+  Sorcerer: (lvl: number) => ({ name: "Arcane Surge", power: 45 + Math.min(lvl, 50) * 11 }),
 };
 
 export const PLAYER_TITLES = {
   Bard: (level: number): string => {
-    if (level < 6) return "the Unremarkable";
-    if (level < 8) return "the Annoying";
-    if (level < 16) return "the Unfortunate";
-    if (level < 32) return "the Loud";
-    if (level < 48) return "the Unforgettable";
+    const cappedLevel = Math.min(level, 50);
+    if (cappedLevel < 6) return "the Unremarkable";
+    if (cappedLevel < 8) return "the Annoying";
+    if (cappedLevel < 16) return "the Unfortunate";
+    if (cappedLevel < 32) return "the Loud";
+    if (cappedLevel < 48) return "the Unforgettable";
     return "the Greatest";
   },
   Warrior: (level: number): string => {
-    if (level < 6) return "Sir";
-    if (level < 8) return "Knight";
-    if (level < 16) return "Count";
-    if (level < 32) return "Lord";
-    if (level < 48) return "Duke";
+    const cappedLevel = Math.min(level, 50);
+    if (cappedLevel < 6) return "Sir";
+    if (cappedLevel < 8) return "Knight";
+    if (cappedLevel < 16) return "Count";
+    if (cappedLevel < 32) return "Lord";
+    if (cappedLevel < 48) return "Duke";
     return "Hero-King";
   },
   Rogue: (level: number): string => {
-    if (level < 6) return "Thief";
-    if (level < 8) return "Infiltrator";
-    if (level < 16) return "Shadow Blade";
-    if (level < 32) return "Night Shade";
-    if (level < 48) return "Chosen of Darkness";
+    const cappedLevel = Math.min(level, 50);
+    if (cappedLevel < 6) return "Thief";
+    if (cappedLevel < 8) return "Infiltrator";
+    if (cappedLevel < 16) return "Shadow Blade";
+    if (cappedLevel < 32) return "Night Shade";
+    if (cappedLevel < 48) return "Chosen of Darkness";
     return "King of Thieves";
   },
   Monk: (level: number): string => {
-    if (level < 6) return "Brother";
-    if (level < 8) return "Friar";
-    if (level < 16) return "Father";
-    if (level < 32) return "Bishop";
-    if (level < 48) return "Cardinal";
+    const cappedLevel = Math.min(level, 50);
+    if (cappedLevel < 6) return "Brother";
+    if (cappedLevel < 8) return "Friar";
+    if (cappedLevel < 16) return "Father";
+    if (cappedLevel < 32) return "Bishop";
+    if (cappedLevel < 48) return "Cardinal";
     return "Prophet";
   },
   Sorcerer: (level: number): string => {
-    if (level < 6) return "the Student";
-    if (level < 8) return "the Intelligent";
-    if (level < 16) return "the Wise";
-    if (level < 32) return "the Powerful";
-    if (level < 48) return "the Great";
+    const cappedLevel = Math.min(level, 50);
+    if (cappedLevel < 6) return "the Student";
+    if (cappedLevel < 8) return "the Intelligent";
+    if (cappedLevel < 16) return "the Wise";
+    if (cappedLevel < 32) return "the Powerful";
+    if (cappedLevel < 48) return "the Great";
     return "";
   },
 };
