@@ -1,6 +1,9 @@
 import React from 'react';
 import { Box, Text, chakra, Tooltip, Flex } from '@chakra-ui/react';
 import { domain } from '@/types';
+import { useCombatFeed } from '@/hooks/game/useCombatFeed';
+import { enrichLog, type LogEntryRaw } from '@/utils/log-builder';
+import { participantToCharacterLite, type CharacterLite } from '@/utils/log-helpers';
 
 // Helper functions for ability mapping
 function getOffensiveAbilityForClass(characterClass: domain.CharacterClass): domain.Ability {
@@ -51,6 +54,7 @@ interface EventLogItemRendererProps {
   getWeaponName?: ((weaponId: number | null | undefined) => string) | null;
   getArmorName?: ((armorId: number | null | undefined) => string) | null;
   playerCharacterClass?: domain.CharacterClass;
+  combatants?: domain.CharacterLite[];
 }
 
 const getEventColor = (type: domain.LogType | number) => {
@@ -77,12 +81,66 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
   playerIndex, 
   getWeaponName, 
   getArmorName,
-  playerCharacterClass
+  playerCharacterClass,
+  combatants
 }) => {
 
-  // Removed constant logging - too much noise during rerenders
+  // Enrich the event log with better formatting
+  const enrichedLog = React.useMemo(() => {
+    const logEntryRaw: LogEntryRaw = {
+      ...event,
+      actor: event.attacker ? createCharacterLiteFromEvent(event.attacker, event, combatants) : undefined,
+      target: event.defender ? createCharacterLiteFromEvent(event.defender, event, combatants) : undefined,
+    };
+    return enrichLog(logEntryRaw);
+  }, [event, combatants]);
 
-  // Generate display message based on event data
+  // Helper function to create CharacterLite from event data
+  const createCharacterLiteFromEvent = (
+    participant: domain.EventParticipant,
+    event: domain.EventMessage,
+    combatants?: domain.CharacterLite[]
+  ): CharacterLite => {
+    // Try to find more detailed character info from combatants list
+    const fullCharacter = combatants?.find(c => c.id === participant.id);
+    if (fullCharacter) {
+      return {
+        class: fullCharacter.class,
+        index: participant.index,
+        level: fullCharacter.level,
+        name: participant.name,
+        // Try to extract weapon/armor IDs from names if possible
+        weaponId: extractIdFromName(fullCharacter.weaponName),
+        armorId: extractIdFromName(fullCharacter.armorName),
+      };
+    }
+
+    // Fallback to participant data with some smart defaults
+    return participantToCharacterLite(participant, {
+      class: inferCharacterClass(participant),
+      level: 1, // Default level
+    });
+  };
+
+  // Helper to extract numeric ID from equipment names (if they follow a pattern)
+  const extractIdFromName = (name: string): number | undefined => {
+    // This is a simple heuristic - equipment names might not have IDs
+    // For now, return undefined and rely on other data sources
+    return undefined;
+  };
+
+  // Helper to infer character class from participant data
+  const inferCharacterClass = (participant: domain.EventParticipant): domain.CharacterClass => {
+    // If it's the player, use the provided class
+    if (playerIndex !== null && Number(participant.index) === Number(playerIndex) && playerCharacterClass) {
+      return playerCharacterClass;
+    }
+    
+    // For NPCs, default to Basic monster class
+    return domain.CharacterClass.Basic;
+  };
+
+  // Generate display message based on event data (fallback)
   const generateDisplayMessage = (): string => {
     const getDisplayName = (participant: domain.EventParticipant | undefined): string => {
       if (!participant) return "Unknown";
@@ -153,12 +211,12 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
     }
   };
 
-  // For ability events, always generate our own message to get proper ability names
+  // Use enriched log text if available, otherwise fall back to existing logic
   const isAbilityEvent = Number(event.type) === domain.LogType.Ability;
   const generatedMessage = generateDisplayMessage();
-  const displayMessage = isAbilityEvent 
+  const displayMessage = enrichedLog.text || (isAbilityEvent 
     ? generatedMessage 
-    : (event.displayMessage || generatedMessage);
+    : (event.displayMessage || generatedMessage));
     
   // Removed constant logging - too much noise
 

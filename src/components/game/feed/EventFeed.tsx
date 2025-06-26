@@ -353,6 +353,7 @@ const EventFeed: React.FC<EventFeedProps> = ({
                           getWeaponName={getWeaponName}
                           getArmorName={getArmorName}
                           playerCharacterClass={playerCharacterClass}
+                          combatants={combatants}
                         />
                       </Box>
                     </Box>
