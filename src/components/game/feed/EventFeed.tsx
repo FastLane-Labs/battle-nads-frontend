@@ -6,7 +6,6 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { filterEventsByRecentAreas } from '@/utils/eventFiltering';
 
 interface EventFeedProps {
-  playerIndex: number | null;
   eventLogs: domain.EventMessage[];
   combatants: domain.CharacterLite[];
   isCacheLoading: boolean;
@@ -15,18 +14,13 @@ interface EventFeedProps {
   equipableWeaponNames?: string[];
   equipableArmorIDs?: number[];
   equipableArmorNames?: string[];
-  // Add player character class for ability mapping
-  playerCharacterClass?: domain.CharacterClass;
   // Add current player area ID for filtering
   currentAreaId?: bigint;
-  // Add player weapon name for combat log enrichment
-  playerWeaponName?: string;
-  // Add player character name for player detection
-  playerCharacterName?: string;
+  // Add full player character for proper CharacterLite conversion
+  playerCharacter: domain.Character;
 }
 
 const EventFeed: React.FC<EventFeedProps> = ({ 
-  playerIndex,
   eventLogs,
   combatants, 
   isCacheLoading,
@@ -34,10 +28,8 @@ const EventFeed: React.FC<EventFeedProps> = ({
   equipableWeaponNames,
   equipableArmorIDs,
   equipableArmorNames,
-  playerCharacterClass,
   currentAreaId,
-  playerWeaponName,
-  playerCharacterName
+  playerCharacter
 }) => {
   
   const parentRef = useRef<HTMLDivElement>(null);
@@ -153,6 +145,26 @@ const EventFeed: React.FC<EventFeedProps> = ({
     scrollMargin: 0, // Remove default scroll margin
   });
   
+  // Helper function to convert domain.Character to domain.CharacterLite
+  const characterToCharacterLite = (character: domain.Character): domain.CharacterLite => {
+    return {
+      id: character.id,
+      index: character.index,
+      name: character.name,
+      class: character.class,
+      level: character.level,
+      health: character.health,
+      maxHealth: character.maxHealth,
+      buffs: character.buffs,
+      debuffs: character.debuffs,
+      weaponName: character.weaponName,
+      armorName: character.armorName,
+      isDead: character.isDead,
+      ability: character.ability,
+      areaId: character.areaId,
+    };
+  };
+
   // Create enhanced combatants array that includes the main player
   const enhancedCombatants = useMemo(() => {
     if (!combatants || !Array.isArray(combatants)) {
@@ -161,41 +173,17 @@ const EventFeed: React.FC<EventFeedProps> = ({
     
     // Check if player is already in combatants array
     const playerInCombatants = combatants.some(c => 
-      c && typeof c.index === 'number' && Number(c.index) === Number(playerIndex)
+      c && typeof c.index === 'number' && Number(c.index) === Number(playerCharacter.index)
     );
     
-    if (playerInCombatants || !playerIndex) {
+    if (playerInCombatants) {
       return combatants;
     }
     
-    // Create a CharacterLite entry for the main player using available data
-    const playerCharacterLite: domain.CharacterLite = {
-      id: `index_${playerIndex}`,
-      index: playerIndex,
-      name: playerCharacterName || "You", // Use actual character name if available
-      class: playerCharacterClass || domain.CharacterClass.Null,
-      level: 1, // Default level - could be enhanced with actual level data
-      health: 100, // Default health values
-      maxHealth: 100,
-      buffs: [], // No buffs/debuffs for simplified player entry
-      debuffs: [],
-      weaponName: playerWeaponName || "", // Use actual weapon name if available
-      armorName: "", // Could enhance with actual armor data if needed
-      isDead: false,
-      ability: {
-        ability: domain.Ability.None,
-        stage: 0,
-        targetIndex: 0,
-        taskAddress: "",
-        targetBlock: 0,
-      },
-      areaId: currentAreaId || BigInt(0), // Use current area ID if available
-    };
-    
-    
-    // Return combatants array with player added
+    // Use the full player character data to create a proper CharacterLite
+    const playerCharacterLite = characterToCharacterLite(playerCharacter);
     return [...combatants, playerCharacterLite];
-  }, [combatants, playerIndex, playerCharacterClass, playerCharacterName, playerWeaponName, currentAreaId]);
+  }, [combatants, playerCharacter]);
 
   // Handle undefined/null combatants array safely
   const combatantIds = useMemo(() => {
@@ -352,8 +340,8 @@ const EventFeed: React.FC<EventFeedProps> = ({
                   const itemKey = `${event.timestamp}-${event.logIndex}-${virtualRow.index}`;
                   
                   // Check if event involves the player directly (as attacker or defender)
-                  const isPlayerAttacker = !!playerIndex && Number(event.attacker?.index) === Number(playerIndex);
-                  const isPlayerDefender = !!playerIndex && Number(event.defender?.index) === Number(playerIndex);
+                  const isPlayerAttacker = Number(event.attacker?.index) === Number(playerCharacter.index);
+                  const isPlayerDefender = Number(event.defender?.index) === Number(playerCharacter.index);
                   const involvesPlayer = isPlayerAttacker || isPlayerDefender;
                   
                   // Check if event involves current combatants (but not the player)
@@ -399,14 +387,14 @@ const EventFeed: React.FC<EventFeedProps> = ({
                       >
                         <EventLogItemRenderer 
                           event={event} 
-                          playerIndex={playerIndex}
+                          playerIndex={playerCharacter.index}
                           getWeaponName={getWeaponName}
                           getArmorName={getArmorName}
-                          playerCharacterClass={playerCharacterClass}
+                          playerCharacterClass={playerCharacter.class}
                           combatants={enhancedCombatants}
-                          playerWeaponName={playerWeaponName}
+                          playerWeaponName={playerCharacter.weapon?.name}
                           currentAreaId={currentAreaId}
-                          playerCharacterName={playerCharacterName}
+                          playerCharacterName={playerCharacter.name}
                         />
                       </Box>
                     </Box>
