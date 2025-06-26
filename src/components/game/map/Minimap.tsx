@@ -66,7 +66,9 @@ const Minimap: React.FC<MinimapProps> = memo(({
   const gridCells = useMemo(() => {
     const cells = [];
     
-    for (let y = viewportBounds.minY; y <= viewportBounds.maxY; y++) {
+    // Iterate Y from maxY to minY to flip the coordinate system for correct display
+    // This ensures (0,0) appears at bottom-left instead of top-left
+    for (let y = viewportBounds.maxY; y >= viewportBounds.minY; y--) {
       for (let x = viewportBounds.minX; x <= viewportBounds.maxX; x++) {
         const isCurrentPosition = 
           currentPosition?.x && Number(currentPosition.x) === x && 

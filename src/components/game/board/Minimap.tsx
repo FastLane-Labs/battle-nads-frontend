@@ -40,7 +40,7 @@ const Minimap: React.FC<MinimapProps> = ({ character, position }) => {
         {/* This would be populated with actual map tiles based on data */}
         {Array(GRID_SIZE * GRID_SIZE).fill(0).map((_, index) => { // Use GRID_SIZE
           const x = index % GRID_SIZE; // Use GRID_SIZE
-          const y = Math.floor(index / GRID_SIZE); // Use GRID_SIZE
+          const y = GRID_SIZE - 1 - Math.floor(index / GRID_SIZE); // Flip Y-axis for correct coordinate display
           
           // Compare loop coords with calculated clamped coords
           const isPlayerPosition = x === clampedGridX && y === clampedGridY; 
