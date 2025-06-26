@@ -37,7 +37,7 @@ export function enrichLog(raw: LogEntryRaw): LogEntryRich {
       
       let verb = "hits";
       if (isMonster(actor)) {
-        verb = pickAttackVerb(actor.index);
+        verb = pickAttackVerb(actor.index, raw.logIndex);
       } else {
         verb = raw.details.critical ? "critically strikes" : "strikes";
       }

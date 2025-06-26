@@ -61,9 +61,11 @@ export function getPlayerTitle(char: CharacterLite): string {
   return "";
 }
 
-export function pickAttackVerb(monsterIdx: number): string {
+export function pickAttackVerb(monsterIdx: number, logIndex?: number): string {
   const verbs = MONSTER_ATTACKS[monsterIdx] ?? ["hits"];
-  return verbs[Math.floor(Math.random() * verbs.length)];
+  // Use logIndex as seed for deterministic selection to prevent re-render changes
+  const seed = logIndex ?? monsterIdx;
+  return verbs[seed % verbs.length];
 }
 
 export function getSignatureAbility(char: CharacterLite) {
