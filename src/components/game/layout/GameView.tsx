@@ -1,13 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Box, Grid, GridItem, Flex, Badge } from '@chakra-ui/react';
+import { Box, Grid, GridItem } from '@chakra-ui/react';
 import { domain, hooks } from '@/types';
-import Minimap from '@/components/game/board/Minimap';
 import CombatTargets from '@/components/game/controls/CombatTargets';
 import EventFeed from '@/components/game/feed/EventFeed';
 import ChatPanel from '@/components/game/feed/ChatPanel';
 import CharacterActionsTabs from '@/components/game/ui/CharacterActionsTabs';
-// --- Import Mock Data ---
-import { MOCK_CHAT_LOGS, MOCK_EVENT_LOGS } from '@/hooks/dev/mockFeedData';
 import WalletBalances from '@/components/WalletBalances';
 import { createAreaID } from '@/utils/areaId';
 
@@ -57,12 +54,7 @@ const GameView: React.FC<GameViewProps> = ({
   const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'character' | 'actions' | 'map'>('character');
 
-  // Check if we're in development mode
-  const isDev = false; // process.env.NODE_ENV === 'development';
-
-  // Use mock data in development for testing
-  const finalChatLogs = isDev ? MOCK_CHAT_LOGS : chatLogs;
-  const finalEventLogs = isDev ? MOCK_EVENT_LOGS : eventLogs;
+  const finalEventLogs = eventLogs;
 
   // Calculate current area ID for event filtering
   const currentAreaId = useMemo(() => {
@@ -153,18 +145,15 @@ const GameView: React.FC<GameViewProps> = ({
       <GridItem area="feed" maxH={{ base: '300px', md: '400px', lg: '350px' }}>
         <Box p={4} borderRadius="md" h="100%" className='card-bg'>
           <EventFeed 
-            playerIndex={character.index} 
-            eventLogs={finalEventLogs}
+            eventLogs={eventLogs}
             combatants={combatants}
             isCacheLoading={isCacheLoading}
             equipableWeaponIDs={equipableWeaponIDs}
             equipableWeaponNames={equipableWeaponNames}
             equipableArmorIDs={equipableArmorIDs}
             equipableArmorNames={equipableArmorNames}
-            playerCharacterClass={character.class}
             currentAreaId={currentAreaId}
-            playerWeaponName={character.weapon?.name}
-            playerCharacterName={character.name}
+            playerCharacter={character}
           />
         </Box>
       </GridItem>
