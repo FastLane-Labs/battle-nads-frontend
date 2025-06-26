@@ -8,6 +8,7 @@ import {
   getArmorName,
   participantToCharacterLite,
   isMonster,
+  isPlayer,
   type CharacterLite,
 } from "./log-helpers";
 
@@ -21,7 +22,7 @@ export interface LogEntryRich extends LogEntryRaw {
   text: string;
 }
 
-export function enrichLog(raw: LogEntryRaw): LogEntryRich {
+export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null): LogEntryRich {
   switch (raw.type) {
     case LogType.Combat: {
       if (!raw.attacker || !raw.defender) {
@@ -31,9 +32,21 @@ export function enrichLog(raw: LogEntryRaw): LogEntryRich {
       const actor = raw.actor || participantToCharacterLite(raw.attacker);
       const target = raw.target || participantToCharacterLite(raw.defender);
       
-      const actorName = formatActorName(actor);
-      const targetName = formatActorName(target);
-      const weaponName = actor.weaponId ? getWeaponName(actor.weaponId) : "bare hands";
+      // Check if this is the player acting or being acted upon
+      const isActorPlayer = playerIndex !== null && raw.attacker && Number(raw.attacker.index) === Number(playerIndex);
+      const isTargetPlayer = playerIndex !== null && raw.defender && Number(raw.defender.index) === Number(playerIndex);
+      
+      const actorName = formatActorName(actor, isActorPlayer || false);
+      const targetName = formatActorName(target, isTargetPlayer || false);
+      
+      // Get weapon name - try to use weaponName from the character first, fallback to ID lookup
+      let weaponName = "bare hands";
+      if (actor.weaponId) {
+        weaponName = getWeaponName(actor.weaponId);
+      } else if (isPlayer(actor) && raw.attacker) {
+        // For player characters, we might have weapon name but not ID
+        weaponName = "their weapon";
+      }
       
       let verb = "hits";
       if (isMonster(actor)) {
@@ -60,8 +73,11 @@ export function enrichLog(raw: LogEntryRaw): LogEntryRich {
       const actor = raw.actor || participantToCharacterLite(raw.attacker);
       const target = raw.target || (raw.defender ? participantToCharacterLite(raw.defender) : null);
       
-      const actorName = formatActorName(actor);
-      const targetName = target ? formatActorName(target) : "";
+      const isActorPlayer = playerIndex !== null && raw.attacker && Number(raw.attacker.index) === Number(playerIndex);
+      const isTargetPlayer = playerIndex !== null && raw.defender && target && Number(raw.defender.index) === Number(playerIndex);
+      
+      const actorName = formatActorName(actor, isActorPlayer || false);
+      const targetName = target ? formatActorName(target, isTargetPlayer || false) : "";
       
       let abilityName = raw.ability;
       if (!abilityName) {
@@ -91,7 +107,8 @@ export function enrichLog(raw: LogEntryRaw): LogEntryRich {
       }
 
       const actor = raw.actor || participantToCharacterLite(raw.attacker);
-      const actorName = formatActorName(actor);
+      const isActorPlayer = playerIndex !== null && raw.attacker && Number(raw.attacker.index) === Number(playerIndex);
+      const actorName = formatActorName(actor, isActorPlayer || false);
       
       return {
         ...raw,
@@ -105,7 +122,8 @@ export function enrichLog(raw: LogEntryRaw): LogEntryRich {
       }
 
       const actor = raw.actor || participantToCharacterLite(raw.attacker);
-      const actorName = formatActorName(actor);
+      const isActorPlayer = playerIndex !== null && raw.attacker && Number(raw.attacker.index) === Number(playerIndex);
+      const actorName = formatActorName(actor, isActorPlayer || false);
       
       return {
         ...raw,
@@ -121,8 +139,11 @@ export function enrichLog(raw: LogEntryRaw): LogEntryRich {
       const actor = raw.actor || participantToCharacterLite(raw.attacker);
       const target = raw.target || participantToCharacterLite(raw.defender);
       
-      const actorName = formatActorName(actor);
-      const targetName = formatActorName(target);
+      const isActorPlayer = playerIndex !== null && raw.attacker && Number(raw.attacker.index) === Number(playerIndex);
+      const isTargetPlayer = playerIndex !== null && raw.defender && Number(raw.defender.index) === Number(playerIndex);
+      
+      const actorName = formatActorName(actor, isActorPlayer || false);
+      const targetName = formatActorName(target, isTargetPlayer || false);
       
       return {
         ...raw,
@@ -136,7 +157,8 @@ export function enrichLog(raw: LogEntryRaw): LogEntryRich {
       }
 
       const actor = raw.actor || participantToCharacterLite(raw.attacker);
-      const actorName = formatActorName(actor);
+      const isActorPlayer = playerIndex !== null && raw.attacker && Number(raw.attacker.index) === Number(playerIndex);
+      const actorName = formatActorName(actor, isActorPlayer || false);
       const experience = raw.details.experience || 0;
       
       return {

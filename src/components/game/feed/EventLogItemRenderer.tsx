@@ -137,7 +137,7 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
       actor: event.attacker ? createCharacterLiteFromEvent(event.attacker, event, combatants) : undefined,
       target: event.defender ? createCharacterLiteFromEvent(event.defender, event, combatants) : undefined,
     };
-    return enrichLog(logEntryRaw);
+    return enrichLog(logEntryRaw, playerIndex);
   }, [event, combatants, createCharacterLiteFromEvent]);
 
   // Generate display message based on event data (fallback)
