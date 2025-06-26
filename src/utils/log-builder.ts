@@ -95,7 +95,7 @@ export function enrichLog(raw: LogEntryRaw): LogEntryRich {
       
       return {
         ...raw,
-        text: `${actorName} entered the area.`,
+        text: `${actorName} entered the area (${raw.areaId}).`,
       };
     }
 
@@ -109,7 +109,7 @@ export function enrichLog(raw: LogEntryRaw): LogEntryRich {
       
       return {
         ...raw,
-        text: `${actorName} left the area.`,
+        text: `${actorName} left the area (${raw.areaId}).`,
       };
     }
 
