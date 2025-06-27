@@ -1,9 +1,13 @@
 import { renderHook } from '@testing-library/react';
-import { useCombatFeed } from '../useCombatFeed';
+import { useCombatFeed, combatFeedCache } from '../useCombatFeed';
 import { LogType, CharacterClass } from '@/types/domain/enums';
 import type { EventMessage } from '@/types/domain/dataFeed';
 
 describe('useCombatFeed', () => {
+  beforeEach(() => {
+    // Clear cache before each test
+    combatFeedCache.clear();
+  });
   const mockEvents: EventMessage[] = [
     {
       logIndex: 1,
@@ -146,5 +150,88 @@ describe('useCombatFeed', () => {
     
     // Now Alice (index 3) should be "Alice" 
     expect(result.current[1].text).toContain('Alice entered the area');
+  });
+
+  describe('caching behavior', () => {
+    it('should cache enriched messages and reuse them', () => {
+      // Initial cache should be empty
+      expect(combatFeedCache.size()).toBe(0);
+
+      // First render should populate cache
+      const { result, rerender } = renderHook(() => useCombatFeed(mockEvents, 1));
+      
+      expect(result.current).toHaveLength(2);
+      expect(combatFeedCache.size()).toBe(2); // Both events cached
+
+      // Re-render with same props should use cache
+      rerender();
+      
+      expect(result.current).toHaveLength(2);
+      expect(combatFeedCache.size()).toBe(2); // No new cache entries
+    });
+
+    it('should create new cache entries for different contexts', () => {
+      // Render with one context
+      const { result: result1 } = renderHook(() => useCombatFeed(mockEvents, 1, 'sword'));
+      
+      expect(result1.current).toHaveLength(2);
+      expect(combatFeedCache.size()).toBe(2);
+
+      // Render with different weapon context
+      const { result: result2 } = renderHook(() => useCombatFeed(mockEvents, 1, 'axe'));
+      
+      expect(result2.current).toHaveLength(2);
+      expect(combatFeedCache.size()).toBe(4); // 2 new cache entries for different weapon context
+    });
+
+    it('should handle deterministic monster verbs consistently', () => {
+      const monsterEvent: EventMessage = {
+        logIndex: 5,
+        blocknumber: 1000n,
+        timestamp: Date.now(),
+        type: LogType.Combat,
+        attacker: {
+          id: 'monster-1',
+          name: 'Slime',
+          index: 1, // Monster index 1
+        },
+        defender: {
+          id: 'player-1',
+          name: 'You',
+          index: 2,
+        },
+        areaId: 5n,
+        isPlayerInitiated: false,
+        details: {
+          hit: true,
+          damageDone: 10,
+        },
+        displayMessage: 'Slime hits you for 10 damage.',
+      };
+
+      // First render
+      const { result: result1 } = renderHook(() => useCombatFeed([monsterEvent], 2, undefined, undefined, 'TestPlayer'));
+      const firstText = result1.current[0].text;
+
+      // Second render should produce identical text due to caching
+      const { result: result2 } = renderHook(() => useCombatFeed([monsterEvent], 2, undefined, undefined, 'TestPlayer'));
+      const secondText = result2.current[0].text;
+
+      expect(firstText).toBe(secondText);
+      expect(firstText).toContain('Slime'); // Should show monster name
+      
+      // Cache should have 1 entry
+      expect(combatFeedCache.size()).toBe(1);
+    });
+
+    it('should clear cache when requested', () => {
+      // Populate cache
+      renderHook(() => useCombatFeed(mockEvents, 1));
+      expect(combatFeedCache.size()).toBe(2);
+
+      // Clear cache
+      combatFeedCache.clear();
+      expect(combatFeedCache.size()).toBe(0);
+    });
   });
 });
