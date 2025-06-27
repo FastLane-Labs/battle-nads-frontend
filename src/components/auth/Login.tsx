@@ -89,9 +89,6 @@ const Login: React.FC = () => {
               if (connectionError) {
                 return (
                   <div className="flex flex-col items-center space-y-2">
-                    <p className="text-red-400 text-center text-sm">
-                      ❌ Connection failed
-                    </p>
                     <p className="text-gray-300 text-center text-xs max-w-sm">
                       {connectionError}
                     </p>
