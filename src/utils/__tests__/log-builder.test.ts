@@ -239,9 +239,9 @@ describe('log-builder', () => {
 
       const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
-      expect(result.text).toContain('You used **Mighty Blow**');
-      expect(result.text).toContain('on Slime');
-      expect(result.text).toContain('for 200 damage');
+      expect(result.text).toContain('You use Ability **Mighty Blow**');
+      expect(result.text).toContain('against Slime');
+      expect(result.text).toContain('(Level 13)');
     });
 
     it('should handle self-targeted abilities', () => {
@@ -262,9 +262,9 @@ describe('log-builder', () => {
 
       const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
-      expect(result.text).toContain('You used **Mighty Blow**');
-      expect(result.text).toContain('for 50 healing');
-      expect(result.text).not.toContain(' on ');
+      expect(result.text).toContain('You use Ability **Mighty Blow**');
+      expect(result.text).toContain('on themselves');
+      expect(result.text).toContain('(Level 13)');
     });
 
     it('should use provided ability name over signature', () => {
@@ -288,7 +288,7 @@ describe('log-builder', () => {
 
       const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
-      expect(result.text).toContain('You used **Shield Bash**');
+      expect(result.text).toContain('You use Ability **Shield Bash**');
       expect(result.text).not.toContain('Mighty Blow');
     });
   });
@@ -576,6 +576,177 @@ describe('log-builder', () => {
       expect(result.text).toContain('You strike Slime');
       expect(result.text).toContain('for 100 damage');
       expect(result.text).toContain('with bare hands'); // Default weapon for Null class
+    });
+  });
+
+  describe('enrichLog - Enhanced Ability System', () => {
+    it('should extract ability ID from lootedWeaponID and show enhancements', () => {
+      const rawLog: LogEntryRaw = {
+        logIndex: 200,
+        blocknumber: 1000n,
+        timestamp: Date.now(),
+        type: LogType.Ability,
+        attacker: {
+          id: 'player-1',
+          name: 'You',
+          index: 1,
+        },
+        defender: {
+          id: 'monster-1',
+          name: 'Goblin',
+          index: 2,
+        },
+        areaId: 5n,
+        isPlayerInitiated: true,
+        details: {
+          damageDone: 250,
+          lootedWeaponID: 3, // Shield Bash ability ID
+          lootedArmorID: 1,  // Stage 1
+          hit: true,
+        },
+        displayMessage: 'raw message',
+        actor: {
+          class: CharacterClass.Warrior,
+          index: 1,
+          level: 15,
+          name: 'Test Warrior',
+        },
+        target: {
+          class: CharacterClass.Basic,
+          index: 2,
+          level: 5,
+          name: 'Goblin',
+        },
+      };
+
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'TestPlayer');
+
+      expect(result.text).toContain('You use Ability **Shield Bash** against Goblin');
+      expect(result.text).toContain('enhanced damage (Level 15)');
+    });
+
+    it('should handle multi-stage abilities with stage information', () => {
+      const rawLog: LogEntryRaw = {
+        logIndex: 201,
+        blocknumber: 1000n,
+        timestamp: Date.now(),
+        type: LogType.Ability,
+        attacker: {
+          id: 'player-1',
+          name: 'Alice',
+          index: 3,
+        },
+        defender: {
+          id: 'monster-1',
+          name: 'Elite Ogre',
+          index: 4,
+        },
+        areaId: 5n,
+        isPlayerInitiated: true,
+        details: {
+          damageDone: 15,
+          lootedWeaponID: 6, // Apply Poison ability ID
+          lootedArmorID: 3,  // Stage 3 of 6
+          hit: true,
+        },
+        displayMessage: 'raw message',
+        actor: {
+          class: CharacterClass.Rogue,
+          index: 3,
+          level: 20,
+          name: 'Alice',
+        },
+        target: {
+          class: CharacterClass.Elite,
+          index: 4,
+          level: 12,
+          name: 'Elite Ogre',
+        },
+      };
+
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'TestPlayer');
+
+      expect(result.text).toContain('uses Ability **Apply Poison** against');
+      expect(result.text).toContain('poison damage (Stage 3/6, Level 20)');
+    });
+
+    it('should handle self-targeted abilities correctly', () => {
+      const rawLog: LogEntryRaw = {
+        logIndex: 202,
+        blocknumber: 1000n,
+        timestamp: Date.now(),
+        type: LogType.Ability,
+        attacker: {
+          id: 'player-1',
+          name: 'You',
+          index: 1,
+        },
+        defender: {
+          id: 'player-1',
+          name: 'You',
+          index: 1, // Same as attacker
+        },
+        areaId: 5n,
+        isPlayerInitiated: true,
+        details: {
+          healthHealed: 150,
+          lootedWeaponID: 7, // Pray ability ID
+          lootedArmorID: 2,  // Stage 2 (healing stage)
+          hit: true,
+        },
+        displayMessage: 'raw message',
+        actor: {
+          class: CharacterClass.Monk,
+          index: 1,
+          level: 12,
+          name: 'Test Monk',
+        },
+        target: {
+          class: CharacterClass.Monk,
+          index: 1,
+          level: 12,
+          name: 'Test Monk',
+        },
+      };
+
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'TestPlayer');
+
+      expect(result.text).toContain('You use Ability **Pray**');
+      expect(result.text).toContain('on themselves');
+      expect(result.text).toContain('enhanced healing (Level 12)');
+    });
+
+    it('should fallback to getAbilityName when lootedWeaponID is missing', () => {
+      const rawLog: LogEntryRaw = {
+        logIndex: 203,
+        blocknumber: 1000n,
+        timestamp: Date.now(),
+        type: LogType.Ability,
+        attacker: {
+          id: 'player-1',
+          name: 'You',
+          index: 1,
+        },
+        areaId: 5n,
+        isPlayerInitiated: true,
+        details: {
+          healthHealed: 50,
+          // No lootedWeaponID
+        },
+        displayMessage: 'raw message',
+        ability: 'Crescendo', // Fallback ability name
+        actor: {
+          class: CharacterClass.Bard,
+          index: 1,
+          level: 8,
+          name: 'Test Bard',
+        },
+      };
+
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'TestPlayer');
+
+      expect(result.text).toContain('You use Ability **Crescendo**');
+      expect(result.text).toContain('(Level 8)');
     });
   });
 });

@@ -12,6 +12,11 @@ import {
   buildAttackMessage,
   type CharacterLite,
 } from "./log-helpers";
+import {
+  calculateAbilityEnhancement,
+  buildEnhancementText,
+  isSelfTargetedAbility,
+} from "./ability-enhancements";
 
 export interface LogEntryRaw extends EventMessage {
   actor?: CharacterLite;
@@ -139,26 +144,49 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       const actorName = formatActorName(actor, isActorPlayer || false, false);
       const targetName = target ? formatActorName(target, isTargetPlayer || false) : "";
       
-      let abilityName = raw.ability;
-      if (!abilityName) {
+      // Extract ability ID from lootedWeaponID (overloaded field)
+      const abilityId = raw.details.lootedWeaponID;
+      const stage = raw.details.lootedArmorID;
+      
+      // Get proper ability name using getAbilityName function
+      let abilityName = "Unknown Ability";
+      if (abilityId) {
+        abilityName = getAbilityName(abilityId);
+      } else if (raw.ability) {
+        // Fallback to raw ability name if lootedWeaponID is not set
+        abilityName = raw.ability;
+      } else {
+        // Last resort: use signature ability (old system)
         const signature = getSignatureAbility(actor);
         abilityName = signature?.name || "an ability";
       }
 
-      const damageText = raw.details.damageDone ? ` for ${raw.details.damageDone} damage` : "";
-      const healingText = raw.details.healthHealed ? ` for ${raw.details.healthHealed} healing` : "";
+      // Calculate level-based enhancement
+      const rawValue = raw.details.damageDone || raw.details.healthHealed || 0;
+      const enhancement = calculateAbilityEnhancement(abilityId || 0, actor, rawValue, stage);
       
-      if (target) {
-        return {
-          ...raw,
-          text: `${actorName} used **${abilityName}** on ${targetName}${damageText}${healingText}.`,
-        };
-      } else {
-        return {
-          ...raw,
-          text: `${actorName} used **${abilityName}**${healingText}.`,
-        };
+      // Determine target type
+      const isSelfTargeted = isSelfTargetedAbility(raw, Boolean(isPlayerAttacker), Boolean(isPlayerDefender));
+      const isTargeted = Boolean(target);
+      
+      // Build enhancement text
+      const enhancementText = buildEnhancementText(enhancement, isTargeted, isSelfTargeted);
+      
+      // Build message using the requested format: "You use Ability <Name> against <Target> with <Enhancement>"
+      const verb = isActorPlayer ? "use" : "uses";
+      let targetText = "";
+      
+      if (isSelfTargeted) {
+        // For self-targeted, the enhancement text already includes "on themselves"
+        targetText = "";
+      } else if (isTargeted) {
+        targetText = `against ${targetName} `;
       }
+      
+      return {
+        ...raw,
+        text: `${actorName} ${verb} Ability **${abilityName}** ${targetText}${enhancementText}.`,
+      };
     }
 
     case LogType.EnteredArea: {
