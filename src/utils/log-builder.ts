@@ -9,6 +9,7 @@ import {
   participantToCharacterLite,
   isMonster,
   isPlayer,
+  buildAttackMessage,
   type CharacterLite,
 } from "./log-helpers";
 
@@ -39,8 +40,8 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       const isPlayerDefender = raw.defender?.name === "You" || 
                               (playerCharacterName && raw.defender?.name === playerCharacterName);
 
-      const isActorPlayer = isPlayerAttacker
-      const isTargetPlayer = isPlayerDefender
+      const isActorPlayer = isPlayerAttacker;
+      const isTargetPlayer = isPlayerDefender;
             
       const actorName = formatActorName(actor, isActorPlayer || false, false);
       const targetName = formatActorName(target, isTargetPlayer || false, true);
@@ -78,39 +79,39 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
         }
       }
 
-      // Check if it was a hit or miss
-      if (!raw.details.hit) {
-        // Handle misses - simpler message structure
-        if (isMonster(actor)) {
-          const targetText = isTargetPlayer ? "you" : targetName;
-          return {
-            ...raw,
-            text: `${actorName} ${verb} but misses ${targetText}.`,
-          };
-        } else {
-          return {
-            ...raw,
-            text: `${actorName} ${isActorPlayer ? "miss" : "misses"} ${targetName}.`,
-          };
-        }
-      }
-
-      // Handle hits
+      // Build the message using the improved text generation
       const damageText = raw.details.damageDone ? ` for ${raw.details.damageDone} damage` : "";
       const criticalText = raw.details.critical ? " **CRITICAL HIT!**" : "";
       const deathText = raw.details.targetDied ? ` **${targetName} falls!**` : "";
       const weaponText = weaponName ? ` with ${weaponName}` : "";
       
-      // Different sentence structure for monsters vs players/other characters
       if (isMonster(actor)) {
-        // For monsters: "The Beast stalks with ancient hunger for 32 damage against you."
-        const targetText = isTargetPlayer ? "against you" : `against ${targetName}`;
+        // Use buildAttackMessage for monsters to handle complex verb structures
+        const isHit: boolean = Boolean(raw.details.hit);
+        const message = buildAttackMessage(
+          verb as string, 
+          actorName as string, 
+          targetName as string, 
+          isTargetPlayer as boolean, 
+          isHit, 
+          damageText as string, 
+          criticalText as string, 
+          deathText as string
+        );
         return {
           ...raw,
-          text: `${actorName} ${verb}${damageText} ${targetText}.${criticalText}${deathText}`,
+          text: message,
         };
       } else {
-        // For players/other characters: "You critically strike The Beast for 574 damage with battle axe."
+        // For players/other characters, handle misses and hits separately
+        if (!Boolean(raw.details.hit)) {
+          return {
+            ...raw,
+            text: `${actorName} ${isActorPlayer ? "miss" : "misses"} ${targetName}.`,
+          };
+        }
+        
+        // For player hits: "You critically strike The Beast for 574 damage with battle axe."
         return {
           ...raw,
           text: `${actorName} ${verb} ${targetName}${damageText}${weaponText}.${criticalText}${deathText}`,
