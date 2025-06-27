@@ -58,6 +58,7 @@ interface EventLogItemRendererProps {
   playerWeaponName?: string;
   currentAreaId?: bigint;
   playerCharacterName?: string;
+  isPreEnriched?: boolean; // Indicates if event.text is already enriched
 }
 
 const getEventColor = (type: domain.LogType | number) => {
@@ -88,7 +89,8 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
   combatants,
   playerWeaponName,
   currentAreaId,
-  playerCharacterName
+  playerCharacterName,
+  isPreEnriched = false
 }) => {
 
   // Helper to extract numeric ID from equipment names (if they follow a pattern)
@@ -142,15 +144,21 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
     });
   }, [extractIdFromName, inferCharacterClass]);
 
-  // Enrich the event log with better formatting
+  // Enrich the event log with better formatting (only if not pre-enriched)
   const enrichedLog = React.useMemo(() => {
+    if (isPreEnriched && 'text' in event) {
+      // Event is already enriched by useCombatFeed, use it directly
+      return event as any; // Type assertion since pre-enriched events have text property
+    }
+    
+    // Fallback to individual enrichment for backwards compatibility
     const logEntryRaw: LogEntryRaw = {
       ...event,
       actor: event.attacker ? createCharacterLiteFromEvent(event.attacker, event, combatants) : undefined,
       target: event.defender ? createCharacterLiteFromEvent(event.defender, event, combatants) : undefined,
     };
     return enrichLog(logEntryRaw, playerIndex, playerWeaponName, currentAreaId, playerCharacterName);
-  }, [event, combatants, createCharacterLiteFromEvent, playerIndex, playerWeaponName, currentAreaId, playerCharacterName]);
+  }, [event, combatants, createCharacterLiteFromEvent, playerIndex, playerWeaponName, currentAreaId, playerCharacterName, isPreEnriched]);
 
   // Generate display message based on event data (fallback)
   const generateDisplayMessage = (): string => {
