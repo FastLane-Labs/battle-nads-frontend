@@ -49,3 +49,4 @@ tsconfig.tsbuildinfo
 
 # custom claude commands 
 .claude/*
+docs/local
