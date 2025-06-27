@@ -156,13 +156,6 @@ const AppInitializer: React.FC = () => {
               </h2>
               
               <div className="flex flex-col items-center space-y-4">
-                <p className="text-yellow-400 text-center text-lg">
-                  🔒 Your wallet is locked
-                </p>
-                <p className="text-gray-300 text-center max-w-md">
-                  Please unlock your wallet extension to continue your adventure
-                </p>
-                
                 <GameButton
                   variant="primary"
                   onClick={promptWalletUnlock}
@@ -170,12 +163,8 @@ const AppInitializer: React.FC = () => {
                   hasGlow={true}
                   className="mt-4"
                 >
-                  Connect Wallet
+                  Unlock Wallet
                 </GameButton>
-                
-                <p className="text-gray-400 text-center text-sm max-w-sm">
-                  If you continue to have issues, try refreshing the page or reconnecting your wallet
-                </p>
               </div>
             </div>
           </div>
