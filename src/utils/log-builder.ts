@@ -26,6 +26,31 @@ export interface LogEntryRaw extends EventMessage {
 
 export interface LogEntryRich extends LogEntryRaw {
   text: string;
+  shouldFilter?: boolean;
+}
+
+// Helper function to check if an event should be filtered
+function shouldFilterEvent(raw: LogEntryRaw, abilityName?: string): boolean {
+  // Filter out ability events with unknown abilities
+  if (raw.type === LogType.Ability && abilityName === "Unknown Ability") {
+    return true;
+  }
+  
+  // TODO: Add other filtering conditions here as needed
+  // Examples of other events you might want to filter:
+  // - Events with missing critical data
+  // - Events from specific areas or participants
+  // - Debug/test events that shouldn't be shown to players
+  // - Events with null or undefined essential data
+  
+  return false;
+}
+
+/**
+ * Export the filtering function for testing and external use
+ */
+export function shouldFilterLogEvent(raw: LogEntryRaw, abilityName?: string): boolean {
+  return shouldFilterEvent(raw, abilityName);
 }
 
 export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerWeaponName?: string, currentAreaId?: bigint, playerCharacterName?: string): LogEntryRich {
@@ -144,21 +169,29 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       const actorName = formatActorName(actor, isActorPlayer || false, false);
       const targetName = target ? formatActorName(target, isTargetPlayer || false) : "";
       
-      // Extract ability ID from lootedWeaponID (overloaded field)
-      const abilityId = raw.details.lootedWeaponID;
-      const stage = raw.details.lootedArmorID;
+      // Extract ability ID from lootedWeaponID (overloaded field) - convert BigInt to number
+      const rawAbilityId = raw.details.lootedWeaponID;
+      const abilityId = rawAbilityId ? Number(rawAbilityId) : undefined;
+      const rawStage = raw.details.lootedArmorID;
+      const stage = rawStage ? Number(rawStage) : undefined;
       
       // Get proper ability name using getAbilityName function
       let abilityName = "Unknown Ability";
-      if (abilityId) {
+      if (abilityId && abilityId !== 0) {
         abilityName = getAbilityName(abilityId);
-      } else if (raw.ability) {
-        // Fallback to raw ability name if lootedWeaponID is not set
-        abilityName = raw.ability;
       } else {
-        // Last resort: use signature ability (old system)
-        const signature = getSignatureAbility(actor);
-        abilityName = signature?.name || "an ability";
+        // Fallback to raw ability name if lootedWeaponID is not set
+        abilityName = raw.ability || abilityName;
+      }
+
+      // Check if this event should be filtered
+      const shouldFilter = shouldFilterEvent(raw, abilityName);
+      if (shouldFilter) {
+        return {
+          ...raw,
+          text: "", // Empty text for filtered events
+          shouldFilter: true,
+        };
       }
 
       // Calculate level-based enhancement
@@ -171,7 +204,7 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       
       // Build enhancement text
       const enhancementText = buildEnhancementText(enhancement, isTargeted, isSelfTargeted);
-      
+
       // Build message using the requested format: "You use Ability <Name> against <Target> with <Enhancement>"
       const verb = isActorPlayer ? "use" : "uses";
       let targetText = "";
@@ -183,9 +216,11 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
         targetText = `against ${targetName} `;
       }
       
+      const finalMessage = `${actorName} ${verb} Ability **${abilityName}** ${targetText}${enhancementText}.`;
+
       return {
         ...raw,
-        text: `${actorName} ${verb} Ability **${abilityName}** ${targetText}${enhancementText}.`,
+        text: finalMessage,
       };
     }
 

@@ -56,22 +56,24 @@ export function useCombatFeed(rawLogs: EventMessage[], playerIndex?: number | nu
   return useMemo(() => {
     const contextHash = createContextHash(playerIndex, playerWeaponName, currentAreaId, playerCharacterName);
     
-    return rawLogs.map((log) => {
-      // Create unique cache key combining log identity and context
-      const cacheKey = `${log.logIndex}-${log.blocknumber.toString()}-${contextHash}`;
-      
-      // Check cache first
-      const cached = enrichedCache.get(cacheKey);
-      if (cached) {
-        return cached;
-      }
-      
-      // Enrich the log and cache the result
-      const enriched = enrichLog(log as LogEntryRaw, playerIndex, playerWeaponName, currentAreaId, playerCharacterName);
-      enrichedCache.set(cacheKey, enriched);
-      
-      return enriched;
-    });
+    return rawLogs
+      .map((log) => {
+        // Create unique cache key combining log identity and context
+        const cacheKey = `${log.logIndex}-${log.blocknumber.toString()}-${contextHash}`;
+        
+        // Check cache first
+        const cached = enrichedCache.get(cacheKey);
+        if (cached) {
+          return cached;
+        }
+        
+        // Enrich the log and cache the result
+        const enriched = enrichLog(log as LogEntryRaw, playerIndex, playerWeaponName, currentAreaId, playerCharacterName);
+        enrichedCache.set(cacheKey, enriched);
+        
+        return enriched;
+      })
+      .filter((enriched) => !enriched.shouldFilter); // Filter out events marked for filtering
   }, [rawLogs, playerIndex, playerWeaponName, currentAreaId, playerCharacterName]);
 }
 
