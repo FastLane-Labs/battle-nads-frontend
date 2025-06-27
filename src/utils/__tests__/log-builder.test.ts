@@ -1,4 +1,4 @@
-import { enrichLog, getAbilityName, type LogEntryRaw } from '../log-builder';
+import { enrichLog, getAbilityName, shouldFilterLogEvent, type LogEntryRaw } from '../log-builder';
 import { LogType, CharacterClass, Ability } from '@/types/domain/enums';
 import type { EventParticipant } from '@/types/domain/dataFeed';
 
@@ -231,6 +231,8 @@ describe('log-builder', () => {
         isPlayerInitiated: true,
         details: {
           damageDone: 200,
+          lootedWeaponID: 3, // Shield Bash ability ID (matches Warrior class)
+          lootedArmorID: 1,  // Stage 1
         },
         displayMessage: 'raw message',
         actor: mockPlayerCharacter,
@@ -239,7 +241,7 @@ describe('log-builder', () => {
 
       const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
-      expect(result.text).toContain('You use Ability **Mighty Blow**');
+      expect(result.text).toContain('You use Ability **Shield Bash**');
       expect(result.text).toContain('against Slime');
       expect(result.text).toContain('(Level 13)');
     });
@@ -255,6 +257,8 @@ describe('log-builder', () => {
         isPlayerInitiated: true,
         details: {
           healthHealed: 50,
+          lootedWeaponID: 7, // Pray ability ID (Monk healing ability)
+          lootedArmorID: 2,  // Stage 2 (healing stage)
         },
         displayMessage: 'raw message',
         actor: mockPlayerCharacter,
@@ -262,7 +266,7 @@ describe('log-builder', () => {
 
       const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
 
-      expect(result.text).toContain('You use Ability **Mighty Blow**');
+      expect(result.text).toContain('You use Ability **Pray**');
       expect(result.text).toContain('on themselves');
       expect(result.text).toContain('(Level 13)');
     });
@@ -279,11 +283,13 @@ describe('log-builder', () => {
         isPlayerInitiated: true,
         details: {
           damageDone: 150,
+          lootedWeaponID: 3, // Shield Bash ability ID
+          lootedArmorID: 1,  // Stage 1
         },
         displayMessage: 'raw message',
         actor: mockPlayerCharacter,
         target: mockMonsterCharacter,
-        ability: 'Shield Bash',
+        ability: 'Shield Bash', // This should be used instead of the signature
       };
 
       const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
@@ -600,8 +606,8 @@ describe('log-builder', () => {
         isPlayerInitiated: true,
         details: {
           damageDone: 250,
-          lootedWeaponID: 3, // Shield Bash ability ID
-          lootedArmorID: 1,  // Stage 1
+          lootedWeaponID: 3, // Shield Bash ability ID (from Ability enum)
+          lootedArmorID: 1,  // Stage 1 (initial damage + stun stage)
           hit: true,
         },
         displayMessage: 'raw message',
@@ -645,8 +651,8 @@ describe('log-builder', () => {
         isPlayerInitiated: true,
         details: {
           damageDone: 15,
-          lootedWeaponID: 6, // Apply Poison ability ID
-          lootedArmorID: 3,  // Stage 3 of 6
+          lootedWeaponID: 6, // Apply Poison ability ID (from Ability enum)
+          lootedArmorID: 3,  // Stage 3 of 6 (poison damage stages)
           hit: true,
         },
         displayMessage: 'raw message',
@@ -690,8 +696,8 @@ describe('log-builder', () => {
         isPlayerInitiated: true,
         details: {
           healthHealed: 150,
-          lootedWeaponID: 7, // Pray ability ID
-          lootedArmorID: 2,  // Stage 2 (healing stage)
+          lootedWeaponID: 7, // Pray ability ID (from Ability enum)
+          lootedArmorID: 2,  // Stage 2 (actual healing stage)
           hit: true,
         },
         displayMessage: 'raw message',
@@ -716,7 +722,7 @@ describe('log-builder', () => {
       expect(result.text).toContain('enhanced healing (Level 12)');
     });
 
-    it('should fallback to getAbilityName when lootedWeaponID is missing', () => {
+    it('should fallback to raw ability name when lootedWeaponID is missing or invalid', () => {
       const rawLog: LogEntryRaw = {
         logIndex: 203,
         blocknumber: 1000n,
@@ -731,7 +737,8 @@ describe('log-builder', () => {
         isPlayerInitiated: true,
         details: {
           healthHealed: 50,
-          // No lootedWeaponID
+          lootedWeaponID: 0, // Invalid ability ID - should fall back to raw ability name
+          lootedArmorID: 1,  // Stage 1
         },
         displayMessage: 'raw message',
         ability: 'Crescendo', // Fallback ability name
@@ -747,6 +754,172 @@ describe('log-builder', () => {
 
       expect(result.text).toContain('You use Ability **Crescendo**');
       expect(result.text).toContain('(Level 8)');
+    });
+
+    it('should handle ability with no target (area effect)', () => {
+      const rawLog: LogEntryRaw = {
+        logIndex: 204,
+        blocknumber: 1000n,
+        timestamp: Date.now(),
+        type: LogType.Ability,
+        attacker: {
+          id: 'player-1',
+          name: 'You',
+          index: 1,
+        },
+        // No defender - area effect ability
+        areaId: 5n,
+        isPlayerInitiated: true,
+        details: {
+          damageDone: 300,
+          lootedWeaponID: 9, // Fireball ability ID (from Ability enum)
+          lootedArmorID: 1,  // Stage 1 (damage stage)
+        },
+        displayMessage: 'raw message',
+        actor: {
+          class: CharacterClass.Sorcerer,
+          index: 1,
+          level: 25,
+          name: 'Test Sorcerer',
+        },
+      };
+
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'TestPlayer');
+
+      expect(result.text).toContain('You use Ability **Fireball**');
+      expect(result.text).toContain('enhanced damage (Level 25)');
+      // Should not contain "against" since there's no target
+      expect(result.text).not.toContain('against');
+    });
+  });
+
+  describe('enrichLog - Event Filtering', () => {
+    it('should filter out ability events with Unknown Ability', () => {
+      const rawLog: LogEntryRaw = {
+        logIndex: 500,
+        blocknumber: 1000n,
+        timestamp: Date.now(),
+        type: LogType.Ability,
+        attacker: {
+          id: 'player-1',
+          name: 'You',
+          index: 1,
+        },
+        areaId: 5n,
+        isPlayerInitiated: true,
+        details: {
+          // No lootedWeaponID, so it will fall back to "Unknown Ability"
+          // According to docs, lootedWeaponID should contain the Ability enum value
+          lootedWeaponID: undefined, // This will result in "Unknown Ability"
+          lootedArmorID: 1, // Stage 1
+        },
+        displayMessage: 'raw message',
+        actor: {
+          class: CharacterClass.Warrior,
+          index: 1,
+          level: 10,
+          name: 'Test Warrior',
+        },
+      };
+
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'TestPlayer');
+
+      expect(result.shouldFilter).toBe(true);
+      expect(result.text).toBe("");
+    });
+
+    it('should not filter ability events with known abilities', () => {
+      const rawLog: LogEntryRaw = {
+        logIndex: 501,
+        blocknumber: 1000n,
+        timestamp: Date.now(),
+        type: LogType.Ability,
+        attacker: {
+          id: 'player-1',
+          name: 'You',
+          index: 1,
+        },
+        areaId: 5n,
+        isPlayerInitiated: true,
+        details: {
+          lootedWeaponID: 3, // Shield Bash ability ID (from Ability enum)
+          lootedArmorID: 1,  // Stage 1 of Shield Bash
+          damageDone: 250,   // Damage dealt by Shield Bash
+        },
+        displayMessage: 'raw message',
+        actor: {
+          class: CharacterClass.Warrior,
+          index: 1,
+          level: 10,
+          name: 'Test Warrior',
+        },
+      };
+
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'TestPlayer');
+
+      expect(result.shouldFilter).toBeFalsy();
+      expect(result.text).toContain('Shield Bash');
+    });
+
+    it('should not filter non-ability events', () => {
+      const rawLog: LogEntryRaw = {
+        logIndex: 502,
+        blocknumber: 1000n,
+        timestamp: Date.now(),
+        type: LogType.Combat,
+        attacker: mockPlayer,
+        defender: mockMonster,
+        areaId: 5n,
+        isPlayerInitiated: true,
+        details: {
+          hit: true,
+          damageDone: 100,
+        },
+        displayMessage: 'raw message',
+        actor: mockPlayerCharacter,
+        target: mockMonsterCharacter,
+      };
+
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
+
+      expect(result.shouldFilter).toBeFalsy();
+      expect(result.text).toContain('strike');
+    });
+  });
+
+  describe('shouldFilterLogEvent', () => {
+    it('should identify Unknown Ability events for filtering', () => {
+      const rawLog: LogEntryRaw = {
+        logIndex: 503,
+        blocknumber: 1000n,
+        timestamp: Date.now(),
+        type: LogType.Ability,
+        attacker: mockPlayer,
+        areaId: 5n,
+        isPlayerInitiated: true,
+        details: {},
+        displayMessage: 'raw message',
+      };
+
+      const shouldFilter = shouldFilterLogEvent(rawLog, "Unknown Ability");
+      expect(shouldFilter).toBe(true);
+    });
+
+    it('should not filter known abilities', () => {
+      const rawLog: LogEntryRaw = {
+        logIndex: 504,
+        blocknumber: 1000n,
+        timestamp: Date.now(),
+        type: LogType.Ability,
+        attacker: mockPlayer,
+        areaId: 5n,
+        isPlayerInitiated: true,
+        details: {},
+        displayMessage: 'raw message',
+      };
+
+      const shouldFilter = shouldFilterLogEvent(rawLog, "Shield Bash");
+      expect(shouldFilter).toBe(false);
     });
   });
 });

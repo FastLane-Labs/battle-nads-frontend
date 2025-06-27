@@ -234,4 +234,146 @@ describe('useCombatFeed', () => {
       expect(combatFeedCache.size()).toBe(0);
     });
   });
+
+  describe('event filtering', () => {
+    it('should filter out events marked with shouldFilter', () => {
+      const mockEventsWithUnknownAbility: EventMessage[] = [
+        {
+          logIndex: 1,
+          blocknumber: 1000n,
+          timestamp: Date.now(),
+          type: LogType.Ability,
+          attacker: {
+            id: 'player-1',
+            name: 'You',
+            index: 1,
+          },
+          areaId: 5n,
+          isPlayerInitiated: true,
+          details: {
+            // No lootedWeaponID - will result in "Unknown Ability"
+            // According to docs, lootedWeaponID should contain Ability enum value
+            lootedWeaponID: undefined, // This will trigger "Unknown Ability" fallback
+            lootedArmorID: 1, // Stage 1
+          },
+          displayMessage: 'Unknown ability used',
+        },
+        {
+          logIndex: 2,
+          blocknumber: 1001n,
+          timestamp: Date.now() + 1000,
+          type: LogType.Combat,
+          attacker: {
+            id: 'player-1',
+            name: 'You',
+            index: 1,
+          },
+          defender: {
+            id: 'monster-1',
+            name: 'Slime',
+            index: 2,
+          },
+          areaId: 5n,
+          isPlayerInitiated: true,
+          details: {
+            hit: true,
+            damageDone: 100,
+          },
+          displayMessage: 'Combat event',
+        },
+      ];
+
+      const { result } = renderHook(() => useCombatFeed(mockEventsWithUnknownAbility, 1, undefined, undefined, 'TestPlayer'));
+
+      // Should only return the combat event, not the unknown ability event
+      expect(result.current).toHaveLength(1);
+      expect(result.current[0].type).toBe(LogType.Combat);
+      expect(result.current[0].text).toContain('strike');
+    });
+
+    it('should keep events with known abilities', () => {
+      const mockEventsWithKnownAbility: EventMessage[] = [
+        {
+          logIndex: 1,
+          blocknumber: 1000n,
+          timestamp: Date.now(),
+          type: LogType.Ability,
+          attacker: {
+            id: 'player-1',
+            name: 'You',
+            index: 1,
+          },
+          areaId: 5n,
+          isPlayerInitiated: true,
+          details: {
+            lootedWeaponID: 3, // Shield Bash ability ID (from Ability enum) 
+            lootedArmorID: 1,  // Stage 1 (damage + stun stage)
+            damageDone: 250,   // Damage dealt by Shield Bash
+          },
+          displayMessage: 'Shield Bash ability used',
+        },
+      ];
+
+      const { result } = renderHook(() => useCombatFeed(mockEventsWithKnownAbility, 1, undefined, undefined, 'TestPlayer'));
+
+      // Should keep the known ability event
+      expect(result.current).toHaveLength(1);
+      expect(result.current[0].type).toBe(LogType.Ability);
+      expect(result.current[0].text).toContain('Shield Bash');
+    });
+
+    it('should filter out ability events with invalid ability IDs', () => {
+      const mockEventsWithInvalidAbility: EventMessage[] = [
+        {
+          logIndex: 1,
+          blocknumber: 1000n,
+          timestamp: Date.now(),
+          type: LogType.Ability,
+          attacker: {
+            id: 'player-1',
+            name: 'You',
+            index: 1,
+          },
+          areaId: 5n,
+          isPlayerInitiated: true,
+          details: {
+            lootedWeaponID: 999, // Invalid ability ID - not in Ability enum (1-10)
+            lootedArmorID: 1,    // Stage 1
+            damageDone: 100,
+          },
+          displayMessage: 'Invalid ability used',
+        },
+        {
+          logIndex: 2,
+          blocknumber: 1001n,
+          timestamp: Date.now() + 1000,
+          type: LogType.Combat,
+          attacker: {
+            id: 'player-1',
+            name: 'You',
+            index: 1,
+          },
+          defender: {
+            id: 'monster-1',
+            name: 'Slime',
+            index: 2,
+          },
+          areaId: 5n,
+          isPlayerInitiated: true,
+          details: {
+            hit: true,
+            damageDone: 50,
+          },
+          displayMessage: 'Combat event',
+        },
+      ];
+
+      const { result } = renderHook(() => useCombatFeed(mockEventsWithInvalidAbility, 1, undefined, undefined, 'TestPlayer'));
+
+      // Should only return the combat event, filtering out the invalid ability
+      expect(result.current).toHaveLength(1);
+      expect(result.current[0].type).toBe(LogType.Combat);
+      expect(result.current[0].text).toContain('strike');
+    });
+  });
 });
