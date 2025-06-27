@@ -144,23 +144,14 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
           p={4}
         >
           <Flex direction="column" alignItems="center" gap={4}>
-            <Text fontSize="3xl" fontWeight="bold" mb={4}>
-              🔒 Wallet Locked
-            </Text>
-            <Text fontSize="lg" mb={6} maxW="400px">
-              Your wallet is locked. Please unlock your wallet to continue playing.
-            </Text>
             <GameButton
               variant="primary"
               onClick={promptWalletUnlock}
               withAnimation={true}
               hasGlow={true}
             >
-              Connect Wallet
+              Unlock Wallet
             </GameButton>
-            <Text fontSize="sm" color="gray.400" mt={4} maxW="300px">
-              Game progress is saved. You can continue where you left off after unlocking.
-            </Text>
           </Flex>
         </Box>
       )}
