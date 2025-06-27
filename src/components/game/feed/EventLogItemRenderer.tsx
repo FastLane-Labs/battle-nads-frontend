@@ -279,8 +279,8 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
                 +{Number(event.details.experience)} XP
               </chakra.span>
             )}
-            {/* Weapon looted */}
-            {event.details?.lootedWeaponID && !isNaN(Number(event.details.lootedWeaponID)) && Number(event.details.lootedWeaponID) > 0 && (
+            {/* Weapon looted - ONLY for non-ability events since lootedWeaponID is repurposed for ability enum in ability logs */}
+            {!isAbilityEvent && event.details?.lootedWeaponID && !isNaN(Number(event.details.lootedWeaponID)) && Number(event.details.lootedWeaponID) > 0 && (
               <chakra.span color="yellow.400" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(251, 191, 36, 0.1)" px={1} borderRadius="sm">
                 Looted: {(() => {
                   try {
@@ -297,8 +297,8 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
                 })()}
               </chakra.span>
             )}
-            {/* Armor looted */}
-            {event.details?.lootedArmorID && !isNaN(Number(event.details.lootedArmorID)) && Number(event.details.lootedArmorID) > 0 && (
+            {/* Armor looted - ONLY for non-ability events since lootedArmorID is repurposed for stage number in ability logs */}
+            {!isAbilityEvent && event.details?.lootedArmorID && !isNaN(Number(event.details.lootedArmorID)) && Number(event.details.lootedArmorID) > 0 && (
               <chakra.span color="yellow.400" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(251, 191, 36, 0.1)" px={1} borderRadius="sm">
                 Looted: {(() => {
                   try {
