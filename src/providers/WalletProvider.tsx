@@ -54,6 +54,9 @@ interface WalletContextType {
   logout: () => Promise<void>;
   sendPrivyTransaction: (unsignedTx: TransactionRequest) => Promise<TransactionResponse>;
   isInitialized: boolean;
+  networkSwitching: boolean;
+  isWalletLocked: boolean;
+  promptWalletUnlock: () => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType>({
@@ -71,6 +74,9 @@ const WalletContext = createContext<WalletContextType>({
   logout: async () => undefined,
   sendPrivyTransaction: async () => { throw new Error('Transaction function not initialized'); },
   isInitialized: false,
+  networkSwitching: false,
+  isWalletLocked: false,
+  promptWalletUnlock: async () => undefined,
 });
 
 
@@ -98,6 +104,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   const [injectedWallet, setInjectedWallet] = useState<WalletInfo | null>(null);
   const [embeddedWallet, setEmbeddedWallet] = useState<WalletInfo | null>(null);
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const [networkSwitching, setNetworkSwitching] = useState<boolean>(false);
+  const [isWalletLocked, setIsWalletLocked] = useState<boolean>(false);
   const {sendTransaction} = useSendTransaction();
   
   // References for wallet management
@@ -126,15 +134,32 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
       if (Number(network.chainId) !== desiredChainId) {
         try {
+          setNetworkSwitching(true);
+          setError(null);
+          
           await (window as any).ethereum.request({
             method: 'wallet_switchEthereumChain',
             params: [{ chainId: chainIdHex }],
           });
-        } catch (
-          /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
-          switchErr: any
-        ) {
-          throw new Error(`Please switch to Monad Testnet (chainId: ${desiredChainId}).`);
+          
+          // Wait a moment for the network switch to complete
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          
+        } catch (switchErr: any) {
+          setNetworkSwitching(false);
+          
+          // More specific error handling
+          if (switchErr.code === 4902) {
+            // Network not added to wallet
+            throw new Error('Monad Testnet not found in wallet. Please add it manually.');
+          } else if (switchErr.code === 4001) {
+            // User rejected the request
+            throw new Error('Network switch cancelled. Please switch to Monad Testnet manually.');
+          } else {
+            throw new Error(`Failed to switch to Monad Testnet: ${switchErr.message || 'Unknown error'}`);
+          }
+        } finally {
+          setNetworkSwitching(false);
         }
       }
     },
@@ -181,6 +206,8 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     if (!privyReady || !walletsReady || !authenticated) {
       return;
     }
+    
+    // Note: Removed initial lock check here since polling handles it
         
     // Tracking variables for wallet creation
     let foundInjectedWallet: FoundWalletInfo | null = null;
@@ -212,8 +239,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
                 signer,
                 walletType: wallet.walletClientType as InjectedWalletClientType
               };
-            } catch (e) {
+            } catch (e: any) {
               console.error('[WalletProvider] Failed to create MetaMask wallet signer:', e);
+              // Check if error is due to wallet being locked
+              if (e.code === 4001 || e.message?.includes('unauthorized') || e.message?.includes('User rejected') || e.message?.includes('account access')) {
+                console.log('[WalletProvider] MetaMask wallet appears to be locked');
+                setIsWalletLocked(true);
+              }
             }
           } 
           // If we don't have an injected wallet yet, use this one
@@ -231,8 +263,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
                 signer,
                 walletType: wallet.walletClientType as InjectedWalletClientType
               };
-            } catch (e) {
+            } catch (e: any) {
               console.error('[WalletProvider] Failed to create injected wallet signer:', e);
+              // Check if error is due to wallet being locked
+              if (e.code === 4001 || e.message?.includes('unauthorized') || e.message?.includes('User rejected') || e.message?.includes('account access')) {
+                console.log('[WalletProvider] Injected wallet appears to be locked');
+                setIsWalletLocked(true);
+              }
             }
           }
         } 
@@ -278,12 +315,17 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
               signer,
               walletType: 'privy' as const
             };
-          } catch (e) {
+          } catch (e: any) {
             console.error('[WalletProvider] Failed to create embedded wallet signer:', e);
           }
         }
       }
 
+      // Clear wallet locked state if we successfully found injected wallet
+      if (foundInjectedWallet) {
+        setIsWalletLocked(false);
+      }
+      
       // Update wallet states with proper WalletInfo objects
       if (foundInjectedWallet) {
         setInjectedWallet({
@@ -314,13 +356,14 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         setEmbeddedWallet(null);
       }
       
-      // Only set initialized to true if we have BOTH wallets properly set up
+      // Check wallet setup status
       const hasInjected = !!foundInjectedWallet && !!foundInjectedWallet.signer;
       const hasEmbedded = !!foundEmbeddedWallet && !!foundEmbeddedWallet.signer;
       
+      // Always set initialized to true if we have authentication state
+      setIsInitialized(true);
+      
       if (hasInjected && hasEmbedded) {
-        setIsInitialized(true);
-        
         // Set active wallet based on priorities
         if (hasInjected && foundInjectedWallet) {
           setCurrentWallet('injected');
@@ -333,15 +376,18 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           setProvider(foundEmbeddedWallet.provider);
           setAddress(foundEmbeddedWallet.address);
         }
+      } else if (hasEmbedded && foundEmbeddedWallet) {
+        // Only embedded wallet available (injected might be locked)
+        setCurrentWallet('embedded');
+        setSigner(foundEmbeddedWallet.signer);
+        setProvider(foundEmbeddedWallet.provider);
+        setAddress(foundEmbeddedWallet.address);
       } else {
-        // Clear current wallet state but still mark as initialized if authentication state is known
+        // No wallets available or injected wallet locked
         setCurrentWallet('none');
         setSigner(null);
         setProvider(null);
-        
-        // Important: Set isInitialized to true even if wallets are not available
-        // This allows redirect logic to work when cookies/storage are cleared
-        setIsInitialized(walletsReady || !authenticated);
+        setAddress(null);
       }
     }
   }, [privyReady, walletsReady, authenticated, wallets, checkAndSwitchChain]);
@@ -363,6 +409,85 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     
     initWallets();
   }, [authenticated, walletsReady, syncWithPrivyWallets, currentWallet, address, injectedWallet?.address, embeddedWallet?.address, sessionKey, isInitialized]);
+
+  // Polling-based wallet lock detection (since events don't work for locking)
+  useEffect(() => {
+    if (!authenticated || !isInitialized) return;
+    
+    let pollInterval: NodeJS.Timeout;
+    
+    const pollWalletLockState = async () => {
+      if (typeof window !== 'undefined' && window.ethereum) {
+        try {
+          const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+          const isLocked = accounts.length === 0;
+          
+          if (isLocked !== isWalletLocked) {
+            console.log('[WalletProvider] Wallet lock state changed:', isLocked ? 'LOCKED' : 'UNLOCKED');
+            setIsWalletLocked(isLocked);
+            
+            if (!isLocked) {
+              // Wallet was unlocked, re-sync
+              setTimeout(() => syncWithPrivyWallets(), 500);
+            }
+          }
+        } catch (error) {
+          console.error('[WalletProvider] Error checking wallet lock state:', error);
+          // On error, assume locked
+          if (!isWalletLocked) {
+            setIsWalletLocked(true);
+          }
+        }
+      }
+    };
+    
+    // Start polling every 2 seconds
+    pollInterval = setInterval(pollWalletLockState, 2000);
+    
+    // Initial check
+    pollWalletLockState();
+    
+    return () => {
+      if (pollInterval) {
+        clearInterval(pollInterval);
+      }
+    };
+  }, [authenticated, isInitialized, isWalletLocked, syncWithPrivyWallets]);
+  
+  // Listen for wallet events (for disconnect detection only)
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.ethereum) {
+      const handleAccountsChanged = async (accounts: string[]) => {
+        console.log('[WalletProvider] Accounts changed:', accounts);
+        if (accounts.length === 0) {
+          // This is disconnect, not lock
+          console.log('[WalletProvider] Wallet disconnected');
+          setIsWalletLocked(true);
+        } else {
+          // Account changed or reconnected
+          console.log('[WalletProvider] Account changed/reconnected');
+          setIsWalletLocked(false);
+          setTimeout(() => syncWithPrivyWallets(), 500);
+        }
+      };
+
+      const handleChainChanged = (chainId: string) => {
+        console.log('[WalletProvider] Chain changed to:', chainId);
+        setTimeout(() => syncWithPrivyWallets(), 500);
+      };
+
+      // Only listen to events for disconnect/reconnect, not lock detection
+      window.ethereum.on('accountsChanged', handleAccountsChanged);
+      window.ethereum.on('chainChanged', handleChainChanged);
+
+      return () => {
+        if (window.ethereum) {
+          window.ethereum.removeListener('accountsChanged', handleAccountsChanged);
+          window.ethereum.removeListener('chainChanged', handleChainChanged);
+        }
+      };
+    }
+  }, [syncWithPrivyWallets]);
 
   // Detect wallet address changes and invalidate cached data
   useEffect(() => {
@@ -423,6 +548,28 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       login();
     }
   };
+
+  const promptWalletUnlock = useCallback(async () => {
+    try {
+      if (typeof window !== 'undefined' && window.ethereum) {
+        // Attempt to trigger wallet unlock by requesting accounts
+        await window.ethereum.request({ 
+          method: 'eth_requestAccounts' 
+        });
+        
+        // Re-sync wallets after unlock attempt
+        await syncWithPrivyWallets();
+      } else {
+        setError('No wallet extension detected');
+      }
+    } catch (error: any) {
+      if (error.code === 4001) {
+        setError('Please unlock your wallet and try again');
+      } else {
+        setError(error.message || 'Failed to unlock wallet');
+      }
+    }
+  }, [syncWithPrivyWallets]);
 
   const sendPrivyTransaction = useCallback(async (unsignedTx: TransactionRequest): Promise<TransactionResponse> => {
     try {
@@ -491,6 +638,9 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         logout: handleLogout,
         sendPrivyTransaction,
         isInitialized,
+        networkSwitching,
+        isWalletLocked,
+        promptWalletUnlock,
       }}
     >
       {children}
