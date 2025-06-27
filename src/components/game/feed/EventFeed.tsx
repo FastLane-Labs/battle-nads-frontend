@@ -4,6 +4,7 @@ import { domain } from '@/types';
 import { EventLogItemRenderer } from './EventLogItemRenderer';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { filterEventsByRecentAreas } from '@/utils/eventFiltering';
+import { useCombatFeed } from '@/hooks/game/useCombatFeed';
 
 interface EventFeedProps {
   eventLogs: domain.EventMessage[];
@@ -74,6 +75,15 @@ const EventFeed: React.FC<EventFeedProps> = ({
     });
   }, [eventLogs, currentAreaId]);
 
+  // Use useCombatFeed to process all events with caching
+  const enrichedEventLogs = useCombatFeed(
+    filteredEventLogs,
+    playerCharacter.index,
+    playerCharacter.weapon?.name,
+    currentAreaId,
+    playerCharacter.name
+  );
+
   // Track window width for responsive sizing
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
 
@@ -88,7 +98,7 @@ const EventFeed: React.FC<EventFeedProps> = ({
   // More accurate sizing estimation - much more conservative
   const getEstimatedRowSize = useMemo(() => {
     return (index: number) => {
-      const event = filteredEventLogs[index];
+      const event = enrichedEventLogs[index] || filteredEventLogs[index];
       if (!event) return 35;
       
       // Base sizes adjusted to prevent cropping
@@ -135,10 +145,10 @@ const EventFeed: React.FC<EventFeedProps> = ({
       
       return baseSize + extraHeight;
     };
-  }, [filteredEventLogs, windowWidth]);
+  }, [enrichedEventLogs, filteredEventLogs, windowWidth]);
 
   const rowVirtualizer = useVirtualizer({ 
-    count: filteredEventLogs?.length || 0,
+    count: enrichedEventLogs?.length || 0,
     getScrollElement: () => parentRef.current,
     estimateSize: getEstimatedRowSize,
     overscan: 3, // Reduced overscan for better performance
@@ -332,9 +342,9 @@ const EventFeed: React.FC<EventFeedProps> = ({
               width="100%" 
               position="relative"
             >
-              {filteredEventLogs.length > 0 ? (
+              {enrichedEventLogs.length > 0 ? (
                 rowVirtualizer.getVirtualItems().map((virtualRow) => {
-                  const event = filteredEventLogs[virtualRow.index];
+                  const event = enrichedEventLogs[virtualRow.index];
                   if (!event) return null; 
 
                   const itemKey = `${event.timestamp}-${event.logIndex}-${virtualRow.index}`;
@@ -395,6 +405,7 @@ const EventFeed: React.FC<EventFeedProps> = ({
                           playerWeaponName={playerCharacter.weapon?.name}
                           currentAreaId={currentAreaId}
                           playerCharacterName={playerCharacter.name}
+                          isPreEnriched={true}
                         />
                       </Box>
                     </Box>
