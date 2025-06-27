@@ -78,11 +78,77 @@ export function getPlayerTitle(char: CharacterLite): string {
   return "";
 }
 
+interface VerbInfo {
+  verb: string;
+  isComplete: boolean; // true if verb already includes target relationship
+  needsTargetInsertion: boolean; // true if verb needs target inserted within the phrase
+}
+
 export function pickAttackVerb(monsterIdx: number, logIndex?: number): string {
   const verbs = MONSTER_ATTACKS[monsterIdx] ?? ["hits"];
   // Use logIndex as seed for deterministic selection to prevent re-render changes
   const seed = logIndex ?? monsterIdx;
   return verbs[seed % verbs.length];
+}
+
+export function getVerbInfo(verb: string): VerbInfo {
+  // Verbs that already contain prepositions and need the target inserted within them
+  const needsTargetInsertion = [
+    'manifests darkness near',
+    'embodies primal terror against',
+    'breathes fire at',
+    'hurls massive boulders at',
+    'casts bone-shatter spell on',
+    'pounds ground near',
+    'perches menacingly near',
+    'regenerates near',
+    'raises undead near'
+  ];
+  
+  // Check if this verb needs target insertion
+  const requiresInsertion = needsTargetInsertion.some(pattern => verb.includes(pattern));
+  
+  // Check if verb already includes prepositions (complete phrase)
+  const prepositions = ['at', 'toward', 'near', 'around', 'on', 'with', 'from', 'against'];
+  const isComplete = prepositions.some(prep => verb.includes(` ${prep}`) || verb.endsWith(` ${prep}`));
+  
+  return {
+    verb,
+    isComplete,
+    needsTargetInsertion: requiresInsertion
+  };
+}
+
+export function buildAttackMessage(verb: string, actorName: string, targetName: string, isTargetPlayer: boolean, isHit: boolean, damageText: string = "", criticalText: string = "", deathText: string = ""): string {
+  const verbInfo = getVerbInfo(verb);
+  const target = isTargetPlayer ? "you" : targetName;
+  const targetForAgainst = isTargetPlayer ? "against you" : `against ${targetName}`;
+  
+  if (!isHit) {
+    // Handle misses - better word order
+    if (verbInfo.needsTargetInsertion) {
+      // For "manifests darkness near" -> "manifests darkness near you but misses"
+      return `${actorName} ${verb} ${target} but misses.`;
+    } else if (verbInfo.isComplete) {
+      // For "oozes toward" -> "oozes toward you but misses"  
+      return `${actorName} ${verb} ${target} but misses.`;
+    } else {
+      // For simple verbs like "strikes" -> "strikes at you but misses"
+      return `${actorName} ${verb} at ${target} but misses.`;
+    }
+  }
+  
+  // Handle hits
+  if (verbInfo.needsTargetInsertion) {
+    // For "embodies primal terror against" -> "embodies primal terror against you for 32 damage"
+    return `${actorName} ${verb} ${isTargetPlayer ? "you" : targetName}${damageText}.${criticalText}${deathText}`;
+  } else if (verbInfo.isComplete) {
+    // For "oozes toward" -> "oozes toward you for 32 damage"
+    return `${actorName} ${verb} ${target}${damageText}.${criticalText}${deathText}`;
+  } else {
+    // For simple verbs -> "strikes you for 32 damage"
+    return `${actorName} ${verb} ${target}${damageText}.${criticalText}${deathText}`;
+  }
 }
 
 export function getSignatureAbility(char: CharacterLite) {

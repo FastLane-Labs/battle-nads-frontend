@@ -513,6 +513,7 @@ describe('log-builder', () => {
         isPlayerInitiated: true,
         details: {
           damageDone: 100,
+          hit: true,
         },
         displayMessage: 'raw message',
         actor: mockPlayerCharacter,
@@ -537,6 +538,7 @@ describe('log-builder', () => {
         isPlayerInitiated: true,
         details: {
           damageDone: 100,
+          hit: true,
         },
         displayMessage: 'raw message',
         actor: mockPlayerCharacter,
@@ -561,6 +563,7 @@ describe('log-builder', () => {
         isPlayerInitiated: true,
         details: {
           damageDone: 100,
+          hit: true,
         },
         displayMessage: 'raw message',
         // No actor/target provided
