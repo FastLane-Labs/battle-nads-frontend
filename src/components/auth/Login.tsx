@@ -1,15 +1,48 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
 import { GameButton } from '../ui';
+import { useWalletConnectionStatus } from '../../hooks/wallet/useWalletConnectionStatus';
 
 const Login: React.FC = () => {
   const { login, ready, authenticated } = usePrivy();
+  const { 
+    isWalletLocked, 
+    isWrongNetwork, 
+    networkSwitching, 
+    connectionError, 
+    retryConnection,
+    promptWalletUnlock
+  } = useWalletConnectionStatus();
   
-  const handleLogin = () => {
-    if (ready && !authenticated) {
+  const [isConnecting, setIsConnecting] = useState(false);
+  
+  const handleLogin = async () => {
+    if (!ready || authenticated) return;
+    
+    try {
+      setIsConnecting(true);
+      
+      // Check if wallet is locked first
+      if (isWalletLocked) {
+        promptWalletUnlock();
+        return;
+      }
+      
       login();
+    } catch (error) {
+      console.error('Login failed:', error);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+  
+  const handleRetry = async () => {
+    if (connectionError) {
+      await retryConnection();
+    } else {
+      await handleLogin();
     }
   };
 
@@ -30,18 +63,64 @@ const Login: React.FC = () => {
             Adventure Awaits
           </h2>
 
-          <GameButton
-            variant="primary"
-            onClick={handleLogin}
-            isDisabled={!ready || authenticated}
-            loading={!ready}
-            loadingText="Connecting..."
-            withAnimation={true}
-            hasGlow={true}
-            className="mt-4 relative"
-          >
-            {authenticated ? 'Connected' : 'Connect Wallet'}
-          </GameButton>
+          <div className="flex flex-col items-center space-y-4">
+            <GameButton
+              variant="primary"
+              onClick={handleLogin}
+              isDisabled={!ready || authenticated || networkSwitching}
+              loading={!ready || isConnecting || networkSwitching}
+              loadingText={
+                networkSwitching 
+                  ? "Switching Network..." 
+                  : isConnecting 
+                    ? "Connecting..." 
+                    : "Loading..."
+              }
+              withAnimation={true}
+              hasGlow={true}
+              className="mt-4 relative"
+            >
+              {authenticated ? 'Connected' : (isWalletLocked ? 'Unlock Wallet' : 'Connect Wallet')}
+            </GameButton>
+            
+            {/* Connection Status Indicators - Prioritized */}
+            {(() => {
+              // Priority 1: Connection Error
+              if (connectionError) {
+                return (
+                  <div className="flex flex-col items-center space-y-2">
+                    <p className="text-red-400 text-center text-sm">
+                      ❌ Connection failed
+                    </p>
+                    <p className="text-gray-300 text-center text-xs max-w-sm">
+                      {connectionError}
+                    </p>
+                    <GameButton
+                      variant="compact"
+                      onClick={handleRetry}
+                      className="text-sm px-4 py-2"
+                    >
+                      Retry Connection
+                    </GameButton>
+                  </div>
+                );
+              }
+              
+              // Priority 2: Wrong Network (lowest priority)
+              if (isWrongNetwork) {
+                return (
+                  <div className="flex flex-col items-center space-y-2">
+                    <p className="text-gray-300 text-center text-xs max-w-sm">
+                      Connecting will automatically switch to Monad Testnet
+                    </p>
+                  </div>
+                );
+              }
+              
+              // No errors - return null
+              return null;
+            })()}
+          </div>
           
           <p className="text-gray-300/95 text-center mt-3 max-w-md">
             Connect your wallet to enter the world of Battle Nads and begin your adventure

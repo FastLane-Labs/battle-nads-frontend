@@ -16,13 +16,14 @@ import { logger } from '../utils/logger';
 import { OnboardingManager } from './onboarding';
 import { useWelcomeScreen } from './onboarding/WelcomeScreen';
 import { useWallet } from '../providers/WalletProvider';
+import { GameButton } from './ui';
 import { safeFormatEther } from '@/utils/safeNumberConversion';
 
 const AppInitializer: React.FC = () => {
   const game = useSimplifiedGameState();
   const router = useRouter();
   const toast = useToast();
-  const { currentWallet } = useWallet();
+  const { currentWallet, isWalletLocked, promptWalletUnlock } = useWallet();
   const zeroCharacterId = "0x0000000000000000000000000000000000000000000000000000000000000000";
   
   // Check onboarding status for current wallet
@@ -134,7 +135,57 @@ const AppInitializer: React.FC = () => {
     return renderWithNav(<LoadingScreen message="Initializing Wallet..." />, "Wallet Init Loading");
   }
   
-  // 2. No Wallet Connected State (HIGHEST PRIORITY after init)
+  // 2. Wallet Locked State (PRIORITY over no wallet) - check even during gameplay
+  if (isWalletLocked) {
+    return (
+      <>
+        <div 
+          className="min-h-screen w-full bg-cover bg-center bg-no-repeat flex items-center justify-center py-10"
+          style={{ backgroundImage: "url('/assets/bg/dark-smoky-bg.webp')" }}
+        >
+          <div className="max-w-[600px] w-full mx-auto px-4">
+            <div className="flex flex-col items-center space-y-8">
+              <img 
+                src="/BattleNadsLogo.webp" 
+                alt="Battle Nads Logo"
+                className="max-w-[300px] md:max-w-[335px] mx-auto"
+              />
+              
+              <h2 className="text-center text-2xl md:text-3xl font-semibold uppercase mb-4 gold-text tracking-wider leading-10">
+                Wallet Locked
+              </h2>
+              
+              <div className="flex flex-col items-center space-y-4">
+                <p className="text-yellow-400 text-center text-lg">
+                  🔒 Your wallet is locked
+                </p>
+                <p className="text-gray-300 text-center max-w-md">
+                  Please unlock your wallet extension to continue your adventure
+                </p>
+                
+                <GameButton
+                  variant="primary"
+                  onClick={promptWalletUnlock}
+                  withAnimation={true}
+                  hasGlow={true}
+                  className="mt-4"
+                >
+                  Connect Wallet
+                </GameButton>
+                
+                <p className="text-gray-400 text-center text-sm max-w-sm">
+                  If you continue to have issues, try refreshing the page or reconnecting your wallet
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <OnboardingManager />
+      </>
+    );
+  }
+  
+  // 3. No Wallet Connected State (HIGHEST PRIORITY after init and lock check)
   if (!game.hasWallet) {
     return (
       <>
@@ -146,12 +197,12 @@ const AppInitializer: React.FC = () => {
 
   // --- Wallet IS Connected States --- 
 
-  // 3. Loading State (Only relevant if wallet IS connected)
+  // 4. Loading State (Only relevant if wallet IS connected)
   if (game.isLoading) { 
     return renderWithNav(<LoadingScreen message="Initializing Game Data..." />, "Loading Screen");
   }
 
-  // 4. Error State
+  // 5. Error State
   if (game.error) {
     return renderWithNav(
       <ErrorScreen error={game.error?.message || 'An unknown error occurred'} retry={() => window.location.reload()} onGoToLogin={() => window.location.reload()} />,
@@ -159,13 +210,13 @@ const AppInitializer: React.FC = () => {
     );
   }
 
-  // 5. PRIORITY: No Character Found State (Wallet connected, not loading, no error)
+  // 6. PRIORITY: No Character Found State (Wallet connected, not loading, no error)
   // Only show redirect screen if onboarding is completed
   if (game.hasWallet && game.characterId === zeroCharacterId && hasSeenWelcome) { 
     return renderWithNav(<LoadingScreen message="Redirecting to character creation..." />, "Redirecting");
   }
 
-  // 6. Character Death State (Check if character is dead)
+  // 7. Character Death State (Check if character is dead)
   const isValidChar = isValidCharacterId(game.characterId);
   if (game.hasWallet && 
       isValidChar && 
@@ -182,7 +233,7 @@ const AppInitializer: React.FC = () => {
     );
   }
 
-  // 5. Session Key Needs Update State (Only checked if a valid character exists AND data is loaded)
+  // 8. Session Key Needs Update State (Only checked if a valid character exists AND data is loaded)
   if (game.hasWallet && 
       isValidChar && 
       game.needsSessionKeyUpdate && 
@@ -207,7 +258,7 @@ const AppInitializer: React.FC = () => {
     );
   }
 
-  // 6. Ready State (Wallet, Valid Character, Valid Session Key)
+  // 9. Ready State (Wallet, Valid Character, Valid Session Key)
   if (game.hasWallet && 
       isValidChar && 
       !game.needsSessionKeyUpdate && 
