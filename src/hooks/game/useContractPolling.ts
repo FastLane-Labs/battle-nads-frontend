@@ -30,7 +30,7 @@ export const useContractPolling = (owner: string | null) => {
       const rawArrayData = await client.getUiSnapshot(owner, startBlock);
       const fetchTimestamp = Date.now();
       
-      if (!rawArrayData || typeof (rawArrayData as any)[0] === 'undefined' || typeof (rawArrayData as any)[12] === 'undefined') {
+      if (!rawArrayData || typeof (rawArrayData as any)[0] === 'undefined' || typeof (rawArrayData as any)[11] === 'undefined') {
         throw new Error("Invalid data structure received from getUiSnapshot");
       }
       
@@ -47,8 +47,7 @@ export const useContractPolling = (owner: string | null) => {
         equipableArmorNames: dataAsAny[8],
         dataFeeds: dataAsAny[9] || [],
         balanceShortfall: dataAsAny[10],
-        unallocatedAttributePoints: dataAsAny[11],
-        endBlock: dataAsAny[12],
+        endBlock: dataAsAny[11],
         fetchTimestamp: fetchTimestamp,
       };
     },

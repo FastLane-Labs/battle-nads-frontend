@@ -304,7 +304,7 @@ export function mapCharacter(
     },
     areaId,
     owner: rawCharacter.owner,
-    activeTask: rawCharacter.activeTask,
+    activeTask: rawCharacter.activeTask.taskAddress,
     ability: {
       ability: rawCharacter.activeAbility.ability as domain.Ability,
       stage: rawCharacter.activeAbility.stage,
@@ -855,7 +855,7 @@ export function contractToWorldSnapshot(
     eventLogs: allEventLogs,
     chatLogs: allChatMessages,
     balanceShortfall: raw.balanceShortfall || BigInt(0),
-    unallocatedAttributePoints: Number(raw.unallocatedAttributePoints || 0),
+    unallocatedAttributePoints: character?.stats.unspentAttributePoints || 0,
     lastBlock: Number(raw.endBlock || 0)
   };
 

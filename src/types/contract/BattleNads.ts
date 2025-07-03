@@ -59,6 +59,16 @@ export interface Inventory {
   balance: bigint; // uint128
 }
 
+// Combat tracker structure (Matches CombatTracker struct)
+export interface CombatTracker {
+  hasTaskError: boolean;
+  pending: boolean;
+  taskDelay: number; // uint8
+  executorDelay: number; // uint8
+  taskAddress: string; // address
+  targetBlock: bigint; // uint64
+}
+
 // Ability state structure (Matches AbilityTracker struct)
 export interface AbilityState {
   ability: number; // uint8 (enum Ability)
@@ -88,7 +98,7 @@ export interface Character {
   maxHealth: bigint; // uint256
   weapon: Weapon;
   armor: Armor;
-  activeTask: string; // address
+  activeTask: CombatTracker;
   activeAbility: AbilityState;
   inventory: Inventory;
   tracker: StorageTracker; // Not directly used by frontend polling, but part of struct
@@ -152,7 +162,6 @@ export interface PollFrontendDataReturn {
   equipableArmorNames: string[];
   dataFeeds: DataFeed[]; // Array of per-block data feeds
   balanceShortfall: bigint; // uint256
-  unallocatedAttributePoints: bigint; // uint256 - NOTE: Contract seems to return uint256 here
   endBlock: bigint; // uint256
   fetchTimestamp: number; // Timestamp (ms since epoch) when this data was fetched
 } 
