@@ -56,7 +56,14 @@
       "armorBitmap": "6",
       "balance": "500000000000000000"
     },
-    "activeTask": "0x0000000000000000000000000000000000000000",
+    "activeTask": {
+      "hasTaskError": false,
+      "pending": false,
+      "taskDelay": 0,
+      "executorDelay": 0,
+      "taskAddress": "0x0000000000000000000000000000000000000000",
+      "targetBlock": "0"
+    },
     "activeAbility": {
       "ability": 0,
       "stage": 0,
@@ -116,6 +123,5 @@
     }
   ],
   "balanceShortfall": "0",
-  "unallocatedAttributePoints": "3",
   "endBlock": 150
 } 
