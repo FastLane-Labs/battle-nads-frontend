@@ -846,16 +846,18 @@ export function contractToWorldSnapshot(
   const mappedSessionKeyData = mapSessionKeyData(raw.sessionKeyData, owner);
 
   // Create the domain world snapshot (Now includes eventLogs and chatLogs)
+  const mappedCharacter = mapCharacter(raw.character);
+  
   const partialWorldSnapshot: domain.WorldSnapshot = {
     characterID: raw.characterID || '',
     sessionKeyData: mappedSessionKeyData,
-    character: mapCharacter(raw.character),
+    character: mappedCharacter,
     combatants: (raw.combatants || []).map(mapCharacterLite),
     noncombatants: (raw.noncombatants || []).map(mapCharacterLite),
     eventLogs: allEventLogs,
     chatLogs: allChatMessages,
     balanceShortfall: raw.balanceShortfall || BigInt(0),
-    unallocatedAttributePoints: character?.stats.unspentAttributePoints || 0,
+    unallocatedAttributePoints: mappedCharacter?.stats.unspentAttributePoints || 0,
     lastBlock: Number(raw.endBlock || 0)
   };
 
