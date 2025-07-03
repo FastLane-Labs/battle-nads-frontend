@@ -49,7 +49,14 @@ const mockCharacter: Character = {
   position: { x: 0, y: 0, depth: 0 },
   areaId: BigInt(1),
   owner: '0x123',
-  activeTask: '',
+  activeTask: {
+    hasTaskError: false,
+    pending: false,
+    taskDelay: 0,
+    executorDelay: 0,
+    taskAddress: '0x0000000000000000000000000000000000000000',
+    targetBlock: 0
+  },
   ability: {
     ability: 0,
     stage: 0,
