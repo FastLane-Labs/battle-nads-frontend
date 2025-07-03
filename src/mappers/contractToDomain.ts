@@ -304,7 +304,14 @@ export function mapCharacter(
     },
     areaId,
     owner: rawCharacter.owner,
-    activeTask: rawCharacter.activeTask.taskAddress,
+    activeTask: {
+      hasTaskError: rawCharacter.activeTask.hasTaskError,
+      pending: rawCharacter.activeTask.pending,
+      taskDelay: rawCharacter.activeTask.taskDelay,
+      executorDelay: rawCharacter.activeTask.executorDelay,
+      taskAddress: rawCharacter.activeTask.taskAddress,
+      targetBlock: Number(rawCharacter.activeTask.targetBlock)
+    },
     ability: {
       ability: rawCharacter.activeAbility.ability as domain.Ability,
       stage: rawCharacter.activeAbility.stage,
