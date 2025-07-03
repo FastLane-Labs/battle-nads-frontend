@@ -41,8 +41,8 @@ describe('useContractPolling', () => {
 
   const mockSnapshotData = [
     'char1', // characterID
-    { key: '0xsessionkey', expiration: 1000n }, // sessionKeyData
-    { id: 'char1', name: 'TestChar' }, // character
+    { key: '0xsessionkey', expiration: BigInt(1000) }, // sessionKeyData
+    { id: 'char1', name: 'TestChar', stats: { unspentAttributePoints: 5 }, activeTask: { taskAddress: '0x0' } }, // character
     [], // combatants
     [], // noncombatants
     [], // equipableWeaponIDs
@@ -50,9 +50,8 @@ describe('useContractPolling', () => {
     [], // equipableArmorIDs
     [], // equipableArmorNames
     [], // dataFeeds
-    0n, // balanceShortfall
-    5, // unallocatedAttributePoints
-    500n, // endBlock
+    BigInt(0), // balanceShortfall
+    BigInt(500), // endBlock
   ];
 
   const mockClient = {
@@ -101,8 +100,8 @@ describe('useContractPolling', () => {
     expect(mockClient.getUiSnapshot).toHaveBeenCalledWith(mockOwner, expect.any(BigInt));
     expect(result.current.data).toEqual({
       characterID: 'char1',
-      sessionKeyData: { key: '0xsessionkey', expiration: 1000n },
-      character: { id: 'char1', name: 'TestChar' },
+      sessionKeyData: { key: '0xsessionkey', expiration: BigInt(1000) },
+      character: { id: 'char1', name: 'TestChar', stats: { unspentAttributePoints: 5 }, activeTask: { taskAddress: '0x0' } },
       combatants: [],
       noncombatants: [],
       equipableWeaponIDs: [],
@@ -110,9 +109,8 @@ describe('useContractPolling', () => {
       equipableArmorIDs: [],
       equipableArmorNames: [],
       dataFeeds: [],
-      balanceShortfall: 0n,
-      unallocatedAttributePoints: 5,
-      endBlock: 500n,
+      balanceShortfall: BigInt(0),
+      endBlock: BigInt(500),
       fetchTimestamp: expect.any(Number),
     });
   });
