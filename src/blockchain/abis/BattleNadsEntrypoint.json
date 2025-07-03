@@ -1126,8 +1126,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -1801,8 +1833,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -2127,8 +2191,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -2448,8 +2544,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -2794,8 +2922,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -3115,8 +3275,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -3431,8 +3623,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -3752,8 +3976,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -4073,8 +4329,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -4394,8 +4682,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -4715,8 +5035,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -5036,8 +5388,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -5357,8 +5741,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -5678,8 +6094,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -6005,8 +6453,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -6336,8 +6816,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -7044,8 +7556,40 @@
           },
           {
             "name": "activeTask",
-            "type": "address",
-            "internalType": "address"
+            "type": "tuple",
+            "internalType": "struct CombatTracker",
+            "components": [
+              {
+                "name": "hasTaskError",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "pending",
+                "type": "bool",
+                "internalType": "bool"
+              },
+              {
+                "name": "taskDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "executorDelay",
+                "type": "uint8",
+                "internalType": "uint8"
+              },
+              {
+                "name": "taskAddress",
+                "type": "address",
+                "internalType": "address"
+              },
+              {
+                "name": "targetBlock",
+                "type": "uint64",
+                "internalType": "uint64"
+              }
+            ]
           },
           {
             "name": "activeAbility",
@@ -7376,11 +7920,6 @@
       },
       {
         "name": "balanceShortfall",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "unallocatedAttributePoints",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -7885,6 +8424,68 @@
     "anonymous": false
   },
   {
+    "type": "event",
+    "name": "TaskNotScheduledInHandler",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "characterID",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "currentBlock",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "targetBlock",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "TaskNotScheduledInTaskHandler",
+    "inputs": [
+      {
+        "name": "id",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "characterID",
+        "type": "bytes32",
+        "indexed": false,
+        "internalType": "bytes32"
+      },
+      {
+        "name": "currentBlock",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "targetBlock",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
     "type": "error",
     "name": "AbilityCantHaveTarget",
     "inputs": []
@@ -7907,22 +8508,6 @@
         "name": "cooldownExpiration",
         "type": "uint256",
         "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "AlreadyInCombat",
-    "inputs": [
-      {
-        "name": "attackerIndex",
-        "type": "uint8",
-        "internalType": "uint8"
-      },
-      {
-        "name": "defenderIndex",
-        "type": "uint8",
-        "internalType": "uint8"
       }
     ]
   },
@@ -8268,22 +8853,6 @@
   },
   {
     "type": "error",
-    "name": "NotEnoughGas",
-    "inputs": [
-      {
-        "name": "gasLeft",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "gasRequired",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
     "name": "OwnerAlreadyExists",
     "inputs": [
       {
@@ -8348,6 +8917,28 @@
   },
   {
     "type": "error",
+    "name": "Storage_InvalidBlock",
+    "inputs": [
+      {
+        "name": "blockNumber",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "Storage_InvalidIndex",
+    "inputs": [
+      {
+        "name": "index",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "TaskDeadlineInvalid",
     "inputs": [
       {
@@ -8376,11 +8967,6 @@
   {
     "type": "error",
     "name": "TaskNotRescheduled",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "TaskNotScheduled",
     "inputs": []
   },
   {
