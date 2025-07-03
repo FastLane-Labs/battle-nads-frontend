@@ -5,6 +5,7 @@
 
 import { CharacterClass, StatusEffect, Ability } from './enums';
 import { BaseWeapon, BaseArmor, BaseCharacter, BaseCharacterLite } from '@/types/base';
+import { CombatTracker } from '@/types/contract/BattleNads';
 
 export interface Position {
   x: number;
@@ -55,16 +56,6 @@ export interface Inventory {
   armorIDs: number[];
   weaponNames: string[];
   armorNames: string[];
-}
-
-// Combat tracker structure for domain layer (matches contract CombatTracker but uses number types)
-export interface CombatTracker {
-  hasTaskError: boolean;
-  pending: boolean;
-  taskDelay: number; // uint8 - converted from contract bigint to number
-  executorDelay: number; // uint8 - converted from contract bigint to number
-  taskAddress: string; // address - same as contract
-  targetBlock: number; // uint64 - converted from contract bigint to number for domain layer
 }
 
 export interface AbilityState {
