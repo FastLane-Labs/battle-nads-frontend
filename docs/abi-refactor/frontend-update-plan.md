@@ -83,10 +83,10 @@ The smart contract has undergone significant changes that require frontend updat
 - [x] **Update character types** (`src/types/domain/character.ts`)
 
   - [x] Add `CombatTracker` interface with all 6 fields
-  - [x] Update `Character` interface to use `CombatTracker` for `activeTask`
-  - [x] Update any other interfaces that reference `activeTask`
-  - [x] Remove `unallocatedAttributePoints` from return types
-  - [x] Update `PollFrontendDataReturn` interface
+  - [ ] Update `Character` interface to use `CombatTracker` for `activeTask`
+  - [ ] Update any other interfaces that reference `activeTask`
+  - [ ] Remove `unallocatedAttributePoints` from return types
+  - [ ] Update `PollFrontendDataReturn` interface
 
 - [ ] **Update contract interaction types**
   - [ ] Update ABI-generated types if using typechain
