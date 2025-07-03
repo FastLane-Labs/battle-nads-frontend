@@ -15,30 +15,35 @@
 - [x] ✅ **Character interface updated** - `activeTask` changed from `string` to `CombatTracker` in contract types
 - [x] ✅ **PollFrontendDataReturn updated** - Removed `unallocatedAttributePoints` field
 
-**Phase 2: Contract Integration** - **PARTIALLY COMPLETED**
+**Phase 2: Contract Integration** - **FULLY COMPLETED**
 
-- [x] ✅ **Contract mapping updated** - `activeTask.taskAddress` extraction implemented in `contractToDomain.ts`
+- [x] ✅ **Contract mapping updated** - Full `CombatTracker` mapping implemented in `src/mappers/contractToDomain.ts`
+- [x] ✅ **BigInt conversion** - `targetBlock` properly converted from `bigint` to `number` in contract to domain layer (`src/mappers/contractToDomain.ts`)
 - [x] ✅ **Polling data structure** - Array indices fixed after field removal
 - [x] ✅ **unspentAttributePoints mapping** - Now uses `character.stats.unspentAttributePoints`
 
-**Phase 8: Testing & Validation** - **PARTIALLY COMPLETED**
+**Phase 8: Testing & Validation** 
 
 - [x] ✅ **Test updates** - `useContractPolling.test.tsx` updated with new data structure
-- [x] ✅ **Build verification** - TypeScript compilation passes
-- [x] ✅ **Basic test coverage** - Tests pass with new structure
+- [x] ✅ **Test updates** - All affected test files updated with new CombatTracker structure:
+  - [x] `src/components/game/board/__tests__/CharacterInfo.test.tsx`
+  - [x] `src/hooks/game/__tests__/useCharacterExperience.test.tsx`
+  - [x] `src/hooks/session/__tests__/useSessionKey.test.tsx`
+- [x] ✅ **Build verification** - TypeScript compilation passes (0 errors)
+- [x] ✅ **Test coverage** - All 32 test suites pass (340 tests total)
 
 ### **REMAINING WORK** (Critical gaps that need attention)
 
 **Phase 3: UI Component Updates** - **NOT STARTED**
 
-- [ ] **Task display components** - Still expect `activeTask` as string
+- [ ] **Task display components** - Need to utilize new CombatTracker fields instead of depreciated string type
 - [ ] **Character stats UI** - May still reference old `unallocatedAttributePoints`
 - [ ] **Combat UI enhancements** - New CombatTracker fields not utilized
 
 **Phase 4: State Management** - **NOT STARTED**
 
 - [ ] **Redux/state updates** - May have cached old structure
-- [ ] **Hook updates** - Domain layer still uses `activeTask: string`
+- [ ] **Hook updates** - Need to leverage enhanced CombatTracker features
 
 **Phase 5: Error Handling** - **NOT STARTED**
 
@@ -55,16 +60,6 @@
 
 - [ ] **Caching updates** - May cache old structure
 - [ ] **Utility functions** - No helper functions for CombatTracker
-
-### 🚨 **CRITICAL ISSUE IDENTIFIED**
-
-**Domain Layer Mismatch**: The domain layer (`src/types/domain/character.ts`) still defines `activeTask: string`, but the contract layer now uses `CombatTracker`. The mapper correctly extracts `taskAddress`, but this creates a **fundamental architectural inconsistency**.
-
-**Impact**:
-
-- Frontend components still work because they get the task address as a string
-- BUT we're losing all the enhanced combat tracking features
-- No error handling, progress tracking, or pending states available to UI
 
 ---
 
