@@ -66,38 +66,17 @@ describe('useSessionKey', () => {
 
   // Helper to create mock snapshot data
   const createMockSnapshotData = (sessionKeyData?: contract.SessionKeyData, endBlock: bigint = 500n): contract.PollFrontendDataReturn => ({
-    characterID: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-    sessionKeyData: sessionKeyData as any, // Cast to any to handle undefined case
-    character: {
-      id: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-      name: 'TestCharacter',
-      stats: {
-        class: 1,
-        buffs: 0,
-        debuffs: 0,
-        maxHealth: 100,
-        level: 5,
-        health: 85,
-        unspentAttributePoints: 0,
-        experience: 0,
-        strength: 10,
-        vitality: 10,
-        dexterity: 10,
-        quickness: 10,
-        sturdiness: 10,
-        luck: 10,
-        depth: 1,
-        x: 0,
-        y: 0,
-        index: 0,
-        weaponID: 0,
-        armorID: 0,
-        sumOfCombatantLevels: 0,
-        combatants: 0,
-        nextTargetIndex: 0,
-        combatantBitMap: 0n,
-      } as any
-    } as any,
+    characterID: 'char1',
+    sessionKeyData: sessionKeyData || {
+      owner: '0x0000000000000000000000000000000000000000',
+      key: '0x0000000000000000000000000000000000000000',
+      balance: 0n,
+      targetBalance: 0n,
+      ownerCommittedAmount: 0n,
+      ownerCommittedShares: 0n,
+      expiration: 0n
+    },
+    character: null as any, // Tests don't use character data
     combatants: [],
     noncombatants: [],
     equipableWeaponIDs: [],
@@ -106,7 +85,6 @@ describe('useSessionKey', () => {
     equipableArmorNames: [],
     dataFeeds: [],
     balanceShortfall: 0n,
-    unallocatedAttributePoints: 0n,
     endBlock,
     fetchTimestamp: Date.now(),
   });
