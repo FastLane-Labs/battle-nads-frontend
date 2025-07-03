@@ -57,6 +57,16 @@ export interface Inventory {
   armorNames: string[];
 }
 
+// Combat tracker structure for domain layer (matches contract CombatTracker but uses number types)
+export interface CombatTracker {
+  hasTaskError: boolean;
+  pending: boolean;
+  taskDelay: number; // uint8 - converted from contract bigint to number
+  executorDelay: number; // uint8 - converted from contract bigint to number
+  taskAddress: string; // address - same as contract
+  targetBlock: number; // uint64 - converted from contract bigint to number for domain layer
+}
+
 export interface AbilityState {
   ability: Ability;
   stage: number;
