@@ -42,7 +42,7 @@ describe('useContractPolling', () => {
   const mockSnapshotData = [
     'char1', // characterID
     { key: '0xsessionkey', expiration: BigInt(1000) }, // sessionKeyData
-    { id: 'char1', name: 'TestChar', stats: { unspentAttributePoints: 5 }, activeTask: { taskAddress: '0x0' } }, // character
+    { id: 'char1', name: 'TestChar', stats: { unspentAttributePoints: 5 }, activeTask: { taskAddress: '0x0' }, activeAbility: { ability: 0, stage: 0, targetIndex: 0, taskAddress: '0x0000000000000000000000000000000000000000', targetBlock: 0n } }, // character
     [], // combatants
     [], // noncombatants
     [], // equipableWeaponIDs
@@ -101,7 +101,7 @@ describe('useContractPolling', () => {
     expect(result.current.data).toEqual({
       characterID: 'char1',
       sessionKeyData: { key: '0xsessionkey', expiration: BigInt(1000) },
-      character: { id: 'char1', name: 'TestChar', stats: { unspentAttributePoints: 5 }, activeTask: { taskAddress: '0x0' } },
+      character: { id: 'char1', name: 'TestChar', stats: { unspentAttributePoints: 5 }, activeTask: { taskAddress: '0x0' }, activeAbility: { ability: 0, stage: 0, targetIndex: 0, taskAddress: '0x0000000000000000000000000000000000000000', targetBlock: 0n } },
       combatants: [],
       noncombatants: [],
       equipableWeaponIDs: [],

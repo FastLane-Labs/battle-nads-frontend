@@ -3,7 +3,7 @@
  * These types represent UI concerns and are built on top of domain types
  */
 
-import { Character, CharacterLite, EventMessage, ChatMessage, SessionKeyData } from '../domain';
+import { Character, CharacterLite, EventMessage, ChatMessage, SessionKeyData, AbilityState } from '../domain';
 
 // UI-specific game state updates tracker
 export interface GameUpdates {

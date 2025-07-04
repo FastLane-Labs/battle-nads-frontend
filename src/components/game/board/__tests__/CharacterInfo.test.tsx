@@ -48,6 +48,15 @@ const mockCharacter: domain.Character = {
   },
   ability: { ability: domain.Ability.None, stage: 0, targetIndex: 0, taskAddress: '0x0', targetBlock: 0 },
   inventory: { weaponBitmap: 0, armorBitmap: 0, balance: 1000000000000000000, weaponIDs: [], armorIDs: [], weaponNames: [], armorNames: [] },
+  tracker: {
+    updateStats: false,
+    updateInventory: false,
+    updateActiveTask: false,
+    updateActiveAbility: false,
+    updateOwner: false,
+    classStatsAdded: false,
+    died: false
+  },
   movementOptions: { canMoveNorth: true, canMoveSouth: true, canMoveEast: true, canMoveWest: true, canMoveUp: false, canMoveDown: false },
   isInCombat: false,
   isDead: false,

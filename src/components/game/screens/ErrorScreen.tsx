@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Center,
   VStack,
@@ -7,6 +7,9 @@ import {
   AlertIcon,
   AlertDescription,
   Button,
+  Spinner,
+  Text,
+  Progress,
 } from '@chakra-ui/react';
 
 interface ErrorScreenProps {
@@ -20,18 +23,74 @@ const ErrorScreen: React.FC<ErrorScreenProps> = ({
   retry,
   onGoToLogin
 }) => {
+  const [retryCountdown, setRetryCountdown] = useState<number | null>(null);
+  const isRateLimitError = error?.includes('Network is busy') || error?.includes('rate limit');
+  
+  useEffect(() => {
+    if (isRateLimitError && error) {
+      // Extract retry time from error message
+      const match = error.match(/(\d+)\s+seconds/);
+      if (match) {
+        const seconds = parseInt(match[1]);
+        setRetryCountdown(seconds);
+      }
+    }
+  }, [error, isRateLimitError]);
+
+  useEffect(() => {
+    if (retryCountdown !== null && retryCountdown > 0) {
+      const timer = setTimeout(() => {
+        setRetryCountdown(prev => prev !== null ? prev - 1 : null);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (retryCountdown === 0 && retry) {
+      // Auto-retry when countdown reaches 0
+      retry();
+    }
+  }, [retryCountdown, retry]);
+
+  const isNetworkBusy = isRateLimitError && retryCountdown !== null && retryCountdown > 0;
+
   return (
     <Center height="100%" className="bg-gray-900" color="white">
       <VStack spacing={6} maxWidth="600px" p={6}>
         <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
-        <Heading size="md" color="red.400">Error Loading Game</Heading>
-        <Alert status="error" variant="solid">
-          <AlertIcon />
-          <AlertDescription>{error || "An unknown error occurred"}</AlertDescription>
-        </Alert>
-        {retry && (
-          <Button colorScheme="blue" onClick={retry}>Retry</Button>
+        <Heading size="md" color={isNetworkBusy ? "yellow.400" : "red.400"}>
+          {isNetworkBusy ? "Network Busy" : "Error Loading Game"}
+        </Heading>
+        
+        {isNetworkBusy ? (
+          <>
+            <Alert status="warning" variant="solid">
+              <AlertIcon />
+              <AlertDescription>
+                The network is experiencing high traffic. We'll automatically retry in a moment.
+              </AlertDescription>
+            </Alert>
+            <VStack spacing={3}>
+              <Text fontSize="lg">Retrying in {retryCountdown} seconds...</Text>
+              <Progress 
+                value={(retryCountdown / (parseInt(error?.match(/(\d+)\s+seconds/)?.[1] || '10') || 10)) * 100} 
+                size="xs" 
+                colorScheme="yellow" 
+                width="200px"
+                isAnimated
+              />
+              <Spinner size="lg" color="yellow.400" />
+            </VStack>
+          </>
+        ) : (
+          <>
+            <Alert status="error" variant="solid">
+              <AlertIcon />
+              <AlertDescription>{error || "An unknown error occurred"}</AlertDescription>
+            </Alert>
+            {retry && (
+              <Button colorScheme="blue" onClick={retry}>Retry</Button>
+            )}
+          </>
         )}
+        
         {onGoToLogin && (
           <Button variant="outline" onClick={onGoToLogin}>Go to Login</Button>
         )}

@@ -32,7 +32,13 @@ export default function GameV2Page() {
   }, [game.isLoading, game.hasWallet, game.characterId, game.needsSessionKeyUpdate, router]);
 
   if (game.isLoading) return <LoadingScreen message="Loading Game..." />;
-  if (game.error) return <ErrorScreen error={game.error?.message || 'An unknown error occurred'} retry={() => window.location.reload()} onGoToLogin={() => router.push('/')} />;
+  if (game.error) return <ErrorScreen error={game.error?.message || 'An unknown error occurred'} retry={() => {
+    // For rate limit errors, the polling will automatically resume
+    // For other errors, reload the page
+    if (!game.error?.message?.includes('Network is busy')) {
+      window.location.reload();
+    }
+  }} onGoToLogin={() => router.push('/')} />;
   if (!game.character || !game.worldSnapshot) {
     return <LoadingScreen message="Initializing Player..." />;
   }

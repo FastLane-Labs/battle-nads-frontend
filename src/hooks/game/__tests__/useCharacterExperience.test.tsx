@@ -61,7 +61,7 @@ const mockCharacter: Character = {
     ability: 0,
     stage: 0,
     targetIndex: 0,
-    taskAddress: '0x000',
+    taskAddress: '0x0000000000000000000000000000000000000000',
     targetBlock: 0
   },
   inventory: {
@@ -72,6 +72,15 @@ const mockCharacter: Character = {
     armorIDs: [],
     weaponNames: [],
     armorNames: []
+  },
+  tracker: {
+    updateStats: false,
+    updateInventory: false,
+    updateActiveTask: false,
+    updateActiveAbility: false,
+    updateOwner: false,
+    classStatsAdded: false,
+    died: false
   },
   isInCombat: false,
   isDead: false,

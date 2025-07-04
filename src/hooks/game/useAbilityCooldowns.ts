@@ -70,7 +70,11 @@ export const useAbilityCooldowns = (characterId: string | null): hooks.UseAbilit
   } = useSimplifiedGameState({ includeActions: false, includeHistory: false });
 
   // Current block from the snapshot
-  const currentBlock = useMemo(() => Number(rawEndBlock || 0), [rawEndBlock]);
+  const currentBlock = useMemo(() => {
+    const blockNum = Number(rawEndBlock || 0);
+    console.log('[useAbilityCooldowns] Current block number:', blockNum);
+    return blockNum;
+  }, [rawEndBlock]);
   
   // Determine if there's a gas shortfall
   const hasGasShortfall = useMemo(() => {
@@ -81,9 +85,9 @@ export const useAbilityCooldowns = (characterId: string | null): hooks.UseAbilit
   const character = gameState?.character;
   const characterName = character?.name || 'Character';
   
-  // Debug log character ability state
+  // Debug log character ability state - only when there's an active ability
   useEffect(() => {
-    if (character?.ability) {
+    if (character?.ability && character.ability.ability > 0) {
       console.log(`[useAbilityCooldowns] Character ability state - Ability: ${domain.Ability[character.ability.ability]}, Stage: ${AbilityStage[character.ability.stage]}, Target Block: ${character.ability.targetBlock}`);
     }
   }, [character?.ability]);
@@ -189,9 +193,7 @@ export const useAbilityCooldowns = (characterId: string | null): hooks.UseAbilit
         const optimisticReadyAgainBlock = Number(optimisticUse.blockUsed) + cooldownBlocks;
         const optimisticSecondsLeft = Math.max(0, optimisticReadyAgainBlock - currentBlock) * (AVG_BLOCK_TIME_MS / 1000);
         const optimisticIsReady = currentBlock >= optimisticReadyAgainBlock;
-        
-        console.log(`[useAbilityCooldowns] Optimistic update for ${domain.Ability[status.ability]}: Block used: ${optimisticUse.blockUsed}, Ready again: ${optimisticReadyAgainBlock}, Current: ${currentBlock}, Seconds left: ${optimisticSecondsLeft}`);
-        
+
         let optimisticDescription = '';
         if (optimisticIsReady) {
           optimisticDescription = getAbilityDescription(status.ability, AbilityStage.READY, characterName);

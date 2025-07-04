@@ -562,7 +562,9 @@ export const storeEventData = async (
       }
     });
 
-    console.log(`[storeEventData] Transaction completed: stored ${storedEvents} events and ${storedChatMessages} chat messages`);
+    if (storedEvents > 0 || storedChatMessages > 0) {
+      console.log(`[storeEventData] Transaction completed: stored ${storedEvents} events and ${storedChatMessages} chat messages`);
+    }
 
   } catch (error) {
     console.error('[storeEventData] Error storing event data:', error);

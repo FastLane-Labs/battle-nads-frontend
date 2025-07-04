@@ -5,86 +5,108 @@ The ability tracker data from the smart contract appears empty, preventing the d
 
 ## Root Cause Analysis
 
-### 1. Blockchain Architecture
-- Each wallet can only have **one character**, so the ability data is character-specific
-- The contract provides `activeAbility: AbilityState` with:
-  - `ability`: The ability enum value
-  - `stage`: Current stage (READY=0, CHARGING=1, ACTION=2, COOLDOWN=3)
-  - `targetIndex`: Target of the ability
-  - `taskAddress`: Address handling the ability execution
-  - `targetBlock`: Block number when the current stage ends
-- **However**, the data appears to always be empty/default values
+### 1. Contract Structure Update
+- The `BattleNad` struct contains `activeAbility` field of type `AbilityTracker`
+- Field order in struct (important for array-like data):
+  ```
+  0: id (bytes32)
+  1: stats (BattleNadStats)
+  2: maxHealth (uint256)
+  3: weapon (Weapon)
+  4: armor (Armor)
+  5: inventory (Inventory)
+  6: tracker (StorageTracker)
+  7: activeTask (CombatTracker)
+  8: activeAbility (AbilityTracker)
+  9: owner (address)
+  10: name (string)
+  ```
 
-### 2. Current Frontend Implementation
-- Uses optimistic updates to immediately show COOLDOWN state after ability use
-- Only tracks two states effectively: READY and COOLDOWN
-- Missing client-side tracking for CHARGING and ACTION stages
+### 2. Data Mapping Issues
+- Array-to-object conversion was using incorrect field order
+- Fixed mapping to match exact contract struct order
+- Added enhanced logging to debug ability data
 
-### 3. Data Structure Issues
-- Ethers.js may return contract data as array-like Result objects
-- Added handling for array-to-object conversion, but data is still empty
-- The empty data is by design, not a mapping error
+### 3. Ability Data Architecture
+- Ability data remains part of Character model (not moved to top level)
+- Contract provides transient ability state (only populated during active tasks)
+- Need client-side tracking for full stage progression
 
-## Implications
+## Solution Implemented
 
-1. **Visual Indicators Limited**: Cannot show CHARGING/ACTION animations based on blockchain data alone
-2. **Optimistic Updates**: Current implementation jumps directly from READY → COOLDOWN
-3. **Stage Progression**: Would need client-side state machine to track READY → CHARGING → ACTION → COOLDOWN
+### 1. **Type Updates**
+- Updated `Character` interface to match exact contract struct order
+- Maintained `activeAbility` field in Character model
+- Removed incorrect top-level `abilityTracker` field
 
-## Recommended Solution
+### 2. **Mapper Fixes**
+- Fixed array-to-object conversion with correct field indices
+- Enhanced logging for debugging ability data
+- Proper handling of nested ability state
 
-To implement proper ability stage animations:
+### 3. **New Hook: `useAbilityTracker`**
+Created a dedicated hook for enhanced ability tracking:
+```typescript
+export interface AbilityTrackerData {
+  activeAbility: domain.Ability;
+  currentStage: AbilityStage;
+  targetBlock: number;
+  stageProgress: number; // 0-100%
+  timeRemaining: number; // seconds
+  stageDuration: number; // total seconds
+  isOptimistic: boolean;
+}
+```
 
-1. **Client-Side State Machine**
-   - Track ability activation timestamp locally
-   - Calculate stage durations based on ability type
-   - Progress through stages: CHARGING (X blocks) → ACTION (Y blocks) → COOLDOWN
+Features:
+- Calculates stage progress based on blocks elapsed
+- Provides time remaining in current stage
+- Defines stage durations for each ability
+- Ready for client-side optimistic updates
 
-2. **Enhanced Optimistic Updates**
-   ```typescript
-   // Instead of jumping to COOLDOWN:
-   setOptimisticAbilityUse({
-     stage: AbilityStage.CHARGING,
-     startBlock: currentBlock,
-     chargingDuration: ABILITY_CHARGING_BLOCKS[ability],
-     actionDuration: ABILITY_ACTION_BLOCKS[ability],
-     cooldownDuration: ABILITY_COOLDOWN_BLOCKS[ability]
-   });
-   ```
+### 4. **Stage Durations Defined**
+Each ability now has defined durations for:
+- CHARGING stage (preparation)
+- ACTION stage (execution)
+- COOLDOWN stage (recovery)
 
-3. **Stage Calculation Logic**
-   ```typescript
-   const calculateAbilityStage = (abilityUse, currentBlock) => {
-     const blocksSinceUse = currentBlock - abilityUse.startBlock;
-     
-     if (blocksSinceUse < abilityUse.chargingDuration) {
-       return AbilityStage.CHARGING;
-     } else if (blocksSinceUse < abilityUse.chargingDuration + abilityUse.actionDuration) {
-       return AbilityStage.ACTION;
-     } else if (blocksSinceUse < abilityUse.totalDuration) {
-       return AbilityStage.COOLDOWN;
-     } else {
-       return AbilityStage.READY;
-     }
-   };
-   ```
-
-## Technical Details
-
-### Logging Added
-1. `BattleNadsAdapter.ts`: Raw contract response structure logging
-2. `contractToDomain.ts`: Character data mapping with array-like handling
-3. `useContractPolling.ts`: Raw character data inspection
-
-### Code Changes Made
-- Added array-to-object conversion for ethers Result objects
-- Enhanced logging to understand data structure
-- Fixed character property references after conversion
-- Added null checks and default values for missing ability data
+Example:
+```typescript
+Fireball: { charging: 8 blocks, action: 4 blocks, cooldown: 56 blocks }
+```
 
 ## Next Steps
 
-1. Implement client-side ability state tracking
-2. Define CHARGING and ACTION durations for each ability
-3. Update optimistic updates to include all stages
-4. Test visual animations with simulated stage progression
+1. **Monitor Contract Data**
+   - Use enhanced logging to understand when ability data is populated
+   - Verify stage transitions match expected behavior
+
+2. **Implement Optimistic Updates**
+   - Track ability activation client-side
+   - Progress through stages based on block time
+   - Reconcile with contract data when available
+
+3. **Visual Indicators**
+   - Use `useAbilityTracker` for progress bars
+   - Show stage-specific animations
+   - Display time remaining for better UX
+
+## Technical Details
+
+### Code Changes
+1. `src/types/contract/BattleNads.ts` - Fixed Character struct order
+2. `src/types/domain/character.ts` - Maintained ability field
+3. `src/mappers/contractToDomain.ts` - Fixed array mapping, enhanced logging
+4. `src/hooks/game/useAbilityTracker.ts` - New dedicated ability tracking hook
+5. `src/hooks/game/useAbilityCooldowns.ts` - Restored to use character.ability
+
+### Usage Example
+```typescript
+const { abilityTracker, isAbilityActive } = useAbilityTracker();
+
+if (isAbilityActive && abilityTracker) {
+  console.log(`Stage: ${AbilityStage[abilityTracker.currentStage]}`);
+  console.log(`Progress: ${abilityTracker.stageProgress}%`);
+  console.log(`Time remaining: ${abilityTracker.timeRemaining}s`);
+}
+```
