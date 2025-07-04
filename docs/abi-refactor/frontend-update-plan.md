@@ -31,8 +31,8 @@
 
 **Phase 4: State Management**
 
-- [ ] **Redux/state updates** - May have cached old structure
-- [ ] **Hook updates** - Need to leverage enhanced CombatTracker features
+- [x] ✅ **Redux/state updates** - Not needed (using React hooks/context)
+- [x] ✅ **Hook updates** - CombatTracker features already integrated in domain layer
 
 **Phase 5: Error Handling**
 
@@ -47,7 +47,6 @@
 
 **Phase 7: Performance & Optimization**
 
-- [ ] **Caching updates** - May cache old structure
 - [ ] **Utility functions** - No helper functions for CombatTracker
 
 **Phase 8: Testing & Validation** 
@@ -74,17 +73,16 @@ The smart contract has undergone significant changes that require frontend updat
 ### 1.1 Update TypeScript Interfaces
 
 - [x] **Update character types** (`src/types/domain/character.ts`)
-
   - [x] Add `CombatTracker` interface with all 6 fields
-  - [ ] Update `Character` interface to use `CombatTracker` for `activeTask`
-  - [ ] Update any other interfaces that reference `activeTask`
+  - [x] ✅ Update `Character` interface to use `CombatTracker` for `activeTask`
+  - [x] ✅ Update any other interfaces that reference `activeTask` (all interfaces verified)
   - [x] Remove `unallocatedAttributePoints` from return types
-  - [ ] Update `PollFrontendDataReturn` interface
+  - [x] Update `PollFrontendDataReturn` interface
 
-- [ ] **Update contract interaction types**
-  - [ ] Update ABI-generated types if using typechain
-  - [ ] Update manual contract result types
-  - [ ] Update any cached data structure types
+- [x] **Update contract interaction types**
+  - [x] ✅ Update ABI-generated types if using typechain
+  - [x] ✅ Update manual contract result types
+  - [x] ✅ Update any cached data structure types
 
 ### 1.2 Create Utility Functions
 
