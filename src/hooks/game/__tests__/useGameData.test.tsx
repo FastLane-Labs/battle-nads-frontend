@@ -101,7 +101,14 @@ describe('useGameData', () => {
       },
       inventory: [],
       owner: mockOwner,
-      activeTask: '0x0000000000000000000000000000000000000000',
+      activeTask: {
+        hasTaskError: false,
+        pending: false,
+        taskDelay: 0,
+        executorDelay: 0,
+        taskAddress: '0x0000000000000000000000000000000000000000',
+        targetBlock: 0n
+      },
       activeAbility: {
         ability: 0,
         stage: 0,
@@ -119,7 +126,6 @@ describe('useGameData', () => {
     equipableArmorNames: [],
     dataFeeds: [],
     balanceShortfall: 100n,
-    unallocatedAttributePoints: 5,
     endBlock: 500n,
     fetchTimestamp: Date.now(),
   };
