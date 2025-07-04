@@ -72,7 +72,6 @@ export const useAbilityCooldowns = (characterId: string | null): hooks.UseAbilit
   // Current block from the snapshot
   const currentBlock = useMemo(() => {
     const blockNum = Number(rawEndBlock || 0);
-    console.log('[useAbilityCooldowns] Current block number:', blockNum);
     return blockNum;
   }, [rawEndBlock]);
   

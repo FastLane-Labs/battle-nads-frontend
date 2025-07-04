@@ -85,8 +85,6 @@ export const useContractPolling = (owner: string | null) => {
       const requestCounter = incrementRequestCounter();
       const startBlock = BigInt(requestCounter);
       
-      console.log('[useContractPolling] Making request with startBlock:', startBlock.toString());
-      
       try {
         const rawArrayData = await client.getUiSnapshot(owner, startBlock);
         const fetchTimestamp = Date.now();
@@ -96,9 +94,6 @@ export const useContractPolling = (owner: string | null) => {
         }
         
         const dataAsAny = rawArrayData as any;
-        
-        // Log response block number
-        console.log('[useContractPolling] Response block number:', dataAsAny[11]?.toString());
         
         const result: contract.PollFrontendDataReturn = {
           characterID: dataAsAny[0],
