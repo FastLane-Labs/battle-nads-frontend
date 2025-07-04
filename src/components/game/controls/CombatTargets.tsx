@@ -3,6 +3,7 @@ import { Box, Button, VStack, Text, Flex } from '@chakra-ui/react';
 import { domain } from '../../../types';
 import HealthBar from '../ui/HealthBar';
 import { calculateThreatLevel, getThreatColors } from '@/utils/threatLevel';
+import { CombatTaskStatusBar } from './CombatTaskStatusBar';
 
 interface CombatTargetsProps {
   combatants: domain.CharacterLite[];
@@ -11,6 +12,9 @@ interface CombatTargetsProps {
   onSelectTarget: (index: number | null) => void;
   currentPlayerId?: string; // Add current player ID to filter them out
   currentPlayerLevel?: number; // Add current player level for threat calculation
+  activeTask?: domain.CombatTracker; // Add active task for combat task status
+  currentBlock?: number; // Add current block for task countdown
+  isInCombat?: boolean; // Add combat state for task bar persistence
 }
 
 const CombatTargets: React.FC<CombatTargetsProps> = ({ 
@@ -19,7 +23,10 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
   selectedTargetIndex,
   onSelectTarget,
   currentPlayerId,
-  currentPlayerLevel
+  currentPlayerLevel,
+  activeTask,
+  currentBlock,
+  isInCombat
 }) => {
   // Helper function to check if a character class is a player class
   const isPlayerClass = (classValue: domain.CharacterClass): boolean => {
@@ -209,6 +216,15 @@ const CombatTargets: React.FC<CombatTargetsProps> = ({
   return (
     <Box h="100%" display="flex" flexDirection="column">
       <h2 className='uppercase gold-text-light text-2xl font-bold tracking-tight mb-2 text-center'>Combat</h2>
+      
+      {/* Combat Task Status Bar */}
+      {activeTask && currentBlock !== undefined && (
+        <CombatTaskStatusBar 
+          activeTask={activeTask}
+          currentBlock={currentBlock}
+          isInCombat={isInCombat}
+        />
+      )}
       
       {validCombatants.length === 0 && playerNoncombatants.length === 0 && enemyNoncombatants.length === 0 ? (
         <Box className="flex items-center justify-center h-full w-full bg-dark-brown rounded-md">

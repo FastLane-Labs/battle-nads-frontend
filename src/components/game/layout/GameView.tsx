@@ -28,6 +28,7 @@ interface GameViewProps {
   equipableArmorIDs?: number[];
   equipableArmorNames?: string[];
   fogOfWar?: hooks.UseGameDataReturn['fogOfWar'];
+  currentBlock?: number; // Add current block for combat task status
 }
 
 const GameView: React.FC<GameViewProps> = ({
@@ -49,7 +50,8 @@ const GameView: React.FC<GameViewProps> = ({
   equipableWeaponNames,
   equipableArmorIDs,
   equipableArmorNames,
-  fogOfWar
+  fogOfWar,
+  currentBlock
 }) => {
   const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'character' | 'actions' | 'map'>('character');
@@ -136,6 +138,9 @@ const GameView: React.FC<GameViewProps> = ({
               onSelectTarget={handleSelectTarget}
               currentPlayerId={character.id}
               currentPlayerLevel={character.level}
+              activeTask={character.activeTask}
+              currentBlock={currentBlock}
+              isInCombat={isInCombat}
             />
             
           </Box>
