@@ -25,7 +25,7 @@ export const AbilityStatusBar: React.FC = () => {
     return null; // Don't show anything when no ability is active
   }
 
-  const { activeAbility, currentStage, stageProgress, timeRemaining, stageDuration } = abilityTracker;
+  const { activeAbility, currentStage, stageProgress, timeRemaining } = abilityTracker;
   const abilityName = domain.Ability[activeAbility];
   const stageColor = STAGE_COLORS[currentStage];
   const stageLabel = STAGE_LABELS[currentStage];
