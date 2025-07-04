@@ -64,8 +64,8 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   // Add this line to convert level to a regular number
   const displayLevel = Number(level);
   
-  // Use actual unallocated attribute points from world snapshot
-  const unallocatedAttributePoints = worldSnapshot?.unallocatedAttributePoints || 0;
+  // Use actual unallocated attribute points from character stats
+  const unallocatedAttributePoints = character?.stats.unspentAttributePoints || 0;
   
   // Get the character class name
   const getClassDisplayName = (classValue: domain.CharacterClass): string => {
