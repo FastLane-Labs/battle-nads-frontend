@@ -18,7 +18,7 @@ export const CombatTaskStatusBar: React.FC<CombatTaskStatusBarProps> = ({
   const hasActiveTask = useMemo(() => {
     return activeTask.pending || 
            activeTask.hasTaskError || 
-           (activeTask.targetBlock > 0 && currentBlock < activeTask.targetBlock);
+           (Number(activeTask.targetBlock) > 0 && currentBlock < Number(activeTask.targetBlock));
   }, [activeTask, currentBlock]);
 
   // Show the bar if in combat OR if there's an active task
@@ -29,20 +29,27 @@ export const CombatTaskStatusBar: React.FC<CombatTaskStatusBarProps> = ({
 
   // Calculate countdown information
   const countdownInfo = useMemo(() => {
-    if (activeTask.targetBlock <= 0) {
-      return { blocksRemaining: 0, timeRemaining: 0, progress: 0 };
+    if (Number(activeTask.targetBlock) <= 0) {
+      return { blocksRemaining: 0, timeRemaining: 0, progress: 0, taskDuration: 0 };
     }
 
-    const blocksRemaining = Math.max(0, activeTask.targetBlock - currentBlock);
+    const blocksRemaining = Math.max(0, Number(activeTask.targetBlock) - currentBlock);
     const timeRemaining = blocksRemaining * (AVG_BLOCK_TIME_MS / 1000);
     
-    // Progress bar shows remaining time (decreases as time passes)
-    // Use a simple approach: show remaining blocks as percentage of typical task duration (5 blocks)
-    const estimatedTaskDuration = 5;
-    const progress = Math.min(100, Math.max(0, (blocksRemaining / estimatedTaskDuration) * 100));
+    // Task duration is dynamic based on character stats (from contract _cooldown function)
+    // DEFAULT_TURN_TIME = 4, can be reduced by 1-3 blocks based on quickness/luck/dexterity
+    // So actual range is 1-4 blocks + any delays
+    const defaultTurnTime = 4;
+    const totalDelay = Number(activeTask.taskDelay || 0) + Number(activeTask.executorDelay || 0);
+    const estimatedTaskDuration = defaultTurnTime + totalDelay;
+    
+    // Calculate progress: 100% when task starts, decreases to 0% when complete
+    const progress = estimatedTaskDuration > 0 
+      ? Math.min(100, Math.max(0, (blocksRemaining / estimatedTaskDuration) * 100))
+      : 0;
 
-    return { blocksRemaining, timeRemaining, progress };
-  }, [activeTask.targetBlock, currentBlock]);
+    return { blocksRemaining, timeRemaining, progress, taskDuration: estimatedTaskDuration };
+  }, [activeTask.targetBlock, activeTask.taskDelay, activeTask.executorDelay, currentBlock]);
 
   // Determine task status and styling
   const taskStatus = useMemo(() => {
