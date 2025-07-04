@@ -80,6 +80,13 @@ export const useAbilityCooldowns = (characterId: string | null): hooks.UseAbilit
   // Get ability details from character and class
   const character = gameState?.character;
   const characterName = character?.name || 'Character';
+  
+  // Debug log character ability state
+  useEffect(() => {
+    if (character?.ability) {
+      console.log(`[useAbilityCooldowns] Character ability state - Ability: ${domain.Ability[character.ability.ability]}, Stage: ${AbilityStage[character.ability.stage]}, Target Block: ${character.ability.targetBlock}`);
+    }
+  }, [character?.ability]);
 
   // Use centralized optimistic ability system
   const {
@@ -107,6 +114,9 @@ export const useAbilityCooldowns = (characterId: string | null): hooks.UseAbilit
       if (character.ability.ability === ability && character.ability.stage !== AbilityStage.READY) {
         stage = character.ability.stage as AbilityStage;
         originalTargetBlock = character.ability.targetBlock;
+        
+        // Debug logging
+        console.log(`[useAbilityCooldowns] Active ability detected: ${domain.Ability[ability]}, Stage: ${AbilityStage[stage]}, Target Block: ${originalTargetBlock}, Current Block: ${currentBlock}`);
 
         // Determine when the ability will be ready based on its stage
         if (stage === AbilityStage.CHARGING) {
@@ -266,6 +276,8 @@ export const useAbilityCooldowns = (characterId: string | null): hooks.UseAbilit
        abilityMutation.mutate({ abilityIndex, targetIndex });
        return;
     }
+    
+    console.log(`[useAbilityCooldowns] Attempting to use ability: ${domain.Ability[abilityIndex]}, Current Stage: ${AbilityStage[abilityStatus.stage]}, Is Ready: ${abilityStatus.isReady}`);
 
     // Use the calculated isReady flag
     if (!abilityStatus.isReady) { 
