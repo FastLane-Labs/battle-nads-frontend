@@ -864,7 +864,6 @@ export function contractToWorldSnapshot(
     eventLogs: allEventLogs,
     chatLogs: allChatMessages,
     balanceShortfall: raw.balanceShortfall || BigInt(0),
-    unallocatedAttributePoints: mappedCharacter?.stats.unspentAttributePoints || 0,
     lastBlock: Number(raw.endBlock || 0)
   };
 

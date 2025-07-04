@@ -114,7 +114,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
   
 
   // TODO: Replace gameData usage with appropriate state/hook
-  const unallocatedAttributePoints = worldSnapshot?.unallocatedAttributePoints || 0; // Get from game state
+  const unallocatedAttributePoints = character?.stats.unspentAttributePoints || 0;
   const equipableWeaponIDs: number[] = []; // Placeholder
   const equipableWeaponNames: string[] = []; // Placeholder
   const equipableArmorIDs: number[] = []; // Placeholder

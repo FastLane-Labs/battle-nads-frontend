@@ -20,11 +20,11 @@ export interface WorldSnapshot {
   eventLogs: EventMessage[];
   chatLogs: ChatMessage[];
   balanceShortfall: bigint;
-  unallocatedAttributePoints: number;
   
   // Tracking
   lastBlock: number;
   
   // Not included but available via mappers or UI layer
   // - Equipment lists (weapons, armor)
+  // - Unallocated attribute points (available via character.stats.unspentAttributePoints)
 }

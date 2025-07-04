@@ -37,7 +37,6 @@ export function contractToGameState(
       eventLogs: [],
       chatLogs: [],
       balanceShortfall: BigInt(0),
-      unallocatedAttributePoints: 0,
       lastBlock: 0
     };
     return worldSnapshotToGameState(defaultSnapshot, prevState);

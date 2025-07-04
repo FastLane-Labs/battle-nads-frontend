@@ -72,7 +72,7 @@ export function worldSnapshotToGameState(
     equipableWeaponNames: [],
     equipableArmorIDs: [],
     equipableArmorNames: [],
-    unallocatedAttributePoints: snapshot.unallocatedAttributePoints,
+    unallocatedAttributePoints: snapshot.character?.stats.unspentAttributePoints || 0,
     balanceShortfall: Number(ethers.formatEther(snapshot.balanceShortfall)),
     updates,
     loading: false,
