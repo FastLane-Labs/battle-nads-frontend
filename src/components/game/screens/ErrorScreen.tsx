@@ -25,6 +25,7 @@ const ErrorScreen: React.FC<ErrorScreenProps> = ({
 }) => {
   const [retryCountdown, setRetryCountdown] = useState<number | null>(null);
   const isRateLimitError = error?.includes('Network is busy') || error?.includes('rate limit');
+  const isTransientError = error?.includes('Unable to fetch game data') || error?.includes('missing revert data');
   
   useEffect(() => {
     if (isRateLimitError && error) {
@@ -34,8 +35,11 @@ const ErrorScreen: React.FC<ErrorScreenProps> = ({
         const seconds = parseInt(match[1]);
         setRetryCountdown(seconds);
       }
+    } else if (isTransientError) {
+      // Auto-retry transient errors after 3 seconds
+      setRetryCountdown(3);
     }
-  }, [error, isRateLimitError]);
+  }, [error, isRateLimitError, isTransientError]);
 
   useEffect(() => {
     if (retryCountdown !== null && retryCountdown > 0) {
@@ -50,21 +54,24 @@ const ErrorScreen: React.FC<ErrorScreenProps> = ({
   }, [retryCountdown, retry]);
 
   const isNetworkBusy = isRateLimitError && retryCountdown !== null && retryCountdown > 0;
+  const isTemporaryError = (isTransientError || isNetworkBusy) && retryCountdown !== null && retryCountdown > 0;
 
   return (
     <Center height="100%" className="bg-gray-900" color="white">
       <VStack spacing={6} maxWidth="600px" p={6}>
         <Heading as="h1" size="xl" color="white" mb={2}>Battle Nads</Heading>
-        <Heading size="md" color={isNetworkBusy ? "yellow.400" : "red.400"}>
-          {isNetworkBusy ? "Network Busy" : "Error Loading Game"}
+        <Heading size="md" color={isTemporaryError ? "yellow.400" : "red.400"}>
+          {isNetworkBusy ? "Network Busy" : isTransientError ? "Connection Issue" : "Error Loading Game"}
         </Heading>
         
-        {isNetworkBusy ? (
+        {isTemporaryError ? (
           <>
             <Alert status="warning" variant="solid">
               <AlertIcon />
               <AlertDescription>
-                The network is experiencing high traffic. We'll automatically retry in a moment.
+                {isNetworkBusy 
+                  ? "The network is experiencing high traffic. We'll automatically retry in a moment."
+                  : "Temporary connection issue. Retrying automatically..."}
               </AlertDescription>
             </Alert>
             <VStack spacing={3}>

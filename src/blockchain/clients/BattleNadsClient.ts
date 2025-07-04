@@ -72,7 +72,11 @@ export class BattleNadsClient {
   async getUiSnapshot(owner: string, startBlock: bigint): Promise<contract.PollFrontendDataReturn> {
     try {
       return await this.readAdapter.pollFrontendData(owner, startBlock);
-    } catch (error) {
+    } catch (error: any) {
+      // Don't include the full error details for missing revert data errors
+      if (error?.code === 'CALL_EXCEPTION' || error?.message?.includes('missing revert data')) {
+        throw new ContractCallError('Failed to get UI snapshot: Contract call failed');
+      }
       throw new ContractCallError(`Failed to get UI snapshot: ${(error as Error).message}`);
     }
   }

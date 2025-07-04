@@ -140,6 +140,23 @@ export const useContractPolling = (owner: string | null) => {
           throw new Error(`Network is busy. Retrying in ${backoffSeconds} seconds...`);
         }
         
+        // Check if this is a missing revert data error (contract call failure)
+        if (error?.code === 'CALL_EXCEPTION' || error?.message?.includes('missing revert data')) {
+          console.warn('[useContractPolling] Contract call failed with missing revert data, likely a transient error');
+          
+          // If we have cached data, return it
+          if (state.lastGoodData) {
+            console.log('[useContractPolling] Returning cached data after contract error');
+            return {
+              ...state.lastGoodData,
+              fetchTimestamp: Date.now()
+            };
+          }
+          
+          // Otherwise, throw a more user-friendly error
+          throw new Error('Unable to fetch game data. Please try again.');
+        }
+        
         // Re-throw other errors
         throw error;
       }
