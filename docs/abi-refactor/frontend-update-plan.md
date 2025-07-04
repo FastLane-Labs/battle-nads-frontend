@@ -142,15 +142,13 @@ The smart contract has undergone significant changes that require frontend updat
 ### 3.2 Character Stats Components
 
 - [ ] **Update attribute point displays**
-  - [x] Change from direct `unallocatedAttributePoints` access
-  - [ ] Update to use nested `stats.unspentAttributePoints`
-  - [ ] Update any stat allocation UI components
+  - [x] ✅ All components updated to use `character.stats.unspentAttributePoints`
 
 ### 3.3 Combat UI Components
 
 - [ ] **Update combat timing displays**
-  - [ ] Adjust for shortened cooldowns (factor of 4 reduction)
-  - [ ] Update defensive ability timing displays
+  - [x] Adjust for shortened cooldowns (factor of 4 reduction) (done automatically)
+  - [x] Update defensive ability timing displays (done automatically)
   - [ ] Add wind-up duration displays for defensive abilities
   - [ ] Update combat cold start delay handling
 
