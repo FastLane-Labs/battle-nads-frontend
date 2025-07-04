@@ -4,6 +4,7 @@ import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { contract } from '../../types';
 import { POLL_INTERVAL } from '../../config/env';
+import { debugAbilityData, debugCombatantAbilities } from '../../debug/testAbilityData';
 
 /**
  * Layer 1: Pure contract data polling
@@ -43,6 +44,10 @@ export const useContractPolling = (owner: string | null) => {
         activeTask: dataAsAny[2]?.activeTask,
         stats: dataAsAny[2]?.stats
       });
+      
+      // Run detailed debug on ability data
+      debugAbilityData(dataAsAny[2]);
+      debugCombatantAbilities(dataAsAny[3]);
       
       return {
         characterID: dataAsAny[0],
