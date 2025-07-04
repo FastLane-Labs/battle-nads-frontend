@@ -415,7 +415,14 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
           classStatsAdded: Boolean(characterArray[6]?.[5] || false),
           died: Boolean(characterArray[6]?.[6] || false)
         },
-        activeTask: characterArray[7],
+        activeTask: {
+          hasTaskError: Boolean(characterArray[7]?.[0] || false),
+          pending: Boolean(characterArray[7]?.[1] || false),
+          taskDelay: Number(characterArray[7]?.[2] || 0),
+          executorDelay: Number(characterArray[7]?.[3] || 0),
+          taskAddress: characterArray[7]?.[4] || '0x0000000000000000000000000000000000000000',
+          targetBlock: Number(characterArray[7]?.[5] || 0)
+        },
         activeAbility: {
           ability: Number(characterArray[8]?.[0] || 0),
           stage: Number(characterArray[8]?.[1] || 0),
