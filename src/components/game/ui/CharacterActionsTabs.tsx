@@ -6,6 +6,7 @@ import { AbilityControls } from '@/components/game/controls/AbilityControls';
 import MovementControls from '@/components/game/controls/MovementControls';
 import HealthBar from '@/components/game/ui/HealthBar';
 import MinimapContainer from '@/components/game/map/MinimapContainer';
+import { AbilityStatusBar } from '@/components/game/ui/AbilityStatusBar';
 
 interface CharacterActionsTabsProps {
   character: domain.Character;
@@ -139,6 +140,10 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
         <div 
           className={`flex flex-col px-4 pb-4 gap-2 pt-3 h-fit justify-start items-center ${activeTab === 'actions' ? 'block' : 'hidden'}`}
         >
+          {/* Ability Status Bar */}
+          <Box width="100%">
+            <AbilityStatusBar />
+          </Box>
           
           <Box> 
             <h1 className='uppercase gold-text-light text-center mb-2 text-2xl font-semibold'>Abilities</h1>
