@@ -432,7 +432,7 @@ const StatAllocationPanel: React.FC<{
           {unspentAttributePoints - pointsUsed}
         </Badge>
       </Flex>
-{/*       
+      
       <Button 
         colorScheme="blue" 
         size="sm" 
@@ -443,7 +443,7 @@ const StatAllocationPanel: React.FC<{
         mt={2}
       >
         Confirm Allocation
-      </Button> */}
+      </Button>
     </VStack>
   );
 }; 
