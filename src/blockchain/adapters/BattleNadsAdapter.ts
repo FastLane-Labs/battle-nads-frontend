@@ -39,7 +39,7 @@ export class BattleNadsAdapter {
    * Polls for frontend data from the contract
    */
   async pollFrontendData(owner: string, startBlock: bigint): Promise<contract.PollFrontendDataReturn> {
-    // console.log(`[Adapter] pollFrontendData called for owner: ${owner}, startBlock: ${startBlock.toString()}`);
+    console.log(`[Adapter] pollFrontendData called for owner: ${owner}, startBlock: ${startBlock.toString()}`);
     const rawData = await this.contract.pollForFrontendData(owner, startBlock);
     
     // Log the raw contract return to understand structure (commented out to reduce spam)
