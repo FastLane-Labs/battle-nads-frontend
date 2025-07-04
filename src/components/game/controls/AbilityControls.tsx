@@ -4,6 +4,7 @@ import { useAbilityCooldowns, AbilityStatus } from '@/hooks/game/useAbilityCoold
 import { AbilityButton } from './AbilityButton';
 import { AttackButton } from './AttackButton';
 import { domain } from '@/types';
+import { AbilityStage } from '@/types/domain/enums';
 import { abilityRequiresTarget } from '@/data/abilities';
 import { useTransactionBalance } from '@/hooks/wallet/useWalletState';
 
@@ -165,6 +166,13 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
         const requiresTarget = requiresTargetCheck(status.ability);
         const hasTarget = isValidTarget(selectedTargetIndex);
         const isActionDisabled = !isInCombat || !status.isReady || (requiresTarget && !hasTarget);
+        
+        // Determine if this is the active ability (not ready and not in cooldown stage)
+        const isActiveAbility = !status.isReady && status.stage !== AbilityStage.COOLDOWN;
+        
+        // Get target name if this ability requires a target and has one selected
+        const targetName = requiresTarget && hasTarget ? getTargetName(selectedTargetIndex) : undefined;
+        
         return (
           <AbilityButton
             key={status.ability}
@@ -172,6 +180,8 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
             onClick={() => handleAbilityClick(status.ability)}
             isMutationLoading={isUsingAbility && abilities.some(a => a.ability === status.ability)}
             isActionDisabled={isActionDisabled}
+            isActiveAbility={isActiveAbility}
+            targetName={targetName}
           />
         );
       })}

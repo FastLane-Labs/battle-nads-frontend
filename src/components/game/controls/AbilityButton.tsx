@@ -17,12 +17,15 @@ import { domain } from '@/types';
 import { getAbilityMetadata } from '@/data/abilities';
 import { useTransactionBalance } from '@/hooks/wallet/useWalletState';
 import { GameTooltip } from '../../ui';
+import '@/styles/abilities.css';
 
 interface AbilityButtonProps {
   status: AbilityStatus;
   onClick: () => void;
   isMutationLoading: boolean;
   isActionDisabled: boolean;
+  isActiveAbility?: boolean;
+  targetName?: string;
 }
 
 // Function to get a simple icon or text for each ability (fallback)
@@ -98,7 +101,7 @@ const AbilityIcon: React.FC<{ ability: domain.Ability }> = ({ ability }) => {
   );
 };
 
-export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, isMutationLoading, isActionDisabled }) => {
+export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, isMutationLoading, isActionDisabled, isActiveAbility = false, targetName }) => {
   const { isTransactionDisabled, insufficientBalanceMessage, minRequiredBalance } = useTransactionBalance();
   
   // State for real-time countdown display
@@ -150,6 +153,16 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
     return undefined;
   };
 
+  // Determine stage-specific CSS classes
+  const getStageClasses = (): string => {
+    let classes = '';
+    if (isCharging) classes += ' ability-charging';
+    if (isActive) classes += ' ability-action';
+    if (status.isReady && !isDisabled) classes += ' ability-ready';
+    if (isActiveAbility) classes += ' ability-active';
+    return classes;
+  };
+
   return (
     <GameTooltip
       title={abilityMetadata.name}
@@ -167,6 +180,8 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
           height="60px"
           cursor={isDisabled ? "not-allowed" : "pointer"}
           opacity={(isDisabled && !(isCoolingDown || isCharging)) ? 0.4 : 1}
+          className={getStageClasses()}
+          borderRadius="md"
         >
           {/* Background image */}
           <Image
@@ -308,6 +323,20 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
                   <Text fontSize="xs" fontWeight="bold">⚔</Text>
                </Tooltip>
              </Badge>
+          )}
+          
+          {/* Active Ability Badge */}
+          {isActiveAbility && isActive && (
+            <Box className="ability-active-badge">
+              ACTIVE
+            </Box>
+          )}
+          
+          {/* Target Name Label */}
+          {targetName && (
+            <Box className="ability-target-label">
+              {targetName}
+            </Box>
           )}
         </Box>
     </GameTooltip>

@@ -256,4 +256,106 @@ describe('AbilityButton', () => {
       expect(screen.getByText('6s')).toBeInTheDocument();
     });
   });
+
+  describe('Visual State Indicators', () => {
+    it('should apply charging class when ability is charging', () => {
+      const status = createMockStatus({
+        stage: AbilityStage.CHARGING,
+        secondsLeft: 5,
+        isReady: false,
+        description: 'TestCharacter is charging Shield Bash',
+      });
+
+      render(
+        <AbilityButton
+          status={status}
+          onClick={mockOnClick}
+          isMutationLoading={false}
+          isActionDisabled={false}
+        />
+      );
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('ability-charging');
+    });
+
+    it('should apply action class when ability is in action', () => {
+      const status = createMockStatus({
+        stage: AbilityStage.ACTION,
+        secondsLeft: 0,
+        isReady: false,
+        description: 'TestCharacter is using Shield Bash',
+      });
+
+      render(
+        <AbilityButton
+          status={status}
+          onClick={mockOnClick}
+          isMutationLoading={false}
+          isActionDisabled={false}
+        />
+      );
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('ability-action');
+    });
+
+    it('should show active badge when ability is active', () => {
+      const status = createMockStatus({
+        stage: AbilityStage.ACTION,
+        secondsLeft: 0,
+        isReady: false,
+        description: 'TestCharacter is using Shield Bash',
+      });
+
+      render(
+        <AbilityButton
+          status={status}
+          onClick={mockOnClick}
+          isMutationLoading={false}
+          isActionDisabled={false}
+          isActiveAbility={true}
+        />
+      );
+
+      expect(screen.getByText('ACTIVE')).toBeInTheDocument();
+    });
+
+    it('should show target name when provided', () => {
+      const status = createMockStatus();
+
+      render(
+        <AbilityButton
+          status={status}
+          onClick={mockOnClick}
+          isMutationLoading={false}
+          isActionDisabled={false}
+          targetName="Enemy Goblin"
+        />
+      );
+
+      expect(screen.getByText('Enemy Goblin')).toBeInTheDocument();
+    });
+
+    it('should apply active class when isActiveAbility is true', () => {
+      const status = createMockStatus({
+        stage: AbilityStage.CHARGING,
+        secondsLeft: 5,
+        isReady: false,
+      });
+
+      render(
+        <AbilityButton
+          status={status}
+          onClick={mockOnClick}
+          isMutationLoading={false}
+          isActionDisabled={false}
+          isActiveAbility={true}
+        />
+      );
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveClass('ability-active');
+    });
+  });
 });
