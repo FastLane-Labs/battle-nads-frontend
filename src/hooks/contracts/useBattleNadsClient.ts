@@ -55,22 +55,14 @@ export const useBattleNadsClient = () => {
         return wsProvider;
       }
       
-      // Fallback to wallet providers when WebSocket disabled or unavailable
-      if (injectedWallet?.provider) {
-        return injectedWallet.provider;
-      }
-      
-      if (embeddedWallet?.provider) {
-        return embeddedWallet.provider;
-      }
-      
-      // Final fallback to HTTP JsonRpcProvider
+      // When WebSocket is disabled, ALWAYS use dedicated HTTP RPC for polling
+      // Never use injected wallet providers for polling as they have rate limits
       return new JsonRpcProvider(RPC_URLS.PRIMARY_HTTP);
     } catch (err) {
       setError(`Provider creation failed: ${(err as Error)?.message || "Unknown error"}`);
       return new JsonRpcProvider(RPC_URLS.PRIMARY_HTTP);
     }
-  }, [injectedWallet?.provider, embeddedWallet?.provider, wsProvider]);
+  }, [wsProvider]);
 
   // Create the client with all three adapter types
   const client = useMemo(() => {
