@@ -229,8 +229,8 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
             </Box>
           )}
 
-          {/* Cooldown Overlay & Timer */}
-          {(isCoolingDown || isCharging) && (
+          {/* Cooldown Overlay & Timer - Only show for cooldown, not charging */}
+          {isCoolingDown && (
             <Box
               position="absolute"
               top="0"
@@ -256,6 +256,41 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
                   </Text>
                 </CircularProgressLabel>
               </CircularProgress>
+            </Box>
+          )}
+          
+          {/* Charging State Timer - No dark overlay to show animation */}
+          {isCharging && (
+            <Box
+              position="absolute"
+              top="0"
+              left="0"
+              width="100%"
+              height="100%"
+              display="flex"
+              flexDirection="column"
+              alignItems="center"
+              justifyContent="center"
+              zIndex="2"
+              pointerEvents="none"
+            >
+              <Text 
+                fontSize="2xl" 
+                fontWeight="bold" 
+                color="yellow.300"
+                textShadow="0 0 10px rgba(0,0,0,0.8)"
+              >
+                {Math.ceil(displaySecondsLeft)}
+              </Text>
+              <Text 
+                fontSize="xs" 
+                fontWeight="bold" 
+                color="yellow.300"
+                textShadow="0 0 10px rgba(0,0,0,0.8)"
+                mt="-1"
+              >
+                CHARGING
+              </Text>
             </Box>
           )}
 

@@ -277,6 +277,10 @@ describe('AbilityButton', () => {
 
       const button = screen.getByRole('button');
       expect(button).toHaveClass('ability-charging');
+      // Should show CHARGING text
+      expect(screen.getByText('CHARGING')).toBeInTheDocument();
+      // Should show countdown
+      expect(screen.getByText('5')).toBeInTheDocument();
     });
 
     it('should apply action class when ability is in action', () => {

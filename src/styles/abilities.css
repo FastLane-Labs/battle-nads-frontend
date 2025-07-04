@@ -37,12 +37,16 @@
 /* Stage-specific classes */
 .ability-charging {
   animation: pulse-charging 1.5s ease-in-out infinite;
-  border: 2px solid rgba(255, 215, 0, 0.8);
+  border: 3px solid rgba(255, 215, 0, 0.9) !important;
+  position: relative;
+  overflow: visible;
 }
 
 .ability-action {
   animation: glow-action 1s ease-in-out infinite;
-  border: 2px solid rgba(0, 255, 0, 0.8);
+  border: 3px solid rgba(0, 255, 0, 0.9) !important;
+  position: relative;
+  overflow: visible;
 }
 
 .ability-ready::after {
