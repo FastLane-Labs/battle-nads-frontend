@@ -64,18 +64,6 @@ export const useAbilityTracker = () => {
     const stage = contractAbility.stage;
     const targetBlock = contractAbility.targetBlock;
     
-    // Debug log ability tracker processing (only when ability is active)
-    if (ability !== domain.Ability.None) {
-      console.log('[useAbilityTracker] Processing active ability tracker data:', {
-        ability,
-        abilityName: domain.Ability[ability],
-        stage,
-        stageName: domain.AbilityStage[stage],
-        targetBlock,
-        currentBlock,
-        characterName: character?.name
-      });
-    }
 
     // Get stage durations for this ability
     const durations = ABILITY_STAGE_DURATIONS[ability] || ABILITY_STAGE_DURATIONS[domain.Ability.None];
@@ -131,21 +119,6 @@ export const useAbilityTracker = () => {
       isOptimistic: false
     };
     
-    // Debug log final calculated values (only when ability is active)
-    if (ability !== domain.Ability.None) {
-      console.log('[useAbilityTracker] Final active ability calculations:', {
-        abilityName: domain.Ability[ability],
-        stageName: domain.AbilityStage[stage],
-        stageProgress: `${progress.toFixed(1)}%`,
-        timeRemaining: `${timeRemaining.toFixed(1)}s`,
-        stageDuration: `${stageDuration.toFixed(1)}s`,
-        blocksElapsed,
-        blocksRemaining,
-        stageDurationBlocks,
-        targetBlock,
-        currentBlock
-      });
-    }
     
     return result;
   }, [contractAbility, currentBlock]);

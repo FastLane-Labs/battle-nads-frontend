@@ -29,7 +29,6 @@ export class BattleNadsAdapter {
    */
   async getLatestBlockNumber(): Promise<bigint> {
     const blockNumber = await this.provider.getBlockNumber();
-    console.log(`[Adapter] getLatestBlockNumber fetched: ${blockNumber}`); // Log result
     return BigInt(blockNumber);
   }
 
@@ -41,31 +40,7 @@ export class BattleNadsAdapter {
   async pollFrontendData(owner: string, startBlock: bigint): Promise<contract.PollFrontendDataReturn> {
     const rawData = await this.contract.pollForFrontendData(owner, startBlock);
     
-    // Log the raw contract return to understand structure (commented out to reduce spam)
-    // console.log('[Adapter] Raw pollForFrontendData response structure:', {
-    //   isArray: Array.isArray(rawData),
-    //   hasLength: (rawData as any).length !== undefined,
-    //   keys: rawData && typeof rawData === 'object' ? Object.keys(rawData) : 'not an object'
-    // });
     
-    // Log array-like structure details only when there are truly active abilities according to tracker
-    if (Array.isArray(rawData) || (rawData as any).length !== undefined) {
-      const dataAsAny = rawData as any;
-      const activeAbility = dataAsAny[2]?.activeAbility || dataAsAny[2]?.[8];
-      
-      // Only log when tracker indicates the ability is truly active
-      if (dataAsAny[2]?.tracker?.updateActiveAbility && activeAbility) {
-        console.log('[Adapter] Array-like data with active ability:', {
-          characterAtIndex2: dataAsAny[2],
-          characterActiveAbility: activeAbility,
-          directActiveAbilityAccess: {
-            asProperty: dataAsAny[2]?.activeAbility,
-            asIndex8: dataAsAny[2]?.[8],
-            characterKeys: dataAsAny[2] && typeof dataAsAny[2] === 'object' ? Object.keys(dataAsAny[2]) : 'not an object'
-          }
-        });
-      }
-    }
     
     return rawData;
   }
@@ -74,18 +49,7 @@ export class BattleNadsAdapter {
    * Gets the session key data for an owner
    */
   async getCurrentSessionKeyData(owner: string): Promise<contract.SessionKeyData> {
-    console.log(`[Adapter] getCurrentSessionKeyData called for owner: ${owner}`);
     const data = await this.contract.getCurrentSessionKeyData(owner);
-    // Note: Raw contract data might be complex (e.g., arrays instead of objects)
-    // Log cautiously or stringify for better inspection if needed.
-    try {
-        console.log(`[Adapter] getCurrentSessionKeyData received from contract (raw):`, JSON.stringify(data, (key, value) => 
-            typeof value === 'bigint' ? value.toString() : value // Convert BigInts for logging
-        ));
-    } catch (logError) {
-        console.log(`[Adapter] getCurrentSessionKeyData received from contract (logging error):`, logError);
-        console.log(`[Adapter] Raw data object:`, data); // Fallback log
-    }
     return data;
   }
 
@@ -225,7 +189,6 @@ export class BattleNadsAdapter {
   async useAbility(characterId: string, ability: domain.Ability, targetIndex: number): Promise<TransactionResponse> {
     // Map global ability enum to class-specific ability index (1 or 2)
     const abilityIndex = getClassSpecificAbilityIndex(ability);
-    console.log(`[BattleNadsAdapter] Using ability ${domain.Ability[ability]} (${ability}) mapped to class index: ${abilityIndex} on target ${targetIndex} for character ${characterId}`);
     return this.contract.useAbility(characterId, targetIndex, abilityIndex, { gasLimit: GAS_LIMITS.action });
   }
 
@@ -426,36 +389,5 @@ function getClassSpecificAbilityIndex(ability: domain.Ability): number {
   }
 }
 
-/**
- * Validates that an ability is valid for a given character class
- * This is a helper function for additional validation if needed
- */
-function isAbilityValidForClass(ability: domain.Ability, characterClass: domain.CharacterClass): boolean {
-  const classAbilities = getAbilitiesForCharacterClass(characterClass);
-  return classAbilities.includes(ability);
-}
 
-/**
- * Gets the valid abilities for a character class
- * This mirrors the logic in useAbilityCooldowns but is available at the adapter level
- */
-function getAbilitiesForCharacterClass(characterClass: domain.CharacterClass): domain.Ability[] {
-  switch (characterClass) {
-    case domain.CharacterClass.Bard:
-      return [domain.Ability.SingSong, domain.Ability.DoDance];
-    case domain.CharacterClass.Warrior:
-      return [domain.Ability.ShieldBash, domain.Ability.ShieldWall];
-    case domain.CharacterClass.Rogue:
-      return [domain.Ability.EvasiveManeuvers, domain.Ability.ApplyPoison];
-    case domain.CharacterClass.Monk:
-      return [domain.Ability.Pray, domain.Ability.Smite];
-    case domain.CharacterClass.Sorcerer:
-      return [domain.Ability.ChargeUp, domain.Ability.Fireball];
-    case domain.CharacterClass.Basic:
-    case domain.CharacterClass.Elite:
-    case domain.CharacterClass.Boss:
-    case domain.CharacterClass.Null:
-    default:
-      return []; // Monsters or unhandled classes have no usable abilities
-  }
-} 
+ 

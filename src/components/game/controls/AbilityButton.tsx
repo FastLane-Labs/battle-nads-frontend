@@ -107,10 +107,6 @@ export const AbilityButton: React.FC<AbilityButtonProps> = ({ status, onClick, i
   // State for real-time countdown display
   const [displaySecondsLeft, setDisplaySecondsLeft] = useState(status.secondsLeft);
   
-  // Debug logging for ability stages
-  useEffect(() => {
-    console.log(`[AbilityButton] ${domain.Ability[status.ability]} - Stage: ${AbilityStage[status.stage]}, Ready: ${status.isReady}, Seconds Left: ${status.secondsLeft}, Active: ${isActiveAbility}`);
-  }, [status.ability, status.stage, status.isReady, status.secondsLeft, isActiveAbility]);
   
   // Update display seconds when status changes
   useEffect(() => {

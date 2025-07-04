@@ -84,16 +84,9 @@ export const useAbilityCooldowns = (characterId: string | null): hooks.UseAbilit
   const character = gameState?.character;
   const characterName = character?.name || 'Character';
   
-  // Debug log character ability state - only when there's an active ability
-  useEffect(() => {
-    if (character?.ability && character.ability.ability > 0) {
-      console.log(`[useAbilityCooldowns] Character ability state - Ability: ${domain.Ability[character.ability.ability]}, Stage: ${AbilityStage[character.ability.stage]}, Target Block: ${character.ability.targetBlock}`);
-    }
-  }, [character?.ability]);
 
   // Use centralized optimistic ability system
   const {
-    getOptimisticAbilityUse,
     addOptimisticAbilityUse,
     confirmAbilityUse,
     optimisticAbilityUses
@@ -118,8 +111,6 @@ export const useAbilityCooldowns = (characterId: string | null): hooks.UseAbilit
         stage = character.ability.stage as AbilityStage;
         originalTargetBlock = character.ability.targetBlock;
         
-        // Debug logging
-        console.log(`[useAbilityCooldowns] Active ability detected: ${domain.Ability[ability]}, Stage: ${AbilityStage[stage]}, Target Block: ${originalTargetBlock}, Current Block: ${currentBlock}`);
 
         // Determine when the ability will be ready based on its stage
         if (stage === AbilityStage.CHARGING) {
@@ -240,15 +231,13 @@ export const useAbilityCooldowns = (characterId: string | null): hooks.UseAbilit
       if (!client || !characterId) {
         throw new Error('Client or Character ID not available for using ability');
       }
-      console.log(`[useAbilityCooldowns] Using ability ${abilityIndex} on target ${targetIndex} for char ${characterId}`);
       return client.useAbility(characterId, abilityIndex, targetIndex);
     },
     {
       successMessage: 'Your ability has been activated!',
       errorMessage: (error) => error.message || 'Failed to use ability',
       mutationKey: ['useAbility', characterId || 'unknown', owner || 'unknown'],
-      onSuccess: (data, variables) => {
-        console.log(`[useAbilityCooldowns] Ability ${variables.abilityIndex} used successfully. Tx:`, data?.hash);
+      onSuccess: (_, variables) => {
         if (characterId) {
           // Add optimistic ability use with current block
           addOptimisticAbilityUse(
@@ -258,9 +247,6 @@ export const useAbilityCooldowns = (characterId: string | null): hooks.UseAbilit
           );
         }
       },
-      onError: (error: Error, variables) => {
-        console.error(`[useAbilityCooldowns] Error using ability ${variables.abilityIndex}:`, error);
-      }
     }
   );
 
@@ -274,17 +260,13 @@ export const useAbilityCooldowns = (characterId: string | null): hooks.UseAbilit
     const abilityStatus = finalAbilities.find(a => a.ability === abilityIndex);
     
     if (!abilityStatus) {
-       console.error(`[useAbilityCooldowns] Status not found for ability ${abilityIndex}`);
        // Let useGameMutation handle the error toast
        abilityMutation.mutate({ abilityIndex, targetIndex });
        return;
     }
     
-    console.log(`[useAbilityCooldowns] Attempting to use ability: ${domain.Ability[abilityIndex]}, Current Stage: ${AbilityStage[abilityStatus.stage]}, Is Ready: ${abilityStatus.isReady}`);
-
     // Use the calculated isReady flag
     if (!abilityStatus.isReady) { 
-      console.warn(`[useAbilityCooldowns] Ability ${abilityIndex} is not ready.`);
       // For ability not ready, we still show a custom warning toast
       // since this is a validation error, not a mutation error
       toast({
@@ -350,8 +332,7 @@ function getStageDescription(stage: AbilityStage): string {
       return 'on cooldown';
     default:
       // Should not happen with valid stage numbers, but handle defensively
-      console.warn(`[useAbilityCooldowns] Unknown ability stage: ${stage}`);
-      return 'in an unknown state'; // More descriptive default
+      return 'in an unknown state';
   }
 }
 

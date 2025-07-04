@@ -4,7 +4,6 @@ import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
 import { contract } from '../../types';
 import { POLL_INTERVAL } from '../../config/env';
-import { debugAbilityData, debugCombatantAbilities } from '../../debug/testAbilityData';
 
 /**
  * Layer 1: Pure contract data polling
@@ -43,7 +42,7 @@ export const useContractPolling = (owner: string | null) => {
     enabled: !!owner && !!client,
     staleTime: 0,
     gcTime: 0, // Disable all caching
-    refetchInterval: (data) => {
+    refetchInterval: () => {
       const state = rateLimitStateRef.current;
       
       // Check if we're currently rate limited
@@ -173,13 +172,6 @@ export const useContractPolling = (owner: string | null) => {
     refetchOnWindowFocus: true,
     refetchOnMount: 'always',
     structuralSharing: false,
-    retry: (failureCount, error: any) => {
-      // Don't retry rate limit errors - let the refetchInterval handle it
-      if (error?.code === -32005 || error?.message?.includes('rate limit')) {
-        return false;
-      }
-      // Retry other errors up to 3 times
-      return failureCount < 3;
-    }
+    retry: false // No retry needed - we poll every 500ms anyway
   });
 };
