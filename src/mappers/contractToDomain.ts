@@ -209,20 +209,20 @@ export function mapCharacter(
   // Handle case where character might be an array-like ethers Result object
   let character = rawCharacter;
   if (Array.isArray(rawCharacter) || (rawCharacter as any).length !== undefined) {
-    console.log(`[contractToDomain] Character is array-like, attempting to convert`);
+    // Converting array-like ethers Result to proper object structure
     const charArray = rawCharacter as any;
     character = {
-      id: charArray[0],
-      name: charArray[1],
-      owner: charArray[2],
-      stats: charArray[3],
-      maxHealth: charArray[4],
-      weapon: charArray[5],
-      armor: charArray[6],
-      activeTask: charArray[7],
-      activeAbility: charArray[8],
-      inventory: charArray[9],
-      tracker: charArray[10]
+      id: charArray[0],                // bytes32 id
+      stats: charArray[1],             // BattleNadStats stats
+      maxHealth: charArray[2],         // uint256 maxHealth
+      weapon: charArray[3],            // Weapon weapon
+      armor: charArray[4],             // Armor armor
+      inventory: charArray[5],         // Inventory inventory
+      tracker: charArray[6],           // StorageTracker tracker
+      activeTask: charArray[7],        // CombatTracker activeTask
+      activeAbility: charArray[8],     // AbilityTracker activeAbility
+      owner: charArray[9],             // address owner
+      name: charArray[10]              // string name
     } as contract.Character;
   }
   
@@ -304,7 +304,6 @@ export function mapCharacter(
   // Handle potential array-like activeTask structure
   let taskData = character.activeTask;
   if (taskData && (Array.isArray(taskData) || (taskData as any).length !== undefined)) {
-    console.log('[contractToDomain] ActiveTask is array-like, converting to object');
     const taskArray = taskData as any;
     taskData = {
       hasTaskError: taskArray[0] ?? false,
@@ -316,17 +315,21 @@ export function mapCharacter(
     };
   }
   
-  // Debug log raw ability data
-  console.log(`[contractToDomain] Character mapping for ${character.name}:`, {
-    hasActiveAbility: !!character.activeAbility,
-    activeAbilityType: typeof character.activeAbility,
-    activeAbilityKeys: character.activeAbility && typeof character.activeAbility === 'object' ? Object.keys(character.activeAbility) : 'not an object'
-  });
-  
   // Handle potential array-like activeAbility structure
   let abilityData = character.activeAbility;
+  
+  // Debug log raw ability data from contract (only when ability is active)
+  if (character.tracker?.updateActiveAbility && abilityData) {
+    console.log(`[contractToDomain] Processing active ability data for character ${character.name}:`, {
+      hasAbilityData: !!abilityData,
+      abilityDataType: typeof abilityData,
+      isArray: Array.isArray(abilityData),
+      rawAbilityData: abilityData
+    });
+  }
+  
   if (abilityData && (Array.isArray(abilityData) || (abilityData as any).length !== undefined)) {
-    console.log('[contractToDomain] ActiveAbility is array-like, converting to object');
+    // Converting array-like activeAbility to object structure
     const abilityArray = abilityData as any;
     abilityData = {
       ability: abilityArray[0] ?? 0,
@@ -337,13 +340,19 @@ export function mapCharacter(
     };
   }
   
-  console.log(`[contractToDomain] Processed ability data:`, {
-    ability: abilityData?.ability,
-    stage: abilityData?.stage,
-    targetIndex: abilityData?.targetIndex,
-    taskAddress: abilityData?.taskAddress,
-    targetBlock: abilityData?.targetBlock?.toString()
-  });
+  // Debug log processed ability data (only when ability is active)
+  if (character.tracker?.updateActiveAbility && abilityData) {
+    console.log(`[contractToDomain] Processed active ability data:`, {
+      ability: abilityData.ability,
+      abilityName: abilityData.ability ? `${abilityData.ability} (${domain.Ability[abilityData.ability as domain.Ability] || 'Unknown'})` : 'None',
+      stage: abilityData.stage,
+      stageName: abilityData.stage ? `${abilityData.stage} (${domain.AbilityStage[abilityData.stage] || 'Unknown'})` : 'READY',
+      targetIndex: abilityData.targetIndex,
+      targetBlock: abilityData.targetBlock?.toString(),
+      taskAddress: abilityData.taskAddress,
+      characterName: character.name
+    });
+  }
   
   return {
     id: character.id,
@@ -384,6 +393,15 @@ export function mapCharacter(
       targetBlock: Number(abilityData?.targetBlock ?? 0)
     },
     inventory,
+    tracker: character.tracker || {
+      updateStats: false,
+      updateInventory: false,
+      updateActiveTask: false,
+      updateActiveAbility: false,
+      updateOwner: false,
+      classStatsAdded: false,
+      died: false
+    },
     isInCombat: Boolean(character.stats.combatantBitMap),
     isDead: character.tracker?.died || false,
     movementOptions // Add movement options to character
@@ -421,13 +439,6 @@ export function mapCharacterLite(
   
   // Note: Health validation warnings suppressed - needs smart contract fix
   
-  // Debug log raw ability data for CharacterLite
-  console.log(`[contractToDomain] Raw CharacterLite ability data from contract:`, {
-    ability: raw.ability,
-    abilityStage: raw.abilityStage,
-    abilityTargetBlock: raw.abilityTargetBlock?.toString()
-  });
-
   // Map properties directly, applying necessary conversions
   const result = {
     id: raw.id,

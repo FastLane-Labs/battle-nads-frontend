@@ -92,16 +92,16 @@ export interface StorageTracker {
 // Character structure (Matches BattleNad struct)
 export interface Character {
   id: string; // bytes32
-  name: string;
-  owner: string; // address
   stats: BattleNadStats; // Matches the unpacked BattleNadStats fields
   maxHealth: bigint; // uint256
   weapon: Weapon;
   armor: Armor;
-  activeTask: CombatTracker;
-  activeAbility: AbilityState;
   inventory: Inventory;
-  tracker: StorageTracker; // Not directly used by frontend polling, but part of struct
+  tracker: StorageTracker;
+  activeTask: CombatTracker;
+  activeAbility: AbilityState; // AbilityTracker in contract
+  owner: string; // address
+  name: string;
 }
 
 // Lite character structure (Matches BattleNadLite struct)

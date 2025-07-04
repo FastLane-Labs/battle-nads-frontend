@@ -3,7 +3,7 @@
  * Represents the full game state at a given moment
  */
 
-import { Character, CharacterLite } from './character';
+import { Character, CharacterLite, AbilityState } from './character';
 import { ChatMessage, EventMessage } from './dataFeed';
 import { SessionKeyData } from './session';
 

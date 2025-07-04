@@ -77,7 +77,8 @@ export function useWalletState(options: UseWalletStateOptions = {}): WalletBalan
   const ownerAddress = injectedWallet?.address ?? null;
   const sessionKeyAddress = embeddedWallet?.address ?? null;
   
-  // Get session key and balance data directly from UI snapshot
+  // Get session key and balance data from game data hook (single source of truth)
+  // Note: We can't use useGameData here due to circular dependency, so we'll use a prop-based approach
   const { data: rawData, isLoading: isSnapshotLoading } = useContractPolling(ownerAddress);
   
   // Owner balance state (fetched via direct RPC)

@@ -5,7 +5,7 @@
 
 import { CharacterClass, StatusEffect, Ability } from './enums';
 import { BaseWeapon, BaseArmor, BaseCharacter, BaseCharacterLite } from '@/types/base';
-import { CombatTracker as ContractCombatTracker } from '@/types/contract/BattleNads';
+import { CombatTracker as ContractCombatTracker, StorageTracker } from '@/types/contract/BattleNads';
 
 export interface Position {
   x: number;
@@ -74,8 +74,9 @@ export interface Character extends BaseCharacter<number, StatusEffect[], string>
   position: Position;
   areaId: bigint;
   activeTask: CombatTracker; // Uses new CombatTracker type instead of string
-  ability: AbilityState;
+  ability: AbilityState; // Character's ability state
   inventory: Inventory;
+  tracker: StorageTracker; // Include tracker to access updateActiveAbility boolean
   isInCombat: boolean;
   movementOptions: MovementOptions;
   // Inherited from BaseCharacter: id, index, name, level, health, maxHealth, buffs, debuffs, weaponName, armorName, isDead, owner, experience

@@ -39,28 +39,33 @@ export class BattleNadsAdapter {
    * Polls for frontend data from the contract
    */
   async pollFrontendData(owner: string, startBlock: bigint): Promise<contract.PollFrontendDataReturn> {
-    console.log(`[Adapter] pollFrontendData called for owner: ${owner}, startBlock: ${startBlock.toString()}`);
+    // console.log(`[Adapter] pollFrontendData called for owner: ${owner}, startBlock: ${startBlock.toString()}`);
     const rawData = await this.contract.pollForFrontendData(owner, startBlock);
     
-    // Log the raw contract return to understand structure
-    console.log('[Adapter] Raw pollForFrontendData response structure:', {
-      isArray: Array.isArray(rawData),
-      hasLength: (rawData as any).length !== undefined,
-      keys: rawData && typeof rawData === 'object' ? Object.keys(rawData) : 'not an object'
-    });
+    // Log the raw contract return to understand structure (commented out to reduce spam)
+    // console.log('[Adapter] Raw pollForFrontendData response structure:', {
+    //   isArray: Array.isArray(rawData),
+    //   hasLength: (rawData as any).length !== undefined,
+    //   keys: rawData && typeof rawData === 'object' ? Object.keys(rawData) : 'not an object'
+    // });
     
-    // If it's an array-like structure, log specific indices
+    // Log array-like structure details only when there are truly active abilities according to tracker
     if (Array.isArray(rawData) || (rawData as any).length !== undefined) {
       const dataAsAny = rawData as any;
-      console.log('[Adapter] Array-like data at key indices:', {
-        characterAtIndex2: dataAsAny[2],
-        characterActiveAbility: dataAsAny[2]?.activeAbility || dataAsAny[2]?.[8],
-        directActiveAbilityAccess: {
-          asProperty: dataAsAny[2]?.activeAbility,
-          asIndex8: dataAsAny[2]?.[8],
-          characterKeys: dataAsAny[2] && typeof dataAsAny[2] === 'object' ? Object.keys(dataAsAny[2]) : 'not an object'
-        }
-      });
+      const activeAbility = dataAsAny[2]?.activeAbility || dataAsAny[2]?.[8];
+      
+      // Only log when tracker indicates the ability is truly active
+      if (dataAsAny[2]?.tracker?.updateActiveAbility && activeAbility) {
+        console.log('[Adapter] Array-like data with active ability:', {
+          characterAtIndex2: dataAsAny[2],
+          characterActiveAbility: activeAbility,
+          directActiveAbilityAccess: {
+            asProperty: dataAsAny[2]?.activeAbility,
+            asIndex8: dataAsAny[2]?.[8],
+            characterKeys: dataAsAny[2] && typeof dataAsAny[2] === 'object' ? Object.keys(dataAsAny[2]) : 'not an object'
+          }
+        });
+      }
     }
     
     return rawData;

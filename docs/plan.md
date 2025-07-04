@@ -111,9 +111,42 @@ This updated roadmap reflects the team's discussion about prioritizing the core 
 
 > 🚨 **Combat Bug Fix:** Dead enemies were appearing in the target list with names like "Unnamed the Initiate". This occurred because the `isDead` flag wasn't being checked when displaying combatants. Filters were added at multiple levels to ensure dead characters are excluded from combat UI components and combat state calculations.
 
-## Implementation Progress
+## Current Tasks and Progress
 
-### Recent Additions
+### AbilityTracker Integration Investigation (2024-01-XX)
+
+**Issue**: AbilityTracker data appears empty in the frontend, preventing proper ability state visualization.
+
+**Findings**:
+1. **Contract Structure**: The `BattleNad` struct contains `activeAbility` field of type `AbilityTracker`
+2. **Data Location**: AbilityTracker is part of the character struct, not a separate top-level field
+3. **Field Order**: Updated array-to-object mapping to match exact contract struct field order:
+   ```
+   0: id (bytes32)
+   1: stats (BattleNadStats)
+   2: maxHealth (uint256)
+   3: weapon (Weapon)
+   4: armor (Armor)
+   5: inventory (Inventory)
+   6: tracker (StorageTracker)
+   7: activeTask (CombatTracker)
+   8: activeAbility (AbilityTracker)
+   9: owner (address)
+   10: name (string)
+   ```
+
+**Implementation**:
+- Updated contract types to match exact struct order
+- Enhanced logging to debug empty ability data
+- Maintained ability data within Character model
+- `useAbilityCooldowns` hook continues to read from `character.ability`
+
+**Next Steps**:
+- Monitor logs to understand why ability data is empty
+- Implement client-side ability state tracking for CHARGING/ACTION stages
+- Consider caching ability state transitions for better UX
+
+### Previous Tasks
 
 #### Transaction Balance Validation (December 2024)
 - **Feature**: Added minimum balance validation for transaction-requiring buttons
