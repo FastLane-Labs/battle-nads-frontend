@@ -10,8 +10,21 @@ import { debugAbilityData, debugCombatantAbilities } from '../../debug/testAbili
  * Layer 1: Pure contract data polling
  * Focused only on fetching fresh contract data without transformations
  */
-// Global counter to ensure all instances use the same request sequence
-let globalRequestCounter = 0;
+
+// Store counter in sessionStorage to persist across hot reloads
+const getRequestCounter = () => {
+  if (typeof window === 'undefined') return 0;
+  const stored = sessionStorage.getItem('contractPollingCounter');
+  return stored ? parseInt(stored, 10) : 0;
+};
+
+const incrementRequestCounter = () => {
+  if (typeof window === 'undefined') return 1;
+  const current = getRequestCounter();
+  const next = current + 1;
+  sessionStorage.setItem('contractPollingCounter', next.toString());
+  return next;
+};
 
 export const useContractPolling = (owner: string | null) => {
   const { client } = useBattleNadsClient();
@@ -69,8 +82,8 @@ export const useContractPolling = (owner: string | null) => {
         } as contract.PollFrontendDataReturn & { isRateLimited: boolean };
       }
       
-      globalRequestCounter += 1;
-      const startBlock = BigInt(globalRequestCounter);
+      const requestCounter = incrementRequestCounter();
+      const startBlock = BigInt(requestCounter);
       
       console.log('[useContractPolling] Making request with startBlock:', startBlock.toString());
       
@@ -142,11 +155,11 @@ export const useContractPolling = (owner: string | null) => {
         
         // Check if this is a missing revert data error (contract call failure)
         if (error?.code === 'CALL_EXCEPTION' || error?.message?.includes('missing revert data')) {
-          console.warn('[useContractPolling] Contract call failed with missing revert data, likely a transient error');
+          console.warn('[useContractPolling] Contract call failed, likely a transient error');
           
           // If we have cached data, return it
           if (state.lastGoodData) {
-            console.log('[useContractPolling] Returning cached data after contract error');
+            console.log('[useContractPolling] Using cached data after contract error');
             return {
               ...state.lastGoodData,
               fetchTimestamp: Date.now()
