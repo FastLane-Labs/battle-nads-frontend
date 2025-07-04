@@ -1,0 +1,95 @@
+/* Ability-specific animations and styles */
+
+/* Charging stage - yellow pulsing animation */
+@keyframes pulse-charging {
+  0%, 100% { 
+    transform: scale(1); 
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+  }
+  50% { 
+    transform: scale(1.05); 
+    box-shadow: 0 0 20px rgba(255, 215, 0, 1);
+  }
+}
+
+/* Action stage - green glowing animation */
+@keyframes glow-action {
+  0%, 100% { 
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.8);
+  }
+  50% { 
+    box-shadow: 0 0 25px rgba(0, 255, 0, 1), 0 0 35px rgba(0, 255, 0, 0.6);
+  }
+}
+
+/* Ready stage - subtle shine effect */
+@keyframes shine-ready {
+  0% {
+    background: linear-gradient(45deg, transparent 30%, rgba(255, 255, 255, 0.1) 50%, transparent 70%);
+    background-size: 200% 200%;
+    background-position: -100% -100%;
+  }
+  100% {
+    background-position: 100% 100%;
+  }
+}
+
+/* Stage-specific classes */
+.ability-charging {
+  animation: pulse-charging 1.5s ease-in-out infinite;
+  border: 2px solid rgba(255, 215, 0, 0.8);
+}
+
+.ability-action {
+  animation: glow-action 1s ease-in-out infinite;
+  border: 2px solid rgba(0, 255, 0, 0.8);
+}
+
+.ability-ready::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  animation: shine-ready 3s ease-in-out infinite;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* Active ability highlight */
+.ability-active {
+  border: 3px solid #FFD700;
+  box-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
+}
+
+/* Target name label */
+.ability-target-label {
+  position: absolute;
+  bottom: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: #FFD700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 10px;
+  white-space: nowrap;
+  z-index: 10;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+/* Active ability badge */
+.ability-active-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #00FF00;
+  color: black;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: bold;
+  z-index: 10;
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.8);
+}
