@@ -134,7 +134,16 @@ describe('CharacterInfo Component', () => {
     // Setup mock with unallocated points
     setupMockUseGameState(5);
     
-    renderWithProvider(<CharacterInfo character={mockCharacter} combatants={[]} />);
+    // Create a character with unspent attribute points
+    const characterWithUnspentPoints = {
+      ...mockCharacter,
+      stats: {
+        ...mockCharacter.stats,
+        unspentAttributePoints: 5 // This is what the component actually reads
+      }
+    };
+    
+    renderWithProvider(<CharacterInfo character={characterWithUnspentPoints} combatants={[]} />);
 
     // Should show the level up notification
     expect(screen.getByTestId('level-up-notification')).toBeInTheDocument();

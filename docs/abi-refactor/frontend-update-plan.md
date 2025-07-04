@@ -24,7 +24,7 @@
 **Phase 3: UI Component Updates**
 
 - [ ] **Task display components** - Need to utilize new CombatTracker fields instead of depreciated string type
-- [ ] **Character stats UI** - May still reference old `unallocatedAttributePoints`
+- [x] **Character stats UI** - May still reference old `unallocatedAttributePoints`
 - [ ] **Combat UI enhancements** - New CombatTracker fields not utilized
 - [x] ✅ **DebugPanel.tsx** - Updated to parse full `CombatTracker` structure from contract data (`src/components/DebugPanel.tsx`)
 - [x] ✅ **Removed deprecated fields** - Cleaned up `unallocatedAttributePoints` references from test mock (`/useGameData.test.tsx`)
@@ -78,7 +78,7 @@ The smart contract has undergone significant changes that require frontend updat
   - [x] Add `CombatTracker` interface with all 6 fields
   - [ ] Update `Character` interface to use `CombatTracker` for `activeTask`
   - [ ] Update any other interfaces that reference `activeTask`
-  - [ ] Remove `unallocatedAttributePoints` from return types
+  - [x] Remove `unallocatedAttributePoints` from return types
   - [ ] Update `PollFrontendDataReturn` interface
 
 - [ ] **Update contract interaction types**
