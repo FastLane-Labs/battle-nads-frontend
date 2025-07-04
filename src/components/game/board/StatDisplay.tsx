@@ -114,7 +114,7 @@ export const StatDisplay = memo<StatDisplayProps>(({ stats, unallocatedAttribute
 
   return (
     <VStack spacing={3}>
-      <div className="grid grid-cols-2 gap-2 text-xl w-full">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-2 text-xl w-full">
         <StatRow 
           label="STR" 
           value={Number(stats?.strength)} 
