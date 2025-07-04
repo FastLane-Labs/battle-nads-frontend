@@ -281,6 +281,15 @@ export function mapCharacter(
   // Calculate area ID from position
   const areaId = createAreaID(positionObj.depth, positionObj.x, positionObj.y);
   
+  // Debug log raw ability data
+  console.log(`[contractToDomain] Raw ability data from contract:`, {
+    ability: rawCharacter.activeAbility.ability,
+    stage: rawCharacter.activeAbility.stage,
+    targetIndex: rawCharacter.activeAbility.targetIndex,
+    taskAddress: rawCharacter.activeAbility.taskAddress,
+    targetBlock: rawCharacter.activeAbility.targetBlock?.toString()
+  });
+  
   return {
     id: rawCharacter.id,
     index: rawCharacter.stats.index,
@@ -356,6 +365,13 @@ export function mapCharacterLite(
   );
   
   // Note: Health validation warnings suppressed - needs smart contract fix
+  
+  // Debug log raw ability data for CharacterLite
+  console.log(`[contractToDomain] Raw CharacterLite ability data from contract:`, {
+    ability: raw.ability,
+    abilityStage: raw.abilityStage,
+    abilityTargetBlock: raw.abilityTargetBlock?.toString()
+  });
 
   // Map properties directly, applying necessary conversions
   const result = {
