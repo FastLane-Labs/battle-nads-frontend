@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { useWallet } from '../../providers/WalletProvider';
@@ -21,7 +21,8 @@ export const useContractPolling = (owner: string | null) => {
   const rateLimitStateRef = useRef({
     isLimited: false,
     resetTime: 0,
-    retryCount: 0
+    retryCount: 0,
+    lastGoodData: null as contract.PollFrontendDataReturn | null
   });
 
   return useQuery<contract.PollFrontendDataReturn, Error>({
@@ -55,10 +56,17 @@ export const useContractPolling = (owner: string | null) => {
       
       const state = rateLimitStateRef.current;
       
-      // Check if we're still rate limited
-      if (state.isLimited && Date.now() < state.resetTime) {
+      // If we're rate limited and have cached data, return it
+      if (state.isLimited && Date.now() < state.resetTime && state.lastGoodData) {
         const remainingSeconds = Math.ceil((state.resetTime - Date.now()) / 1000);
-        throw new Error(`Network is busy. Retrying in ${remainingSeconds} seconds...`);
+        console.log(`[useContractPolling] Rate limited, returning cached data. Retry in ${remainingSeconds}s`);
+        
+        // Return the last good data with an updated timestamp to prevent stale detection
+        return {
+          ...state.lastGoodData,
+          fetchTimestamp: Date.now(),
+          isRateLimited: true
+        } as contract.PollFrontendDataReturn & { isRateLimited: boolean };
       }
       
       globalRequestCounter += 1;
@@ -70,14 +78,6 @@ export const useContractPolling = (owner: string | null) => {
         const rawArrayData = await client.getUiSnapshot(owner, startBlock);
         const fetchTimestamp = Date.now();
         
-        // Reset rate limit state on success
-        if (state.isLimited) {
-          state.isLimited = false;
-          state.resetTime = 0;
-          state.retryCount = 0;
-          console.log('[useContractPolling] Rate limit cleared - resuming normal polling');
-        }
-        
         if (!rawArrayData || typeof (rawArrayData as any)[0] === 'undefined' || typeof (rawArrayData as any)[11] === 'undefined') {
           throw new Error("Invalid data structure received from getUiSnapshot");
         }
@@ -87,7 +87,7 @@ export const useContractPolling = (owner: string | null) => {
         // Log response block number
         console.log('[useContractPolling] Response block number:', dataAsAny[11]?.toString());
         
-        return {
+        const result: contract.PollFrontendDataReturn = {
           characterID: dataAsAny[0],
           sessionKeyData: dataAsAny[1],
           character: dataAsAny[2],
@@ -102,6 +102,19 @@ export const useContractPolling = (owner: string | null) => {
           endBlock: dataAsAny[11],
           fetchTimestamp: fetchTimestamp,
         };
+        
+        // Store successful result for rate limit fallback
+        state.lastGoodData = result;
+        
+        // Reset rate limit state on success
+        if (state.isLimited) {
+          state.isLimited = false;
+          state.resetTime = 0;
+          state.retryCount = 0;
+          console.log('[useContractPolling] Rate limit cleared - resuming normal polling');
+        }
+        
+        return result;
       } catch (error: any) {
         // Check if this is a rate limit error
         if (error?.code === -32005 || error?.message?.includes('rate limit')) {
@@ -113,7 +126,17 @@ export const useContractPolling = (owner: string | null) => {
           
           console.log(`[useContractPolling] Rate limited - backing off for ${backoffSeconds}s`);
           
-          // Throw a more user-friendly error
+          // If we have cached data, return it instead of throwing
+          if (state.lastGoodData) {
+            console.log('[useContractPolling] Returning cached data during rate limit');
+            return {
+              ...state.lastGoodData,
+              fetchTimestamp: Date.now(),
+              isRateLimited: true
+            } as contract.PollFrontendDataReturn & { isRateLimited: boolean };
+          }
+          
+          // Only throw if we have no cached data
           throw new Error(`Network is busy. Retrying in ${backoffSeconds} seconds...`);
         }
         
