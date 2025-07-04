@@ -206,30 +206,50 @@ export function mapCharacter(
 ): domain.Character | null {
   if (!rawCharacter || !rawCharacter.stats) return null;
   
+  // Handle case where character might be an array-like ethers Result object
+  let character = rawCharacter;
+  if (Array.isArray(rawCharacter) || (rawCharacter as any).length !== undefined) {
+    console.log(`[contractToDomain] Character is array-like, attempting to convert`);
+    const charArray = rawCharacter as any;
+    character = {
+      id: charArray[0],
+      name: charArray[1],
+      owner: charArray[2],
+      stats: charArray[3],
+      maxHealth: charArray[4],
+      weapon: charArray[5],
+      armor: charArray[6],
+      activeTask: charArray[7],
+      activeAbility: charArray[8],
+      inventory: charArray[9],
+      tracker: charArray[10]
+    } as contract.Character;
+  }
+  
   // --- Corrected Weapon Mapping ---
   const weapon: domain.Weapon = {
     // Use the numeric ID from stats
-    id: Number(rawCharacter.stats.weaponID),
+    id: Number(character.stats.weaponID),
     // Use the name directly from the nested weapon struct
-    name: rawCharacter.weapon.name,
+    name: character.weapon.name,
     // Map actual stats, converting from BigInt/string to number
-    baseDamage: Number(rawCharacter.weapon.baseDamage),
-    bonusDamage: Number(rawCharacter.weapon.bonusDamage),
-    accuracy: Number(rawCharacter.weapon.accuracy),
-    speed: Number(rawCharacter.weapon.speed) 
+    baseDamage: Number(character.weapon.baseDamage),
+    bonusDamage: Number(character.weapon.bonusDamage),
+    accuracy: Number(character.weapon.accuracy),
+    speed: Number(character.weapon.speed) 
   };
   
   // --- Corrected Armor Mapping ---
   const armor: domain.Armor = {
     // Use the numeric ID from stats
-    id: Number(rawCharacter.stats.armorID),
+    id: Number(character.stats.armorID),
     // Use the name directly from the nested armor struct
-    name: rawCharacter.armor.name,
+    name: character.armor.name,
     // Map actual stats, converting from BigInt/string to number
-    armorFactor: Number(rawCharacter.armor.armorFactor),
-    armorQuality: Number(rawCharacter.armor.armorQuality),
-    flexibility: Number(rawCharacter.armor.flexibility),
-    weight: Number(rawCharacter.armor.weight)
+    armorFactor: Number(character.armor.armorFactor),
+    armorQuality: Number(character.armor.armorQuality),
+    flexibility: Number(character.armor.flexibility),
+    weight: Number(character.armor.weight)
   };
   
   // Map inventory - handle both object and array-like structures
@@ -244,21 +264,21 @@ export function mapCharacter(
   };
   
   // Check if inventory exists and has array-like indexing
-  if (rawCharacter.inventory) {
+  if (character.inventory) {
     // Safe access with type assertion for array-like structure
-    const invArray = rawCharacter.inventory as any;
+    const invArray = character.inventory as any;
     if (typeof invArray[0] !== 'undefined') inventory.weaponBitmap = Number(invArray[0]);
     if (typeof invArray[1] !== 'undefined') inventory.armorBitmap = Number(invArray[1]);
     if (typeof invArray[2] !== 'undefined') inventory.balance = Number(invArray[2]);
   }
   
   const position = {
-    x: rawCharacter.stats.x,
-    y: rawCharacter.stats.y,
-    depth: rawCharacter.stats.depth
+    x: character.stats.x,
+    y: character.stats.y,
+    depth: character.stats.depth
   };
   
-  const isInCombat = Boolean(rawCharacter.stats.combatantBitMap);
+  const isInCombat = Boolean(character.stats.combatantBitMap);
   
   // Calculate movement options based on position and boundaries, not combat status
   const positionObj = {
@@ -281,56 +301,91 @@ export function mapCharacter(
   // Calculate area ID from position
   const areaId = createAreaID(positionObj.depth, positionObj.x, positionObj.y);
   
+  // Handle potential array-like activeTask structure
+  let taskData = character.activeTask;
+  if (taskData && (Array.isArray(taskData) || (taskData as any).length !== undefined)) {
+    console.log('[contractToDomain] ActiveTask is array-like, converting to object');
+    const taskArray = taskData as any;
+    taskData = {
+      hasTaskError: taskArray[0] ?? false,
+      pending: taskArray[1] ?? false,
+      taskDelay: taskArray[2] ?? 0,
+      executorDelay: taskArray[3] ?? 0,
+      taskAddress: taskArray[4] ?? '0x0000000000000000000000000000000000000000',
+      targetBlock: taskArray[5] ?? BigInt(0)
+    };
+  }
+  
   // Debug log raw ability data
-  console.log(`[contractToDomain] Raw ability data from contract:`, {
-    ability: rawCharacter.activeAbility.ability,
-    stage: rawCharacter.activeAbility.stage,
-    targetIndex: rawCharacter.activeAbility.targetIndex,
-    taskAddress: rawCharacter.activeAbility.taskAddress,
-    targetBlock: rawCharacter.activeAbility.targetBlock?.toString()
+  console.log(`[contractToDomain] Character mapping for ${character.name}:`, {
+    hasActiveAbility: !!character.activeAbility,
+    activeAbilityType: typeof character.activeAbility,
+    activeAbilityKeys: character.activeAbility && typeof character.activeAbility === 'object' ? Object.keys(character.activeAbility) : 'not an object'
+  });
+  
+  // Handle potential array-like activeAbility structure
+  let abilityData = character.activeAbility;
+  if (abilityData && (Array.isArray(abilityData) || (abilityData as any).length !== undefined)) {
+    console.log('[contractToDomain] ActiveAbility is array-like, converting to object');
+    const abilityArray = abilityData as any;
+    abilityData = {
+      ability: abilityArray[0] ?? 0,
+      stage: abilityArray[1] ?? 0,
+      targetIndex: abilityArray[2] ?? 0,
+      taskAddress: abilityArray[3] ?? '0x0000000000000000000000000000000000000000',
+      targetBlock: abilityArray[4] ?? BigInt(0)
+    };
+  }
+  
+  console.log(`[contractToDomain] Processed ability data:`, {
+    ability: abilityData?.ability,
+    stage: abilityData?.stage,
+    targetIndex: abilityData?.targetIndex,
+    taskAddress: abilityData?.taskAddress,
+    targetBlock: abilityData?.targetBlock?.toString()
   });
   
   return {
-    id: rawCharacter.id,
-    index: rawCharacter.stats.index,
-    name: rawCharacter.name,
-    class: mapContractClassToDomain(rawCharacter.stats.class),
-    level: rawCharacter.stats.level,
-    experience: Number(rawCharacter.stats.experience),
-    health: Number(rawCharacter.stats.health),
-    maxHealth: Number(rawCharacter.maxHealth),
-    buffs: mapStatusEffects(Number(rawCharacter.stats.buffs)),
-    debuffs: mapStatusEffects(Number(rawCharacter.stats.debuffs)),
+    id: character.id,
+    index: character.stats.index,
+    name: character.name,
+    class: mapContractClassToDomain(character.stats.class),
+    level: character.stats.level,
+    experience: Number(character.stats.experience),
+    health: Number(character.stats.health),
+    maxHealth: Number(character.maxHealth),
+    buffs: mapStatusEffects(Number(character.stats.buffs)),
+    debuffs: mapStatusEffects(Number(character.stats.debuffs)),
     weaponName: weapon.name,
     armorName: armor.name,
-    stats: mapCharacterStats(rawCharacter.stats),
+    stats: mapCharacterStats(character.stats),
     weapon,
     armor,
     position: {
-      x: rawCharacter.stats.x,
-      y: rawCharacter.stats.y,
-      depth: rawCharacter.stats.depth
+      x: character.stats.x,
+      y: character.stats.y,
+      depth: character.stats.depth
     },
     areaId,
-    owner: rawCharacter.owner,
+    owner: character.owner,
     activeTask: {
-      hasTaskError: rawCharacter.activeTask.hasTaskError,
-      pending: rawCharacter.activeTask.pending,
-      taskDelay: rawCharacter.activeTask.taskDelay,
-      executorDelay: rawCharacter.activeTask.executorDelay,
-      taskAddress: rawCharacter.activeTask.taskAddress,
-      targetBlock: Number(rawCharacter.activeTask.targetBlock)
+      hasTaskError: taskData?.hasTaskError ?? false,
+      pending: taskData?.pending ?? false,
+      taskDelay: taskData?.taskDelay ?? 0,
+      executorDelay: taskData?.executorDelay ?? 0,
+      taskAddress: taskData?.taskAddress ?? '0x0000000000000000000000000000000000000000',
+      targetBlock: Number(taskData?.targetBlock ?? 0)
     },
     ability: {
-      ability: rawCharacter.activeAbility.ability as domain.Ability,
-      stage: rawCharacter.activeAbility.stage,
-      targetIndex: rawCharacter.activeAbility.targetIndex,
-      taskAddress: rawCharacter.activeAbility.taskAddress,
-      targetBlock: Number(rawCharacter.activeAbility.targetBlock)
+      ability: (abilityData?.ability ?? 0) as domain.Ability,
+      stage: abilityData?.stage ?? 0,
+      targetIndex: abilityData?.targetIndex ?? 0,
+      taskAddress: abilityData?.taskAddress ?? '0x0000000000000000000000000000000000000000',
+      targetBlock: Number(abilityData?.targetBlock ?? 0)
     },
     inventory,
-    isInCombat: Boolean(rawCharacter.stats.combatantBitMap),
-    isDead: rawCharacter.tracker?.died || false,
+    isInCombat: Boolean(character.stats.combatantBitMap),
+    isDead: character.tracker?.died || false,
     movementOptions // Add movement options to character
   };
 }
