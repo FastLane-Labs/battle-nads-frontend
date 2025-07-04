@@ -106,7 +106,7 @@ The smart contract has undergone significant changes that require frontend updat
   - [ ] Update any conditional logic based on task state
 
 - [ ] **Update `pollForFrontendData` usage**
-  - [ ] Remove direct `unallocatedAttributePoints` access
+  - [x] Remove direct `unallocatedAttributePoints` access (now using character.stats.unspentAttributePoints)
   - [ ] Update to use `battlenad.stats.unspentAttributePoints`
   - [ ] Update any caching logic for this data
 
@@ -142,7 +142,7 @@ The smart contract has undergone significant changes that require frontend updat
 ### 3.2 Character Stats Components
 
 - [ ] **Update attribute point displays**
-  - [ ] Change from direct `unallocatedAttributePoints` access
+  - [x] Change from direct `unallocatedAttributePoints` access
   - [ ] Update to use nested `stats.unspentAttributePoints`
   - [ ] Update any stat allocation UI components
 
