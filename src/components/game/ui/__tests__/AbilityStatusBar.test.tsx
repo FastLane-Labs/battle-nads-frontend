@@ -14,16 +14,16 @@ describe('AbilityStatusBar', () => {
     jest.clearAllMocks();
   });
 
-  it('should display "No active ability" when no ability is active', () => {
+  it('should render nothing when no ability is active', () => {
     mockUseAbilityTracker.mockReturnValue({
       abilityTracker: null,
       hasActiveAbility: false,
       isAbilityActive: false,
     });
 
-    render(<AbilityStatusBar />);
+    const { container } = render(<AbilityStatusBar />);
     
-    expect(screen.getByText('No active ability')).toBeInTheDocument();
+    expect(container.firstChild).toBeNull();
   });
 
   it('should display ability information when ability is in CHARGING stage', () => {
@@ -46,7 +46,6 @@ describe('AbilityStatusBar', () => {
     expect(screen.getByText('ShieldBash')).toBeInTheDocument();
     expect(screen.getByText('Charging')).toBeInTheDocument();
     expect(screen.getByText('2.0s')).toBeInTheDocument();
-    expect(screen.getByText('4.0s')).toBeInTheDocument();
   });
 
   it('should display ability information when ability is in ACTION stage', () => {
@@ -69,7 +68,6 @@ describe('AbilityStatusBar', () => {
     expect(screen.getByText('Fireball')).toBeInTheDocument();
     expect(screen.getByText('Active')).toBeInTheDocument();
     expect(screen.getByText('1.0s')).toBeInTheDocument();
-    expect(screen.getByText('4.0s')).toBeInTheDocument();
   });
 
   it('should display ability information when ability is in COOLDOWN stage', () => {
@@ -90,11 +88,8 @@ describe('AbilityStatusBar', () => {
     render(<AbilityStatusBar />);
     
     expect(screen.getByText('Pray')).toBeInTheDocument();
-    // Multiple elements have "Cooldown" text, so check for the stage label specifically
-    const cooldownElements = screen.getAllByText('Cooldown');
-    expect(cooldownElements.length).toBeGreaterThan(0);
+    expect(screen.getByText('Cooldown')).toBeInTheDocument();
     expect(screen.getByText('27.0s')).toBeInTheDocument();
-    expect(screen.getByText('36.0s')).toBeInTheDocument();
   });
 
   it('should not display when ability is in READY stage', () => {
@@ -112,12 +107,12 @@ describe('AbilityStatusBar', () => {
       isAbilityActive: false, // READY stage is not considered active
     });
 
-    render(<AbilityStatusBar />);
+    const { container } = render(<AbilityStatusBar />);
     
-    expect(screen.getByText('No active ability')).toBeInTheDocument();
+    expect(container.firstChild).toBeNull();
   });
 
-  it('should render visual timeline with all stages', () => {
+  it('should display compact layout with ability info', () => {
     mockUseAbilityTracker.mockReturnValue({
       abilityTracker: {
         activeAbility: domain.Ability.EvasiveManeuvers,
@@ -134,10 +129,11 @@ describe('AbilityStatusBar', () => {
 
     render(<AbilityStatusBar />);
     
-    // Check timeline labels
-    expect(screen.getByText('Charge')).toBeInTheDocument();
-    expect(screen.getByText('Act')).toBeInTheDocument();
-    expect(screen.getByText('Cooldown')).toBeInTheDocument();
+    // Check that all elements are present in compact form
+    expect(screen.getByText('EvasiveManeuvers')).toBeInTheDocument();
+    expect(screen.getByText('Active')).toBeInTheDocument();
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    expect(screen.getByText('1.0s')).toBeInTheDocument();
   });
 
   it('should format time with one decimal place', () => {
@@ -159,6 +155,5 @@ describe('AbilityStatusBar', () => {
     
     // Should round to 1 decimal place
     expect(screen.getByText('28.9s')).toBeInTheDocument();
-    expect(screen.getByText('32.0s')).toBeInTheDocument();
   });
 });
