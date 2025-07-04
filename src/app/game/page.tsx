@@ -90,6 +90,7 @@ export default function GameV2Page() {
             isInCombat={game.isInCombat || false}
             isCacheLoading={game.isCacheLoading || false}
             fogOfWar={game.fogOfWar}
+            rawEndBlock={game.rawEndBlock}
           />
         </Box>
       </>

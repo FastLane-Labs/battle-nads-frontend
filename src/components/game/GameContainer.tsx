@@ -43,6 +43,8 @@ interface GameContainerProps {
   equipableArmorNames?: string[];
   // Add fog-of-war data
   fogOfWar?: hooks.UseGameDataReturn['fogOfWar'];
+  // Add raw end block from polling data for combat task status
+  rawEndBlock?: bigint;
 }
 
 const GameContainer: React.FC<GameContainerProps> = (props) => {
@@ -64,8 +66,12 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
     equipableWeaponNames,
     equipableArmorIDs,
     equipableArmorNames,
-    fogOfWar
+    fogOfWar,
+    rawEndBlock
   } = props;
+
+  // Calculate current block from polling data
+  const currentBlock = Number(rawEndBlock || 0);
 
   const isSpawned = !(position.x === 0 && position.y === 0 && position.z === 0);
 
@@ -223,6 +229,7 @@ const GameContainer: React.FC<GameContainerProps> = (props) => {
           equipableArmorIDs={equipableArmorIDs}
           equipableArmorNames={equipableArmorNames}
           fogOfWar={fogOfWar}
+          currentBlock={currentBlock}
         />
       </Flex>
     </Box>
