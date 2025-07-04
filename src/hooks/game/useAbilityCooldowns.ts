@@ -190,6 +190,8 @@ export const useAbilityCooldowns = (characterId: string | null): hooks.UseAbilit
         const optimisticSecondsLeft = Math.max(0, optimisticReadyAgainBlock - currentBlock) * (AVG_BLOCK_TIME_MS / 1000);
         const optimisticIsReady = currentBlock >= optimisticReadyAgainBlock;
         
+        console.log(`[useAbilityCooldowns] Optimistic update for ${domain.Ability[status.ability]}: Block used: ${optimisticUse.blockUsed}, Ready again: ${optimisticReadyAgainBlock}, Current: ${currentBlock}, Seconds left: ${optimisticSecondsLeft}`);
+        
         let optimisticDescription = '';
         if (optimisticIsReady) {
           optimisticDescription = getAbilityDescription(status.ability, AbilityStage.READY, characterName);
