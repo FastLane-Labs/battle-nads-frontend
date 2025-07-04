@@ -92,8 +92,8 @@ describe('useBattleNadsClient', () => {
     expect(result.current.client).not.toBeNull();
     expect(result.current.error).toBeNull();
     
-    // Should have created 2 adapters (1 for websocket fallback, 1 for read) 
-    expect(BattleNadsAdapter).toHaveBeenCalledTimes(2);
+    // Should have created only 1 adapter (read) when WebSocket is disabled
+    expect(BattleNadsAdapter).toHaveBeenCalledTimes(1);
     
     // Check that client was created with only read adapter
     expect(BattleNadsClient).toHaveBeenCalledWith({
@@ -148,8 +148,10 @@ describe('useBattleNadsClient', () => {
 
     const { result } = renderHook(() => useBattleNadsClient());
 
-    // Assertions - includes WebSocket fallback providers and read providers
-    expect(JsonRpcProvider).toHaveBeenCalledTimes(4); // WebSocket fallback + read provider creation
+    // Should have called JsonRpcProvider twice:
+    // 1. First call in readProvider useMemo throws error
+    // 2. Second call in catch block succeeds
+    expect(JsonRpcProvider).toHaveBeenCalledTimes(2);
     expect(result.current.error).toMatch(/Provider creation failed/);
     // Check client is not null because fallback provider succeeded
     expect(result.current.client).not.toBeNull(); 

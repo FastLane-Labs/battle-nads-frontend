@@ -18,8 +18,7 @@ export const useBattleNadsClient = () => {
   // Initialize WebSocket provider manager (if enabled)
   useEffect(() => {
     if (!ENABLE_WEBSOCKET) {
-      // WebSocket disabled, use HTTP directly
-      setWsProvider(new JsonRpcProvider(RPC_URLS.PRIMARY_HTTP));
+      // WebSocket disabled, no need to set state - we'll create HTTP provider directly in useMemo
       return;
     }
 
