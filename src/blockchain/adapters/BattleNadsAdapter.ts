@@ -39,7 +39,31 @@ export class BattleNadsAdapter {
    * Polls for frontend data from the contract
    */
   async pollFrontendData(owner: string, startBlock: bigint): Promise<contract.PollFrontendDataReturn> {
-    return this.contract.pollForFrontendData(owner, startBlock);
+    console.log(`[Adapter] pollFrontendData called for owner: ${owner}, startBlock: ${startBlock.toString()}`);
+    const rawData = await this.contract.pollForFrontendData(owner, startBlock);
+    
+    // Log the raw contract return to understand structure
+    console.log('[Adapter] Raw pollForFrontendData response structure:', {
+      isArray: Array.isArray(rawData),
+      hasLength: (rawData as any).length !== undefined,
+      keys: rawData && typeof rawData === 'object' ? Object.keys(rawData) : 'not an object'
+    });
+    
+    // If it's an array-like structure, log specific indices
+    if (Array.isArray(rawData) || (rawData as any).length !== undefined) {
+      const dataAsAny = rawData as any;
+      console.log('[Adapter] Array-like data at key indices:', {
+        characterAtIndex2: dataAsAny[2],
+        characterActiveAbility: dataAsAny[2]?.activeAbility || dataAsAny[2]?.[8],
+        directActiveAbilityAccess: {
+          asProperty: dataAsAny[2]?.activeAbility,
+          asIndex8: dataAsAny[2]?.[8],
+          characterKeys: dataAsAny[2] && typeof dataAsAny[2] === 'object' ? Object.keys(dataAsAny[2]) : 'not an object'
+        }
+      });
+    }
+    
+    return rawData;
   }
 
   /**

@@ -35,6 +35,15 @@ export const useContractPolling = (owner: string | null) => {
       }
       
       const dataAsAny = rawArrayData as any;
+      
+      // Debug log raw character data
+      console.log('[useContractPolling] Raw character data from contract:', {
+        character: dataAsAny[2],
+        activeAbility: dataAsAny[2]?.activeAbility,
+        activeTask: dataAsAny[2]?.activeTask,
+        stats: dataAsAny[2]?.stats
+      });
+      
       return {
         characterID: dataAsAny[0],
         sessionKeyData: dataAsAny[1],
