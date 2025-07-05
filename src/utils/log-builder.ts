@@ -250,8 +250,8 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       const isPlayerAttacker = raw.attacker?.name === "You" || 
                               (playerCharacterName && raw.attacker?.name === playerCharacterName) ||
                               (playerCharacterName && isSamePlayer(raw.attacker?.name || '', playerCharacterName));
-      const isCurrentArea = currentAreaId === undefined || raw.areaId === currentAreaId;
-      const isActorPlayer = isPlayerAttacker && isCurrentArea;
+      // For area movement events, don't check isCurrentArea - always show "You" for the player
+      const isActorPlayer = isPlayerAttacker;
       const actorName = formatActorName(actor, isActorPlayer || false, false);
       
       return {
@@ -269,8 +269,8 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       const isPlayerAttacker = raw.attacker?.name === "You" || 
                               (playerCharacterName && raw.attacker?.name === playerCharacterName) ||
                               (playerCharacterName && isSamePlayer(raw.attacker?.name || '', playerCharacterName));
-      const isCurrentArea = currentAreaId === undefined || raw.areaId === currentAreaId;
-      const isActorPlayer = isPlayerAttacker && isCurrentArea;
+      // For area movement events, don't check isCurrentArea - always show "You" for the player
+      const isActorPlayer = isPlayerAttacker;
       const actorName = formatActorName(actor, isActorPlayer || false, false);
       
       return {
@@ -312,8 +312,8 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       const isPlayerAttacker = raw.attacker?.name === "You" || 
                               (playerCharacterName && raw.attacker?.name === playerCharacterName) ||
                               (playerCharacterName && isSamePlayer(raw.attacker?.name || '', playerCharacterName));
-      const isCurrentArea = currentAreaId === undefined || raw.areaId === currentAreaId;
-      const isActorPlayer = isPlayerAttacker && isCurrentArea;
+      // For level up events, don't check isCurrentArea - always show "You" for the player
+      const isActorPlayer = isPlayerAttacker;
       const actorName = formatActorName(actor, isActorPlayer || false, false);
       const experience = raw.details.experience || 0;
       
