@@ -281,6 +281,19 @@ const WalletBalances: React.FC = () => {
           </div>
         </div>
 
+        {/* Bonded MONAD Balance (Using ownerCommittedAmount) */}
+        <div className="flex w-full justify-between gap-2">
+          <Flex align="center" gap={1}>
+            <h2 className="text-sm font-medium gold-text-light">Liquid</h2>
+            <Badge colorScheme="yellow" size="xs">
+              shMON
+            </Badge>
+          </Flex>
+          <div className="font-semibold text-amber-300 text-sm">
+            {parseFloat(unbondedBalance).toFixed(4)}
+          </div>
+        </div>
+
         {/* Owner Wallet Balance */}
         <div className="flex w-full justify-between gap-2">
           <Flex align="center" gap={1}>
