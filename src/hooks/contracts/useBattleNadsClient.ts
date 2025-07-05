@@ -76,9 +76,11 @@ export const useBattleNadsClient = () => {
         : null;
 
       // Owner adapter (for character creation and session key management)
-      const shMonadAdapter = injectedWallet?.signer 
+      const shMonadOwnerAdapter = injectedWallet?.signer 
         ? new ShMonadAdapter(SHMONAD_ADDRESS, injectedWallet.signer)
         : null;
+      
+      const shMonadReadAdapter = new ShMonadAdapter(SHMONAD_ADDRESS, readProvider);
       
       // Session adapter (for game actions using the session key)
       const sessionAdapter = embeddedWallet?.signer
@@ -90,7 +92,8 @@ export const useBattleNadsClient = () => {
         read: readAdapter,
         owner: ownerAdapter,
         session: sessionAdapter,
-        shmonad: shMonadAdapter
+        shmonadOwner: shMonadOwnerAdapter,
+        shmonadRead: shMonadReadAdapter
       });
     } catch (err) {
       setError(`Client creation failed: ${(err as Error)?.message || "Unknown error"}`);

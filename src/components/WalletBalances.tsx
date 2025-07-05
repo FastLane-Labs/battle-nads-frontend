@@ -25,6 +25,7 @@ const WalletBalances: React.FC = () => {
     ownerBalance,
     sessionKeyBalance,
     bondedBalance,
+    unbondedBalance,
     shortfall,
     isLoading,
     hasShortfall,
@@ -74,6 +75,7 @@ const WalletBalances: React.FC = () => {
 
       // Convert owner balance to BigInt for comparison
       const ownerBalanceWei = ethers.parseEther(ownerBalance);
+      const unbondedBalanceWei = ethers.parseEther(unbondedBalance);
 
       // Calculate replenish amount based on option chosen using the same logic as UI display
       let targetAmount: bigint;
@@ -118,9 +120,8 @@ const WalletBalances: React.FC = () => {
         });
 
       } else {
-        const safeBalance =
-          ownerBalanceWei - ethers.parseEther(MIN_SAFE_OWNER_BALANCE);
-        const maxBalance = replenishAmountWei * BigInt(1440); // 60 min * 24 hours
+        const safeBalance = unbondedBalanceWei;
+        const maxBalance = targetAmount * BigInt(5760); // 60 min * 24 hours * 4
 
         let cappedBalance: bigint;
         if (safeBalance < maxBalance) {
@@ -129,7 +130,7 @@ const WalletBalances: React.FC = () => {
           cappedBalance = maxBalance;
         }
 
-        await client.setMinBondedBalance(BigInt(POLICY_ID), replenishAmountWei, cappedBalance, BigInt(200_000));
+        await client.setMinBondedBalance(BigInt(POLICY_ID), targetAmount, cappedBalance, BigInt(200_000));
 
         const cappedAmountEth = ethers.formatEther(cappedBalance);
 
@@ -382,7 +383,7 @@ const WalletBalances: React.FC = () => {
                 isDisabled={!client?.replenishGasBalance}
                 className="!text-white font-medium"
               >
-                🛡️ Automate with ShMON
+                🛡️ Automate (ShMON)
               </Button>
             </Flex>
           </Box>

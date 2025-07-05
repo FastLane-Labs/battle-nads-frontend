@@ -12,11 +12,14 @@ import {
 } from '@/config/wallet';
 import { safeFormatEther, safeFormatUnits } from '@/utils/safeNumberConversion';
 
+import { useBattleNadsClient } from "@/hooks/contracts/useBattleNadsClient";
+
 export interface WalletBalanceData {
   // Balance values (formatted strings)
   ownerBalance: string;
   sessionKeyBalance: string;
   bondedBalance: string;
+  unbondedBalance: string;
   formattedShortfall: string;
   targetBalance: string;
   
@@ -73,6 +76,7 @@ export function useWalletState(options: UseWalletStateOptions = {}): WalletBalan
     refreshInterval = BALANCE_REFRESH_INTERVAL
   } = options;
 
+  const { client } = useBattleNadsClient();
   const { injectedWallet, embeddedWallet } = useWallet();
   const ownerAddress = injectedWallet?.address ?? null;
   const sessionKeyAddress = embeddedWallet?.address ?? null;
@@ -83,6 +87,8 @@ export function useWalletState(options: UseWalletStateOptions = {}): WalletBalan
   
   // Owner balance state (fetched via direct RPC)
   const [ownerBalance, setOwnerBalance] = useState<string>('0');
+  const [unbondedBalance, setUnbondedBalance] = useState<string>('0');
+
   const [isOwnerBalanceLoading, setIsOwnerBalanceLoading] = useState<boolean>(false);
 
   // Fetch owner balance with optional auto-refresh
@@ -95,6 +101,12 @@ export function useWalletState(options: UseWalletStateOptions = {}): WalletBalan
         const provider = new ethers.JsonRpcProvider(RPC);
         const balanceWei = await provider.getBalance(ownerAddress);
         setOwnerBalance(ethers.formatEther(balanceWei));
+
+        const balanceUnbondedWei = await client?.balanceOf(ownerAddress);
+        if (balanceUnbondedWei) {
+          setUnbondedBalance(ethers.formatEther(balanceUnbondedWei));
+        }
+        
       } catch (error) {
         console.error('[useWalletState] Error fetching owner balance:', error);
       } finally {
@@ -193,6 +205,7 @@ export function useWalletState(options: UseWalletStateOptions = {}): WalletBalan
     ownerBalance,
     sessionKeyBalance,
     bondedBalance,
+    unbondedBalance,
     formattedShortfall,
     targetBalance,
     
@@ -250,6 +263,7 @@ export function useWalletBalances(owner: string | null) {
     ownerBalance: walletState.ownerBalance,
     sessionKeyBalance: walletState.sessionKeyBalance,
     bondedBalance: walletState.bondedBalance,
+    unbondedBalance: walletState.unbondedBalance,
     shortfall: walletState.shortfall,
     formattedShortfall: walletState.formattedShortfall,
     targetBalance: walletState.targetBalance,

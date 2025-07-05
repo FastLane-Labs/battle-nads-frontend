@@ -15,7 +15,8 @@ interface BattleNadsClientOptions {
   read: BattleNadsAdapter;
   owner: BattleNadsAdapter | null;
   session: BattleNadsAdapter | null;
-  shmonad: ShMonadAdapter | null;
+  shmonadOwner: ShMonadAdapter | null;
+  shmonadRead: ShMonadAdapter | null;
 }
 
 /**
@@ -26,13 +27,15 @@ export class BattleNadsClient {
   private readonly readAdapter: BattleNadsAdapter;
   private readonly ownerAdapter: BattleNadsAdapter | null;
   private readonly sessionAdapter: BattleNadsAdapter | null;
-  private readonly shMonadAdapter: ShMonadAdapter | null;
+  private readonly shMonadOwnerAdapter: ShMonadAdapter | null;
+  private readonly shMonadReadAdapter: ShMonadAdapter | null;
 
   constructor(options: BattleNadsClientOptions) {
     this.readAdapter = options.read;
     this.ownerAdapter = options.owner;
     this.sessionAdapter = options.session;
-    this.shMonadAdapter = options.shmonad;
+    this.shMonadOwnerAdapter = options.shmonadOwner;
+    this.shMonadReadAdapter = options.shmonadRead;
   }
 
   // UTILITY METHODS
@@ -60,11 +63,21 @@ export class BattleNadsClient {
   /**
    * Checks if the owner adapter is available
    */
-  private ensureShMonadAdapter(): ShMonadAdapter {
-    if (!this.shMonadAdapter) {
+  private ensureShMonadOwnerAdapter(): ShMonadAdapter {
+    if (!this.shMonadOwnerAdapter) {
       throw new WalletMissingError('Owner wallet not connected. Connect your wallet to perform this action.');
     }
-    return this.shMonadAdapter;
+    return this.shMonadOwnerAdapter;
+  }
+
+  /**
+   * Checks if the owner adapter is available
+   */
+  private ensureShMonadReaderAdapter(): ShMonadAdapter {
+    if (!this.shMonadReadAdapter) {
+      throw new WalletMissingError('Owner wallet not connected. Connect your wallet to perform this action.');
+    }
+    return this.shMonadReadAdapter;
   }
 
   // DATA QUERIES
@@ -534,7 +547,7 @@ export class BattleNadsClient {
     policyId: BigInt, minBonded: BigInt, maxTopUpPerPeriod: BigInt, topUpPeriodDuration: BigInt
   ): Promise<TransactionResponse> {
     try {
-      return await this.ensureShMonadAdapter().setMinBondedBalance(
+      return await this.ensureShMonadOwnerAdapter().setMinBondedBalance(
         policyId, minBonded, maxTopUpPerPeriod, topUpPeriodDuration
       );
     } catch (error) {
@@ -542,6 +555,17 @@ export class BattleNadsClient {
         throw error;
       }
       throw new ContractTransactionError(`Failed to create character: ${(error as Error).message}`);
+    }
+  }
+
+  /**
+   * Gets the ShMON balance (unbonded)
+   */
+  async balanceOf(account: string): Promise<bigint> {
+    try {
+      return await this.ensureShMonadReaderAdapter().balanceOf(account);
+    } catch (error) {
+      throw new ContractCallError(`Failed to calculate balance shortfall: ${(error as Error).message}`);
     }
   }
 } 
