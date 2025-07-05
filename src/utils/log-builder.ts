@@ -29,6 +29,15 @@ export interface LogEntryRich extends LogEntryRaw {
   shouldFilter?: boolean;
 }
 
+// Helper function to check if two player names are the same person (ignoring title changes)
+function isSamePlayer(name1: string, name2: string): boolean {
+  if (!name1 || !name2) return false;
+  // Extract the base name (before " the ")
+  const baseName1 = name1.split(" the ")[0];
+  const baseName2 = name2.split(" the ")[0];
+  return baseName1 === baseName2;
+}
+
 // Helper function to check if an event should be filtered
 function shouldFilterEvent(raw: LogEntryRaw, abilityName?: string): boolean {
   // Filter out ability events with unknown abilities
@@ -63,12 +72,13 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       const actor = raw.actor || participantToCharacterLite(raw.attacker);
       const target = raw.target || participantToCharacterLite(raw.defender);
       
-      
       // Simple player detection: check if the name matches the player character name
       const isPlayerAttacker = raw.attacker?.name === "You" || 
-                              (playerCharacterName && raw.attacker?.name === playerCharacterName);
+                              (playerCharacterName && raw.attacker?.name === playerCharacterName) ||
+                              (playerCharacterName && isSamePlayer(raw.attacker?.name || '', playerCharacterName));
       const isPlayerDefender = raw.defender?.name === "You" || 
-                              (playerCharacterName && raw.defender?.name === playerCharacterName);
+                              (playerCharacterName && raw.defender?.name === playerCharacterName) ||
+                              (playerCharacterName && isSamePlayer(raw.defender?.name || '', playerCharacterName));
 
       const isActorPlayer = isPlayerAttacker;
       const isTargetPlayer = isPlayerDefender;
@@ -173,9 +183,11 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       const target = raw.target || (raw.defender ? participantToCharacterLite(raw.defender) : null);
       
       const isPlayerAttacker = raw.attacker?.name === "You" || 
-                              (playerCharacterName && raw.attacker?.name === playerCharacterName);
+                              (playerCharacterName && raw.attacker?.name === playerCharacterName) ||
+                              (playerCharacterName && isSamePlayer(raw.attacker?.name || '', playerCharacterName));
       const isPlayerDefender = raw.defender?.name === "You" || 
-                              (playerCharacterName && raw.defender?.name === playerCharacterName);
+                              (playerCharacterName && raw.defender?.name === playerCharacterName) ||
+                              (playerCharacterName && isSamePlayer(raw.defender?.name || '', playerCharacterName));
       const isCurrentArea = currentAreaId === undefined || raw.areaId === currentAreaId;
       
       const isActorPlayer = isPlayerAttacker && isCurrentArea;
@@ -246,7 +258,8 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
 
       const actor = raw.actor || participantToCharacterLite(raw.attacker);
       const isPlayerAttacker = raw.attacker?.name === "You" || 
-                              (playerCharacterName && raw.attacker?.name === playerCharacterName);
+                              (playerCharacterName && raw.attacker?.name === playerCharacterName) ||
+                              (playerCharacterName && isSamePlayer(raw.attacker?.name || '', playerCharacterName));
       const isCurrentArea = currentAreaId === undefined || raw.areaId === currentAreaId;
       const isActorPlayer = isPlayerAttacker && isCurrentArea;
       const actorName = formatActorName(actor, isActorPlayer || false, false);
@@ -264,7 +277,8 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
 
       const actor = raw.actor || participantToCharacterLite(raw.attacker);
       const isPlayerAttacker = raw.attacker?.name === "You" || 
-                              (playerCharacterName && raw.attacker?.name === playerCharacterName);
+                              (playerCharacterName && raw.attacker?.name === playerCharacterName) ||
+                              (playerCharacterName && isSamePlayer(raw.attacker?.name || '', playerCharacterName));
       const isCurrentArea = currentAreaId === undefined || raw.areaId === currentAreaId;
       const isActorPlayer = isPlayerAttacker && isCurrentArea;
       const actorName = formatActorName(actor, isActorPlayer || false, false);
@@ -306,7 +320,8 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
 
       const actor = raw.actor || participantToCharacterLite(raw.attacker);
       const isPlayerAttacker = raw.attacker?.name === "You" || 
-                              (playerCharacterName && raw.attacker?.name === playerCharacterName);
+                              (playerCharacterName && raw.attacker?.name === playerCharacterName) ||
+                              (playerCharacterName && isSamePlayer(raw.attacker?.name || '', playerCharacterName));
       const isCurrentArea = currentAreaId === undefined || raw.areaId === currentAreaId;
       const isActorPlayer = isPlayerAttacker && isCurrentArea;
       const actorName = formatActorName(actor, isActorPlayer || false, false);
