@@ -104,9 +104,13 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
         weaponName = "their weapon";
       }
       
-      // Check if this is likely a monster (by class or by being in MONSTER_NAMES)
-      const isLikelyMonster = isMonster(actor) || 
-        (actor.index >= 1 && actor.index <= 64 && MONSTER_NAMES[actor.index]);
+      // Check if this is likely a monster
+      // First check class, then check if the name matches a known monster name
+      const actorNameLower = actor.name?.toLowerCase() || '';
+      const isNamedLikeMonster = Object.values(MONSTER_NAMES).some(monsterName => 
+        monsterName.toLowerCase() === actorNameLower
+      );
+      const isLikelyMonster = isMonster(actor) || isNamedLikeMonster;
       
       let verb = "hits";
       if (isLikelyMonster) {
