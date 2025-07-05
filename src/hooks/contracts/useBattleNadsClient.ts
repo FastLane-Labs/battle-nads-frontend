@@ -2,8 +2,9 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import { JsonRpcProvider, WebSocketProvider } from 'ethers';
 import { useWallet } from '@/providers/WalletProvider';
 import { BattleNadsAdapter } from '@/blockchain/adapters/BattleNadsAdapter';
+import { ShMonadAdapter } from '@/blockchain/adapters/ShMonadAdapter';
 import { BattleNadsClient } from '@/blockchain/clients/BattleNadsClient';
-import { ENTRYPOINT_ADDRESS, RPC_URLS, ENABLE_WEBSOCKET } from '@/config/env';
+import { ENTRYPOINT_ADDRESS, SHMONAD_ADDRESS, RPC_URLS, ENABLE_WEBSOCKET } from '@/config/env';
 import { createWebSocketProvider } from '@/utils/websocketProvider';
 
 /**
@@ -73,6 +74,11 @@ export const useBattleNadsClient = () => {
       const ownerAdapter = injectedWallet?.signer 
         ? new BattleNadsAdapter(ENTRYPOINT_ADDRESS, injectedWallet.signer)
         : null;
+
+      // Owner adapter (for character creation and session key management)
+      const shMonadAdapter = injectedWallet?.signer 
+        ? new ShMonadAdapter(SHMONAD_ADDRESS, injectedWallet.signer)
+        : null;
       
       // Session adapter (for game actions using the session key)
       const sessionAdapter = embeddedWallet?.signer
@@ -83,7 +89,8 @@ export const useBattleNadsClient = () => {
       return new BattleNadsClient({
         read: readAdapter,
         owner: ownerAdapter,
-        session: sessionAdapter
+        session: sessionAdapter,
+        shmonad: shMonadAdapter
       });
     } catch (err) {
       setError(`Client creation failed: ${(err as Error)?.message || "Unknown error"}`);

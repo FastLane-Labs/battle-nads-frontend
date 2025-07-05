@@ -10,6 +10,7 @@ import {
   LOW_SESSION_KEY_THRESHOLD,
   MIN_SAFE_OWNER_BALANCE,
 } from "@/config/wallet";
+import { POLICY_ID } from '@/config/env';
 
 const WalletBalances: React.FC = () => {
   const { injectedWallet } = useWallet();
@@ -76,16 +77,18 @@ const WalletBalances: React.FC = () => {
 
       // Calculate replenish amount based on option chosen using the same logic as UI display
       let targetAmount: bigint;
+      const ownerBondedBalanceWei = ethers.parseEther(bondedBalance);
       if (useMinimalAmount) {
         // Minimal: shortfallNum amount (shortfall * 3)
         const shortfallNumWei = ethers.parseEther(shortfallNum.toString());
-        targetAmount = shortfallNumWei;
+        targetAmount = shortfallNumWei + ownerBondedBalanceWei;
       } else {
-        // Safe: safeReplenishAmount (shortfallNum * 2)
-        const safeReplenishAmountWei = ethers.parseEther(safeReplenishAmount);
-        targetAmount = safeReplenishAmountWei;
+        // Safe: safeReplenishAmount (shortfall + balance, but used on top up)
+        const shortfallNumWei = ethers.parseEther(shortfallNum.toString());
+        targetAmount = (shortfallNumWei + ownerBondedBalanceWei) * BigInt(2);
       }
 
+      
       // Calculate safe replenish amount
       let replenishAmountWei: bigint;
       if (ownerBalanceWei < targetAmount) {
@@ -103,15 +106,42 @@ const WalletBalances: React.FC = () => {
         );
       }
 
-      // Call the contract method
-      await client.replenishGasBalance(replenishAmountWei);
+      if (useMinimalAmount) {
+        // Call the contract method
+        await client.replenishGasBalance(replenishAmountWei);
 
-      toast({
-        title: "Success",
-        description: `Replenish transaction sent for ${replenishAmountEth} MON`,
-        status: "success",
-        isClosable: true,
-      });
+        toast({
+          title: "Success",
+          description: `Replenish transaction sent for ${replenishAmountEth} MON`,
+          status: "success",
+          isClosable: true,
+        });
+
+      } else {
+        const safeBalance =
+          ownerBalanceWei - ethers.parseEther(MIN_SAFE_OWNER_BALANCE);
+        const maxBalance = replenishAmountWei * BigInt(1440); // 60 min * 24 hours
+
+        let cappedBalance: bigint;
+        if (safeBalance < maxBalance) {
+          cappedBalance = safeBalance;
+        } else {
+          cappedBalance = maxBalance;
+        }
+
+        await client.setMinBondedBalance(BigInt(POLICY_ID), replenishAmountWei, cappedBalance, BigInt(200_000));
+
+        const cappedAmountEth = ethers.formatEther(cappedBalance);
+
+        toast({
+          title: "Success",
+          description: `Transaction sent that sets an automatic commitment Top-Up for a max of ${cappedAmountEth} ShMON per day.`,
+          status: "success",
+          isClosable: true,
+        });
+      }
+
+      
     } catch (error: any) {
       console.error("Error replenishing balance:", error);
       toast({
@@ -325,7 +355,7 @@ const WalletBalances: React.FC = () => {
                 If it hits zero, your character won't be able to defend itself
                 and will likely die!
               </strong>{" "}
-              Replenish now to keep your character alive.
+              Automate the refill or replenish manually now to keep your character alive.
             </Text>
             <Flex gap={2} width="full">
               <Button
@@ -339,7 +369,7 @@ const WalletBalances: React.FC = () => {
                 isDisabled={!client?.replenishGasBalance}
                 className="!text-white font-medium"
               >
-                🛡️ Minimal ({shortfallNum.toFixed(4)})
+                🛡️ Manual ({shortfallNum.toFixed(4)})
               </Button>
               <Button
                 bg="red.600"
@@ -352,7 +382,7 @@ const WalletBalances: React.FC = () => {
                 isDisabled={!client?.replenishGasBalance}
                 className="!text-white font-medium"
               >
-                🛡️ Safer ({safeReplenishAmount})
+                🛡️ Automate with ShMON
               </Button>
             </Flex>
           </Box>

@@ -1,0 +1,3 @@
+[
+    {"type":"function","name":"setMinBondedBalance","inputs":[{"name":"policyID","type":"uint64","internalType":"uint64"},{"name":"minBonded","type":"uint128","internalType":"uint128"},{"name":"maxTopUpPerPeriod","type":"uint128","internalType":"uint128"},{"name":"topUpPeriodDuration","type":"uint32","internalType":"uint32"}],"outputs":[],"stateMutability":"nonpayable"}
+]
