@@ -22,9 +22,13 @@ export class ShMonadAdapter {
   }
 
   /**
-   * Moves the character north
+   * Sets the min bonded balance
    */
   async setMinBondedBalance(policyId: BigInt, minBonded: BigInt, maxTopUpPerPeriod: BigInt, topUpPeriodDuration: BigInt): Promise<TransactionResponse> {
-    return this.contract.setMinBondedBalance(policyId, minBonded, maxTopUpPerPeriod, topUpPeriodDuration , { gasLimit: GAS_LIMITS.move });
+    return this.contract.setMinBondedBalance(policyId, minBonded, maxTopUpPerPeriod, topUpPeriodDuration , { gasLimit: BigInt(400_000) });
+  }
+
+  async balanceOf(account: string): Promise<bigint> {
+    return this.contract.balanceOf(account , { gasLimit: BigInt(400_000) });
   }
 }

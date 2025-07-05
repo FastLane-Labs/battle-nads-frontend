@@ -1,3 +1,4 @@
 [
-    {"type":"function","name":"setMinBondedBalance","inputs":[{"name":"policyID","type":"uint64","internalType":"uint64"},{"name":"minBonded","type":"uint128","internalType":"uint128"},{"name":"maxTopUpPerPeriod","type":"uint128","internalType":"uint128"},{"name":"topUpPeriodDuration","type":"uint32","internalType":"uint32"}],"outputs":[],"stateMutability":"nonpayable"}
+    {"type":"function","name":"setMinBondedBalance","inputs":[{"name":"policyID","type":"uint64","internalType":"uint64"},{"name":"minBonded","type":"uint128","internalType":"uint128"},{"name":"maxTopUpPerPeriod","type":"uint128","internalType":"uint128"},{"name":"topUpPeriodDuration","type":"uint32","internalType":"uint32"}],"outputs":[],"stateMutability":"nonpayable"},
+    {"type":"function","name":"balanceOf","inputs":[{"name":"account","type":"address","internalType":"address"}],"outputs":[{"name":"","type":"uint256","internalType":"uint256"}],"stateMutability":"view"}
 ]
