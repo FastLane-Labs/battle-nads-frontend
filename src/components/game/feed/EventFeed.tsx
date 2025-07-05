@@ -77,13 +77,18 @@ const EventFeed: React.FC<EventFeedProps> = ({
   }, [eventLogs, currentAreaId]);
 
   // Use useCombatFeed to process all events with caching
-  const enrichedEventLogs = useCombatFeed(
+  const enrichedEventLogsOriginal = useCombatFeed(
     filteredEventLogs,
     playerCharacter.index,
     playerCharacter.weapon?.name,
     currentAreaId,
     playerCharacter.name
   );
+  
+  // Reverse the order to show newest events at the top
+  const enrichedEventLogs = useMemo(() => {
+    return [...enrichedEventLogsOriginal].reverse();
+  }, [enrichedEventLogsOriginal]);
 
   // Track window width for responsive sizing
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
@@ -156,16 +161,16 @@ const EventFeed: React.FC<EventFeedProps> = ({
     scrollMargin: 0, // Remove default scroll margin
   });
   
-  // Auto-scroll to bottom when new events are added
+  // Auto-scroll to top when new events are added (since newest are now at top)
   useEffect(() => {
     if (
-      EVENT_FEED_CONFIG.AUTO_SCROLL_TO_BOTTOM &&
+      EVENT_FEED_CONFIG.AUTO_SCROLL_TO_NEWEST &&
       enrichedEventLogs.length > 0 && 
       (!EVENT_FEED_CONFIG.DISABLE_AUTO_SCROLL_ON_CACHE_LOAD || !isCacheLoading)
     ) {
       // Use a small delay to prevent disrupting user scrolling
       const timer = setTimeout(() => {
-        rowVirtualizer.scrollToIndex(enrichedEventLogs.length - 1, { align: 'end' });
+        rowVirtualizer.scrollToIndex(0, { align: 'start' });
       }, EVENT_FEED_CONFIG.AUTO_SCROLL_DELAY);
       
       return () => clearTimeout(timer);
