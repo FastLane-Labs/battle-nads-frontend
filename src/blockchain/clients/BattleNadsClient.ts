@@ -1,5 +1,6 @@
 import { TransactionResponse } from 'ethers';
 import { BattleNadsAdapter } from '../adapters/BattleNadsAdapter';
+import { ShMonadAdapter } from '../adapters/ShMonadAdapter';
 import { contract, domain } from '../../types';
 import { 
   SessionWalletMissingError, 
@@ -14,6 +15,7 @@ interface BattleNadsClientOptions {
   read: BattleNadsAdapter;
   owner: BattleNadsAdapter | null;
   session: BattleNadsAdapter | null;
+  shmonad: ShMonadAdapter | null;
 }
 
 /**
@@ -24,11 +26,13 @@ export class BattleNadsClient {
   private readonly readAdapter: BattleNadsAdapter;
   private readonly ownerAdapter: BattleNadsAdapter | null;
   private readonly sessionAdapter: BattleNadsAdapter | null;
+  private readonly shMonadAdapter: ShMonadAdapter | null;
 
   constructor(options: BattleNadsClientOptions) {
     this.readAdapter = options.read;
     this.ownerAdapter = options.owner;
     this.sessionAdapter = options.session;
+    this.shMonadAdapter = options.shmonad;
   }
 
   // UTILITY METHODS
@@ -51,6 +55,16 @@ export class BattleNadsClient {
       throw new WalletMissingError('Owner wallet not connected. Connect your wallet to perform this action.');
     }
     return this.ownerAdapter;
+  }
+
+  /**
+   * Checks if the owner adapter is available
+   */
+  private ensureShMonadAdapter(): ShMonadAdapter {
+    if (!this.shMonadAdapter) {
+      throw new WalletMissingError('Owner wallet not connected. Connect your wallet to perform this action.');
+    }
+    return this.shMonadAdapter;
   }
 
   // DATA QUERIES
@@ -513,6 +527,21 @@ export class BattleNadsClient {
         throw error;
       }
       throw new ContractTransactionError(`Failed to send chat message: ${(error as Error).message}`);
+    }
+  }
+
+  async setMinBondedBalance(
+    policyId: BigInt, minBonded: BigInt, maxTopUpPerPeriod: BigInt, topUpPeriodDuration: BigInt
+  ): Promise<TransactionResponse> {
+    try {
+      return await this.ensureShMonadAdapter().setMinBondedBalance(
+        policyId, minBonded, maxTopUpPerPeriod, topUpPeriodDuration
+      );
+    } catch (error) {
+      if (error instanceof WalletMissingError) {
+        throw error;
+      }
+      throw new ContractTransactionError(`Failed to create character: ${(error as Error).message}`);
     }
   }
 } 
