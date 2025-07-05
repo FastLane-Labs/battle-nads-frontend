@@ -114,7 +114,7 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       
       let verb = "hits";
       if (isLikelyMonster) {
-        verb = pickAttackVerb(actor.index, raw.logIndex);
+        verb = pickAttackVerb(actor.index, Number(raw.areaId));
       } else {
         // Use correct grammar: "You strike" vs "John strikes"
         if (isActorPlayer) {
