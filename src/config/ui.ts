@@ -6,7 +6,7 @@
 // Event Feed Configuration
 export const EVENT_FEED_CONFIG = {
   /** Whether to automatically scroll to the bottom when new events arrive */
-  AUTO_SCROLL_TO_BOTTOM: true,
+  AUTO_SCROLL_TO_BOTTOM: false,
   /** Delay before auto-scrolling (in milliseconds) to prevent disrupting user scrolling */
   AUTO_SCROLL_DELAY: 100,
   /** Whether auto-scroll should be disabled during cache loading */
