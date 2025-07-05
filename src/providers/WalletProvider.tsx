@@ -452,6 +452,29 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           const accounts = await window.ethereum.request({ method: 'eth_accounts' });
           const isLocked = accounts.length === 0;
           
+          // Also check for account changes during polling
+          if (accounts.length > 0 && injectedWallet?.address) {
+            const currentAccount = accounts[0].toLowerCase();
+            const storedAccount = injectedWallet.address.toLowerCase();
+            
+            if (currentAccount !== storedAccount) {
+              console.log('[WalletProvider] SECURITY: Account mismatch detected in polling', {
+                metamask: currentAccount,
+                stored: storedAccount
+              });
+              
+              // Force logout immediately
+              handleLogout().then(() => {
+                console.log('[WalletProvider] SECURITY: Forced logout due to account mismatch');
+              }).catch((error) => {
+                console.error('[WalletProvider] SECURITY ERROR: Failed to logout:', error);
+                setSessionKey(null);
+                setEmbeddedWallet(null);
+              });
+              return;
+            }
+          }
+          
           if (isLocked !== isWalletLocked) {
             console.log('[WalletProvider] Wallet lock state changed:', isLocked ? 'LOCKED' : 'UNLOCKED');
             setIsWalletLocked(isLocked);
@@ -482,7 +505,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         clearInterval(pollInterval);
       }
     };
-  }, [authenticated, isInitialized, isWalletLocked, syncWithPrivyWallets]);
+  }, [authenticated, isInitialized, isWalletLocked, syncWithPrivyWallets, handleLogout, injectedWallet?.address]);
   
   // Listen for wallet events (for disconnect detection only)
   useEffect(() => {
@@ -495,9 +518,32 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           setIsWalletLocked(true);
         } else {
           // Account changed or reconnected
-          console.log('[WalletProvider] Account changed/reconnected');
-          setIsWalletLocked(false);
-          setTimeout(() => syncWithPrivyWallets(), 500);
+          const newAccount = accounts[0].toLowerCase();
+          const currentAccount = injectedWallet?.address?.toLowerCase();
+          
+          console.log('[WalletProvider] SECURITY: Account change detected', {
+            current: currentAccount,
+            new: newAccount
+          });
+          
+          // CRITICAL: If this is a different account, force logout
+          if (currentAccount && newAccount && currentAccount !== newAccount) {
+            console.log('[WalletProvider] SECURITY: Different account detected - forcing logout');
+            
+            // Force logout to prevent session key reuse
+            handleLogout().then(() => {
+              console.log('[WalletProvider] SECURITY: Logout completed after account switch');
+            }).catch((error) => {
+              console.error('[WalletProvider] SECURITY ERROR: Failed to logout on account switch:', error);
+              // Even on error, try to clear sensitive data
+              setSessionKey(null);
+              setEmbeddedWallet(null);
+            });
+          } else {
+            // Same account or initial connection
+            setIsWalletLocked(false);
+            setTimeout(() => syncWithPrivyWallets(), 500);
+          }
         }
       };
 
@@ -517,7 +563,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         }
       };
     }
-  }, [syncWithPrivyWallets]);
+  }, [syncWithPrivyWallets, handleLogout, injectedWallet?.address]);
 
   /**
    * CRITICAL SECURITY: Detect wallet address changes and force logout
@@ -527,6 +573,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     const currentInjectedAddress = injectedWallet?.address || null;
     const currentEmbeddedAddress = embeddedWallet?.address || null;
     
+    console.log('[WalletProvider] Wallet change detection running:', {
+      previousInjected: previousInjectedAddressRef.current,
+      currentInjected: currentInjectedAddress,
+      previousEmbedded: previousEmbeddedAddressRef.current,
+      currentEmbedded: currentEmbeddedAddress
+    });
     
     // Check if injected wallet address changed (including from null to an address)
     if (previousInjectedAddressRef.current !== currentInjectedAddress && 
