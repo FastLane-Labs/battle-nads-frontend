@@ -175,19 +175,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       setLoading(true);
       setError(null);
 
-      // Log for security audit trail
-      console.log('[WalletProvider] SECURITY: Initiating logout to clear session keys', {
-        currentInjectedWallet: injectedWallet?.address,
-        currentEmbeddedWallet: embeddedWallet?.address,
-        currentSessionKey: sessionKey
-      });
+      // Security: Clear session keys on logout
 
       if (authenticated) {
         await privyLogout();
       }
       
       // Clear all React Query cache on logout
-      console.log('[WalletProvider] Clearing React Query cache on logout');
       queryClient.clear();
       
       // CRITICAL: Clear all wallet state to prevent session key reuse
@@ -212,15 +206,12 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           }
         }
         keysToRemove.forEach(key => localStorage.removeItem(key));
-        console.log('[WalletProvider] SECURITY: Cleared localStorage session data', keysToRemove);
       } catch (e) {
         console.error('[WalletProvider] Failed to clear localStorage:', e);
       }
       
-      console.log('[WalletProvider] SECURITY: Wallet state cleared successfully');
-      
     } catch (err: any) {
-      console.error('[WalletProvider] SECURITY ERROR: Failed to complete logout', err);
+      console.error('[WalletProvider] Failed to complete logout', err);
       setError(err.message || 'Logout failed');
       
       // Even on error, try to clear sensitive state
@@ -246,10 +237,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           const privyAccount = injectedWallet.address.toLowerCase();
           
           if (metamaskAccount !== privyAccount) {
-            console.log('[WalletProvider] SECURITY: Privy wallet mismatch with MetaMask - forcing logout', {
-              metamask: metamaskAccount,
-              privy: privyAccount
-            });
+            // Privy wallet mismatch with MetaMask - forcing logout
             
             // Force logout to resync
             await handleLogout();
@@ -297,7 +285,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
               console.error('[WalletProvider] Failed to create MetaMask wallet signer:', e);
               // Check if error is due to wallet being locked
               if (e.code === 4001 || e.message?.includes('unauthorized') || e.message?.includes('User rejected') || e.message?.includes('account access')) {
-                console.log('[WalletProvider] MetaMask wallet appears to be locked');
+                // MetaMask wallet appears to be locked
                 setIsWalletLocked(true);
               }
             }
@@ -321,7 +309,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
               console.error('[WalletProvider] Failed to create injected wallet signer:', e);
               // Check if error is due to wallet being locked
               if (e.code === 4001 || e.message?.includes('unauthorized') || e.message?.includes('User rejected') || e.message?.includes('account access')) {
-                console.log('[WalletProvider] Injected wallet appears to be locked');
+                // Injected wallet appears to be locked
                 setIsWalletLocked(true);
               }
             }
@@ -482,16 +470,11 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
             const storedAccount = injectedWallet.address.toLowerCase();
             
             if (currentAccount !== storedAccount) {
-              console.log('[WalletProvider] SECURITY: Account mismatch detected in polling', {
-                metamask: currentAccount,
-                stored: storedAccount
-              });
+              // Account mismatch detected in polling
               
               // Force logout immediately
-              handleLogout().then(() => {
-                console.log('[WalletProvider] SECURITY: Forced logout due to account mismatch');
-              }).catch((error) => {
-                console.error('[WalletProvider] SECURITY ERROR: Failed to logout:', error);
+              handleLogout().catch((error) => {
+                console.error('[WalletProvider] Failed to logout:', error);
                 setSessionKey(null);
                 setEmbeddedWallet(null);
               });
@@ -500,7 +483,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
           }
           
           if (isLocked !== isWalletLocked) {
-            console.log('[WalletProvider] Wallet lock state changed:', isLocked ? 'LOCKED' : 'UNLOCKED');
+            // Wallet lock state changed
             setIsWalletLocked(isLocked);
             
             if (!isLocked) {
@@ -535,30 +518,25 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
   useEffect(() => {
     if (typeof window !== 'undefined' && window.ethereum) {
       const handleAccountsChanged = async (accounts: string[]) => {
-        console.log('[WalletProvider] Accounts changed:', accounts);
+        // Accounts changed
         if (accounts.length === 0) {
           // This is disconnect, not lock
-          console.log('[WalletProvider] Wallet disconnected');
+          // Wallet disconnected
           setIsWalletLocked(true);
         } else {
           // Account changed or reconnected
           const newAccount = accounts[0].toLowerCase();
           const currentAccount = injectedWallet?.address?.toLowerCase();
           
-          console.log('[WalletProvider] SECURITY: Account change detected', {
-            current: currentAccount,
-            new: newAccount
-          });
+          // Account change detected
           
           // CRITICAL: If this is a different account, force logout
           if (currentAccount && newAccount && currentAccount !== newAccount) {
-            console.log('[WalletProvider] SECURITY: Different account detected - forcing logout');
+            // Different account detected - forcing logout
             
             // Force logout to prevent session key reuse
-            handleLogout().then(() => {
-              console.log('[WalletProvider] SECURITY: Logout completed after account switch');
-            }).catch((error) => {
-              console.error('[WalletProvider] SECURITY ERROR: Failed to logout on account switch:', error);
+            handleLogout().catch((error) => {
+              console.error('[WalletProvider] Failed to logout on account switch:', error);
               // Even on error, try to clear sensitive data
               setSessionKey(null);
               setEmbeddedWallet(null);
@@ -572,7 +550,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       };
 
       const handleChainChanged = (chainId: string) => {
-        console.log('[WalletProvider] Chain changed to:', chainId);
+        // Chain changed
         setTimeout(() => syncWithPrivyWallets(), 500);
       };
 
@@ -597,12 +575,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     const currentInjectedAddress = injectedWallet?.address || null;
     const currentEmbeddedAddress = embeddedWallet?.address || null;
     
-    console.log('[WalletProvider] Wallet change detection running:', {
-      previousInjected: previousInjectedAddressRef.current,
-      currentInjected: currentInjectedAddress,
-      previousEmbedded: previousEmbeddedAddressRef.current,
-      currentEmbedded: currentEmbeddedAddress
-    });
+    // Wallet change detection running
     
     // Check if injected wallet address changed (including from null to an address)
     if (previousInjectedAddressRef.current !== currentInjectedAddress && 
@@ -616,18 +589,13 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         (previousInjectedAddressRef.current !== null && currentInjectedAddress === null);
       
       if (isActualWalletSwitch) {
-        console.log('[WalletProvider] SECURITY: Wallet switch detected - forcing logout to prevent session key reuse:', {
-          previous: previousInjectedAddressRef.current,
-          current: currentInjectedAddress
-        });
+        // Wallet switch detected - forcing logout to prevent session key reuse
         
         // CRITICAL: Logout from Privy to force creation of new embedded wallet for new injected wallet
         // This ensures session keys cannot be reused across different wallets
-        handleLogout().then(() => {
-          console.log('[WalletProvider] SECURITY: Privy logout completed - session keys cleared');
-          // The user will need to reconnect, which will create a fresh embedded wallet
-        }).catch((error) => {
-          console.error('[WalletProvider] SECURITY ERROR: Failed to logout from Privy on wallet change:', error);
+        // Logout from Privy to force creation of new embedded wallet for new injected wallet
+        handleLogout().catch((error) => {
+          console.error('[WalletProvider] Failed to logout from Privy on wallet change:', error);
           // Even on error, try to clear session key
           setSessionKey(null);
           setEmbeddedWallet(null);
@@ -641,11 +609,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     if (previousEmbeddedAddressRef.current !== null && 
         previousEmbeddedAddressRef.current !== currentEmbeddedAddress) {
       // Invalidate React Query cache for embedded wallet changes
-      console.log('[WalletProvider] Embedded wallet changed - invalidating cache:', {
-        previous: previousEmbeddedAddressRef.current,
-        current: currentEmbeddedAddress,
-        injectedAddress: currentInjectedAddress
-      });
+      // Embedded wallet changed - invalidating cache
       
       if (currentInjectedAddress) {
         // Use centralized utility for wallet query invalidation
