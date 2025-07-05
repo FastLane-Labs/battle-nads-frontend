@@ -155,6 +155,13 @@ const EventFeed: React.FC<EventFeedProps> = ({
     scrollMargin: 0, // Remove default scroll margin
   });
   
+  // Auto-scroll to bottom when new events are added
+  useEffect(() => {
+    if (enrichedEventLogs.length > 0 && !isCacheLoading) {
+      rowVirtualizer.scrollToIndex(enrichedEventLogs.length - 1, { align: 'end' });
+    }
+  }, [enrichedEventLogs.length, rowVirtualizer, isCacheLoading]);
+
   // Helper function to convert domain.Character to domain.CharacterLite
   const characterToCharacterLite = (character: domain.Character): domain.CharacterLite => {
     return {
