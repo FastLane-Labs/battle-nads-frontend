@@ -168,11 +168,19 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
 
   /**
    * Logout from Privy and clear wallet states.
+   * CRITICAL: This must be called when switching wallets to prevent session key reuse
    */
   const handleLogout = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
+
+      // Log for security audit trail
+      console.log('[WalletProvider] SECURITY: Initiating logout to clear session keys', {
+        currentInjectedWallet: injectedWallet?.address,
+        currentEmbeddedWallet: embeddedWallet?.address,
+        currentSessionKey: sessionKey
+      });
 
       if (authenticated) {
         await privyLogout();
@@ -182,24 +190,46 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       console.log('[WalletProvider] Clearing React Query cache on logout');
       queryClient.clear();
       
-      // Clear state AFTER privyLogout
+      // CRITICAL: Clear all wallet state to prevent session key reuse
       setCurrentWallet('none');
       setSigner(null);
       setProvider(null);
       setAddress(null);
-      setSessionKey(null);
+      setSessionKey(null); // CRITICAL: Clear session key
       setInjectedWallet(null);
       setEmbeddedWallet(null);
       lastEmbeddedWalletRef.current = null;
       previousInjectedAddressRef.current = null;
       previousEmbeddedAddressRef.current = null;
       
+      // Clear any session-related data from localStorage as an extra security measure
+      try {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && (key.includes('session') || key.includes('privy') || key.includes('wallet'))) {
+            keysToRemove.push(key);
+          }
+        }
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+        console.log('[WalletProvider] SECURITY: Cleared localStorage session data', keysToRemove);
+      } catch (e) {
+        console.error('[WalletProvider] Failed to clear localStorage:', e);
+      }
+      
+      console.log('[WalletProvider] SECURITY: Wallet state cleared successfully');
+      
     } catch (err: any) {
+      console.error('[WalletProvider] SECURITY ERROR: Failed to complete logout', err);
       setError(err.message || 'Logout failed');
+      
+      // Even on error, try to clear sensitive state
+      setSessionKey(null);
+      setEmbeddedWallet(null);
     } finally {
       setLoading(false);
     }
-  }, [authenticated, privyLogout]);
+  }, [authenticated, privyLogout, queryClient, injectedWallet?.address, embeddedWallet?.address, sessionKey]);
 
   // Sync with Privy wallets and update state
   const syncWithPrivyWallets = useCallback(async () => {
@@ -489,30 +519,46 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
     }
   }, [syncWithPrivyWallets]);
 
-  // Detect wallet address changes and invalidate cached data
+  /**
+   * CRITICAL SECURITY: Detect wallet address changes and force logout
+   * This prevents session keys from being used across different wallets
+   */
   useEffect(() => {
     const currentInjectedAddress = injectedWallet?.address || null;
     const currentEmbeddedAddress = embeddedWallet?.address || null;
     
     
-    // Check if injected wallet address changed
-    if (previousInjectedAddressRef.current !== null && 
-        previousInjectedAddressRef.current !== currentInjectedAddress) {
+    // Check if injected wallet address changed (including from null to an address)
+    if (previousInjectedAddressRef.current !== currentInjectedAddress && 
+        (previousInjectedAddressRef.current !== null || currentInjectedAddress !== null)) {
       
-      console.log('[WalletProvider] Injected wallet address changed - logging out from Privy to create fresh embedded wallet:', {
-        previous: previousInjectedAddressRef.current,
-        current: currentInjectedAddress
-      });
+      // Only logout if we're switching between different non-null addresses
+      // or if we had an address and now it's null (wallet disconnected)
+      const isActualWalletSwitch = 
+        (previousInjectedAddressRef.current !== null && currentInjectedAddress !== null && 
+         previousInjectedAddressRef.current !== currentInjectedAddress) ||
+        (previousInjectedAddressRef.current !== null && currentInjectedAddress === null);
       
-      // Logout from Privy to force creation of new embedded wallet for new injected wallet
-      handleLogout().then(() => {
-        console.log('[WalletProvider] Privy logout completed due to wallet change');
-        // The user will need to reconnect, which will create a fresh embedded wallet
-      }).catch((error) => {
-        console.error('[WalletProvider] Failed to logout from Privy on wallet change:', error);
-      });
-      
-      return; // Exit early since we're logging out
+      if (isActualWalletSwitch) {
+        console.log('[WalletProvider] SECURITY: Wallet switch detected - forcing logout to prevent session key reuse:', {
+          previous: previousInjectedAddressRef.current,
+          current: currentInjectedAddress
+        });
+        
+        // CRITICAL: Logout from Privy to force creation of new embedded wallet for new injected wallet
+        // This ensures session keys cannot be reused across different wallets
+        handleLogout().then(() => {
+          console.log('[WalletProvider] SECURITY: Privy logout completed - session keys cleared');
+          // The user will need to reconnect, which will create a fresh embedded wallet
+        }).catch((error) => {
+          console.error('[WalletProvider] SECURITY ERROR: Failed to logout from Privy on wallet change:', error);
+          // Even on error, try to clear session key
+          setSessionKey(null);
+          setEmbeddedWallet(null);
+        });
+        
+        return; // Exit early since we're logging out
+      }
     }
     
     // Check if embedded wallet address changed
