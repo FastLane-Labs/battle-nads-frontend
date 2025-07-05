@@ -12,6 +12,7 @@ import {
   buildAttackMessage,
   type CharacterLite,
 } from "./log-helpers";
+import { MONSTER_NAMES } from "@/data/combat-data";
 import {
   calculateAbilityEnhancement,
   buildEnhancementText,
@@ -103,8 +104,12 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
         weaponName = "their weapon";
       }
       
+      // Check if this is likely a monster (by class or by being in MONSTER_NAMES)
+      const isLikelyMonster = isMonster(actor) || 
+        (actor.index >= 1 && actor.index <= 64 && MONSTER_NAMES[actor.index]);
+      
       let verb = "hits";
-      if (isMonster(actor)) {
+      if (isLikelyMonster) {
         verb = pickAttackVerb(actor.index, raw.logIndex);
       } else {
         // Use correct grammar: "You strike" vs "John strikes"
@@ -121,7 +126,7 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       const deathText = raw.details.targetDied ? ` **${targetName} falls!**` : "";
       const weaponText = weaponName ? ` with ${weaponName}` : "";
       
-      if (isMonster(actor)) {
+      if (isLikelyMonster) {
         // Use buildAttackMessage for monsters to handle complex verb structures
         const isHit: boolean = Boolean(raw.details.hit);
         const message = buildAttackMessage(
