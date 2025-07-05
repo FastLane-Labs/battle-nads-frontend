@@ -84,10 +84,10 @@ interface VerbInfo {
   needsTargetInsertion: boolean; // true if verb needs target inserted within the phrase
 }
 
-export function pickAttackVerb(monsterIdx: number, logIndex?: number): string {
+export function pickAttackVerb(monsterIdx: number, areaId?: number): string {
   const verbs = MONSTER_ATTACKS[monsterIdx] ?? ["hits"];
-  // Use logIndex as seed for deterministic selection to prevent re-render changes
-  const seed = logIndex ?? monsterIdx;
+  // Use areaId as seed for deterministic selection to get variety across areas
+  const seed = areaId ?? monsterIdx;
   return verbs[seed % verbs.length];
 }
 
