@@ -56,6 +56,21 @@ const WalletBalances: React.FC = () => {
   const shortfallEth =
     shortfall && shortfall > BigInt(0) ? ethers.formatEther(shortfall) : "0";
   const shortfallNum = parseFloat(shortfallEth) * TOPUP_MULTIPLIER;
+  
+  // Debug logging
+  console.log('[WalletBalances] Debug:', {
+    sessionKeyBalance,
+    sessionKeyBalanceNum,
+    LOW_SESSION_KEY_THRESHOLD,
+    showDirectFunding,
+    bondedBalance,
+    shortfall: shortfall?.toString(),
+    shortfallEth,
+    hasShortfall,
+    isLoading,
+    client: !!client,
+    replenishGasBalance: !!client?.replenishGasBalance,
+  });
 
   // Function to directly fund session key from owner wallet
   const handleDirectFunding = async (amount: string) => {
