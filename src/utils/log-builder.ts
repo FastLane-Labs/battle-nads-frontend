@@ -78,17 +78,25 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
 
       // Get weapon name - different logic for monsters vs players
       let weaponName = "";
+      
+      // Check if this is likely a player character (has player-like name pattern)
+      const isLikelyPlayer = actor.name && (
+        actor.name.includes(" the ") || // Player titles like "the Initiate"
+        actor.name === "You" ||
+        (playerCharacterName && actor.name === playerCharacterName)
+      );
+      
       if (isMonster(actor)) {
         // Monsters use natural weapons, don't show weapon name in message
         weaponName = "";
       } else if (actor.weaponId) {
         weaponName = getWeaponName(actor.weaponId);
-      } else if (isPlayer(actor)) {
+      } else if (isPlayer(actor) || isLikelyPlayer) {
         // For player characters, use the passed weapon name if available
-        if (raw.attacker && isActorPlayer && playerWeaponName) {
+        if (isActorPlayer && playerWeaponName) {
           // Use the actual weapon name for the current player
           weaponName = playerWeaponName.toLowerCase().replace(/^(a |an |the )/i, ''); // Remove articles for "with X" format
-        } else if (raw.attacker && isActorPlayer) {
+        } else if (isActorPlayer) {
           weaponName = "your weapon"; // Fallback for current player
         } else {
           weaponName = "their weapon"; // Other players
