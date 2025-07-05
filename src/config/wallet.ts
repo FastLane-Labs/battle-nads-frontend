@@ -4,7 +4,7 @@
  */
 
 // Session key balance thresholds
-export const LOW_SESSION_KEY_THRESHOLD = 0.04; // Show direct funding button when balance is below 0.16 MON
+export const LOW_SESSION_KEY_THRESHOLD = 0.1; // Show direct funding button when balance is below 0.1 MON
 export const MIN_TRANSACTION_BALANCE = 0.04; // Minimum session key balance required for any transaction
 
 // Funding amounts
