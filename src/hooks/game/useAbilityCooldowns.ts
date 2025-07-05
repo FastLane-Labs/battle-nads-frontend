@@ -12,17 +12,17 @@ import { useOptimisticAbilities } from '../optimistic/useOptimisticAbilities';
 
 // Define ability-specific cooldown durations in blocks (after final stage completion)
 const ABILITY_COOLDOWN_BLOCKS: Record<domain.Ability, number> = {
-  [domain.Ability.None]: 0,
-  [domain.Ability.ShieldBash]: 24,
-  [domain.Ability.ShieldWall]: 24, 
-  [domain.Ability.EvasiveManeuvers]: 18,
-  [domain.Ability.ApplyPoison]: 64,
-  [domain.Ability.Pray]: 72,
-  [domain.Ability.Smite]: 24,
-  [domain.Ability.Fireball]: 56,
-  [domain.Ability.ChargeUp]: 36,
-  [domain.Ability.SingSong]: 0, // Bard abilities have no cooldown
-  [domain.Ability.DoDance]: 0,  // Bard abilities have no cooldown
+    [domain.Ability.None]: 0,
+    [domain.Ability.ShieldBash]: 6,
+    [domain.Ability.ShieldWall]: 42,
+    [domain.Ability.EvasiveManeuvers]: 40, 
+    [domain.Ability.ApplyPoison]: 61,
+    [domain.Ability.Pray]: 49,
+    [domain.Ability.Smite]: 26,
+    [domain.Ability.Fireball]: 23,
+    [domain.Ability.ChargeUp]: 66,
+    [domain.Ability.SingSong]: 0,
+    [domain.Ability.DoDance]: 0,
 };
 
 // Generic fallback for unknown abilities
