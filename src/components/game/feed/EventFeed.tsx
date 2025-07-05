@@ -5,6 +5,7 @@ import { EventLogItemRenderer } from './EventLogItemRenderer';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { filterEventsByRecentAreas } from '@/utils/eventFiltering';
 import { useCombatFeed } from '@/hooks/game/useCombatFeed';
+import { EVENT_FEED_CONFIG } from '@/config/ui';
 
 interface EventFeedProps {
   eventLogs: domain.EventMessage[];
@@ -157,8 +158,17 @@ const EventFeed: React.FC<EventFeedProps> = ({
   
   // Auto-scroll to bottom when new events are added
   useEffect(() => {
-    if (enrichedEventLogs.length > 0 && !isCacheLoading) {
-      rowVirtualizer.scrollToIndex(enrichedEventLogs.length - 1, { align: 'end' });
+    if (
+      EVENT_FEED_CONFIG.AUTO_SCROLL_TO_BOTTOM &&
+      enrichedEventLogs.length > 0 && 
+      (!EVENT_FEED_CONFIG.DISABLE_AUTO_SCROLL_ON_CACHE_LOAD || !isCacheLoading)
+    ) {
+      // Use a small delay to prevent disrupting user scrolling
+      const timer = setTimeout(() => {
+        rowVirtualizer.scrollToIndex(enrichedEventLogs.length - 1, { align: 'end' });
+      }, EVENT_FEED_CONFIG.AUTO_SCROLL_DELAY);
+      
+      return () => clearTimeout(timer);
     }
   }, [enrichedEventLogs.length, rowVirtualizer, isCacheLoading]);
 
