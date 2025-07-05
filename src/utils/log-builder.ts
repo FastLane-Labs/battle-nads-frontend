@@ -89,29 +89,12 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       // Get weapon name - different logic for monsters vs players
       let weaponName = "";
       
-      // Debug logging for weapon resolution
-      console.log('[enrichLog] Combat event weapon debug:', {
-        actorName,
-        isActorPlayer,
-        playerWeaponName,
-        playerCharacterName,
-        actor: {
-          weaponId: actor.weaponId,
-          index: actor.index,
-          name: actor.name,
-          class: actor.class
-        },
-        isMonster: isMonster(actor),
-        rawAttacker: raw.attacker,
-        rawDefender: raw.defender
-      });
-      
       if (isMonster(actor)) {
         // Monsters use natural weapons, don't show weapon name in message
         weaponName = "";
       } else if (isActorPlayer && playerWeaponName) {
         // For the current player, use their actual weapon name
-        weaponName = playerWeaponName.toLowerCase().replace(/^(a |an |the )/i, ''); // Remove articles for "with X" format
+        weaponName = playerWeaponName.toLowerCase();
       } else if (actor.weaponId) {
         // Use weapon ID to get name if available
         weaponName = getWeaponName(actor.weaponId);
@@ -119,8 +102,6 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
         // For other players without weapon info, use generic text
         weaponName = "their weapon";
       }
-      
-      console.log('[enrichLog] Final weapon name:', weaponName);
       
       let verb = "hits";
       if (isMonster(actor)) {
