@@ -581,7 +581,7 @@ describe('log-builder', () => {
       // Player detection still works based on name matching
       expect(result.text).toContain('You strike Slime');
       expect(result.text).toContain('for 100 damage');
-      expect(result.text).toContain('with bare hands'); // Default weapon for Null class
+      expect(result.text).toContain('with their weapon'); // Default weapon text for players without weapon info
     });
   });
 
