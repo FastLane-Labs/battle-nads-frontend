@@ -3,11 +3,13 @@ import { useBattleNadsClient } from '../useBattleNadsClient';
 import { useWallet } from '../../../providers/WalletProvider';
 import { JsonRpcProvider, Signer } from 'ethers';
 import { BattleNadsAdapter } from '../../../blockchain/adapters/BattleNadsAdapter';
+import { ShMonadAdapter } from '../../../blockchain/adapters/ShMonadAdapter';
 import { BattleNadsClient } from '../../../blockchain/clients/BattleNadsClient';
 
 // Mock dependencies
 jest.mock('../../../providers/WalletProvider');
 jest.mock('../../../blockchain/adapters/BattleNadsAdapter');
+jest.mock('../../../blockchain/adapters/ShMonadAdapter');
 jest.mock('../../../blockchain/clients/BattleNadsClient');
 jest.mock('ethers');
 
@@ -18,7 +20,8 @@ jest.mock('../../../config/env', () => ({
     PRIMARY_HTTP: 'http://localhost:8545',
     PRIMARY_WS: 'ws://localhost:8546'
   },
-  ENTRYPOINT_ADDRESS: '0x123'
+  ENTRYPOINT_ADDRESS: '0x123',
+  SHMONAD_ADDRESS: '0x456'
 }));
 
 // Mock the WebSocket provider module
@@ -41,6 +44,12 @@ describe('useBattleNadsClient', () => {
     (BattleNadsAdapter as jest.Mock).mockImplementation(() => ({
       getUiSnapshot: jest.fn(),
       getCurrentSessionKeyData: jest.fn()
+    }));
+    
+    // Mock ShMonadAdapter
+    (ShMonadAdapter as jest.Mock).mockImplementation(() => ({
+      setMinBondedBalance: jest.fn(),
+      balanceOf: jest.fn()
     }));
     
     // Mock BattleNadsClient
@@ -70,13 +79,16 @@ describe('useBattleNadsClient', () => {
     
     // Should have created adapters
     expect(BattleNadsAdapter).toHaveBeenCalledTimes(3); // read, owner, session
+    expect(ShMonadAdapter).toHaveBeenCalledTimes(2); // shmonadOwner, shmonadRead
     expect(BattleNadsClient).toHaveBeenCalledTimes(1);
     
-    // Check that client was created with all three adapters
+    // Check that client was created with all adapters
     expect(BattleNadsClient).toHaveBeenCalledWith({
       read: expect.any(Object),
       owner: expect.any(Object),
-      session: expect.any(Object)
+      session: expect.any(Object),
+      shmonadOwner: expect.any(Object),
+      shmonadRead: expect.any(Object)
     });
   });
   
@@ -92,14 +104,17 @@ describe('useBattleNadsClient', () => {
     expect(result.current.client).not.toBeNull();
     expect(result.current.error).toBeNull();
     
-    // Should have created only 1 adapter (read) when WebSocket is disabled
+    // Should have created only 1 BattleNads adapter (read) and 1 ShMonad adapter (read) when WebSocket is disabled
     expect(BattleNadsAdapter).toHaveBeenCalledTimes(1);
+    expect(ShMonadAdapter).toHaveBeenCalledTimes(1); // Only shmonadRead
     
-    // Check that client was created with only read adapter
+    // Check that client was created with read adapters and null owner/session
     expect(BattleNadsClient).toHaveBeenCalledWith({
       read: expect.any(Object),
       owner: null,
-      session: null
+      session: null,
+      shmonadOwner: null,
+      shmonadRead: expect.any(Object)
     });
   });
   
