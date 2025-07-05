@@ -237,6 +237,30 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
       return;
     }
     
+    // SECURITY: Check if MetaMask account matches what Privy thinks
+    if (typeof window !== 'undefined' && window.ethereum && injectedWallet?.address) {
+      try {
+        const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+        if (accounts.length > 0) {
+          const metamaskAccount = accounts[0].toLowerCase();
+          const privyAccount = injectedWallet.address.toLowerCase();
+          
+          if (metamaskAccount !== privyAccount) {
+            console.log('[WalletProvider] SECURITY: Privy wallet mismatch with MetaMask - forcing logout', {
+              metamask: metamaskAccount,
+              privy: privyAccount
+            });
+            
+            // Force logout to resync
+            await handleLogout();
+            return;
+          }
+        }
+      } catch (error) {
+        console.error('[WalletProvider] Error checking MetaMask account:', error);
+      }
+    }
+    
     // Note: Removed initial lock check here since polling handles it
         
     // Tracking variables for wallet creation
@@ -420,7 +444,7 @@ export const WalletProvider: React.FC<WalletProviderProps> = ({ children }) => {
         setAddress(null);
       }
     }
-  }, [privyReady, walletsReady, authenticated, wallets, checkAndSwitchChain]);
+  }, [privyReady, walletsReady, authenticated, wallets, checkAndSwitchChain, handleLogout, injectedWallet?.address]);
 
   // Check if wallets have actually changed
   useEffect(() => {
