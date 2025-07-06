@@ -37,6 +37,7 @@ export interface EventMessage {
   };
   displayMessage: string; // Pre-formatted message for simple display
   count?: number; // Optional: For coalescing identical sequential events
+  ability?: string; // Ability name for Ability type events
 }
 
 // Represents a structured chat log entry

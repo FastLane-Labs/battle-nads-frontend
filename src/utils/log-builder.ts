@@ -42,7 +42,10 @@ function isSamePlayer(name1: string, name2: string): boolean {
 // Helper function to check if an event should be filtered
 function shouldFilterEvent(raw: LogEntryRaw, abilityName?: string): boolean {
   // Filter out ability events with unknown abilities
-  if (raw.type === LogType.Ability && abilityName === "Unknown Ability") {
+  if (raw.type === LogType.Ability && abilityName && (
+    abilityName === "Unknown Ability" || 
+    abilityName.startsWith("Unknown Ability (")
+  )) {
     return true;
   }
   

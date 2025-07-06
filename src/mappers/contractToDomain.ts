@@ -854,8 +854,19 @@ export function contractToWorldSnapshot(
             defender: target || undefined, 
             areaId: snapshotAreaId,
             isPlayerInitiated: isCasterPlayer, 
-            details: { value: log.value }, 
-            displayMessage: displayMessage 
+            details: {
+              hit: log.hit,
+              critical: log.critical,
+              damageDone: log.damageDone,
+              healthHealed: log.healthHealed,
+              targetDied: log.targetDied,
+              lootedWeaponID: log.lootedWeaponID,
+              lootedArmorID: log.lootedArmorID,
+              experience: log.experience,
+              value: log.value
+            }, 
+            displayMessage: displayMessage,
+            ability: abilityName // Add ability name to the event
           };
           
           allEventLogs.push(newEventMessage);
