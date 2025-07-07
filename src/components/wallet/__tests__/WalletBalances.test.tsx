@@ -110,11 +110,12 @@ describe('WalletBalances - Automate Feature', () => {
       expect(automateButton).toBeDisabled();
     });
 
-    it('disables automate button when there is a shortfall', () => {
+    it('enables automate button even when there is a shortfall', () => {
       (useWalletBalances as jest.Mock).mockReturnValue({
         ...defaultMocks.balances,
         hasShortfall: true,
         shortfall: BigInt('1000000000000000000'), // 1 ETH
+        unbondedBalance: '0.5', // Has liquid shMON
       });
 
       render(
@@ -123,10 +124,10 @@ describe('WalletBalances - Automate Feature', () => {
         </TestWrapper>
       );
 
-      // When there's a shortfall, there are two Automate buttons - one disabled in the balance display, one in the warning card
+      // The automate button in the balance display should be enabled if there's liquid shMON
       const automateButtons = screen.getAllByRole('button', { name: /Automate/i });
-      // The first one should be the disabled button in the balance display
-      expect(automateButtons[0]).toBeDisabled();
+      // The first one should be enabled since we have liquid shMON
+      expect(automateButtons[0]).toBeEnabled();
     });
 
     it('calls handleReplenishBalance with false when automate is clicked', async () => {
