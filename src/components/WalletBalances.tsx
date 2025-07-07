@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Box, Text, Flex, useToast } from "@chakra-ui/react";
 import { ethers } from "ethers";
 import { useWallet } from "@/providers/WalletProvider";
@@ -24,6 +24,9 @@ const WalletBalances: React.FC = () => {
 
   // Use the owner address from the wallet
   const owner = injectedWallet?.address || null;
+  
+  // State for dismissing the shortfall warning
+  const [isShortfallDismissed, setIsShortfallDismissed] = useState(false);
 
   // Get all balance data from the hook
   const {
@@ -52,6 +55,24 @@ const WalletBalances: React.FC = () => {
     unbondedBalance,
     shortfall
   );
+  
+  // Enhanced replenishment handler with success callback
+  const handleReplenishWithCallback = async (useMinimalAmount: boolean) => {
+    try {
+      await handleReplenishBalance(useMinimalAmount);
+      // Auto-dismiss the shortfall warning on success
+      setIsShortfallDismissed(true);
+    } catch (error) {
+      // Error is already handled in useReplenishment hook
+    }
+  };
+  
+  // Reset dismissed state when shortfall status changes
+  useEffect(() => {
+    if (!hasShortfall) {
+      setIsShortfallDismissed(false);
+    }
+  }, [hasShortfall]);
 
   // Calculate shortfall amounts for display
   const shortfallEth =
@@ -136,10 +157,18 @@ const WalletBalances: React.FC = () => {
 
   // Parse numeric values for comparison
   const sessionKeyBalanceNum = parseFloat(sessionKeyBalance);
+  const unbondedBalanceNum = parseFloat(unbondedBalance);
 
   // Determine if direct funding should be offered
   const showDirectFunding = sessionKeyBalanceNum < LOW_SESSION_KEY_THRESHOLD;
   const sessionKeyAddress = gameState?.sessionKeyData?.key;
+  
+  // Determine if automation can be enabled
+  // Automation requires some liquid ShMON and no existing shortfall
+  const canAutomate = unbondedBalanceNum > 0 && !hasShortfall;
+  const automationTooltip = unbondedBalanceNum === 0 
+    ? "Deposit more ShMON to enable automation" 
+    : "Set up automatic gas top-up using liquid ShMON";
 
   // Calculate session key funding amounts for display
   const smallFundingAmount = (parseFloat(DIRECT_FUNDING_AMOUNT) * 0.5).toFixed(
@@ -166,6 +195,14 @@ const WalletBalances: React.FC = () => {
           label="Committed"
           balance={bondedBalance}
           tokenType="shMON"
+          actionButton={{
+            label: "Automate",
+            onClick: () => handleReplenishWithCallback(false),
+            disabled: !canAutomate,
+            tooltip: automationTooltip,
+            icon: "⚙️",
+            isLoading: isReplenishing
+          }}
         />
         <BalanceDisplay
           label="Liquid"
@@ -195,13 +232,14 @@ const WalletBalances: React.FC = () => {
         )}
 
         {/* Balance Shortfall Warning */}
-        {hasShortfall && (
+        {hasShortfall && !isShortfallDismissed && (
           <ShortfallWarningCard
             shortfallAmount={shortfallNum.toFixed(4)}
             isLoading={isReplenishing}
             disabled={!client?.replenishGasBalance}
-            onManualReplenish={() => handleReplenishBalance(true)}
-            onAutomateReplenish={() => handleReplenishBalance(false)}
+            onManualReplenish={() => handleReplenishWithCallback(true)}
+            onAutomateReplenish={() => handleReplenishWithCallback(false)}
+            onDismiss={() => setIsShortfallDismissed(true)}
           />
         )}
       </Flex>
