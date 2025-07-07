@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ethers } from "ethers";
 import { useToast } from "@chakra-ui/react";
+import { useQueryClient } from '@tanstack/react-query';
 import { useBattleNadsClient } from "@/hooks/contracts/useBattleNadsClient";
 import { useWallet } from "@/providers/WalletProvider";
 import { MIN_SAFE_OWNER_BALANCE } from "@/config/wallet";
@@ -11,6 +12,8 @@ import {
   DEFAULT_TOPUP_PERIOD_DURATION 
 } from '@/config/shmon';
 import { POLICY_ID } from '@/config/env';
+import { clearContractPollingCache } from '@/hooks/game/useContractPolling';
+import { invalidateSnapshot } from '@/hooks/utils';
 
 export const useReplenishment = (
   ownerBalance: string,
@@ -18,9 +21,10 @@ export const useReplenishment = (
   unbondedBalance: string,
   shortfall: bigint | null
 ) => {
-  const { injectedWallet } = useWallet();
+  const { injectedWallet, embeddedWallet } = useWallet();
   const { client } = useBattleNadsClient();
   const toast = useToast();
+  const queryClient = useQueryClient();
   const [isReplenishing, setIsReplenishing] = useState(false);
 
   const handleReplenishBalance = async (useMinimalAmount: boolean = false, skipShortfallCheck: boolean = false) => {
@@ -92,6 +96,10 @@ export const useReplenishment = (
         }
 
         await client.replenishGasBalance(replenishAmountWei);
+        
+        // Clear polling cache and invalidate queries to force fresh data
+        clearContractPollingCache();
+        invalidateSnapshot(queryClient, injectedWallet?.address || null, embeddedWallet?.address);
 
         toast({
           title: "Success",
@@ -112,6 +120,10 @@ export const useReplenishment = (
           cappedBalance, 
           DEFAULT_TOPUP_PERIOD_DURATION
         );
+        
+        // Clear polling cache and invalidate queries to force fresh data
+        clearContractPollingCache();
+        invalidateSnapshot(queryClient, injectedWallet?.address || null, embeddedWallet?.address);
 
         const cappedAmountEth = ethers.formatEther(cappedBalance);
 

@@ -168,8 +168,8 @@ const WalletBalances: React.FC = () => {
   const sessionKeyAddress = gameState?.sessionKeyData?.key;
   
   // Determine if automation can be enabled
-  // Automation requires some liquid ShMON and no existing shortfall
-  const canAutomate = unbondedBalanceNum > 0 && !hasShortfall;
+  // Automation requires some liquid ShMON
+  const canAutomate = unbondedBalanceNum > 0;
   const automationTooltip = unbondedBalanceNum === 0 
     ? "Requires shMON" 
     : "Set up automatic gas top-up using liquid shMON";
@@ -240,10 +240,12 @@ const WalletBalances: React.FC = () => {
           <ShortfallWarningCard
             shortfallAmount={shortfallNum.toFixed(4)}
             isLoading={isReplenishing}
-            disabled={!client?.replenishGasBalance || insufficientShmon}
+            disabled={!client?.replenishGasBalance}
+            manualDisabled={!client?.replenishGasBalance || parseFloat(ownerBalance) <= parseFloat(MIN_SAFE_OWNER_BALANCE)}
+            automateDisabled={!client?.setMinBondedBalance || unbondedBalanceNum <= 0}
             onManualReplenish={() => handleReplenishWithCallback(true)}
             onAutomateReplenish={() => handleReplenishWithCallback(false)}
-            onDismiss={insufficientShmon ? undefined : () => setIsShortfallDismissed(true)}
+            onDismiss={() => setIsShortfallDismissed(true)}
           />
         )}
         
