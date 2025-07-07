@@ -346,7 +346,7 @@ export class BattleNadsAdapter {
  * 
  * Contract expects:
  * - Bard: 1=SingSong, 2=DoDance
- * - Warrior: 1=ShieldBash, 2=ShieldWall  
+ * - Warrior: 1=ShieldWall, 2=ShieldBash  
  * - Rogue: 1=EvasiveManeuvers, 2=ApplyPoison
  * - Monk: 1=Pray, 2=Smite
  * - Sorcerer: 1=ChargeUp, 2=Fireball
@@ -360,9 +360,9 @@ function getClassSpecificAbilityIndex(ability: domain.Ability): number {
       return 2;
     
     // Warrior abilities (class 5)
-    case domain.Ability.ShieldBash:
-      return 1;
     case domain.Ability.ShieldWall:
+      return 1;
+    case domain.Ability.ShieldBash:
       return 2;
     
     // Rogue abilities (class 6)

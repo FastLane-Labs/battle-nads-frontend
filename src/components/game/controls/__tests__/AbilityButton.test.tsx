@@ -28,7 +28,7 @@ describe('AbilityButton', () => {
   const mockOnClick = jest.fn();
   
   const createMockStatus = (overrides: Partial<AbilityStatus> = {}): AbilityStatus => ({
-    ability: 1, // ShieldBash
+    ability: 2, // ShieldBash
     stage: AbilityStage.READY,
     targetBlock: 0,
     currentBlock: 1000,
