@@ -55,7 +55,7 @@ export const CombatTaskStatusBar: React.FC<CombatTaskStatusBarProps> = ({
   const taskStatus = useMemo(() => {
     if (activeTask.hasTaskError) {
       return {
-        label: 'ERROR',
+        label: 'INACTIVE',
         color: '#FF4444', // Red
         bgColor: 'red.900',
         borderColor: 'red.500',
@@ -64,7 +64,7 @@ export const CombatTaskStatusBar: React.FC<CombatTaskStatusBarProps> = ({
     
     if (activeTask.pending) {
       return {
-        label: 'PENDING',
+        label: 'RECOVERING',
         color: '#FFA500', // Orange
         bgColor: 'orange.900',
         borderColor: 'orange.500',
@@ -81,7 +81,7 @@ export const CombatTaskStatusBar: React.FC<CombatTaskStatusBarProps> = ({
     }
     
     return {
-      label: 'READY',
+      label: 'ATTACKING',
       color: '#32CD32', // Lime Green
       bgColor: 'green.900',
       borderColor: 'green.500',
@@ -167,7 +167,7 @@ export const CombatTaskStatusBar: React.FC<CombatTaskStatusBarProps> = ({
         {/* Error Message (only show when there's an active task with error) */}
         {hasActiveTask && activeTask.hasTaskError && (
           <Text className="text-red-300 font-medium" flex="1" fontSize="xs">
-            Attack to restart combat
+            Select a target and attack to start combat
           </Text>
         )}
       </Flex>
