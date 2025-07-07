@@ -76,32 +76,28 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({
             closeOnClick={false}
             isDisabled={!actionButton.tooltip}
           >
-            <Box display="inline-block">
-              <Button
-                size="xs"
-                onClick={actionButton.onClick}
-                isDisabled={actionButton.disabled}
-                isLoading={actionButton.isLoading}
-                loadingText={actionButton.label}
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md transition-all duration-200 ${
-                  actionButton.disabled 
-                    ? 'bg-gray-700/30 border-gray-600/50 cursor-not-allowed opacity-60' 
-                    : 'bg-purple-900/30 border border-purple-700/50 hover:bg-purple-900/50 hover:border-purple-600 hover:-translate-y-[1px]'
-                }`}
-                _hover={actionButton.disabled ? {} : undefined}
-                height="auto"
-                minHeight="auto"
-                fontWeight="medium"
-              >
-                {actionButton.icon && (
-                  <span className="text-sm">{actionButton.icon}</span>
-                )}
-                <span className={`text-xs font-medium ${
-                  actionButton.disabled ? 'text-gray-400' : 'text-purple-300'
+            <Box
+              as="button"
+              onClick={actionButton.onClick}
+              disabled={actionButton.disabled || actionButton.isLoading}
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md transition-all duration-200 group ${
+                actionButton.disabled 
+                  ? 'bg-gray-700/30 border border-gray-600/50 cursor-not-allowed opacity-60' 
+                  : 'bg-amber-900/30 border border-amber-700/50 hover:bg-amber-900/50 hover:border-amber-600 hover:-translate-y-[1px]'
+              }`}
+            >
+              {actionButton.icon && (
+                <span className={`text-sm ${
+                  actionButton.disabled ? 'text-gray-400' : 'text-amber-400 group-hover:text-amber-300'
                 }`}>
-                  {actionButton.label}
+                  {actionButton.icon}
                 </span>
-              </Button>
+              )}
+              <span className={`text-xs font-medium ${
+                actionButton.disabled ? 'text-gray-400' : 'text-amber-300 group-hover:text-amber-200'
+              }`}>
+                {actionButton.isLoading ? 'Loading...' : actionButton.label}
+              </span>
             </Box>
           </Tooltip>
         )}
