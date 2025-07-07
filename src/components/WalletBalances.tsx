@@ -162,9 +162,9 @@ const WalletBalances: React.FC = () => {
   const unbondedBalanceNum = parseFloat(unbondedBalance);
 
   // Determine if direct funding should be offered
-  // Show direct funding if session key is low OR if there's a shortfall but insufficient shMON
+  // Show direct funding if session key is low
   const insufficientShmon = hasShortfall && (bondedBalance === '0' || parseFloat(bondedBalance) < parseFloat(shortfallEth));
-  const showDirectFunding = sessionKeyBalanceNum < LOW_SESSION_KEY_THRESHOLD || insufficientShmon;
+  const showDirectFunding = sessionKeyBalanceNum < LOW_SESSION_KEY_THRESHOLD;
   const sessionKeyAddress = gameState?.sessionKeyData?.key;
   
   // Determine if automation can be enabled
@@ -235,12 +235,12 @@ const WalletBalances: React.FC = () => {
           />
         )}
 
-        {/* Balance Shortfall Warning - show if there's a shortfall AND sufficient shMON */}
-        {hasShortfall && !isShortfallDismissed && !insufficientShmon && (
+        {/* Balance Shortfall Warning - show if there's a shortfall */}
+        {hasShortfall && !isShortfallDismissed && (
           <ShortfallWarningCard
             shortfallAmount={shortfallNum.toFixed(4)}
             isLoading={isReplenishing}
-            disabled={!client?.replenishGasBalance}
+            disabled={!client?.replenishGasBalance || insufficientShmon}
             onManualReplenish={() => handleReplenishWithCallback(true)}
             onAutomateReplenish={() => handleReplenishWithCallback(false)}
             onDismiss={() => setIsShortfallDismissed(true)}
