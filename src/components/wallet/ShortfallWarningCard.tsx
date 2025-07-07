@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Text, Flex, Button } from "@chakra-ui/react";
+import { Box, Text, Flex, Button, IconButton } from "@chakra-ui/react";
 
 interface ShortfallWarningCardProps {
   shortfallAmount: string;
@@ -7,6 +7,7 @@ interface ShortfallWarningCardProps {
   disabled: boolean;
   onManualReplenish: () => Promise<void>;
   onAutomateReplenish: () => Promise<void>;
+  onDismiss?: () => void;
 }
 
 export const ShortfallWarningCard: React.FC<ShortfallWarningCardProps> = ({
@@ -15,13 +16,28 @@ export const ShortfallWarningCard: React.FC<ShortfallWarningCardProps> = ({
   disabled,
   onManualReplenish,
   onAutomateReplenish,
+  onDismiss,
 }) => {
   return (
     <Box
       mt={1}
       p={3}
-      className="flex flex-col gap-2 card-bg !border-red-500/25"
+      className="flex flex-col gap-2 card-bg !border-red-500/25 relative"
     >
+      {onDismiss && (
+        <IconButton
+          aria-label="Dismiss warning"
+          icon={<span>✕</span>}
+          size="xs"
+          position="absolute"
+          top={2}
+          right={2}
+          onClick={onDismiss}
+          variant="ghost"
+          className="!text-gray-400 hover:!text-white"
+          _hover={{ bg: "whiteAlpha.100" }}
+        />
+      )}
       <Text fontWeight="bold" fontSize="sm" className="text-red-400">
         ⚠️ Character at Risk!
       </Text>
