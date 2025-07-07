@@ -237,6 +237,7 @@ export const useAbilityCooldowns = (characterId: string | null): hooks.UseAbilit
       successMessage: 'Your ability has been activated!',
       errorMessage: (error) => error.message || 'Failed to use ability',
       mutationKey: ['useAbility', characterId || 'unknown', owner || 'unknown'],
+      clearPollingCache: true, // Abilities can trigger combat and level-ups
       onSuccess: (_, variables) => {
         if (characterId) {
           // Add optimistic ability use with current block
