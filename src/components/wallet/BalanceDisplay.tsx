@@ -29,18 +29,13 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({
         <Badge colorScheme={badgeColor} size="xs">
           {tokenType}
         </Badge>
-      </Flex>
-      <div className="flex items-center gap-2">
-        <div className="font-semibold text-amber-300 text-sm">
-          {formattedBalance}
-        </div>
         {actionLink && (
           <Box
             as="a"
             href={actionLink.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-900/30 border border-amber-700/50 hover:bg-amber-900/50 hover:border-amber-600 transition-all duration-200 group"
+            className="inline-flex items-center gap-1 px-2 py-0.5 ml-2 rounded-md bg-amber-900/30 border border-amber-700/50 hover:bg-amber-900/50 hover:border-amber-600 transition-all duration-200 group"
             _hover={{ transform: "translateY(-1px)" }}
           >
             <span className="text-xs font-medium text-amber-300 group-hover:text-amber-200">
@@ -57,6 +52,9 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({
             </svg>
           </Box>
         )}
+      </Flex>
+      <div className="font-semibold text-amber-300 text-sm">
+        {formattedBalance}
       </div>
     </div>
   );
