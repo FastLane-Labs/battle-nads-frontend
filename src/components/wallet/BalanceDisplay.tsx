@@ -32,38 +32,51 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({
   const formattedBalance = parseFloat(balance).toFixed(precision);
 
   return (
-    <div className="flex w-full justify-between gap-2">
+    <div className="grid grid-cols-[1fr_auto_auto] w-full gap-2 items-center">
+      {/* Left column: Label and Badge */}
       <Flex align="center" gap={1}>
         <h2 className="text-sm font-medium gold-text-light">{label}</h2>
         <Badge colorScheme={badgeColor} size="xs">
           {tokenType}
         </Badge>
+      </Flex>
+      
+      {/* Middle column: Action buttons */}
+      <div className="flex items-center gap-2">
         {actionLink && (
-          <Box
-            as="a"
-            href={actionLink.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 px-2 py-0.5 ml-2 rounded-md bg-amber-900/30 border border-amber-700/50 hover:bg-amber-900/50 hover:border-amber-600 transition-all duration-200 group"
-            _hover={{ transform: "translateY(-1px)" }}
-          >
-            <span className="text-xs font-medium text-amber-300 group-hover:text-amber-200">
-              Get More
-            </span>
-            <svg
-              className="w-3 h-3 text-amber-400 group-hover:text-amber-300"
-              fill="none"
-              strokeWidth="2"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+          <Tooltip label="Deposit MON to get shMON" placement="top" hasArrow>
+            <Box
+              as="a"
+              href={actionLink.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-amber-900/30 border border-amber-700/50 hover:bg-amber-900/50 hover:border-amber-600 transition-all duration-200 group"
+              _hover={{ transform: "translateY(-1px)" }}
             >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </Box>
+              <span className="text-xs font-medium text-amber-300 group-hover:text-amber-200">
+                Get More
+              </span>
+              <svg
+                className="w-3 h-3 text-amber-400 group-hover:text-amber-300"
+                fill="none"
+                strokeWidth="2"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Box>
+          </Tooltip>
         )}
         {actionButton && (
-          <Tooltip label={actionButton.tooltip} placement="top" hasArrow>
-            <Box display="inline-block" ml={2}>
+          <Tooltip 
+            label={actionButton.tooltip} 
+            placement="top" 
+            hasArrow
+            closeOnClick={false}
+            isDisabled={!actionButton.tooltip}
+          >
+            <Box display="inline-block">
               <Button
                 size="xs"
                 onClick={actionButton.onClick}
@@ -92,8 +105,10 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({
             </Box>
           </Tooltip>
         )}
-      </Flex>
-      <div className="font-semibold text-amber-300 text-sm">
+      </div>
+      
+      {/* Right column: Balance value */}
+      <div className="font-semibold text-amber-300 text-sm text-right min-w-[80px]">
         {formattedBalance}
       </div>
     </div>
