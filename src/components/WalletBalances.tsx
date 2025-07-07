@@ -243,7 +243,7 @@ const WalletBalances: React.FC = () => {
             disabled={!client?.replenishGasBalance || insufficientShmon}
             onManualReplenish={() => handleReplenishWithCallback(true)}
             onAutomateReplenish={() => handleReplenishWithCallback(false)}
-            onDismiss={() => setIsShortfallDismissed(true)}
+            onDismiss={insufficientShmon ? undefined : () => setIsShortfallDismissed(true)}
           />
         )}
         
