@@ -175,7 +175,7 @@ describe('WalletBalances - Automate Feature', () => {
 
       // Wait for tooltip to appear
       await waitFor(() => {
-        expect(screen.getByText('Deposit more ShMON to enable automation')).toBeInTheDocument();
+        expect(screen.getByText('Requires shMON')).toBeInTheDocument();
       });
     });
 

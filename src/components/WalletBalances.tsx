@@ -167,8 +167,8 @@ const WalletBalances: React.FC = () => {
   // Automation requires some liquid ShMON and no existing shortfall
   const canAutomate = unbondedBalanceNum > 0 && !hasShortfall;
   const automationTooltip = unbondedBalanceNum === 0 
-    ? "Deposit more ShMON to enable automation" 
-    : "Set up automatic gas top-up using liquid ShMON";
+    ? "Requires shMON" 
+    : "Set up automatic gas top-up using liquid shMON";
 
   // Calculate session key funding amounts for display
   const smallFundingAmount = (parseFloat(DIRECT_FUNDING_AMOUNT) * 0.5).toFixed(
@@ -181,7 +181,7 @@ const WalletBalances: React.FC = () => {
       borderWidth="1px"
       borderRadius="md"
       color="white"
-      className="px-3 pt-1 pb-2 flex flex-col gap-2 border-none"
+      className="px-3 pt-1 pb-2 flex flex-col gap-2 border-none overflow-hidden"
     >
       {/* <Text fontSize="md" fontWeight="bold">Gas Balances</Text> */}
 
