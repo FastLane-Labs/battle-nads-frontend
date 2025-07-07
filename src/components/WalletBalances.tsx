@@ -9,6 +9,7 @@ import {
   DIRECT_FUNDING_AMOUNT,
   LOW_SESSION_KEY_THRESHOLD,
   MIN_SAFE_OWNER_BALANCE,
+  MIN_TRANSACTION_BALANCE,
 } from "@/config/wallet";
 import { SHMONAD_WEBSITE_URL } from "@/config/env";
 import { TOPUP_MULTIPLIER } from '@/config/shmon';
@@ -161,7 +162,9 @@ const WalletBalances: React.FC = () => {
   const unbondedBalanceNum = parseFloat(unbondedBalance);
 
   // Determine if direct funding should be offered
-  const showDirectFunding = sessionKeyBalanceNum < LOW_SESSION_KEY_THRESHOLD;
+  // Show direct funding if session key is low OR if there's a shortfall but insufficient shMON
+  const insufficientShmon = hasShortfall && (bondedBalance === '0' || parseFloat(bondedBalance) < parseFloat(shortfallEth));
+  const showDirectFunding = sessionKeyBalanceNum < LOW_SESSION_KEY_THRESHOLD || insufficientShmon;
   const sessionKeyAddress = gameState?.sessionKeyData?.key;
   
   // Determine if automation can be enabled
@@ -220,8 +223,8 @@ const WalletBalances: React.FC = () => {
           tokenType="MON"
         />
 
-        {/* Direct Session Key Funding Button - only show if session key is low AND committed balance is NOT low */}
-        {sessionKeyAddress && showDirectFunding && !hasShortfall && (
+        {/* Direct Session Key Funding Button - show if session key is low */}
+        {sessionKeyAddress && showDirectFunding && (
           <DirectFundingCard
             sessionKeyAddress={sessionKeyAddress}
             smallFundingAmount={smallFundingAmount}
@@ -232,8 +235,8 @@ const WalletBalances: React.FC = () => {
           />
         )}
 
-        {/* Balance Shortfall Warning */}
-        {hasShortfall && !isShortfallDismissed && (
+        {/* Balance Shortfall Warning - show if there's a shortfall AND sufficient shMON */}
+        {hasShortfall && !isShortfallDismissed && !insufficientShmon && (
           <ShortfallWarningCard
             shortfallAmount={shortfallNum.toFixed(4)}
             isLoading={isReplenishing}
@@ -242,6 +245,24 @@ const WalletBalances: React.FC = () => {
             onAutomateReplenish={() => handleReplenishWithCallback(false)}
             onDismiss={() => setIsShortfallDismissed(true)}
           />
+        )}
+        
+        {/* Low Balance Warning - show when critically low but no specific shortfall */}
+        {sessionKeyBalanceNum < MIN_TRANSACTION_BALANCE && !hasShortfall && (
+          <Box 
+            p={3} 
+            borderRadius="md" 
+            bg="red.900" 
+            borderWidth="1px" 
+            borderColor="red.600"
+          >
+            <Text color="red.300" fontSize="sm" fontWeight="bold">
+              ⚠️ Critical: Session key balance too low for transactions
+            </Text>
+            <Text color="red.200" fontSize="xs" mt={1}>
+              Current: {sessionKeyBalance} MON (need {MIN_TRANSACTION_BALANCE} MON)
+            </Text>
+          </Box>
         )}
       </Flex>
     </Box>
