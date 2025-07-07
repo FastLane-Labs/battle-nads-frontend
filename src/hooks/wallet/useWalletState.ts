@@ -135,9 +135,10 @@ export function useWalletState(options: UseWalletStateOptions = {}): WalletBalan
   }, [hasValidSessionKeyData, rawData]);
 
   const bondedBalanceBigInt = useMemo(() => {
-    if (!hasValidSessionKeyData || !rawData?.sessionKeyData?.ownerCommittedAmount) return BigInt(0);
+    // Bonded balance (committed shMON) should be available even without valid session key
+    if (!rawData?.sessionKeyData?.ownerCommittedAmount) return BigInt(0);
     return BigInt(rawData.sessionKeyData.ownerCommittedAmount);
-  }, [hasValidSessionKeyData, rawData]);
+  }, [rawData]);
 
   const targetBalanceBigInt = useMemo(() => {
     if (!hasValidSessionKeyData || !rawData?.sessionKeyData?.targetBalance) return BigInt(0);
@@ -145,8 +146,9 @@ export function useWalletState(options: UseWalletStateOptions = {}): WalletBalan
   }, [hasValidSessionKeyData, rawData]);
 
   const shortfall = useMemo(() => {
-    return hasValidSessionKeyData && rawData ? (rawData.balanceShortfall || BigInt(0)) : BigInt(0);
-  }, [hasValidSessionKeyData, rawData]);
+    // Shortfall is about committed shMON, not session key validity
+    return rawData ? (rawData.balanceShortfall || BigInt(0)) : BigInt(0);
+  }, [rawData]);
 
   // Format balance values
   const sessionKeyBalance = useMemo(() => {
@@ -154,16 +156,18 @@ export function useWalletState(options: UseWalletStateOptions = {}): WalletBalan
   }, [hasValidSessionKeyData, sessionKeyBalanceBigInt]);
 
   const bondedBalance = useMemo(() => {
-    return hasValidSessionKeyData ? safeFormatUnits(bondedBalanceBigInt, 18) : '0';
-  }, [hasValidSessionKeyData, bondedBalanceBigInt]);
+    // Format bonded balance regardless of session key validity
+    return safeFormatUnits(bondedBalanceBigInt, 18);
+  }, [bondedBalanceBigInt]);
 
   const targetBalance = useMemo(() => {
     return hasValidSessionKeyData ? safeFormatUnits(targetBalanceBigInt, 18) : '0';
   }, [hasValidSessionKeyData, targetBalanceBigInt]);
 
   const formattedShortfall = useMemo(() => {
-    return hasValidSessionKeyData && shortfall > 0 ? safeFormatEther(shortfall) : '0';
-  }, [hasValidSessionKeyData, shortfall]);
+    // Format shortfall regardless of session key validity
+    return shortfall > 0 ? safeFormatEther(shortfall) : '0';
+  }, [shortfall]);
 
   // Transaction validation (if enabled)
   const sessionKeyBalanceNum = useMemo(() => {
@@ -179,8 +183,9 @@ export function useWalletState(options: UseWalletStateOptions = {}): WalletBalan
   }, [sessionKeyBalanceNum]);
 
   const hasShortfall = useMemo((): boolean => {
-    return Boolean(hasValidSessionKeyData && shortfall > 0);
-  }, [hasValidSessionKeyData, shortfall]);
+    // Check shortfall regardless of session key validity
+    return Boolean(shortfall > 0);
+  }, [shortfall]);
 
   // Loading states
   const isLoading = isSnapshotLoading || isOwnerBalanceLoading;
