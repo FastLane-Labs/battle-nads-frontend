@@ -5,6 +5,8 @@ interface ShortfallWarningCardProps {
   shortfallAmount: string;
   isLoading: boolean;
   disabled: boolean;
+  manualDisabled?: boolean;
+  automateDisabled?: boolean;
   onManualReplenish: () => Promise<void>;
   onAutomateReplenish: () => Promise<void>;
   onDismiss?: () => void;
@@ -14,6 +16,8 @@ export const ShortfallWarningCard: React.FC<ShortfallWarningCardProps> = ({
   shortfallAmount,
   isLoading,
   disabled,
+  manualDisabled,
+  automateDisabled,
   onManualReplenish,
   onAutomateReplenish,
   onDismiss,
@@ -58,7 +62,7 @@ export const ShortfallWarningCard: React.FC<ShortfallWarningCardProps> = ({
           isLoading={isLoading}
           loadingText="Replenishing..."
           flex={1}
-          isDisabled={disabled}
+          isDisabled={manualDisabled !== undefined ? manualDisabled : disabled}
           className="!text-white font-medium"
         >
           🛡️ Manual ({shortfallAmount})
@@ -71,7 +75,7 @@ export const ShortfallWarningCard: React.FC<ShortfallWarningCardProps> = ({
           isLoading={isLoading}
           loadingText="Replenishing..."
           flex={1}
-          isDisabled={disabled}
+          isDisabled={automateDisabled !== undefined ? automateDisabled : disabled}
           className="!text-white font-medium"
         >
           🛡️ Automate (ShMON)
