@@ -185,7 +185,7 @@ const WalletBalances: React.FC = () => {
     >
       {/* <Text fontSize="md" fontWeight="bold">Gas Balances</Text> */}
 
-      <Flex direction="column" gap={1.5} className="w-auto">
+      <Flex direction="column" gap={1.5} className="w-auto overflow-visible">
         <BalanceDisplay
           label="Session Key"
           balance={sessionKeyBalance}
