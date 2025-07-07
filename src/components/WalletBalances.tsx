@@ -172,7 +172,7 @@ const WalletBalances: React.FC = () => {
           balance={unbondedBalance}
           tokenType="shMON"
           actionLink={{
-            label: "(Get More ShMON)",
+            label: "Get More ShMON",
             url: SHMONAD_WEBSITE_URL
           }}
         />
