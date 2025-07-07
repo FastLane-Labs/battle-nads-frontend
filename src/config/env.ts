@@ -47,7 +47,8 @@ export const ENABLE_WEBSOCKET =
 
 // Game constants
 export const MAX_PLAYER_LEVEL = 100;
-export const MAX_SESSION_KEY_VALIDITY_BLOCKS = 172800; // About 24 hours at 0.5s blocks (24*60*60 / 0.5)
+export const MAX_SESSION_KEY_VALIDITY_BLOCKS = 10_000; // About 1.5 hours at 0.5s blocks (24*60*60 / 0.5)
+// export const MAX_SESSION_KEY_VALIDITY_BLOCKS = 172800; // About 24 hours at 0.5s blocks (24*60*60 / 0.5)
 
 // External URLs
 export const SHMONAD_WEBSITE_URL = "https://shmonad.xyz/";

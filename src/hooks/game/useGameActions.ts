@@ -4,6 +4,7 @@ import { domain, hooks } from '@/types';
 import { useGameMutations } from './useGameMutations';
 import { useGameData } from './useGameData';
 import { GameActions } from '@/types/ui';
+import { MAX_SESSION_KEY_VALIDITY_BLOCKS } from '../../config/env';
 
 export interface UseGameActionsOptions {
   /** Whether to include wallet integration (default: true) */
@@ -52,7 +53,7 @@ export const useGameActions = (options: UseGameActionsOptions = {}): hooks.UseGa
       console.error('[useGameActions] Cannot update session key: no end block available');
       return;
     }
-    return await mutations.updateSessionKey(rawEndBlock);
+    return await mutations.updateSessionKey(rawEndBlock + BigInt(MAX_SESSION_KEY_VALIDITY_BLOCKS));
   }, [mutations.updateSessionKey, rawEndBlock]);
 
   // Return nothing if in read-only mode
