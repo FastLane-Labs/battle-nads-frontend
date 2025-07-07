@@ -1,8 +1,8 @@
 // Gas limit constants for BattleNads contract interactions
 export const GAS_LIMITS = {
-  move: BigInt(950_000),
-  action: BigInt(750_000),
-  sessionKey: BigInt(950_000),
+  move: BigInt(1_050_000),
+  action: BigInt(775_000),
+  sessionKey: BigInt(1_050_000),
   chat: BigInt(500_000)
 };
 // Average block time in seconds (for cooldown estimation)
