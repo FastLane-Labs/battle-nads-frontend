@@ -49,4 +49,7 @@ export const ENABLE_WEBSOCKET =
 export const MAX_PLAYER_LEVEL = 100;
 export const MAX_SESSION_KEY_VALIDITY_BLOCKS = 172800; // About 24 hours at 0.5s blocks (24*60*60 / 0.5)
 
+// External URLs
+export const SHMONAD_WEBSITE_URL = "https://shmonad.xyz/";
+
 // Gas limits for different actions (adjust based on network and contract complexity)

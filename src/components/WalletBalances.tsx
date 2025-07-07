@@ -10,6 +10,7 @@ import {
   LOW_SESSION_KEY_THRESHOLD,
   MIN_SAFE_OWNER_BALANCE,
 } from "@/config/wallet";
+import { SHMONAD_WEBSITE_URL } from "@/config/env";
 import { TOPUP_MULTIPLIER } from '@/config/shmon';
 import { BalanceDisplay } from './wallet/BalanceDisplay';
 import { DirectFundingCard } from './wallet/DirectFundingCard';
@@ -170,6 +171,10 @@ const WalletBalances: React.FC = () => {
           label="Liquid"
           balance={unbondedBalance}
           tokenType="shMON"
+          actionLink={{
+            label: "(Get More ShMON)",
+            url: SHMONAD_WEBSITE_URL
+          }}
         />
         <BalanceDisplay
           label="Owner Wallet"
