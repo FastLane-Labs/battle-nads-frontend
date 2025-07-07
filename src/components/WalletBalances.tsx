@@ -59,7 +59,7 @@ const WalletBalances: React.FC = () => {
   // Enhanced replenishment handler with success callback
   const handleReplenishWithCallback = async (useMinimalAmount: boolean) => {
     try {
-      await handleReplenishBalance(useMinimalAmount);
+      await handleReplenishBalance(useMinimalAmount, false); // false = don't skip shortfall check
       // Auto-dismiss the shortfall warning on success
       setIsShortfallDismissed(true);
     } catch (error) {

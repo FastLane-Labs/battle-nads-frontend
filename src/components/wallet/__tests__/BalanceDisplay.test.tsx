@@ -130,8 +130,8 @@ describe('BalanceDisplay', () => {
       </TestWrapper>
       );
 
-      const button = screen.getByRole('button');
-      expect(button).toHaveAttribute('data-loading');
+      // When loading, the button text changes to "Loading..."
+      expect(screen.getByText('Loading...')).toBeInTheDocument();
     });
 
     it('renders different token type badges correctly', () => {
