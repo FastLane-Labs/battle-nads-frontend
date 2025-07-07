@@ -23,7 +23,7 @@ export const useReplenishment = (
   const toast = useToast();
   const [isReplenishing, setIsReplenishing] = useState(false);
 
-  const handleReplenishBalance = async (useMinimalAmount: boolean = false) => {
+  const handleReplenishBalance = async (useMinimalAmount: boolean = false, skipShortfallCheck: boolean = false) => {
     if (!client?.replenishGasBalance) {
       toast({
         title: "Error",
@@ -41,8 +41,8 @@ export const useReplenishment = (
         throw new Error("Owner wallet not connected.");
       }
 
-      // Validate the shortfall
-      if (!shortfall || shortfall <= BigInt(0)) {
+      // Validate the shortfall (skip for proactive automation)
+      if (!skipShortfallCheck && (!shortfall || shortfall <= BigInt(0))) {
         throw new Error("No balance shortfall detected.");
       }
 
@@ -50,22 +50,30 @@ export const useReplenishment = (
       const ownerBalanceWei = ethers.parseEther(ownerBalance);
       const unbondedBalanceWei = ethers.parseEther(unbondedBalance);
 
-      // Calculate shortfall amounts
-      const shortfallEth = ethers.formatEther(shortfall);
-      const shortfallNum = parseFloat(shortfallEth) * TOPUP_MULTIPLIER;
-
-      // Calculate replenish amount based on option chosen
-      let targetAmount: bigint;
+      // Calculate amounts
       const ownerBondedBalanceWei = ethers.parseEther(bondedBalance);
+      let targetAmount: bigint;
       
-      if (useMinimalAmount) {
-        // Minimal: shortfallNum amount (shortfall * TOPUP_MULTIPLIER)
-        const shortfallNumWei = ethers.parseEther(shortfallNum.toString());
-        targetAmount = shortfallNumWei + ownerBondedBalanceWei;
+      if (skipShortfallCheck && !useMinimalAmount) {
+        // For proactive automation without shortfall
+        targetAmount = ownerBondedBalanceWei > 0 
+          ? ownerBondedBalanceWei * BigInt(2) // 2x current bonded balance
+          : ethers.parseEther("0.1"); // Default 0.1 if no bonded balance
       } else {
-        // Safe: safeReplenishAmount (shortfall + balance, but used on top up)
-        const shortfallNumWei = ethers.parseEther(shortfallNum.toString());
-        targetAmount = (shortfallNumWei + ownerBondedBalanceWei) * BigInt(SAFE_REPLENISH_MULTIPLIER);
+        // Calculate shortfall amounts
+        const actualShortfall = shortfall || BigInt(0);
+        const shortfallEth = ethers.formatEther(actualShortfall);
+        const shortfallNum = parseFloat(shortfallEth) * TOPUP_MULTIPLIER;
+        
+        if (useMinimalAmount) {
+          // Minimal: shortfallNum amount (shortfall * TOPUP_MULTIPLIER)
+          const shortfallNumWei = ethers.parseEther(shortfallNum.toString());
+          targetAmount = shortfallNumWei + ownerBondedBalanceWei;
+        } else {
+          // Safe: safeReplenishAmount (shortfall + balance, but used on top up)
+          const shortfallNumWei = ethers.parseEther(shortfallNum.toString());
+          targetAmount = (shortfallNumWei + ownerBondedBalanceWei) * BigInt(SAFE_REPLENISH_MULTIPLIER);
+        }
       }
 
       // Handle manual replenishment
