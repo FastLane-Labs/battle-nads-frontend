@@ -138,7 +138,7 @@ describe('WalletBalances - Automate Feature', () => {
       fireEvent.click(automateButton);
 
       await waitFor(() => {
-        expect(mockHandleReplenishBalance).toHaveBeenCalledWith(false);
+        expect(mockHandleReplenishBalance).toHaveBeenCalledWith(false, true);
       });
     });
 

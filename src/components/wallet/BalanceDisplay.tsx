@@ -32,9 +32,9 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({
   const formattedBalance = parseFloat(balance).toFixed(precision);
 
   return (
-    <div className="grid grid-cols-[1fr_auto] w-full gap-4 items-center">
+    <div className="grid grid-cols-[1fr_auto] w-full gap-4 items-center relative">
       {/* Left column: Fixed width container for label, badge, and button */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 relative">
         <div className="flex items-center gap-1 min-w-[140px]">
           <h2 className="text-sm font-medium gold-text-light">{label}</h2>
           <Badge colorScheme={badgeColor} size="xs">
@@ -42,13 +42,20 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({
           </Badge>
         </div>
         {actionLink && (
-          <Tooltip label="Deposit MON to get shMON" placement="top" hasArrow gutter={12}>
+          <Tooltip 
+            label="Deposit MON to get shMON" 
+            placement="top-start" 
+            hasArrow 
+            gutter={12}
+            openDelay={0}
+            closeDelay={0}
+          >
             <Box
               as="a"
               href={actionLink.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 px-2 h-6 rounded-md bg-amber-900/30 border border-amber-700/50 hover:bg-amber-900/50 hover:border-amber-600 transition-colors duration-200 group"
+              className="inline-flex items-center gap-1 px-2 py-1 h-6 rounded-md bg-amber-900/30 border border-amber-700/50 hover:bg-amber-900/50 hover:border-amber-600 transition-colors duration-200 group"
             >
               <span className="text-xs font-medium text-amber-300 group-hover:text-amber-200">
                 Get More
@@ -68,9 +75,11 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({
         {actionButton && (
           <Tooltip 
             label={actionButton.tooltip} 
-            placement="top" 
+            placement="top-start" 
             hasArrow
             gutter={12}
+            openDelay={0}
+            closeDelay={0}
             closeOnClick={false}
             isDisabled={!actionButton.tooltip}
           >

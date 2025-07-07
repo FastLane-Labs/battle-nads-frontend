@@ -67,6 +67,7 @@ const WalletBalances: React.FC = () => {
     }
   };
   
+  
   // Reset dismissed state when shortfall status changes
   useEffect(() => {
     if (!hasShortfall) {
@@ -197,7 +198,7 @@ const WalletBalances: React.FC = () => {
           tokenType="shMON"
           actionButton={{
             label: "Automate",
-            onClick: () => handleReplenishWithCallback(false),
+            onClick: () => handleReplenishBalance(false, true), // false for not minimal, true to skip shortfall check
             disabled: !canAutomate,
             tooltip: automationTooltip,
             icon: "⚙️",
