@@ -6,6 +6,10 @@ interface BalanceDisplayProps {
   balance: string;
   tokenType: "MON" | "shMON";
   precision?: number;
+  actionLink?: {
+    label: string;
+    url: string;
+  };
 }
 
 export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({
@@ -13,6 +17,7 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({
   balance,
   tokenType,
   precision = 4,
+  actionLink,
 }) => {
   const badgeColor = tokenType === "MON" ? "purple" : "yellow";
   const formattedBalance = parseFloat(balance).toFixed(precision);
@@ -25,8 +30,20 @@ export const BalanceDisplay: React.FC<BalanceDisplayProps> = ({
           {tokenType}
         </Badge>
       </Flex>
-      <div className="font-semibold text-amber-300 text-sm">
-        {formattedBalance}
+      <div className="flex items-center gap-2">
+        <div className="font-semibold text-amber-300 text-sm">
+          {formattedBalance}
+        </div>
+        {actionLink && (
+          <a
+            href={actionLink.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs gold-text-light hover:text-amber-300 hover:underline transition-colors"
+          >
+            {actionLink.label}
+          </a>
+        )}
       </div>
     </div>
   );
