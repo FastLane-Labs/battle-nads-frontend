@@ -216,6 +216,7 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
 
         // --- Invalidate queries AFTER confirmation ---
         console.log("Invalidating queries after confirmation...");
+        queryClient.invalidateQueries({ queryKey: ['contractPolling', injectedWallet?.address] });
         queryClient.invalidateQueries({ queryKey: ['uiSnapshot', injectedWallet?.address] });
         queryClient.invalidateQueries({ queryKey: ['characterId', injectedWallet?.address] });
 
