@@ -25,6 +25,14 @@ const incrementRequestCounter = () => {
   return next;
 };
 
+// Global flag to force fresh data fetch (e.g., after combat actions)
+let forceFreshData = false;
+
+export const clearContractPollingCache = () => {
+  forceFreshData = true;
+  console.log('[useContractPolling] Cache cleared - will fetch fresh data on next poll');
+};
+
 export const useContractPolling = (owner: string | null) => {
   const { client } = useBattleNadsClient();
   const { embeddedWallet } = useWallet();
@@ -68,8 +76,15 @@ export const useContractPolling = (owner: string | null) => {
       
       const state = rateLimitStateRef.current;
       
+      // Check if we need to force fresh data
+      if (forceFreshData) {
+        console.log('[useContractPolling] Forcing fresh data fetch');
+        state.lastGoodData = null;
+        forceFreshData = false;
+      }
+      
       // If we're rate limited and have cached data, return it
-      if (state.isLimited && Date.now() < state.resetTime && state.lastGoodData) {
+      if (state.isLimited && Date.now() < state.resetTime && state.lastGoodData && !forceFreshData) {
         const remainingSeconds = Math.ceil((state.resetTime - Date.now()) / 1000);
         console.log(`[useContractPolling] Rate limited, returning cached data. Retry in ${remainingSeconds}s`);
         

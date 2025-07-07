@@ -46,6 +46,7 @@ export const useGameMutations = (characterId: string | null, owner: string | nul
       errorMessage: 'Attack failed',
       mutationKey: ['attack', characterId || 'unknown', owner || 'unknown'],
       characterId,
+      clearPollingCache: true, // Combat actions can trigger level-ups
     }
   );
 

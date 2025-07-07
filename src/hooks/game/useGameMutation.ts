@@ -3,6 +3,7 @@ import { useToast } from '@chakra-ui/react';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
 import { invalidateSnapshot } from '../utils';
 import { useWallet } from '@/providers/WalletProvider';
+import { clearContractPollingCache } from './useContractPolling';
 
 export interface GameMutationOptions<TData, TVariables> {
   /** Custom success message or function to generate success message */
@@ -15,6 +16,8 @@ export interface GameMutationOptions<TData, TVariables> {
   showErrorToast?: boolean;
   /** Whether to invalidate UI snapshot queries (default: true) */
   invalidateSnapshot?: boolean;
+  /** Whether to clear polling cache for fresh data (default: false, true for combat actions) */
+  clearPollingCache?: boolean;
   /** Custom query keys to invalidate */
   invalidateQueries?: string[][];
   /** Custom success handler */
@@ -142,6 +145,11 @@ export function useGameTransactionMutation<TData extends { hash: string; wait: (
         });
       }
 
+      // Clear polling cache if requested (for combat actions that might trigger level-ups)
+      if (options.clearPollingCache) {
+        clearContractPollingCache();
+      }
+
       // Invalidate queries
       if (shouldInvalidateSnapshot && owner) {
         invalidateSnapshot(queryClient, owner, embeddedWallet?.address);
@@ -233,6 +241,11 @@ export function useGameMutation<TData, TVariables>(
           duration: successDuration,
           isClosable: true,
         });
+      }
+
+      // Clear polling cache if requested (for combat actions that might trigger level-ups)
+      if (options.clearPollingCache) {
+        clearContractPollingCache();
       }
 
       // Invalidate queries
