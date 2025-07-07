@@ -95,7 +95,7 @@ export const CombatTaskStatusBar: React.FC<CombatTaskStatusBarProps> = ({
 
   // If in combat but no active task, show a "Ready" state
   const displayStatus = hasActiveTask ? taskStatus : {
-    label: 'READY',
+    label: 'ATTACKING',
     color: '#32CD32', // Lime Green
     bgColor: 'green.900',
     borderColor: 'green.500',
