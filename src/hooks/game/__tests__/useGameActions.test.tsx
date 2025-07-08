@@ -188,8 +188,9 @@ describe('useGameActions', () => {
   });
 
   describe('enhanced session key functionality', () => {
-    it('should call updateSessionKey with rawEndBlock', () => {
+    it('should call updateSessionKey with rawEndBlock plus MAX_SESSION_KEY_VALIDITY_BLOCKS', () => {
       const rawEndBlock = 1000n;
+      const expectedEndBlock = rawEndBlock + BigInt(10_000); // MAX_SESSION_KEY_VALIDITY_BLOCKS
       const { result } = renderHook(() => useGameActions({ 
         includeWallet: true, 
         readOnly: false
@@ -199,7 +200,7 @@ describe('useGameActions', () => {
 
       result.current.updateSessionKey();
 
-      expect(mockMutations.updateSessionKey).toHaveBeenCalledWith(rawEndBlock);
+      expect(mockMutations.updateSessionKey).toHaveBeenCalledWith(expectedEndBlock);
     });
 
     it('should handle missing rawEndBlock gracefully', () => {
