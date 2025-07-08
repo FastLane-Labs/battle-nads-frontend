@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Box, Grid, GridItem } from '@chakra-ui/react';
 import { domain, hooks } from '@/types';
 import CombatTargets from '@/components/game/controls/CombatTargets';
@@ -55,6 +55,13 @@ const GameView: React.FC<GameViewProps> = ({
 }) => {
   const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'character' | 'actions' | 'map'>('character');
+
+  // Auto switch to character tab when attribute points become available
+  useEffect(() => {
+    if (character.stats.unspentAttributePoints > 0) {
+      setActiveTab('character');
+    }
+  }, [character.stats.unspentAttributePoints]);
 
   const finalEventLogs = eventLogs;
 
