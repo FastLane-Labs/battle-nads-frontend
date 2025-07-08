@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Text, 
@@ -7,7 +7,8 @@ import {
   Flex, 
   Badge,
   VStack,
-  Image
+  Image,
+  Button
 } from '@chakra-ui/react';
 import { domain } from '@/types';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
@@ -16,6 +17,7 @@ import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState';
 import { useTransactionBalance } from '@/hooks/wallet/useWalletState';
 import { useCharacterExperience } from '@/hooks/game/useCharacterExperience';
 import { GameTooltip } from '../../ui';
+import { LevelUpCelebration } from '@/components/game/ui/LevelUpCelebration';
 
 
 // Helper to format Gold value (18 decimals)
@@ -47,6 +49,17 @@ interface CharacterInfoProps {
 }
 
 const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) => {
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [previousLevel, setPreviousLevel] = useState(character?.level);
+
+  // Check for level up
+  useEffect(() => {
+    if (character?.level && previousLevel && Number(character.level) > Number(previousLevel)) {
+      setShowCelebration(true);
+    }
+    setPreviousLevel(character?.level);
+  }, [character?.level, previousLevel]);
+
   if (!character) return null;
 
   // Get game state and actions
@@ -76,14 +89,27 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   return (
     <Box borderRadius="md" h="100%">
       <VStack spacing={3} align="stretch">
+        {/* Level Up Celebration */}
+        {showCelebration && (
+          <LevelUpCelebration
+            level={displayLevel}
+            unspentPoints={unallocatedAttributePoints}
+            onClose={() => setShowCelebration(false)}
+          />
+        )}
         
         {/* Character Stats - Use stats directly from props */}
         <Box>
           {/* Alert for unallocated points */}
           {unallocatedAttributePoints > 0 && (
-            <div className="card-bg-dark border-2 !border-amber-600 shadow-md shadow-amber-800/30 p-4 mb-3 relative animate-pulse" data-testid="level-up-notification">
-              <div className="absolute -top-2 left-4 px-3 py-1 card-bg border !border-amber-600/50 rounded">
-                <Text className="gold-text text-sm font-serif font-bold" data-testid="level-up-banner">⚡ LEVEL UP ⚡</Text>
+            <div className="card-bg-dark border-2 !border-amber-600 shadow-md shadow-amber-800/30 p-4 mb-3 relative" data-testid="level-up-notification">
+              <div className="absolute -top-2 left-4 px-3 py-1">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-yellow-500/10 rounded-md blur-md z-0 animate-pulse-slow" />
+                  <div className="card-bg border border-amber-600/60 rounded px-3 py-1 relative z-10">
+                    <Text className="gold-text text-sm font-serif font-bold" data-testid="level-up-banner">⚡ LEVEL UP ⚡</Text>
+                  </div>
+                </div>
               </div>
               <div className="pt-2">
                 <Flex align="center" justify="space-between">
