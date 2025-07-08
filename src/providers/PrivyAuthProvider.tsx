@@ -95,11 +95,9 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
   
   console.log("[PrivyAuthProvider] Initialized with config:", JSON.stringify({
     appId: privyConfig.appId,
-    autoApprove: privyConfig.autoApprove,
-    autoApproveSignature: privyConfig.autoApproveSignature,
-    noPromptOnSignature: privyConfig.config.embeddedWallets.noPromptOnSignature,
-    noPromptOnTransaction: privyConfig.config.embeddedWallets.noPromptOnTransaction,
-    walletConnectMetadataUrl: privyConfig.config.walletConnect?.metadata?.url,
+    theme: privyConfig.config.appearance.theme,
+    walletChainType: privyConfig.config.appearance.walletChainType,
+    defaultChain: privyConfig.config.defaultChain.name,
     currentWindowLocation: typeof window !== 'undefined' ? window.location.href : 'SSR',
   }));
   
