@@ -562,7 +562,7 @@ export const processChatFeedsToDomain = (
     const allChatMessages: domain.ChatMessage[] = [];
 
     for (const feed of dataFeeds) {
-        if (!feed || !feed.logs || feed.chatLogs.length === 0) continue;
+        if (!feed || !feed.logs) continue;
 
         const eventBlockNumber = BigInt(feed.blockNumber || 0);
         // Estimate timestamp for this feed's block
