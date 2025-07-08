@@ -20,9 +20,12 @@ export const LevelUpCelebration: React.FC<LevelUpCelebrationProps> = ({
     onClose?.();
   };
 
+  // Auto-close after 5 seconds
   useEffect(() => {
-    // Show celebration for 5 seconds
-    const timer = setTimeout(handleClose, 5000);
+    const timer = setTimeout(() => {
+      setIsVisible(false);
+      onClose?.();
+    }, 5000);
     return () => clearTimeout(timer);
   }, []);
 
