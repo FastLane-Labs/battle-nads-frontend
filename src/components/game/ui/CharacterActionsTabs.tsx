@@ -31,7 +31,6 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
   combatants,
   noncombatants,
   selectedTargetIndex,
-  setSelectedTargetIndex,
   onMove,
   onAttack,
   isMoving,
