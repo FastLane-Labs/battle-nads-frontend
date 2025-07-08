@@ -27,12 +27,18 @@ import { db } from '../lib/db';
 import { useStorageCleanup } from '../hooks/useStorageCleanup';
 import { ENTRYPOINT_ADDRESS } from '../config/env';
 import { domain } from '../types';
+import { safeStringify } from '../utils/bigintSerializer';
 
 interface DebugPanelProps {
   isVisible?: boolean;
 }
 
 type CharacterArray = any[];
+
+// Helper function to safely log objects that might contain BigInt values
+const safeLog = (label: string, data: any) => {
+  console.log(label, JSON.parse(safeStringify(data)));
+};
 
 const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
   // State management
@@ -382,8 +388,8 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       // Add type assertion here
       const characterArray = character as unknown as CharacterArray;
       
-      // Log the raw data
-      console.log('[DebugPanel] Character data (raw):', character);
+      // Log the raw data (handle BigInt values safely)
+      safeLog('[DebugPanel] Character data (raw):', character);
       
       // Create a labeled object from the array data
       const labeledData = {
@@ -461,8 +467,8 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
         name: characterArray[10]
       };
       
-      // Convert to JSON string with proper formatting
-      const jsonString = JSON.stringify(labeledData, null, 2);
+      // Convert to JSON string with proper formatting (handle BigInt)
+      const jsonString = safeStringify(labeledData, undefined, 2);
       
       console.log('[DebugPanel] Character data (labeled):', labeledData);
       console.log('[DebugPanel] Character data (JSON):', jsonString);
@@ -489,8 +495,8 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       // Add type assertion here
       const characterArray = character as unknown as CharacterArray;
       
-      // Log the raw data
-      console.log('[DebugPanel] Character Lite data (raw):', character);
+      // Log the raw data (handle BigInt values safely)
+      safeLog('[DebugPanel] Character Lite data (raw):', character);
       
       // Create a labeled object from the array data based on the shared structure
       const labeledData = {
@@ -514,8 +520,8 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
         }
       };
       
-      // Convert to JSON string with proper formatting
-      const jsonString = JSON.stringify(labeledData, null, 2);
+      // Convert to JSON string with proper formatting (handle BigInt)
+      const jsonString = safeStringify(labeledData, undefined, 2);
       
       console.log('[DebugPanel] Character Lite data (labeled):', labeledData);
       console.log('[DebugPanel] Character Lite data (JSON):', jsonString);
@@ -544,8 +550,8 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
       const rawCombatants = dataAsAny[3] || [];
       const rawNoncombatants = dataAsAny[4] || [];
       
-      console.log('[DebugPanel] Raw Combatants (contract data):', rawCombatants);
-      console.log('[DebugPanel] Raw Non-combatants (contract data):', rawNoncombatants);
+      safeLog('[DebugPanel] Raw Combatants (contract data):', rawCombatants);
+      safeLog('[DebugPanel] Raw Non-combatants (contract data):', rawNoncombatants);
       
       // Parse and label the combatants data
       const labeledCombatants = rawCombatants.map((combatant: any, index: number) => ({

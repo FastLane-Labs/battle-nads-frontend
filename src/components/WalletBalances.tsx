@@ -28,6 +28,7 @@ const WalletBalances: React.FC = () => {
   
   // State for dismissing the shortfall warning
   const [isShortfallDismissed, setIsShortfallDismissed] = useState(false);
+  const [showDismissedNotice, setShowDismissedNotice] = useState(false);
 
   // Get all balance data from the hook
   const {
@@ -75,6 +76,22 @@ const WalletBalances: React.FC = () => {
       setIsShortfallDismissed(false);
     }
   }, [hasShortfall]);
+  
+  // Auto-reset shortfall dismissal after 10 seconds
+  useEffect(() => {
+    if (isShortfallDismissed && (hasShortfall || parseFloat(bondedBalance) < 0.01)) {
+      setShowDismissedNotice(true);
+      
+      const timer = setTimeout(() => {
+        setIsShortfallDismissed(false);
+        setShowDismissedNotice(false);
+      }, 10000); // 10 seconds
+      
+      return () => clearTimeout(timer);
+    } else {
+      setShowDismissedNotice(false);
+    }
+  }, [isShortfallDismissed, hasShortfall, bondedBalance]);
 
   // Calculate shortfall amounts for display
   const shortfallEth =
@@ -248,6 +265,21 @@ const WalletBalances: React.FC = () => {
             onAutomateReplenish={() => handleReplenishWithCallback(false)}
             onDismiss={() => setIsShortfallDismissed(true)}
           />
+        )}
+        
+        {/* Dismissed Notice - show user that warning will reappear */}
+        {showDismissedNotice && (
+          <Box 
+            p={2} 
+            borderRadius="md" 
+            bg="gray.700" 
+            borderWidth="1px" 
+            borderColor="gray.600"
+          >
+            <Text color="gray.300" fontSize="xs" textAlign="center">
+              💤 Funding warning dismissed (will reappear in 10s)
+            </Text>
+          </Box>
         )}
         
         {/* Low Balance Warning - show when critically low but no specific shortfall */}
