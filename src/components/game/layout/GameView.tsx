@@ -32,7 +32,7 @@ interface GameViewProps {
 }
 
 const GameView: React.FC<GameViewProps> = ({
-  character: originalCharacter,
+  character
   position,
   combatants,
   noncombatants,
@@ -53,16 +53,6 @@ const GameView: React.FC<GameViewProps> = ({
   fogOfWar,
   currentBlock
 }) => {
-  // For development testing: simulate 1 unspent attribute point
-  const character = process.env.NODE_ENV === 'development' 
-    ? { 
-        ...originalCharacter, 
-        stats: { 
-          ...originalCharacter.stats, 
-          unspentAttributePoints: 1 
-        } 
-      }
-    : originalCharacter;
 
   const [selectedTargetIndex, setSelectedTargetIndex] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState<'character' | 'actions' | 'map'>('character');
