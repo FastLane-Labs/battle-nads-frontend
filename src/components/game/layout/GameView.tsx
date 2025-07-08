@@ -32,7 +32,7 @@ interface GameViewProps {
 }
 
 const GameView: React.FC<GameViewProps> = ({
-  character
+  character,
   position,
   combatants,
   noncombatants,
