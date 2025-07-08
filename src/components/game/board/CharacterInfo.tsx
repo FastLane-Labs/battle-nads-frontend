@@ -52,6 +52,15 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   const [showCelebration, setShowCelebration] = useState(false);
   const [previousLevel, setPreviousLevel] = useState(character?.level);
 
+  // Get game state and actions
+  const { worldSnapshot, allocatePoints, isAllocatingPoints, isInCombat } = useSimplifiedGameState();
+
+  // Transaction balance validation
+  const { isTransactionDisabled, insufficientBalanceMessage } = useTransactionBalance();
+
+  // Get experience info using the new helper
+  const experienceInfo = useCharacterExperience(character);
+
   // Check for level up
   useEffect(() => {
     if (character?.level && previousLevel && Number(character.level) > Number(previousLevel)) {
@@ -61,15 +70,6 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   }, [character?.level, previousLevel]);
 
   if (!character) return null;
-
-  // Get game state and actions
-  const { worldSnapshot, allocatePoints, isAllocatingPoints, isInCombat } = useSimplifiedGameState();
-
-  // Transaction balance validation
-  const { isTransactionDisabled, insufficientBalanceMessage } = useTransactionBalance();
-
-  // Get experience info using the new helper
-  const experienceInfo = useCharacterExperience(character);
 
   // Destructure needed props from character
   const { inventory, level, stats, class: characterClass } = character;
