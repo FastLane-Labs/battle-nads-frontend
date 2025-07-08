@@ -40,20 +40,30 @@ const CharacterActionsTabs: React.FC<CharacterActionsTabsProps> = ({
   setActiveTab,
   fogOfWar
 }) => {
+  // Check for unspent points to show glow
+  const hasUnspentPoints = character.stats.unspentAttributePoints > 0;
+
   return (
     <div className="flex flex-col h-full">
       {/* Tab Buttons */}
-      <div className="flex ">
-        <button
-          className={`uppercase bg-brown rounded-lg border-black/40 border-t border-x w-1/3 !rounded-b-none py-2 hover:transform-none hover:translate-y-0 border-b-2 ${activeTab === 'character' ? 'border-b-brown' : 'border-b-black/40'}`}
-          onClick={() => setActiveTab('character')}
-          style={{ transform: 'none' }}
-        >
-          {activeTab === 'character' ? 
-            <span className="gold-text-light font-semibold text-xl">Character</span> : 
-            <span className="gray-text font-semibold text-xl">Character</span>
-          }
-        </button>
+      <div className="flex">
+        <div className={`relative w-1/3 ${hasUnspentPoints ? 'group' : ''}`}>
+          {/* Glow effect */}
+          {hasUnspentPoints && (
+            <div className="absolute inset-0 -m-1 bg-yellow-500/10 rounded-md blur-md z-0 animate-pulse"></div>
+          )}
+          <button
+            className={`uppercase bg-brown rounded-lg border-black/40 border-t border-x w-full !rounded-b-none py-2 hover:transform-none hover:translate-y-0 border-b-2 relative z-10 ${activeTab === 'character' ? 'border-b-brown' : 'border-b-black/40'}`}
+            onClick={() => setActiveTab('character')}
+            style={{ transform: 'none' }}
+          >
+            {activeTab === 'character' ? (
+              <span className={`gold-text-light font-semibold text-xl ${hasUnspentPoints ? 'animate-pulse' : ''}`}>Character</span>
+            ) : (
+              <span className="gray-text font-semibold text-xl">Character</span>
+            )}
+          </button>
+        </div>
         <button
           className={`uppercase bg-brown rounded-lg border-black/40 border-t border-x w-1/3 !rounded-b-none py-2 hover:transform-none hover:translate-y-0 border-b-2 ${activeTab === 'actions' ? 'border-b-brown' : 'border-b-black/40'}`}
           onClick={() => setActiveTab('actions')}

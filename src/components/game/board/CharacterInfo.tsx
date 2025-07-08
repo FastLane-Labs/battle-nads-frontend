@@ -74,15 +74,15 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   
 
   return (
-    <Box borderRadius="md" h="100%" overflowY="auto">
+    <Box borderRadius="md" h="100%">
       <VStack spacing={3} align="stretch">
         
         {/* Character Stats - Use stats directly from props */}
         <Box>
           {/* Alert for unallocated points */}
           {unallocatedAttributePoints > 0 && (
-            <div className="card-bg-dark border-2 !border-amber-600 shadow-sm shadow-amber-800 p-4 mb-3 relative" data-testid="level-up-notification">
-              <div className="absolute -top-2 left-4 px-3 py-1 card-bg border border-amber-600/60 rounded">
+            <div className="card-bg-dark border-2 !border-amber-600 shadow-md shadow-amber-800/30 p-4 mb-3 relative animate-pulse" data-testid="level-up-notification">
+              <div className="absolute -top-2 left-4 px-3 py-1 card-bg border !border-amber-600/50 rounded">
                 <Text className="gold-text text-sm font-serif font-bold" data-testid="level-up-banner">⚡ LEVEL UP ⚡</Text>
               </div>
               <div className="pt-2">
