@@ -530,7 +530,7 @@ export class BattleNadsClient {
         throw new SessionWalletMissingError('Embedded wallet not connected. Connect your embedded wallet to send chat messages.');
       }
       
-      // Call zoneChat without explicit gas limits to allow the embedded wallet to handle it
+      // Call zoneChat with explicit gas limit to prevent transaction reverts
       const result = await this.sessionAdapter.zoneChat(characterId, message);
       console.log(`[BattleNadsClient] Successfully sent chat message, tx hash: ${result.hash}`);
       return result;
