@@ -241,8 +241,35 @@ const DebugPanel: React.FC<DebugPanelProps> = ({ isVisible = true }) => {
         combatants: dataAsAny[3]?.length || 0,
         noncombatants: dataAsAny[4]?.length || 0,
         dataFeeds: dataAsAny[9]?.length || 0,
-        endBlock: dataAsAny[12]?.toString()
+        balanceShortfall: dataAsAny[10]?.toString() || 'null',
+        endBlock: dataAsAny[11]?.toString()
       });
+      
+      // Specifically log balance shortfall details
+      const balanceShortfall = dataAsAny[10];
+      console.log('💰 Balance Shortfall Details:', {
+        rawValue: balanceShortfall,
+        type: typeof balanceShortfall,
+        isBigInt: typeof balanceShortfall === 'bigint',
+        isZero: balanceShortfall === BigInt(0),
+        isNull: balanceShortfall === null,
+        isUndefined: balanceShortfall === undefined,
+        formatted: balanceShortfall ? balanceShortfall.toString() : 'null/undefined'
+      });
+      
+      // Also log session key data for committed balance analysis
+      const sessionKeyData = dataAsAny[1];
+      console.log('🔑 Session Key Data:', {
+        key: sessionKeyData?.key || 'none',
+        balance: sessionKeyData?.balance?.toString() || 'none',
+        targetBalance: sessionKeyData?.targetBalance?.toString() || 'none',
+        ownerCommittedAmount: sessionKeyData?.ownerCommittedAmount?.toString() || 'none',
+        expiration: sessionKeyData?.expiration?.toString() || 'none'
+      });
+      
+      // Log to debug panel
+      addLog(`💰 Balance Shortfall: ${balanceShortfall ? balanceShortfall.toString() : 'null/undefined'}`);
+      addLog(`🔑 Committed Balance: ${sessionKeyData?.ownerCommittedAmount?.toString() || 'none'}`);
       
       // Analyze data feeds for potential issues
       const dataFeeds = dataAsAny[9] || [];
