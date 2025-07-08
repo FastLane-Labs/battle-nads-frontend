@@ -1,7 +1,7 @@
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
-  reactStrictMode: true,
+  reactStrictMode: false, // Temporarily disabled to test Phantom
   webpack: (config, { isServer, webpack }) => {
     // Fix for Ably Buffer dependency issue
     config.plugins.push(

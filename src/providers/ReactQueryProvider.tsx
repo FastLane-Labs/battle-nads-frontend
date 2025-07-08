@@ -1,8 +1,7 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { createSyncStoragePersister } from '@tanstack/query-sync-storage-persister';
-import { bigintSerializer } from '../utils/bigintSerializer';
 
 // Create a client with optimized settings for Battle Nads
 const queryClient = new QueryClient({
@@ -16,13 +15,33 @@ const queryClient = new QueryClient({
   },
 });
 
+// Custom serializer that handles BigInt without modifying global JSON
+const customSerializer = (data: any): string => {
+  return JSON.stringify(data, (key, value) => {
+    if (typeof value === 'bigint') {
+      return { __type: 'bigint', value: value.toString() };
+    }
+    return value;
+  });
+};
+
+// Custom deserializer that restores BigInt values
+const customDeserializer = (data: string): any => {
+  return JSON.parse(data, (key, value) => {
+    if (value && typeof value === 'object' && value.__type === 'bigint') {
+      return BigInt(value.value);
+    }
+    return value;
+  });
+};
+
 // Create persister for localStorage (only in browser)
 const persister = typeof window !== 'undefined' 
   ? createSyncStoragePersister({
       storage: window.localStorage,
       key: 'battleNads-reactQuery-cache',
-      serialize: JSON.stringify,
-      deserialize: JSON.parse,
+      serialize: customSerializer,
+      deserialize: customDeserializer,
     })
   : undefined;
 
@@ -32,22 +51,9 @@ interface ReactQueryProviderProps {
 
 /**
  * Provider for React Query with persistence
- * Provides caching and persistence alongside the existing IndexedDB cache
+ * This version doesn't modify global JSON methods to avoid conflicts with Privy
  */
 export const ReactQueryProvider = ({ children }: ReactQueryProviderProps) => {
-  // Apply BigInt serializer when the provider mounts
-  useEffect(() => {
-    // Initialize BigInt serialization
-    console.log("[ReactQueryProvider] Initializing BigInt serializer with persistence...");
-    const cleanup = bigintSerializer();
-    
-    // Cleanup on unmount
-    return () => {
-      console.log("[ReactQueryProvider] Cleaning up BigInt serializer...");
-      cleanup();
-    };
-  }, []);
-
   // Use persisted client if available, otherwise fall back to regular provider
   if (persister) {
     return (
@@ -66,4 +72,4 @@ export const ReactQueryProvider = ({ children }: ReactQueryProviderProps) => {
       {children}
     </QueryClientProvider>
   );
-}; 
+};
