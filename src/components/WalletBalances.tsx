@@ -236,9 +236,10 @@ const WalletBalances: React.FC = () => {
         )}
 
         {/* Balance Shortfall Warning - show if there's a shortfall */}
-        {hasShortfall && !isShortfallDismissed && (
+        {/* TEMPORARY FIX: Also show warning if committed balance is very low (< 0.01 SHMON) */}
+        {(hasShortfall || parseFloat(bondedBalance) < 0.01) && !isShortfallDismissed && (
           <ShortfallWarningCard
-            shortfallAmount={shortfallNum.toFixed(4)}
+            shortfallAmount={hasShortfall ? shortfallNum.toFixed(4) : '0.0050'}
             isLoading={isReplenishing}
             disabled={!client?.replenishGasBalance}
             manualDisabled={!client?.replenishGasBalance || parseFloat(ownerBalance) <= parseFloat(MIN_SAFE_OWNER_BALANCE)}
