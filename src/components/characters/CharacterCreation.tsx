@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { GameButton, StatIncrementControl, LoadingIndicator, GameModal } from '@/components/ui';
+import { GameButton, StatIncrementControl, LoadingIndicator, GameModal, GameTooltip } from '@/components/ui';
 import { 
   Button, 
   FormControl, 
@@ -386,6 +386,24 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
     );
   }
   
+  const getCreateButtonTooltip = () => {
+    if (!name) {
+      return {
+        title: 'Name Required',
+        description: 'Please enter a character name to continue.',
+        statusType: 'error' as const
+      };
+    }
+    if (unspentAttributePoints !== 0) {
+      return {
+        title: 'Attribute Points Remaining',
+        description: `You must allocate all attribute points before creating your character. Remaining: ${unspentAttributePoints}`,
+        statusType: 'warning' as const
+      };
+    }
+    return null;
+  };
+
   return (
     <div 
       className="min-h-screen w-full bg-cover bg-center bg-no-repeat flex items-center justify-center pt-6 pb-16"
@@ -503,17 +521,22 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             />
           </div>
           
-          <GameButton
-            variant="create-character"
-            onClick={handleCreateCharacter}
-            isDisabled={unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0) || isLoadingBlock || !currentBlock}
-            loading={createCharacterMutation.isPending}
-            loadingText="Creating..."
-            className="mt-6"
-            hasGlow={true}
+          <GameTooltip
+            {...getCreateButtonTooltip()}
+            isDisabled={!getCreateButtonTooltip()}
           >
-            Create Character
-          </GameButton>
+            <GameButton
+              variant="create-character"
+              onClick={handleCreateCharacter}
+              isDisabled={unspentAttributePoints !== 0 || !name || createCharacterMutation.isPending || isLoadingBuyIn || !buyInAmount || buyInAmount <= BigInt(0) || isLoadingBlock || !currentBlock}
+              loading={createCharacterMutation.isPending}
+              loadingText="Creating..."
+              className="mt-6"
+              hasGlow={true}
+            >
+              Create Character
+            </GameButton>
+          </GameTooltip>
           
           <button
             className={`border border-gray-600 text-gray-300 py-2 rounded 
