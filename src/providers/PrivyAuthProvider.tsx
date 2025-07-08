@@ -67,6 +67,8 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
         theme: "dark",
         accentColor: "#4F46E5",
       },
+      // WalletConnect Cloud Project ID (get one from https://cloud.walletconnect.com/)
+      walletConnectCloudProjectId: process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID,
       supportedChains: [MONAD_TESTNET_CHAIN],
       defaultChain: MONAD_TESTNET_CHAIN,
       // Add token information
@@ -97,6 +99,8 @@ export function PrivyAuthProvider({ children }: PrivyAuthProviderProps) {
     autoApproveSignature: privyConfig.autoApproveSignature,
     noPromptOnSignature: privyConfig.config.embeddedWallets.noPromptOnSignature,
     noPromptOnTransaction: privyConfig.config.embeddedWallets.noPromptOnTransaction,
+    walletConnectMetadataUrl: privyConfig.config.walletConnect?.metadata?.url,
+    currentWindowLocation: typeof window !== 'undefined' ? window.location.href : 'SSR',
   }));
   
   return (
