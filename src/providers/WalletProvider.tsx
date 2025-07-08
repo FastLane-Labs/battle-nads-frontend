@@ -102,7 +102,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         // Setup injected wallet if available
         if (privyInjectedWallet) {
           const walletProvider = await privyInjectedWallet.getEthereumProvider();
-          const browserProvider = walletProvider as unknown as ethers.BrowserProvider;
+          const browserProvider = new ethers.BrowserProvider(walletProvider);
           const walletSigner = await browserProvider.getSigner();
           
           setInjectedWallet({
@@ -118,7 +118,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         // Setup embedded wallet if available
         if (privyEmbeddedWallet) {
           const walletProvider = await privyEmbeddedWallet.getEthereumProvider();
-          const browserProvider = walletProvider as unknown as ethers.BrowserProvider;
+          const browserProvider = new ethers.BrowserProvider(walletProvider);
           const walletSigner = await browserProvider.getSigner();
           
           setEmbeddedWallet({
@@ -146,7 +146,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         
         // Get provider and signer from the active wallet
         const walletProvider = await activeWallet.getEthereumProvider();
-        const browserProvider = walletProvider as unknown as ethers.BrowserProvider;
+        const browserProvider = new ethers.BrowserProvider(walletProvider);
         
         // Check and switch network if needed
         const desiredChainId = 10143; // Monad Testnet
