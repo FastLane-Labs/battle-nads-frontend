@@ -101,7 +101,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         
         // Setup injected wallet if available
         if (privyInjectedWallet) {
-          const walletProvider = await privyInjectedWallet.getEthersProvider();
+          const walletProvider = await privyInjectedWallet.getEthereumProvider();
           const browserProvider = walletProvider as unknown as ethers.BrowserProvider;
           const walletSigner = await browserProvider.getSigner();
           
@@ -117,7 +117,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         
         // Setup embedded wallet if available
         if (privyEmbeddedWallet) {
-          const walletProvider = await privyEmbeddedWallet.getEthersProvider();
+          const walletProvider = await privyEmbeddedWallet.getEthereumProvider();
           const browserProvider = walletProvider as unknown as ethers.BrowserProvider;
           const walletSigner = await browserProvider.getSigner();
           
@@ -145,7 +145,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setCurrentWallet(walletType);
         
         // Get provider and signer from the active wallet
-        const walletProvider = await activeWallet.getEthersProvider();
+        const walletProvider = await activeWallet.getEthereumProvider();
         const browserProvider = walletProvider as unknown as ethers.BrowserProvider;
         
         // Check and switch network if needed
@@ -254,7 +254,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       // Send transaction using Privy
       const hash = await sendTransaction(
         unsignedTransactionRequest,
-        {showWalletUIs: false}
+        {uiOptions: {showWalletUIs: false}}
       );
 
       // Create a minimal TransactionResponse object that satisfies the required interface
