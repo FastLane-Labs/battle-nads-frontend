@@ -29,10 +29,18 @@ export const AttackButton: React.FC<AttackButtonProps> = ({
           onClick={onClick}
           disabled={isDisabled}
           position="relative"
-          width="60px"
-          height="60px"
+          width="70px"
+          height="70px"
           cursor={isDisabled ? "not-allowed" : "pointer"}
           opacity={isDisabled && !isLoading ? 0.4 : 1}
+          border="2px solid"
+          borderColor="red.600"
+          borderRadius="md"
+          transition="all 0.2s"
+          _hover={{
+            borderColor: !isDisabled ? "red.400" : "red.600",
+            transform: !isDisabled ? "scale(1.05)" : "none"
+          }}
         >
           {/* Background image - using weapon.png */}
           <div 
