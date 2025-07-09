@@ -1,5 +1,5 @@
 import React from 'react';
-import { HStack, Text, Spinner, useToast } from '@chakra-ui/react';
+import { HStack, Text, Spinner, useToast, Box } from '@chakra-ui/react';
 import { useAbilityCooldowns, AbilityStatus } from '@/hooks/game/useAbilityCooldowns';
 import { AbilityButton } from './AbilityButton';
 import { AttackButton } from './AttackButton';
@@ -149,16 +149,26 @@ export const AbilityControls: React.FC<AbilityControlsProps> = ({
     : undefined;
 
   return (
-    <HStack spacing={4} align="center" justify="center" width="100%">
-      {/* Attack Button */}
+    <HStack spacing={6} align="center" justify="center" width="100%">
+      {/* Attack Button - Separated from abilities */}
       {onAttack && (
-        <AttackButton
-          onClick={handleAttack}
-          isLoading={isAttacking}
-          isDisabled={isAttackDisabled}
-          targetName={attackTargetName}
-          statusMessage={attackStatusMessage}
-        />
+        <>
+          <AttackButton
+            onClick={handleAttack}
+            isLoading={isAttacking}
+            isDisabled={isAttackDisabled}
+            targetName={attackTargetName}
+            statusMessage={attackStatusMessage}
+          />
+          
+          {/* Visual separator between attack and abilities */}
+          <Box 
+            width="2px" 
+            height="40px" 
+            bg="whiteAlpha.300" 
+            mx={2}
+          />
+        </>
       )}
 
       {/* Ability Buttons */}
