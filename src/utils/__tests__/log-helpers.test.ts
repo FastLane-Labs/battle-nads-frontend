@@ -2,6 +2,7 @@ import {
   formatActorName,
   getPlayerTitle,
   pickAttackVerb,
+  getMonsterTypeFromName,
   getSignatureAbility,
   getWeaponName,
   getArmorName,
@@ -183,7 +184,71 @@ describe('log-helpers', () => {
     });
   });
 
+  describe('getMonsterTypeFromName', () => {
+    it('should return correct type for basic monster names', () => {
+      expect(getMonsterTypeFromName('Dungeon Crab')).toBe(3);
+      expect(getMonsterTypeFromName('Cave Viper')).toBe(7);
+      expect(getMonsterTypeFromName('Goblin Scout')).toBe(9);
+    });
+    
+    it('should handle Elite prefix', () => {
+      expect(getMonsterTypeFromName('Elite Dungeon Crab')).toBe(3);
+      expect(getMonsterTypeFromName('Elite Cave Viper')).toBe(7);
+    });
+    
+    it('should handle Boss suffix', () => {
+      expect(getMonsterTypeFromName('Dungeon Crab Boss')).toBe(3);
+      expect(getMonsterTypeFromName('Cave Viper Boss')).toBe(7);
+    });
+    
+    it('should handle special boss prefixes', () => {
+      expect(getMonsterTypeFromName('Dread Dungeon Crab Boss')).toBe(3);
+      expect(getMonsterTypeFromName('Nightmare Cave Viper Boss')).toBe(7);
+      expect(getMonsterTypeFromName('Infernal Goblin Scout Boss')).toBe(9);
+    });
+    
+    it('should return null for named bosses', () => {
+      expect(getMonsterTypeFromName('Molandak')).toBeNull();
+      expect(getMonsterTypeFromName('Salmonad')).toBeNull();
+    });
+    
+    it('should return null for special cases', () => {
+      expect(getMonsterTypeFromName('Dungeon Floor Boss')).toBeNull();
+      expect(getMonsterTypeFromName('Keone')).toBeNull();
+    });
+    
+    it('should return null for unknown names', () => {
+      expect(getMonsterTypeFromName('Unknown Monster')).toBeNull();
+    });
+  });
+
   describe('pickAttackVerb', () => {
+    it('should accept monster name and return correct verbs', () => {
+      const verb1 = pickAttackVerb('Dungeon Crab', 0);
+      expect(['pinches with claws', 'scuttles toward', 'snaps at']).toContain(verb1);
+      
+      const verb2 = pickAttackVerb('Cave Viper', 0);
+      expect(['strikes with venomous fangs', 'coils around', 'hisses at']).toContain(verb2);
+      
+      const verb3 = pickAttackVerb('Goblin Scout', 0);
+      expect(['scouts and strikes', 'darts toward', 'slashes with dagger']).toContain(verb3);
+    });
+    
+    it('should handle Elite monsters', () => {
+      const verb = pickAttackVerb('Elite Dungeon Crab', 0);
+      expect(['pinches with claws', 'scuttles toward', 'snaps at']).toContain(verb);
+    });
+    
+    it('should return default for unknown monsters', () => {
+      const verb = pickAttackVerb('Unknown Monster', 0);
+      expect(verb).toBe('attacks');
+    });
+    
+    it('should still accept numeric index for backward compatibility', () => {
+      const verb = pickAttackVerb(1, 0);
+      expect(['sloshes acidic goo at', 'oozes toward', 'splashes']).toContain(verb);
+    });
+    
     it('should return deterministic verbs based on logIndex', () => {
       const verb1 = pickAttackVerb(1, 100); // Slime
       const verb2 = pickAttackVerb(1, 100); // Same inputs
