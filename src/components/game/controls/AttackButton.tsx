@@ -19,7 +19,7 @@ export const AttackButton: React.FC<AttackButtonProps> = ({
 }) => {
   return (
     <GameTooltip
-      title={targetName ? `Attack ${targetName}` : "Attack"}
+      title={targetName ? `Auto-attack ${targetName}` : "Auto-attack Target"}
       status={statusMessage}
       statusType="error"
       placement="top"
