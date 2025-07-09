@@ -1,6 +1,7 @@
 import React from "react";
 import { Box, Text, CircularProgress, Image } from "@chakra-ui/react";
 import { GameTooltip } from '../../ui';
+import '@/styles/abilities.css';
 
 interface AttackButtonProps {
   onClick: () => void;
@@ -29,8 +30,8 @@ export const AttackButton: React.FC<AttackButtonProps> = ({
           onClick={onClick}
           disabled={isDisabled}
           position="relative"
-          width="70px"
-          height="70px"
+          width="60px"
+          height="60px"
           cursor={isDisabled ? "not-allowed" : "pointer"}
           opacity={isDisabled && !isLoading ? 0.4 : 1}
           border="2px solid"
@@ -71,6 +72,13 @@ export const AttackButton: React.FC<AttackButtonProps> = ({
               borderRadius="md"
             >
               <CircularProgress isIndeterminate size="30px" color="red.300" />
+            </Box>
+          )}
+          
+          {/* Target Name Label */}
+          {targetName && (
+            <Box className="ability-target-label">
+              {targetName}
             </Box>
           )}
         </Box>
