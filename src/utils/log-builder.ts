@@ -110,14 +110,18 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       // Check if this is likely a monster
       // First check class, then check if the name matches a known monster name
       const actorNameLower = actor.name?.toLowerCase() || '';
+      // Strip "Elite " prefix for checking
+      const nameWithoutElite = actorNameLower.startsWith('elite ') 
+        ? actorNameLower.substring(6) 
+        : actorNameLower;
       const isNamedLikeMonster = Object.values(MONSTER_NAMES).some(monsterName => 
-        monsterName.toLowerCase() === actorNameLower
+        monsterName.toLowerCase() === nameWithoutElite
       );
       const isLikelyMonster = isMonster(actor) || isNamedLikeMonster;
       
       let verb = "hits";
       if (isLikelyMonster) {
-        verb = pickAttackVerb(actor.index, Number(raw.areaId));
+        verb = pickAttackVerb(actor.name, Number(raw.areaId));
       } else {
         // Use correct grammar: "You strike" vs "John strikes"
         if (isActorPlayer) {

@@ -84,7 +84,62 @@ interface VerbInfo {
   needsTargetInsertion: boolean; // true if verb needs target inserted within the phrase
 }
 
-export function pickAttackVerb(monsterIdx: number, areaId?: number): string {
+export function getMonsterTypeFromName(name: string): number | null {
+  // Strip prefixes for elite/boss monsters
+  let baseName = name;
+  if (name.startsWith("Elite ")) {
+    baseName = name.substring(6);
+  } else if (name.endsWith(" Boss")) {
+    baseName = name.substring(0, name.length - 5);
+    // Also handle special boss prefixes
+    if (baseName.startsWith("Dread ") || baseName.startsWith("Nightmare ") || baseName.startsWith("Infernal ")) {
+      const parts = baseName.split(" ");
+      baseName = parts.slice(1).join(" ");
+    }
+  }
+  
+  // Special case for named bosses
+  const namedBossEntry = Object.entries(NAMED_BOSSES).find(([_, bossName]) => bossName === name);
+  if (namedBossEntry) {
+    // Named bosses don't have specific monster types, return null
+    return null;
+  }
+  
+  // Special cases
+  if (name === "Dungeon Floor Boss") {
+    // This is a generic boss name, no specific type
+    return null;
+  }
+  if (name === "Keone") {
+    // Special high-level boss
+    return null;
+  }
+  
+  // Find the monster type by name
+  const monsterEntry = Object.entries(MONSTER_NAMES).find(([_, monsterName]) => monsterName === baseName);
+  if (monsterEntry) {
+    return parseInt(monsterEntry[0]);
+  }
+  
+  return null;
+}
+
+export function pickAttackVerb(monsterNameOrIdx: string | number, areaId?: number): string {
+  let monsterIdx: number;
+  
+  if (typeof monsterNameOrIdx === "string") {
+    // It's a monster name, convert to type ID
+    const typeId = getMonsterTypeFromName(monsterNameOrIdx);
+    if (typeId === null) {
+      // Unknown monster type, use default
+      return "attacks";
+    }
+    monsterIdx = typeId;
+  } else {
+    // It's already an index (for backward compatibility)
+    monsterIdx = monsterNameOrIdx;
+  }
+  
   const verbs = MONSTER_ATTACKS[monsterIdx] ?? ["hits"];
   // Use areaId as seed for deterministic selection to get variety across areas
   const seed = areaId ?? monsterIdx;

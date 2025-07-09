@@ -175,6 +175,45 @@ describe('log-builder', () => {
       expect(result1.text).toMatch(/sloshes acidic goo at|oozes toward|splashes/);
     });
 
+    it('should handle Elite monster attacks with correct verbs', () => {
+      const eliteSnailCharacter = {
+        class: CharacterClass.Elite,
+        index: 5, // Location index
+        level: 10,
+        name: 'Elite Venomous Snail',
+      };
+
+      const rawLog: LogEntryRaw = {
+        logIndex: 150,
+        blocknumber: 1000n,
+        timestamp: Date.now(),
+        type: LogType.Combat,
+        attacker: {
+          id: 'elite-snail-1',
+          name: 'Elite Venomous Snail',
+          index: 5,
+        },
+        defender: mockPlayer,
+        areaId: 5n,
+        isPlayerInitiated: false,
+        details: {
+          hit: true,
+          damageDone: 50,
+        },
+        displayMessage: 'raw message',
+        actor: eliteSnailCharacter,
+        target: mockPlayerCharacter,
+      };
+
+      const result = enrichLog(rawLog, 1, undefined, undefined, 'John');
+
+      expect(result.text).toContain('Elite Venomous Snail');
+      expect(result.text).toContain('you');
+      expect(result.text).toContain('for 50 damage');
+      // Should use Venomous Snail's attack verbs (id 5), not generic "strikes"
+      expect(result.text).toMatch(/leaves a slimy trail toward|slowly approaches|secretes poison at/);
+    });
+
     it('should not include weapon text for monster attacks', () => {
       const beastCharacter = {
         class: CharacterClass.Basic,
