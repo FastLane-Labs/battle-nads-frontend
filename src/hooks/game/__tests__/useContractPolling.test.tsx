@@ -187,7 +187,7 @@ describe('useContractPolling', () => {
     expect(mockClient.getUiSnapshot).toHaveBeenNthCalledWith(2, mockOwner, BigInt(2));
   });
 
-  it('should use correct query key with owner and embedded wallet address', () => {
+  it('should use correct query key with owner', () => {
     mockUseBattleNadsClient.mockReturnValue({ client: mockClient, error: null });
     mockUseWallet.mockReturnValue({ embeddedWallet: mockEmbeddedWallet } as any);
 
@@ -197,7 +197,7 @@ describe('useContractPolling', () => {
 
     // Check that query was created with correct key
     const query = queryClient.getQueryCache().find({
-      queryKey: ['contractPolling', mockOwner, mockEmbeddedWallet.address]
+      queryKey: ['contractPolling', mockOwner]
     });
     
     expect(query).toBeDefined();
@@ -231,7 +231,7 @@ describe('useContractPolling', () => {
     });
 
     const query = queryClient.getQueryCache().find({
-      queryKey: ['contractPolling', mockOwner, mockEmbeddedWallet.address]
+      queryKey: ['contractPolling', mockOwner]
     });
 
     expect((query?.options as any).staleTime).toBe(0);

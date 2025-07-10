@@ -2,22 +2,12 @@ import React from 'react';
 import { render, renderHook } from '@testing-library/react';
 import { AuthStateProvider, useAuthState } from '../AuthStateContext';
 import { AuthState } from '@/types/auth';
-import { useWallet } from '@/providers/WalletProvider';
-import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState';
-import { useWelcomeScreen } from '@/components/onboarding/WelcomeScreen';
-import { SessionKeyState } from '@/types/domain/session';
+import { useAppInitializerMachine } from '@/hooks/useAppInitializerMachine';
 
-// Mock dependencies
-jest.mock('@/providers/WalletProvider');
-jest.mock('@/hooks/game/useSimplifiedGameState');
-jest.mock('@/components/onboarding/WelcomeScreen');
-jest.mock('@/utils/getCharacterLocalStorageKey', () => ({
-  isValidCharacterId: (id: string | null) => id !== null && id !== "0x0000000000000000000000000000000000000000000000000000000000000000"
-}));
+// Mock the state machine hook
+jest.mock('@/hooks/useAppInitializerMachine');
 
-const mockUseWallet = useWallet as jest.MockedFunction<typeof useWallet>;
-const mockUseSimplifiedGameState = useSimplifiedGameState as jest.MockedFunction<typeof useSimplifiedGameState>;
-const mockUseWelcomeScreen = useWelcomeScreen as jest.MockedFunction<typeof useWelcomeScreen>;
+const mockUseAppInitializerMachine = useAppInitializerMachine as jest.MockedFunction<typeof useAppInitializerMachine>;
 
 describe('AuthStateContext', () => {
   beforeEach(() => {
@@ -34,17 +24,18 @@ describe('AuthStateContext', () => {
 
   describe('State Transitions', () => {
     it('should return CONTRACT_CHECKING when contract is being checked', () => {
-      mockUseWallet.mockReturnValue({
-        isInitialized: true,
-        currentWallet: 'none',
-        isWalletLocked: false,
-        injectedWallet: null,
-      } as any);
-      mockUseSimplifiedGameState.mockReturnValue({
-        isInitialized: true,
+      mockUseAppInitializerMachine.mockReturnValue({
+        state: AuthState.CONTRACT_CHECKING,
+        error: null,
+        isInitialized: false,
         hasWallet: false,
-      } as any);
-      mockUseWelcomeScreen.mockReturnValue({ hasSeenWelcome: true } as any);
+        hasCharacter: false,
+        hasValidSessionKey: false,
+        isLoading: true,
+        characterId: null,
+        walletAddress: null,
+        sessionKeyAddress: null,
+      });
 
       const { result } = renderHook(() => useAuthState(), { 
         wrapper: createWrapper(true) 
@@ -55,17 +46,18 @@ describe('AuthStateContext', () => {
     });
 
     it('should return INITIALIZING when wallet is not initialized', () => {
-      mockUseWallet.mockReturnValue({
-        isInitialized: false,
-        currentWallet: 'none',
-        isWalletLocked: false,
-        injectedWallet: null,
-      } as any);
-      mockUseSimplifiedGameState.mockReturnValue({
+      mockUseAppInitializerMachine.mockReturnValue({
+        state: AuthState.INITIALIZING,
+        error: null,
         isInitialized: false,
         hasWallet: false,
-      } as any);
-      mockUseWelcomeScreen.mockReturnValue({ hasSeenWelcome: true } as any);
+        hasCharacter: false,
+        hasValidSessionKey: false,
+        isLoading: true,
+        characterId: null,
+        walletAddress: null,
+        sessionKeyAddress: null,
+      });
 
       const { result } = renderHook(() => useAuthState(), { 
         wrapper: createWrapper(false) 
@@ -78,17 +70,18 @@ describe('AuthStateContext', () => {
     // Removed WALLET_LOCKED test - wallet lock detection is no longer supported
 
     it('should return NO_WALLET when no wallet is connected', () => {
-      mockUseWallet.mockReturnValue({
-        isInitialized: true,
-        currentWallet: 'none',
-        isWalletLocked: false,
-        injectedWallet: null,
-      } as any);
-      mockUseSimplifiedGameState.mockReturnValue({
+      mockUseAppInitializerMachine.mockReturnValue({
+        state: AuthState.NO_WALLET,
+        error: null,
         isInitialized: true,
         hasWallet: false,
-      } as any);
-      mockUseWelcomeScreen.mockReturnValue({ hasSeenWelcome: true } as any);
+        hasCharacter: false,
+        hasValidSessionKey: false,
+        isLoading: false,
+        characterId: null,
+        walletAddress: null,
+        sessionKeyAddress: null,
+      });
 
       const { result } = renderHook(() => useAuthState(), { 
         wrapper: createWrapper(false) 
@@ -99,18 +92,18 @@ describe('AuthStateContext', () => {
     });
 
     it('should return LOADING_GAME_DATA when loading game data', () => {
-      mockUseWallet.mockReturnValue({
-        isInitialized: true,
-        currentWallet: 'injected',
-        isWalletLocked: false,
-        injectedWallet: { address: '0x123' },
-      } as any);
-      mockUseSimplifiedGameState.mockReturnValue({
+      mockUseAppInitializerMachine.mockReturnValue({
+        state: AuthState.LOADING_GAME_DATA,
+        error: null,
         isInitialized: true,
         hasWallet: true,
+        hasCharacter: false,
+        hasValidSessionKey: false,
         isLoading: true,
-      } as any);
-      mockUseWelcomeScreen.mockReturnValue({ hasSeenWelcome: true } as any);
+        characterId: null,
+        walletAddress: '0x123',
+        sessionKeyAddress: null,
+      });
 
       const { result } = renderHook(() => useAuthState(), { 
         wrapper: createWrapper(false) 
@@ -121,19 +114,18 @@ describe('AuthStateContext', () => {
     });
 
     it('should return NO_CHARACTER when no character exists after onboarding', () => {
-      mockUseWallet.mockReturnValue({
-        isInitialized: true,
-        currentWallet: 'injected',
-        isWalletLocked: false,
-        injectedWallet: { address: '0x123' },
-      } as any);
-      mockUseSimplifiedGameState.mockReturnValue({
+      mockUseAppInitializerMachine.mockReturnValue({
+        state: AuthState.NO_CHARACTER,
+        error: null,
         isInitialized: true,
         hasWallet: true,
+        hasCharacter: false,
+        hasValidSessionKey: false,
         isLoading: false,
         characterId: "0x0000000000000000000000000000000000000000000000000000000000000000",
-      } as any);
-      mockUseWelcomeScreen.mockReturnValue({ hasSeenWelcome: true } as any);
+        walletAddress: '0x123',
+        sessionKeyAddress: null,
+      });
 
       const { result } = renderHook(() => useAuthState(), { 
         wrapper: createWrapper(false) 
@@ -144,20 +136,18 @@ describe('AuthStateContext', () => {
     });
 
     it('should return CHARACTER_DEAD when character is dead', () => {
-      mockUseWallet.mockReturnValue({
-        isInitialized: true,
-        currentWallet: 'injected',
-        isWalletLocked: false,
-        injectedWallet: { address: '0x123' },
-      } as any);
-      mockUseSimplifiedGameState.mockReturnValue({
+      mockUseAppInitializerMachine.mockReturnValue({
+        state: AuthState.CHARACTER_DEAD,
+        error: null,
         isInitialized: true,
         hasWallet: true,
+        hasCharacter: true,
+        hasValidSessionKey: false,
         isLoading: false,
         characterId: "0x1234567890",
-        character: { isDead: true },
-      } as any);
-      mockUseWelcomeScreen.mockReturnValue({ hasSeenWelcome: true } as any);
+        walletAddress: '0x123',
+        sessionKeyAddress: null,
+      });
 
       const { result } = renderHook(() => useAuthState(), { 
         wrapper: createWrapper(false) 
@@ -168,22 +158,18 @@ describe('AuthStateContext', () => {
     });
 
     it('should return SESSION_KEY_EXPIRED when session key is expired', () => {
-      mockUseWallet.mockReturnValue({
-        isInitialized: true,
-        currentWallet: 'injected',
-        isWalletLocked: false,
-        injectedWallet: { address: '0x123' },
-      } as any);
-      mockUseSimplifiedGameState.mockReturnValue({
+      mockUseAppInitializerMachine.mockReturnValue({
+        state: AuthState.SESSION_KEY_EXPIRED,
+        error: null,
         isInitialized: true,
         hasWallet: true,
+        hasCharacter: true,
+        hasValidSessionKey: false,
         isLoading: false,
         characterId: "0x1234567890",
-        character: { isDead: false },
-        needsSessionKeyUpdate: true,
-        sessionKeyState: SessionKeyState.EXPIRED,
-      } as any);
-      mockUseWelcomeScreen.mockReturnValue({ hasSeenWelcome: true } as any);
+        walletAddress: '0x123',
+        sessionKeyAddress: null,
+      });
 
       const { result } = renderHook(() => useAuthState(), { 
         wrapper: createWrapper(false) 
@@ -194,23 +180,18 @@ describe('AuthStateContext', () => {
     });
 
     it('should return READY when all conditions are met', () => {
-      mockUseWallet.mockReturnValue({
-        isInitialized: true,
-        currentWallet: 'injected',
-        isWalletLocked: false,
-        injectedWallet: { address: '0x123' },
-      } as any);
-      mockUseSimplifiedGameState.mockReturnValue({
+      mockUseAppInitializerMachine.mockReturnValue({
+        state: AuthState.READY,
+        error: null,
         isInitialized: true,
         hasWallet: true,
+        hasCharacter: true,
+        hasValidSessionKey: true,
         isLoading: false,
         characterId: "0x1234567890",
-        character: { isDead: false },
-        worldSnapshot: { version: 1 },
-        needsSessionKeyUpdate: false,
-        sessionKeyData: { key: '0xabc' },
-      } as any);
-      mockUseWelcomeScreen.mockReturnValue({ hasSeenWelcome: true } as any);
+        walletAddress: '0x123',
+        sessionKeyAddress: '0xabc',
+      });
 
       const { result } = renderHook(() => useAuthState(), { 
         wrapper: createWrapper(false) 

@@ -642,8 +642,6 @@ export function contractToWorldSnapshot(
       // This means createAreaID returned 0n even with character data (e.g., depth 0, x 0, y 0)
       // This is a valid areaId (representing the "void" or an undefined area), but log if it might be unexpected.
       console.log(`[contractToWorldSnapshot] Player character is at coordinates (Depth: ${raw.character.stats.depth}, X: ${raw.character.stats.x}, Y: ${raw.character.stats.y}), resulting in snapshotAreaId 0n for all events in this snapshot.`);
-    } else {
-      console.warn(`[contractToWorldSnapshot] Player character data not found in snapshot. Defaulting all event areaIds in this snapshot to 0n. This may impact event filtering if player context is crucial and missing.`);
     }
   }
   // --- End snapshotAreaId determination ---

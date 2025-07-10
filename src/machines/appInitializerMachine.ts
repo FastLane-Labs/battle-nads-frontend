@@ -10,15 +10,16 @@ interface AppInitializerContext {
   sessionKeyAddress?: string | null;
   sessionKeyState?: SessionKeyState;
   hasSeenWelcome?: boolean;
+  hasEmbeddedWallet?: boolean;
 }
 
 // Define the machine events
 type AppInitializerEvent =
   | { type: 'CONTRACT_CHECK_COMPLETE' }
-  | { type: 'WALLET_INITIALIZED' }
+  | { type: 'WALLET_INITIALIZED'; hasEmbeddedWallet: boolean }
   | { type: 'WALLET_CONNECTED'; walletAddress: string }
   | { type: 'WALLET_DISCONNECTED' }
-  | { type: 'GAME_DATA_LOADED'; characterId: string }
+  | { type: 'GAME_DATA_LOADED'; characterId: string; sessionKeyState?: SessionKeyState }
   | { type: 'GAME_DATA_ERROR'; error: Error }
   | { type: 'CHARACTER_CREATED'; characterId: string }
   | { type: 'CHARACTER_DIED' }
@@ -62,15 +63,13 @@ export const appInitializerMachine = createMachine({
           },
           {
             target: 'loadingGameData',
-            guard: ({ context }) => !!context.walletAddress,
+            guard: ({ context, event }) => !!context.walletAddress && event.hasEmbeddedWallet,
+            actions: assign(({ event }) => ({
+              hasEmbeddedWallet: event.hasEmbeddedWallet,
+            })),
           },
         ],
-        WALLET_CONNECTED: {
-          target: 'loadingGameData',
-          actions: assign(({ event }) => ({
-            walletAddress: event.walletAddress,
-          })),
-        },
+        // Remove WALLET_CONNECTED handler here - we should wait for WALLET_INITIALIZED
       },
     },
     
@@ -98,6 +97,7 @@ export const appInitializerMachine = createMachine({
             target: 'checkingCharacterStatus',
             actions: assign(({ event }) => ({
               characterId: event.characterId,
+              sessionKeyState: event.sessionKeyState || undefined,
             })),
           },
         ],
@@ -206,6 +206,10 @@ export const appInitializerMachine = createMachine({
           target: 'ready',
           guard: ({ context }) => context.sessionKeyState === SessionKeyState.VALID,
         },
+        {
+          // Default to missing if no session key state is set
+          target: 'sessionKeyMissing',
+        },
       ],
       on: {
         SESSION_KEY_INVALID: [
@@ -230,7 +234,12 @@ export const appInitializerMachine = createMachine({
             })),
           },
         ],
-        SESSION_KEY_VALID: 'ready',
+        SESSION_KEY_VALID: {
+          target: 'ready',
+          actions: assign(() => ({
+            sessionKeyState: SessionKeyState.VALID,
+          })),
+        },
       },
     },
     
@@ -240,6 +249,12 @@ export const appInitializerMachine = createMachine({
           target: 'sessionKeyUpdating',
           actions: assign(({ event }) => ({
             sessionKeyAddress: event.sessionKeyAddress,
+          })),
+        },
+        SESSION_KEY_VALID: {
+          target: 'ready',
+          actions: assign(() => ({
+            sessionKeyState: SessionKeyState.VALID,
           })),
         },
         WALLET_DISCONNECTED: {
@@ -261,6 +276,12 @@ export const appInitializerMachine = createMachine({
             sessionKeyAddress: event.sessionKeyAddress,
           })),
         },
+        SESSION_KEY_VALID: {
+          target: 'ready',
+          actions: assign(() => ({
+            sessionKeyState: SessionKeyState.VALID,
+          })),
+        },
         WALLET_DISCONNECTED: {
           target: 'noWallet',
           actions: assign(() => ({
@@ -278,6 +299,12 @@ export const appInitializerMachine = createMachine({
           target: 'sessionKeyUpdating',
           actions: assign(({ event }) => ({
             sessionKeyAddress: event.sessionKeyAddress,
+          })),
+        },
+        SESSION_KEY_VALID: {
+          target: 'ready',
+          actions: assign(() => ({
+            sessionKeyState: SessionKeyState.VALID,
           })),
         },
         WALLET_DISCONNECTED: {

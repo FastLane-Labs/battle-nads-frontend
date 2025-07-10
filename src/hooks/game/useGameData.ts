@@ -115,7 +115,7 @@ export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameData
     
     // Store new feed data
     if (includeHistory && owner && characterId && uiSnapshot.dataFeeds?.length) {
-      const playerAreaId = uiSnapshot.character ? 
+      const playerAreaId = uiSnapshot.character?.stats ? 
         createAreaID(
           Number(uiSnapshot.character.stats.depth),
           Number(uiSnapshot.character.stats.x),
@@ -388,7 +388,7 @@ export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameData
       {
         id: rawData.character.id.toString(),
         name: rawData.character.name,
-        index: Number(rawData.character.stats.index)
+        index: Number(rawData.character.stats?.index || 0)
       },
       rawData.endBlock
     );
