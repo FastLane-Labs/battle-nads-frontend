@@ -37,6 +37,7 @@ To start working on a feature, you should:
 - Read the relevant GitHub issue (or create one if needed)
 - Checkout main and pull the latest changes
 - Create a new branch like `feat/feature-name` or `fix/bug-name`. **NEVER commit to main. NEVER push to origin/main.**
+- **IMPORTANT: Never commit directly to the main branch unless explicitly given permission by the user. Always create a feature branch for any changes.**
 
 ### 2. Development
 
