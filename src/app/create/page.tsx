@@ -26,7 +26,7 @@ export default function CreatePage() {
         router.push('/');
       }
     }
-  }, [game.isLoading, game.hasWallet, game.error, game.characterId, router]);
+  }, [game.isLoading, game.hasWallet, game.error, game.characterId, game.character, router]);
 
   if (game.isLoading || (!game.hasWallet && !game.error)) {
     return <LoadingScreen message="Loading Character Status..." />;
