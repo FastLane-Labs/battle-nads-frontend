@@ -72,6 +72,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [injectedWallet, setInjectedWallet] = useState<WalletInfo | null>(null);
   const [embeddedWallet, setEmbeddedWallet] = useState<WalletInfo | null>(null);
   const [networkSwitching, setNetworkSwitching] = useState(false);
+  const [isWalletLocked, setIsWalletLocked] = useState(false);
+  const [hasHadWallet, setHasHadWallet] = useState(false);
 
   useEffect(() => {
     async function setupWallet() {
@@ -81,6 +83,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       }
       
       setIsInitialized(true);
+      
+      // Check if wallet is "locked" - in Privy terms, this means:
+      // 1. User was previously authenticated but now isn't (session expired/logged out)
+      // 2. This is different from never having connected a wallet
+      const isCurrentlyLocked = ready && !authenticated && hasHadWallet;
+      setIsWalletLocked(isCurrentlyLocked);
       
       if (!authenticated || wallets.length === 0) {
         setCurrentWallet('none');
@@ -93,6 +101,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setLoading(false);
         return;
       }
+      
+      // If we reach here, user is authenticated with wallets
+      setHasHadWallet(true);
+      setIsWalletLocked(false);
 
       try {
         // Find injected and embedded wallets
@@ -193,7 +205,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
 
     setupWallet();
-  }, [ready, authenticated, wallets, error]);
+  }, [ready, authenticated, wallets, error, hasHadWallet]);
 
   const connectMetamask = async () => {
     if (ready && !authenticated) {
@@ -286,7 +298,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     embeddedWallet,
     connectMetamask,
     connectPrivyEmbedded,
-    isWalletLocked: false, // WalletProvider doesn't track lock state via window.ethereum
+    isWalletLocked,
     promptWalletUnlock,
     logout,
     networkSwitching,
