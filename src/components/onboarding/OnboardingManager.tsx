@@ -65,7 +65,7 @@ const ONBOARDING_FLOWS: OnboardingFlow[] = [
     id: 'first-game',
     name: 'First Game Experience',
     description: 'Learn the game interface and basic actions',
-    requiredPath: '/game',
+    requiredPath: '/',
     requiredConditions: {
       hasWallet: true,
       hasCharacter: true,
