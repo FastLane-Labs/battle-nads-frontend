@@ -135,11 +135,7 @@ const NavBar: React.FC = () => {
         </Flex>
 
         <Flex justifyContent="flex-end" alignItems="center">
-          {!hasWallet ? (
-            <Button colorScheme="blue" size="sm" onClick={() => login()}>
-              Connect Wallet
-            </Button>
-          ) : (
+          {hasWallet && (
             <Menu isOpen={isOpen} onClose={onClose} onOpen={onOpen}>
               <MenuButton as={Button} rightIcon={<ChevronDownIcon />} variant="outline" size="md">
                 {injectedWallet?.address && (
