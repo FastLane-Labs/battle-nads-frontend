@@ -18,14 +18,7 @@ import {
   Button 
 } from '@chakra-ui/react';
 import { CopyIcon, CheckIcon, ChevronDownIcon } from '@chakra-ui/icons';
-interface WalletInfo {
-  type: string;
-  walletClientType?: string;
-  address: string | null;
-  signer: any | null;
-  provider: any | null;
-  privyWallet: any | null;
-}
+import type { WalletInfo } from '@/providers/WalletProvider';
 
 interface AccountMenuProps {
   injectedWallet?: WalletInfo;

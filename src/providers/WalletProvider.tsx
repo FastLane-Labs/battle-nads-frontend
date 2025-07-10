@@ -9,7 +9,7 @@ import { useRouter } from 'next/navigation';
 
 type WalletType = 'injected' | 'embedded' | 'none';
 
-interface WalletInfo {
+export interface WalletInfo {
   type: WalletType;
   walletClientType?: string;
   address: string | null;
