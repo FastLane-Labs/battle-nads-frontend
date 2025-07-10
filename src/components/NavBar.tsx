@@ -1,19 +1,16 @@
 'use client';
 
 import React, { useRef } from 'react';
-import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip, Spinner, Image, useClipboard, IconButton, Menu, MenuButton, MenuList, MenuItem, MenuDivider, useDisclosure } from '@chakra-ui/react';
+import { Box, Flex, Button, HStack, Text, useColorMode, Badge, Tooltip, Spinner, Image, useClipboard, Menu, MenuButton, MenuList, MenuItem, MenuDivider, useDisclosure } from '@chakra-ui/react';
 import { CopyIcon, CheckIcon, ChevronDownIcon } from '@chakra-ui/icons';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { usePrivy } from '@privy-io/react-auth';
+import { useRouter } from 'next/navigation';
 import { useWallet } from '@/providers/WalletProvider';
 import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState';
-import { isValidCharacterId } from '@/utils/getCharacterLocalStorageKey';
 import { useSessionFunding } from '@/hooks/session/useSessionFunding';
 
 const NavBar: React.FC = () => {
   const { colorMode } = useColorMode();
-  const { login } = usePrivy();
   const {
     logout,
     injectedWallet,
@@ -21,7 +18,6 @@ const NavBar: React.FC = () => {
   } = useWallet();
   
   const { 
-    isLoading,
     characterId,
     hasWallet,
     sessionKeyData
@@ -32,17 +28,13 @@ const NavBar: React.FC = () => {
     isDeactivating 
   } = useSessionFunding(characterId);
   
-  const pathname = usePathname();
   const router = useRouter();
-
-  const hasCharacter = characterId ? isValidCharacterId(characterId) : false;
   const sessionKeyAddress = sessionKeyData?.key;
   const canDeactivate = !!sessionKeyAddress && sessionKeyAddress !== '0x0000000000000000000000000000000000000000';
 
   const { onCopy: onCopyEmbedded, hasCopied: hasCopiedEmbedded } = useClipboard(embeddedWallet?.address ?? '');
   const { onCopy: onCopyInjected, hasCopied: hasCopiedInjected } = useClipboard(injectedWallet?.address ?? '');
 
-  const isActive = (path: string) => pathname === path;
   
   const formatWalletType = (type?: string): string => {
     if (!type) return '';
@@ -103,35 +95,6 @@ const NavBar: React.FC = () => {
             </Link>
           </Box>
 
-          {hasWallet && (
-            <HStack as="nav" spacing={4} display={{ base: 'none', md: 'flex' }}>
-              
-              {isLoading ? (
-                <Box px={3} py={2}>
-                  <Spinner size="sm" color="blue.500" />
-                  <Text fontSize="xs" color="gray.500" ml={1}>Loading...</Text>
-                </Box>
-              ) : (
-                !hasCharacter && pathname !== '/create' && (
-                  <Link href="/create">
-                    <Text
-                      px={3}
-                      py={2}
-                      rounded="md"
-                      fontWeight="bold"
-                      bg={isActive('/create') ? 'blue.500' : 'transparent'}
-                      color={isActive('/create') ? 'white' : undefined}
-                      _hover={{ bg: colorMode === 'dark' ? 'blue.700' : 'blue.100' }}
-                      cursor="pointer"
-                      data-active={isActive('/create')}
-                    >
-                      Create Character
-                    </Text>
-                  </Link>
-                )
-              )}
-            </HStack>
-          )}
         </Flex>
 
         <Flex justifyContent="flex-end" alignItems="center">
