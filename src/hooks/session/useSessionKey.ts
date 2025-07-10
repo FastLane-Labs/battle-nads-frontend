@@ -19,24 +19,6 @@ export const useSessionKey = (characterId: string | null): hooks.UseSessionKeyRe
   const ownerAddress = injectedWallet?.address ?? null; // Ensure ownerAddress is string | null
   const queryClient = useQueryClient();
 
-  // Only log when addresses change to reduce spam
-  const prevOwnerRef = useRef<string | null>(null);
-  const prevEmbeddedRef = useRef<string | null>(null);
-  
-  useEffect(() => {
-    if (prevOwnerRef.current !== ownerAddress || prevEmbeddedRef.current !== (embeddedWallet?.address ?? null)) {
-      if (prevOwnerRef.current !== null || prevEmbeddedRef.current !== null) { // Skip initial load
-        console.log('[useSessionKey] Wallet addresses changed:', {
-          previousOwner: prevOwnerRef.current,
-          newOwner: ownerAddress,
-          previousEmbedded: prevEmbeddedRef.current,
-          newEmbedded: embeddedWallet?.address
-        });
-      }
-      prevOwnerRef.current = ownerAddress;
-      prevEmbeddedRef.current = embeddedWallet?.address ?? null;
-    }
-  }, [ownerAddress, embeddedWallet?.address]);
   
   // Get snapshot data directly from useContractPolling to avoid circular dependency
   // Poll data with just owner address, but validate session key only when embedded wallet is available
@@ -52,7 +34,6 @@ export const useSessionKey = (characterId: string | null): hooks.UseSessionKeyRe
 
   // Local state for the derived validation state
   const [sessionKeyState, setSessionKeyState] = useState<SessionKeyState>(SessionKeyState.IDLE);
-  const lastLoggedStateRef = useRef<string | null>(null);
 
   // Effect to calculate and update session key state when relevant dependencies change
   useEffect(() => {
@@ -72,19 +53,6 @@ export const useSessionKey = (characterId: string | null): hooks.UseSessionKeyRe
       rawSessionKeyData !== undefined && 
       rawEndBlock !== undefined;
 
-    // Only log validation inputs if there's a problem or first time (debug only)
-    if (process.env.NODE_ENV === 'development' && (!isInputAvailable || !sessionKey || sessionKey.toLowerCase() === ZeroAddress.toLowerCase())) {
-      console.log('[useSessionKey] Validation issue detected:', {
-        characterId,
-        ownerAddress,
-        embeddedAddr,
-        sessionKey,
-        expiration,
-        currentBlock,
-        isInputAvailable,
-        isSnapshotLoading
-      });
-    }
 
     // --- Primary Logic: Only calculate final state AFTER loading is complete --- 
     if (!isSnapshotLoading) {
@@ -121,32 +89,8 @@ export const useSessionKey = (characterId: string | null): hooks.UseSessionKeyRe
              );
              
              newSessionKeyState = validation.state;
-             
-             // Only log if validation fails or shows problems, and state has changed (debug only)
-             if (process.env.NODE_ENV === 'development' && newSessionKeyState !== SessionKeyState.VALID) {
-               const stateKey = `${newSessionKeyState}-${sessionKey}-${embeddedAddr}`;
-               if (lastLoggedStateRef.current !== stateKey) {
-                 console.log('[useSessionKey] Session key validation failed:', {
-                   newSessionKeyState,
-                   sessionKey,
-                   embeddedAddr,
-                   sessionKeyMatches: sessionKey?.toLowerCase() === embeddedAddr?.toLowerCase(),
-                   isExpired: expiration < currentBlock,
-                   expiration,
-                   currentBlock,
-                   blocksUntilExpiry: expiration - currentBlock
-                 });
-                 lastLoggedStateRef.current = stateKey;
-               }
-             } else {
-               // Reset logged state when validation becomes valid
-               lastLoggedStateRef.current = null;
-             }
           } else {
              // Data is available post-load, but invalid for validation (e.g., zero key)
-             console.warn("[useSessionKey Effect] Validation skipped post-load: Invalid data:", {
-                 sessionKey, expiration, currentBlock, embeddedAddr
-             });
              newSessionKeyState = SessionKeyState.MISSING; 
           }
       } else {
@@ -213,7 +157,6 @@ export const useSessionKey = (characterId: string | null): hooks.UseSessionKeyRe
 
   // Return values needed by consuming components
   // isLoading/isFetching now reflect the snapshot query state
-  //console.log(`[useSessionKey Return Debug] isSnapshotLoading=${isSnapshotLoading}`);
 
   // Define refresh function using queryClient
   const refreshSessionKey = () => {
