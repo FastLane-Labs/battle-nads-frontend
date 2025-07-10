@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useSimplifiedGameState } from '../hooks/game/useSimplifiedGameState';
 import Login from './auth/Login';
 import LoadingScreen from './game/screens/LoadingScreen';
@@ -16,11 +16,13 @@ import { useWallet } from '../providers/WalletProvider';
 import { GameButton } from './ui';
 import { useAuthState } from '@/contexts/AuthStateContext';
 import { AuthState, shouldShowNavBar } from '@/types/auth';
+import CharacterCreation from './characters/CharacterCreation';
 
 const AppInitializer: React.FC = () => {
   const authState = useAuthState();
   const game = useSimplifiedGameState();
   const router = useRouter();
+  const pathname = usePathname();
   const { currentWallet, promptWalletUnlock } = useWallet();
   const zeroCharacterId = "0x0000000000000000000000000000000000000000000000000000000000000000";
   
@@ -45,13 +47,18 @@ const AppInitializer: React.FC = () => {
     );
   };
 
-  // Effect for redirection when no character exists
+  // Effect for redirection based on auth state and pathname
   useEffect(() => {
     // Redirect to character creation when in NO_CHARACTER state
-    if (authState.state === AuthState.NO_CHARACTER) {
+    if (authState.state === AuthState.NO_CHARACTER && pathname !== '/create') {
       router.push('/create');
     }
-  }, [authState.state, router]);
+    
+    // Redirect to home if user has a character but is on create page
+    if (authState.state === AuthState.READY && pathname === '/create') {
+      router.push('/');
+    }
+  }, [authState.state, pathname, router]);
 
   // --- State Rendering Logic Based on Centralized Auth State --- 
 
@@ -121,6 +128,17 @@ const AppInitializer: React.FC = () => {
       );
       
     case AuthState.NO_CHARACTER:
+      if (pathname === '/create') {
+        return renderWithNav(
+          <CharacterCreation 
+            onCharacterCreated={() => {
+              // Character creation will update the state automatically
+              // The auth state will change and redirect will happen
+            }} 
+          />, 
+          "Character Creation"
+        );
+      }
       return renderWithNav(<LoadingScreen message="Redirecting to character creation..." />, "Redirecting");
       
     case AuthState.CHARACTER_DEAD:
