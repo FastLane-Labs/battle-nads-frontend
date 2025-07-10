@@ -75,27 +75,7 @@ describe('AuthStateContext', () => {
       expect(result.current.isInitialized).toBe(false);
     });
 
-    it('should return WALLET_LOCKED when wallet is locked', () => {
-      mockUseWallet.mockReturnValue({
-        isInitialized: true,
-        currentWallet: 'injected',
-        isWalletLocked: true,
-        injectedWallet: { address: '0x123' },
-      } as any);
-      mockUseSimplifiedGameState.mockReturnValue({
-        isInitialized: true,
-        hasWallet: false,
-      } as any);
-      mockUseWelcomeScreen.mockReturnValue({ hasSeenWelcome: true } as any);
-
-      const { result } = renderHook(() => useAuthState(), { 
-        wrapper: createWrapper(false) 
-      });
-
-      expect(result.current.state).toBe(AuthState.WALLET_LOCKED);
-      expect(result.current.hasWallet).toBe(false);
-      expect(result.current.walletAddress).toBe('0x123');
-    });
+    // Removed WALLET_LOCKED test - wallet lock detection is no longer supported
 
     it('should return NO_WALLET when no wallet is connected', () => {
       mockUseWallet.mockReturnValue({
