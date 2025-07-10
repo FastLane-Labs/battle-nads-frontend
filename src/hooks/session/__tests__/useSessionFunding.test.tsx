@@ -5,13 +5,13 @@ import { useBattleNadsClient } from '../../contracts/useBattleNadsClient';
 import { useSessionKey } from '../useSessionKey';
 import { SessionKeyState } from '@/types/domain/session';
 import { useWallet } from '../../../providers/WalletProvider';
-import { useSimplifiedGameState } from '../../game/useSimplifiedGameState';
+import { useBalanceShortfall } from '../../game/selectors';
 
 // Mock dependencies
 jest.mock('../../contracts/useBattleNadsClient');
 jest.mock('../useSessionKey');
 jest.mock('../../../providers/WalletProvider');
-jest.mock('../../game/useSimplifiedGameState');
+jest.mock('../../game/selectors');
 
 // --- Mock Mutation Helpers (Keep for now, may need adjustment later) ---
 const mockMutationStates: Record<string, { isPending: boolean, error: Error | null, mutate?: jest.Mock }> = {};
@@ -55,7 +55,7 @@ jest.mock('@tanstack/react-query', () => {
 // --- End Mock TanStack Query ---
 
 // --- Mock useGameState --- 
-const mockUseSimplifiedGameState = useSimplifiedGameState as jest.Mock;
+const mockUseBalanceShortfall = useBalanceShortfall as jest.Mock;
 // -------------------------
 
 describe('useSessionFunding', () => {
@@ -107,12 +107,7 @@ describe('useSessionFunding', () => {
     (useSessionKey as jest.Mock).mockReturnValue(mockUseSessionKeyResult);
     (useWallet as jest.Mock).mockReturnValue(mockUseWalletResult);
     
-    mockUseSimplifiedGameState.mockReturnValue({
-      balanceShortfall: 0n,
-      isLoading: false,
-      error: null,
-      refetch: jest.fn(), 
-    });
+    mockUseBalanceShortfall.mockReturnValue(0n);
   });
 
   it('reports sufficient funding when shortfall is zero', () => {
@@ -122,12 +117,7 @@ describe('useSessionFunding', () => {
 
   it('reports funding needed when shortfall is positive', () => {
     const mockShortfall = 1000000000000000000n;
-    mockUseSimplifiedGameState.mockReturnValueOnce({
-        balanceShortfall: mockShortfall,
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-    });
+    mockUseBalanceShortfall.mockReturnValueOnce(mockShortfall);
     const { result } = renderHook(() => useSessionFunding(characterId));
     expect(result.current.balanceShortfall?.toString()).toBe(mockShortfall.toString());
     expect(result.current.balanceShortfall !== undefined && result.current.balanceShortfall > 0n).toBe(true);
@@ -135,12 +125,7 @@ describe('useSessionFunding', () => {
 
   it('successfully calls replenishBalance mutation', () => {
     const mockShortfall = 1000000000000000000n;
-    mockUseSimplifiedGameState.mockReturnValueOnce({
-        balanceShortfall: mockShortfall,
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-    });
+    mockUseBalanceShortfall.mockReturnValueOnce(mockShortfall);
     
     const { result } = renderHook(() => useSessionFunding(characterId));
     const mutationMock = getOrInitializeMutationMock(replenishMutationKey);
@@ -175,12 +160,7 @@ describe('useSessionFunding', () => {
     const mockShortfall = 1000000000000000000n;
     const mockError = new Error('Funding failed');
     
-    mockUseSimplifiedGameState.mockReturnValue({
-        balanceShortfall: mockShortfall,
-        isLoading: false,
-        error: null,
-        refetch: jest.fn(),
-    });
+    mockUseBalanceShortfall.mockReturnValue(mockShortfall);
     
     const { result, rerender } = renderHook(() => useSessionFunding(characterId));
     const mutationMock = getOrInitializeMutationMock(replenishMutationKey);
@@ -205,12 +185,7 @@ describe('useSessionFunding', () => {
   it('handles client error state from useBattleNadsClient', () => {
     const clientError = 'Client creation failed';
     (useBattleNadsClient as jest.Mock).mockReturnValue({ client: null, error: clientError });
-    mockUseSimplifiedGameState.mockReturnValueOnce({
-        balanceShortfall: 0n,
-        isLoading: false,
-        error: clientError,
-        refetch: jest.fn(),
-    });
+    mockUseBalanceShortfall.mockReturnValueOnce(0n);
 
     const { result } = renderHook(() => useSessionFunding(characterId));
     expect(result.current.balanceShortfall?.toString()).toBe('0'); 

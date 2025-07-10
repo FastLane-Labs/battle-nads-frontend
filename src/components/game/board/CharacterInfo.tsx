@@ -13,7 +13,7 @@ import {
 import { domain } from '@/types';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
 import { StatDisplay } from './StatDisplay';
-import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState';
+import { useGameCombatState } from '@/hooks/game/selectors';
 import { useTransactionBalance } from '@/hooks/wallet/useWalletState';
 import { useCharacterExperience } from '@/hooks/game/useCharacterExperience';
 import { GameTooltip } from '../../ui';
@@ -53,7 +53,7 @@ const CharacterInfo: React.FC<CharacterInfoProps> = ({ character, combatants }) 
   const [previousLevel, setPreviousLevel] = useState(character?.level);
 
   // Get game state and actions
-  const { worldSnapshot, allocatePoints, isAllocatingPoints, isInCombat } = useSimplifiedGameState();
+  const { worldSnapshot, allocatePoints, isAllocatingPoints, isInCombat } = useGameCombatState();
 
   // Transaction balance validation
   const { isTransactionDisabled, insufficientBalanceMessage } = useTransactionBalance();

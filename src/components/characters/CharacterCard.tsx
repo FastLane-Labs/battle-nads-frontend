@@ -3,7 +3,7 @@ import { Box, Heading, Text, Badge, Flex, Progress, VStack, Divider, Button, Sta
 import { Character } from '@/types/domain/character';
 import { calculateMaxHealth } from '@/utils/calculateMaxHealth';
 import { EquipmentPanel } from '@/components/game/equipment/EquipmentPanel';
-import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState';
+import { useGameCombatState } from '@/hooks/game/selectors';
 import { useCharacterExperience } from '@/hooks/game/useCharacterExperience';
 import { GameTooltip } from '@/components/ui/GameTooltip';
 
@@ -39,7 +39,7 @@ export const CharacterCard: React.FC<CharacterCardProps> = ({ character }) => {
   const [currentStats, setCurrentStats] = useState<Character['stats'] | undefined>(character?.stats); // Corrected type name
   
   // Get game state and actions
-  const { worldSnapshot, allocatePoints, isAllocatingPoints } = useSimplifiedGameState();
+  const { worldSnapshot, allocatePoints, isAllocatingPoints } = useGameCombatState();
   
   // Get experience info using the new helper
   const experienceInfo = useCharacterExperience(character);

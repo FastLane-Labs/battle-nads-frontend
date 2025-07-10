@@ -5,7 +5,7 @@ import { Box, Flex, Image, useColorMode } from '@chakra-ui/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useWallet } from '@/providers/WalletProvider';
-import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState';
+import { useCharacterId, useSessionKeyData } from '@/hooks/game/selectors';
 import { useSessionFunding } from '@/hooks/session/useSessionFunding';
 import { useAuthState } from '@/contexts/AuthStateContext';
 import AccountMenu from '@/components/AccountMenu';
@@ -19,10 +19,8 @@ const NavBar: React.FC = () => {
     embeddedWallet
   } = useWallet();
   
-  const { 
-    characterId,
-    sessionKeyData
-  } = useSimplifiedGameState();
+  const characterId = useCharacterId();
+  const { sessionKeyData } = useSessionKeyData();
   
   const { 
     deactivateKey, 
