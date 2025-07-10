@@ -238,14 +238,18 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
     ? generatedMessage 
     : (event.displayMessage || generatedMessage));
     
-  // Debug logging for zero heal issue
-  if (event.details?.healthHealed === 0 && Number(event.type) === domain.LogType.Combat) {
-    console.log('[EventLogItemRenderer] Combat event with zero heal:', {
+  // Debug logging for any message containing zeros
+  if (displayMessage && (displayMessage.includes(' 0') || displayMessage.includes('0 ') || displayMessage.endsWith('0'))) {
+    console.log('[EventLogItemRenderer] Message contains zero:', {
       displayMessage,
       enrichedText: enrichedLog.text,
       originalMessage: event.displayMessage,
+      generatedMessage,
+      eventType: domain.LogType[event.type] || event.type,
       details: event.details,
-      type: event.type
+      isPreEnriched,
+      hasEnrichedText: !!enrichedLog.text,
+      rawEvent: event
     });
   }
     
@@ -263,6 +267,7 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
             overflowWrap="break-word"
             mb={1}
           >
+            {console.log('[EventLogItemRenderer] Rendering message:', displayMessage)}
             {displayMessage}
             {/* Additional detailed information */}
             {event.count && event.count > 1 && (
@@ -273,25 +278,25 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
           {/* Details row */}
           <Flex flexWrap="wrap" gap={1}>
             {/* Damage dealt */}
-            {event.details?.damageDone && !isNaN(Number(event.details.damageDone)) && Number(event.details.damageDone) > 0 && (
+            {!!(event.details?.damageDone && !isNaN(Number(event.details.damageDone)) && Number(event.details.damageDone) > 0) && (
               <chakra.span color="red.300" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(239, 68, 68, 0.1)" px={1} borderRadius="sm">
                 {Number(event.details.damageDone)} dmg
               </chakra.span>
             )}
             {/* Health healed */}
-            {event.details?.healthHealed && !isNaN(Number(event.details.healthHealed)) && Number(event.details.healthHealed) > 0 && (
+            {!!(event.details?.healthHealed && !isNaN(Number(event.details.healthHealed)) && Number(event.details.healthHealed) > 0) && (
               <chakra.span color="green.300" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(34, 197, 94, 0.1)" px={1} borderRadius="sm">
                 +{Number(event.details.healthHealed)} heal
               </chakra.span>
             )}
             {/* Experience gained */}
-            {event.details?.experience && !isNaN(Number(event.details.experience)) && Number(event.details.experience) > 0 && (
+            {!!(event.details?.experience && !isNaN(Number(event.details.experience)) && Number(event.details.experience) > 0) && (
               <chakra.span color="purple.300" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(147, 51, 234, 0.1)" px={1} borderRadius="sm">
                 +{Number(event.details.experience)} XP
               </chakra.span>
             )}
             {/* Weapon looted - ONLY for non-ability events since lootedWeaponID is repurposed for ability enum in ability logs */}
-            {!isAbilityEvent && event.details?.lootedWeaponID && !isNaN(Number(event.details.lootedWeaponID)) && Number(event.details.lootedWeaponID) > 0 && (
+            {!isAbilityEvent && event.details?.lootedWeaponID && !isNaN(Number(event.details.lootedWeaponID)) && Number(event.details.lootedWeaponID) > 0 ? (
               <chakra.span color="yellow.400" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(251, 191, 36, 0.1)" px={1} borderRadius="sm">
                 Looted: {(() => {
                   try {
@@ -307,9 +312,9 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
                   }
                 })()}
               </chakra.span>
-            )}
+            ) : null}
             {/* Armor looted - ONLY for non-ability events since lootedArmorID is repurposed for stage number in ability logs */}
-            {!isAbilityEvent && event.details?.lootedArmorID && !isNaN(Number(event.details.lootedArmorID)) && Number(event.details.lootedArmorID) > 0 && (
+            {!isAbilityEvent && event.details?.lootedArmorID && !isNaN(Number(event.details.lootedArmorID)) && Number(event.details.lootedArmorID) > 0 ? (
               <chakra.span color="yellow.400" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(251, 191, 36, 0.1)" px={1} borderRadius="sm">
                 Looted: {(() => {
                   try {
@@ -325,12 +330,21 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
                   }
                 })()}
               </chakra.span>
-            )}
+            ) : null}
             {event.details?.targetDied && (
               <chakra.span color="red.500" fontWeight="bold" fontSize={{ base: "2xs", md: "xs" }} bg="rgba(239, 68, 68, 0.2)" px={1} borderRadius="sm">
                 Target Died!
               </chakra.span>
             )}
+            {/* Debug: Check what's being rendered */}
+            {console.log('[EventLogItemRenderer] Details rendering:', {
+              damageDone: event.details?.damageDone,
+              healthHealed: event.details?.healthHealed,
+              experience: event.details?.experience,
+              lootedWeaponID: event.details?.lootedWeaponID,
+              lootedArmorID: event.details?.lootedArmorID,
+              isAbilityEvent
+            })}
           </Flex>
         </Box>
         
