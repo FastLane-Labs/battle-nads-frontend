@@ -238,6 +238,17 @@ export const EventLogItemRenderer: React.FC<EventLogItemRendererProps> = ({
     ? generatedMessage 
     : (event.displayMessage || generatedMessage));
     
+  // Debug logging for zero heal issue
+  if (event.details?.healthHealed === 0 && Number(event.type) === domain.LogType.Combat) {
+    console.log('[EventLogItemRenderer] Combat event with zero heal:', {
+      displayMessage,
+      enrichedText: enrichedLog.text,
+      originalMessage: event.displayMessage,
+      details: event.details,
+      type: event.type
+    });
+  }
+    
   // Removed constant logging - too much noise
 
   return (

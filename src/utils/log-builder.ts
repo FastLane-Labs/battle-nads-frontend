@@ -132,7 +132,7 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       }
 
       // Build the message using the improved text generation
-      const damageText = raw.details.damageDone ? ` for ${raw.details.damageDone} damage` : "";
+      const damageText = raw.details.damageDone && Number(raw.details.damageDone) > 0 ? ` for ${raw.details.damageDone} damage` : "";
       const criticalText = raw.details.critical ? " **CRITICAL HIT!**" : "";
       const deathText = raw.details.targetDied ? ` **${targetName} falls!**` : "";
       const weaponText = weaponName ? ` with ${weaponName}` : "";
@@ -220,7 +220,9 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
 
       // Calculate level-based enhancement
       // Use conditional operator to safely handle any type without mixing
-      const rawValue = raw.details.damageDone ? raw.details.damageDone : (raw.details.healthHealed || 0);
+      const damageDone = raw.details.damageDone && Number(raw.details.damageDone) > 0 ? raw.details.damageDone : 0;
+      const healthHealed = raw.details.healthHealed && Number(raw.details.healthHealed) > 0 ? raw.details.healthHealed : 0;
+      const rawValue = damageDone || healthHealed;
       const enhancement = calculateAbilityEnhancement(abilityId || 0, actor, rawValue, stage);
       
       // Determine target type
