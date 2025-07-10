@@ -26,6 +26,16 @@ const AppInitializer: React.FC = () => {
   const { currentWallet, promptWalletUnlock } = useWallet();
   const zeroCharacterId = "0x0000000000000000000000000000000000000000000000000000000000000000";
   
+  // Debug logging
+  console.log('[AppInitializer] Current state:', {
+    authState: authState.state,
+    pathname,
+    characterId: game.characterId,
+    characterHealth: game.character?.health,
+    hasCharacter: authState.hasCharacter,
+    isLoading: authState.isLoading
+  });
+  
   // Check onboarding status for current wallet
   const { hasSeenWelcome } = useWelcomeScreen(currentWallet !== 'none' ? currentWallet : undefined);
 
@@ -142,6 +152,20 @@ const AppInitializer: React.FC = () => {
       return renderWithNav(<LoadingScreen message="Redirecting to character creation..." />, "Redirecting");
       
     case AuthState.CHARACTER_DEAD:
+      // If we're on the create page, show character creation instead of death modal
+      if (pathname === '/create') {
+        return renderWithNav(
+          <CharacterCreation 
+            onCharacterCreated={() => {
+              // Character creation will update the state automatically
+              // The auth state will change and redirect will happen
+            }} 
+          />, 
+          "Character Creation"
+        );
+      }
+      
+      // Otherwise show the death modal
       return renderWithNav(
         <DeathModal
           isOpen={true}
@@ -181,9 +205,6 @@ const AppInitializer: React.FC = () => {
         return renderWithNav(<LoadingScreen message="Loading game data..." />, "Loading Game Data");
       }
       
-      // Check if character is dead - only show death modal on root path
-      const isCharacterDead = game.character.health === 0 && pathname === '/';
-      
       const position = game.position ? { x: game.position.x, y: game.position.y, z: game.position.depth } : { x: 0, y: 0, z: 0 };
       const moveCharacter = async (direction: any) => { await game.moveCharacter?.(direction); };
       const attack = async (targetIndex: number) => { await game.attack?.(targetIndex); };
@@ -192,37 +213,31 @@ const AppInitializer: React.FC = () => {
       const playerIndex = game.character?.index ?? null;
 
       return renderWithNav(
-         <>
-           <GameContainer
-             character={game.character}
-             position={position}
-             gameState={{
-               ...game.worldSnapshot,
-               // Filter out dead combatants to prevent issues with "Unnamed the Initiate"
-               combatants: game.worldSnapshot.combatants.filter((combatant: any) => !combatant.isDead)
-             }}
-             moveCharacter={moveCharacter}
-             attack={attack}
-             sendChatMessage={sendChatMessage}
-             addOptimisticChatMessage={addOptimisticChatMessage}
-             isMoving={game.isMoving || false}
-             isAttacking={game.isAttacking || false}
-             isSendingChat={game.isSendingChat || false}
-             isInCombat={game.isInCombat || false}
-             isCacheLoading={game.isCacheLoading || false}
-             // Add equipment names data
-             equipableWeaponIDs={rawEquipableWeaponIDs}
-             equipableWeaponNames={rawEquipableWeaponNames}
-             equipableArmorIDs={rawEquipableArmorIDs}
-             equipableArmorNames={rawEquipableArmorNames}
-             fogOfWar={game.fogOfWar}
-             rawEndBlock={game.rawEndBlock}
-           />
-           <DeathModal
-             isOpen={isCharacterDead}
-             characterName={game.character.name}
-           />
-         </>,
+         <GameContainer
+           character={game.character}
+           position={position}
+           gameState={{
+             ...game.worldSnapshot,
+             // Filter out dead combatants to prevent issues with "Unnamed the Initiate"
+             combatants: game.worldSnapshot.combatants.filter((combatant: any) => !combatant.isDead)
+           }}
+           moveCharacter={moveCharacter}
+           attack={attack}
+           sendChatMessage={sendChatMessage}
+           addOptimisticChatMessage={addOptimisticChatMessage}
+           isMoving={game.isMoving || false}
+           isAttacking={game.isAttacking || false}
+           isSendingChat={game.isSendingChat || false}
+           isInCombat={game.isInCombat || false}
+           isCacheLoading={game.isCacheLoading || false}
+           // Add equipment names data
+           equipableWeaponIDs={rawEquipableWeaponIDs}
+           equipableWeaponNames={rawEquipableWeaponNames}
+           equipableArmorIDs={rawEquipableArmorIDs}
+           equipableArmorNames={rawEquipableArmorNames}
+           fogOfWar={game.fogOfWar}
+           rawEndBlock={game.rawEndBlock}
+         />,
          "Game Container"
       );
       
