@@ -236,8 +236,8 @@ export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameData
           details: {
             hit: event.hit,
             critical: event.critical,
-            damageDone: event.damageDone,
-            healthHealed: event.healthHealed,
+            damageDone: event.damageDone !== undefined ? Number(event.damageDone) : undefined,
+            healthHealed: event.healthHealed !== undefined ? Number(event.healthHealed) : undefined,
             targetDied: event.targetDied,
             lootedWeaponID: event.lootedWeaponID,
             lootedArmorID: event.lootedArmorID,

@@ -740,8 +740,8 @@ export function contractToWorldSnapshot(
             details: { 
               hit: log.hit,
               critical: log.critical,
-              damageDone: log.damageDone,
-              healthHealed: log.healthHealed,
+              damageDone: log.damageDone !== undefined ? Number(log.damageDone) : undefined,
+              healthHealed: log.healthHealed !== undefined ? Number(log.healthHealed) : undefined,
               targetDied: log.targetDied,
               lootedWeaponID: log.lootedWeaponID,
               lootedArmorID: log.lootedArmorID,
@@ -857,8 +857,8 @@ export function contractToWorldSnapshot(
             details: {
               hit: log.hit,
               critical: log.critical,
-              damageDone: log.damageDone,
-              healthHealed: log.healthHealed,
+              damageDone: log.damageDone !== undefined ? Number(log.damageDone) : undefined,
+              healthHealed: log.healthHealed !== undefined ? Number(log.healthHealed) : undefined,
               targetDied: log.targetDied,
               lootedWeaponID: log.lootedWeaponID,
               lootedArmorID: log.lootedArmorID,
@@ -921,8 +921,8 @@ export function contractToWorldSnapshot(
               // Include other raw details if they might be relevant for unknown types
               hit: log.hit,
               critical: log.critical,
-              damageDone: log.damageDone,
-              healthHealed: log.healthHealed,
+              damageDone: log.damageDone !== undefined ? Number(log.damageDone) : undefined,
+              healthHealed: log.healthHealed !== undefined ? Number(log.healthHealed) : undefined,
               targetDied: log.targetDied,
               lootedWeaponID: log.lootedWeaponID,
               lootedArmorID: log.lootedArmorID,

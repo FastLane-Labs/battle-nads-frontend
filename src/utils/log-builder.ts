@@ -219,7 +219,10 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       }
 
       // Calculate level-based enhancement
-      const rawValue = raw.details.damageDone || raw.details.healthHealed || 0;
+      // Ensure we're working with numbers, not BigInt
+      const damage = raw.details.damageDone ? Number(raw.details.damageDone) : 0;
+      const heal = raw.details.healthHealed ? Number(raw.details.healthHealed) : 0;
+      const rawValue = damage || heal;
       const enhancement = calculateAbilityEnhancement(abilityId || 0, actor, rawValue, stage);
       
       // Determine target type
