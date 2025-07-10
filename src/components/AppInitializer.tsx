@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSimplifiedGameState } from '../hooks/game/useSimplifiedGameState';
 import Login from './auth/Login';
@@ -8,41 +8,24 @@ import SessionKeyPrompt from './game/screens/SessionKeyPrompt';
 import GameContainer from './game/GameContainer';
 import DeathModal from './game/modals/DeathModal';
 import { isValidCharacterId } from '../utils/getCharacterLocalStorageKey';
-import { handleContractChange } from '../utils/contractChangeDetection';
 import NavBar from './NavBar';
-import { Box, useToast } from '@chakra-ui/react';
-import { formatEther } from 'ethers';
-import { logger } from '../utils/logger';
+import { Box } from '@chakra-ui/react';
 import { OnboardingManager } from './onboarding';
 import { useWelcomeScreen } from './onboarding/WelcomeScreen';
 import { useWallet } from '../providers/WalletProvider';
 import { GameButton } from './ui';
-import { safeFormatEther } from '@/utils/safeNumberConversion';
-import { AuthStateProvider, useAuthState } from '@/contexts/AuthStateContext';
+import { useAuthState } from '@/contexts/AuthStateContext';
 import { AuthState, shouldShowNavBar } from '@/types/auth';
 
-const AppInitializerContent: React.FC = () => {
+const AppInitializer: React.FC = () => {
   const authState = useAuthState();
   const game = useSimplifiedGameState();
   const router = useRouter();
-  const toast = useToast();
   const { currentWallet, promptWalletUnlock } = useWallet();
   const zeroCharacterId = "0x0000000000000000000000000000000000000000000000000000000000000000";
   
   // Check onboarding status for current wallet
   const { hasSeenWelcome } = useWelcomeScreen(currentWallet !== 'none' ? currentWallet : undefined);
-  
-  // State for contract change detection
-  const [contractChangeState, setContractChangeState] = useState<{
-    isChecking: boolean;
-    hasChecked: boolean;
-    changeDetected: boolean;
-    error?: string;
-  }>({
-    isChecking: false,
-    hasChecked: false,
-    changeDetected: false
-  });
 
   // Equipment data is already available in the game state
   const { 
@@ -61,56 +44,6 @@ const AppInitializerContent: React.FC = () => {
       </div>
     );
   };
-
-  // Effect for contract change detection (runs once on mount)
-  useEffect(() => {
-    const checkContractChange = async () => {
-      if (contractChangeState.hasChecked) return;
-      
-      setContractChangeState(prev => ({ ...prev, isChecking: true }));
-      
-      try {
-        const changeDetected = await handleContractChange();
-        
-        if (changeDetected) {
-          logger.info('[AppInitializer] Contract change detected and handled');
-          toast({
-            title: 'Contract Updated',
-            description: 'The game contract has been updated. Your previous data has been cleared for a fresh start.',
-            status: 'info',
-            duration: 8000,
-            isClosable: true,
-          });
-        }
-        
-        setContractChangeState(prev => ({
-          ...prev,
-          isChecking: false,
-          hasChecked: true,
-          changeDetected
-        }));
-      } catch (error) {
-        logger.error('[AppInitializer] Error during contract change detection', error);
-        setContractChangeState(prev => ({
-          ...prev,
-          isChecking: false,
-          hasChecked: true,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        }));
-        
-        // Show error toast but don't block the app
-        toast({
-          title: 'Contract Check Warning',
-          description: 'Unable to verify contract version. The app will continue normally.',
-          status: 'warning',
-          duration: 5000,
-          isClosable: true,
-        });
-      }
-    };
-
-    checkContractChange();
-  }, []); // Run only once on mount
 
   // Effect for redirection when no character exists
   useEffect(() => {
@@ -270,77 +203,6 @@ const AppInitializerContent: React.FC = () => {
       // Fallback for any unexpected states
       return renderWithNav(<LoadingScreen message="Verifying state..." />, "Fallback Loading Screen");
   }
-};
-
-const AppInitializer: React.FC = () => {
-  const [contractChangeState, setContractChangeState] = useState<{
-    isChecking: boolean;
-    hasChecked: boolean;
-    changeDetected: boolean;
-    error?: string;
-  }>({
-    isChecking: false,
-    hasChecked: false,
-    changeDetected: false
-  });
-  
-  const toast = useToast();
-  
-  // Effect for contract change detection (runs once on mount)
-  useEffect(() => {
-    const checkContractChange = async () => {
-      if (contractChangeState.hasChecked) return;
-      
-      setContractChangeState(prev => ({ ...prev, isChecking: true }));
-      
-      try {
-        const changeDetected = await handleContractChange();
-        
-        if (changeDetected) {
-          logger.info('[AppInitializer] Contract change detected and handled');
-          toast({
-            title: 'Contract Updated',
-            description: 'The game contract has been updated. Your previous data has been cleared for a fresh start.',
-            status: 'info',
-            duration: 8000,
-            isClosable: true,
-          });
-        }
-        
-        setContractChangeState(prev => ({
-          ...prev,
-          isChecking: false,
-          hasChecked: true,
-          changeDetected
-        }));
-      } catch (error) {
-        logger.error('[AppInitializer] Error during contract change detection', error);
-        setContractChangeState(prev => ({
-          ...prev,
-          isChecking: false,
-          hasChecked: true,
-          error: error instanceof Error ? error.message : 'Unknown error'
-        }));
-        
-        // Show error toast but don't block the app
-        toast({
-          title: 'Contract Check Warning',
-          description: 'Unable to verify contract version. The app will continue normally.',
-          status: 'warning',
-          duration: 5000,
-          isClosable: true,
-        });
-      }
-    };
-
-    checkContractChange();
-  }, []); // Run only once on mount
-  
-  return (
-    <AuthStateProvider isCheckingContract={contractChangeState.isChecking}>
-      <AppInitializerContent />
-    </AuthStateProvider>
-  );
 };
 
 export default AppInitializer; 
