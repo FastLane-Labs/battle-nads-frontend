@@ -11,7 +11,6 @@ export enum AuthState {
   
   // Wallet states
   NO_WALLET = 'NO_WALLET',                    // No wallet connected
-  WALLET_LOCKED = 'WALLET_LOCKED',            // Wallet is locked and needs unlocking
   
   // Character states
   LOADING_GAME_DATA = 'LOADING_GAME_DATA',    // Loading character/game data
@@ -57,7 +56,6 @@ export interface AuthStateContext {
 export function shouldShowNavBar(state: AuthState): boolean {
   const statesWithoutNavBar = [
     AuthState.NO_WALLET,
-    AuthState.WALLET_LOCKED,
   ];
   return !statesWithoutNavBar.includes(state);
 }
