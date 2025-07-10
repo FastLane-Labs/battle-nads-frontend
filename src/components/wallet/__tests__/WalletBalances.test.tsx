@@ -5,14 +5,14 @@ import WalletBalances from '@/components/WalletBalances';
 import { useWallet } from '@/providers/WalletProvider';
 import { useWalletBalances } from '@/hooks/wallet/useWalletState';
 import { useBattleNadsClient } from '@/hooks/contracts/useBattleNadsClient';
-import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState';
+import { useWalletBalances as useGameWalletBalances } from '@/hooks/game/selectors';
 import { useReplenishment } from '@/hooks/wallet/useReplenishment';
 
 // Mock dependencies
 jest.mock('@/providers/WalletProvider');
 jest.mock('@/hooks/wallet/useWalletState');
 jest.mock('@/hooks/contracts/useBattleNadsClient');
-jest.mock('@/hooks/game/useSimplifiedGameState');
+jest.mock('@/hooks/game/selectors');
 jest.mock('@/hooks/wallet/useReplenishment');
 
 // Mock chakra toast
@@ -72,7 +72,7 @@ describe('WalletBalances - Automate Feature', () => {
     (useWallet as jest.Mock).mockReturnValue(defaultMocks.wallet);
     (useWalletBalances as jest.Mock).mockReturnValue(defaultMocks.balances);
     (useBattleNadsClient as jest.Mock).mockReturnValue({ client: defaultMocks.client });
-    (useSimplifiedGameState as jest.Mock).mockReturnValue(defaultMocks.gameState);
+    (useGameWalletBalances as jest.Mock).mockReturnValue(defaultMocks.gameState);
     (useReplenishment as jest.Mock).mockReturnValue(defaultMocks.replenishment);
   });
 

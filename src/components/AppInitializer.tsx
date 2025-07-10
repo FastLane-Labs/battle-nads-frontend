@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { useSimplifiedGameState } from '../hooks/game/useSimplifiedGameState';
+import { useFullGameState } from '../hooks/game/selectors';
 import { useAuthState } from '@/contexts/AuthStateContext';
 import { AuthState } from '@/types/auth';
 import { AppInitializerStateRenderer, stateToComponentMap } from './AppInitializerStateRenderer';
@@ -9,7 +9,7 @@ import { useWallet } from '@/providers/WalletProvider';
 
 const AppInitializer: React.FC = () => {
   const authState = useAuthState();
-  const game = useSimplifiedGameState();
+  const game = useFullGameState();
   const router = useRouter();
   const pathname = usePathname();
   const { currentWallet } = useWallet();

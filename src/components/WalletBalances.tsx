@@ -4,7 +4,7 @@ import { ethers } from "ethers";
 import { useWallet } from "@/providers/WalletProvider";
 import { useWalletBalances } from "@/hooks/wallet/useWalletState";
 import { useBattleNadsClient } from "@/hooks/contracts/useBattleNadsClient";
-import { useSimplifiedGameState } from "@/hooks/game/useSimplifiedGameState";
+import { useWalletBalances as useGameWalletBalances } from "@/hooks/game/selectors";
 import {
   DIRECT_FUNDING_AMOUNT,
   LOW_SESSION_KEY_THRESHOLD,
@@ -41,11 +41,8 @@ const WalletBalances: React.FC = () => {
     hasShortfall,
   } = useWalletBalances(owner);
 
-  // Get gameState directly from useGameState
-  const { gameState, error: gameStateError } = useSimplifiedGameState({
-    includeActions: false,
-    includeHistory: false,
-  });
+  // Get gameState directly from focused selector
+  const { gameState, error: gameStateError } = useGameWalletBalances();
 
   // State for direct funding
   const [isDirectFunding, setIsDirectFunding] = useState(false);
