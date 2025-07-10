@@ -8,9 +8,11 @@ import { useRouter } from 'next/navigation';
 import { useWallet } from '@/providers/WalletProvider';
 import { useSimplifiedGameState } from '@/hooks/game/useSimplifiedGameState';
 import { useSessionFunding } from '@/hooks/session/useSessionFunding';
+import { useAuthState } from '@/contexts/AuthStateContext';
 
 const NavBar: React.FC = () => {
   const { colorMode } = useColorMode();
+  const authState = useAuthState();
   const {
     logout,
     injectedWallet,
@@ -19,7 +21,6 @@ const NavBar: React.FC = () => {
   
   const { 
     characterId,
-    hasWallet,
     sessionKeyData
   } = useSimplifiedGameState();
   
@@ -98,7 +99,7 @@ const NavBar: React.FC = () => {
         </Flex>
 
         <Flex justifyContent="flex-end" alignItems="center">
-          {hasWallet && (
+          {authState.hasWallet && (
             <Menu isOpen={isOpen} onClose={onClose} onOpen={onOpen}>
               <MenuButton as={Button} rightIcon={<ChevronDownIcon />} variant="outline" size="md">
                 {injectedWallet?.address && (
