@@ -705,12 +705,12 @@ export function contractToWorldSnapshot(
               const offensiveAbility = getOffensiveAbilityForClass(attackerClass);
               const abilityName = domain.Ability[offensiveAbility];
 
-              const damage = log.damageDone > 0 ? ` for ${log.damageDone} damage` : '';
+              const damage = log.damageDone && Number(log.damageDone) > 0 ? ` for ${log.damageDone} damage` : '';
               const critical = log.critical ? ' (Critical!)' : '';
               
               // Show both weapon and ability if available
               let weaponInfo = '';
-              if (log.damageDone > 0) {
+              if (log.damageDone && Number(log.damageDone) > 0) {
                 if (abilityName && abilityName !== 'None') {
                   weaponInfo = ` with ${weaponName} using ${abilityName}`;
                 } else {
@@ -905,7 +905,8 @@ export function contractToWorldSnapshot(
           const participant = findCharacterParticipantByIndex(mainPlayerIdx, combatants, noncombatants, raw.character, characterLookup);
           const isPlayer = !!ownerCharacterId && !!participant && participant.id === ownerCharacterId;
           
-          const displayMessage = `Unknown event: type ${logTypeNum}, value ${log.value?.toString()}, mainIdx ${mainPlayerIdx}, otherIdx ${otherPlayerIdx}`;
+          const valueStr = log.value && log.value !== BigInt(0) ? `, value ${log.value.toString()}` : '';
+          const displayMessage = `Unknown event: type ${logTypeNum}${valueStr}, mainIdx ${mainPlayerIdx}, otherIdx ${otherPlayerIdx}`;
           
           const newEventMessage: domain.EventMessage = {
             logIndex: logIndex,
