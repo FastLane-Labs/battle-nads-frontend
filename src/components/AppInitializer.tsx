@@ -181,6 +181,9 @@ const AppInitializer: React.FC = () => {
         return renderWithNav(<LoadingScreen message="Loading game data..." />, "Loading Game Data");
       }
       
+      // Check if character is dead - only show death modal on root path
+      const isCharacterDead = game.character.health === 0 && pathname === '/';
+      
       const position = game.position ? { x: game.position.x, y: game.position.y, z: game.position.depth } : { x: 0, y: 0, z: 0 };
       const moveCharacter = async (direction: any) => { await game.moveCharacter?.(direction); };
       const attack = async (targetIndex: number) => { await game.attack?.(targetIndex); };
@@ -189,31 +192,37 @@ const AppInitializer: React.FC = () => {
       const playerIndex = game.character?.index ?? null;
 
       return renderWithNav(
-         <GameContainer
-           character={game.character}
-           position={position}
-           gameState={{
-             ...game.worldSnapshot,
-             // Filter out dead combatants to prevent issues with "Unnamed the Initiate"
-             combatants: game.worldSnapshot.combatants.filter((combatant: any) => !combatant.isDead)
-           }}
-           moveCharacter={moveCharacter}
-           attack={attack}
-           sendChatMessage={sendChatMessage}
-           addOptimisticChatMessage={addOptimisticChatMessage}
-           isMoving={game.isMoving || false}
-           isAttacking={game.isAttacking || false}
-           isSendingChat={game.isSendingChat || false}
-           isInCombat={game.isInCombat || false}
-           isCacheLoading={game.isCacheLoading || false}
-           // Add equipment names data
-           equipableWeaponIDs={rawEquipableWeaponIDs}
-           equipableWeaponNames={rawEquipableWeaponNames}
-           equipableArmorIDs={rawEquipableArmorIDs}
-           equipableArmorNames={rawEquipableArmorNames}
-           fogOfWar={game.fogOfWar}
-           rawEndBlock={game.rawEndBlock}
-         />,
+         <>
+           <GameContainer
+             character={game.character}
+             position={position}
+             gameState={{
+               ...game.worldSnapshot,
+               // Filter out dead combatants to prevent issues with "Unnamed the Initiate"
+               combatants: game.worldSnapshot.combatants.filter((combatant: any) => !combatant.isDead)
+             }}
+             moveCharacter={moveCharacter}
+             attack={attack}
+             sendChatMessage={sendChatMessage}
+             addOptimisticChatMessage={addOptimisticChatMessage}
+             isMoving={game.isMoving || false}
+             isAttacking={game.isAttacking || false}
+             isSendingChat={game.isSendingChat || false}
+             isInCombat={game.isInCombat || false}
+             isCacheLoading={game.isCacheLoading || false}
+             // Add equipment names data
+             equipableWeaponIDs={rawEquipableWeaponIDs}
+             equipableWeaponNames={rawEquipableWeaponNames}
+             equipableArmorIDs={rawEquipableArmorIDs}
+             equipableArmorNames={rawEquipableArmorNames}
+             fogOfWar={game.fogOfWar}
+             rawEndBlock={game.rawEndBlock}
+           />
+           <DeathModal
+             isOpen={isCharacterDead}
+             characterName={game.character.name}
+           />
+         </>,
          "Game Container"
       );
       
