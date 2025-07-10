@@ -86,21 +86,13 @@ export const appInitializerMachine = createMachine({
     
     loadingGameData: {
       on: {
-        GAME_DATA_LOADED: [
-          {
-            target: 'noCharacter',
-            guard: ({ context, event }) => 
-              event.characterId === '0x0000000000000000000000000000000000000000000000000000000000000000' &&
-              context.hasSeenWelcome === true,
-          },
-          {
-            target: 'checkingCharacterStatus',
-            actions: assign(({ event }) => ({
-              characterId: event.characterId,
-              sessionKeyState: event.sessionKeyState || undefined,
-            })),
-          },
-        ],
+        GAME_DATA_LOADED: {
+          target: 'checkingCharacterStatus',
+          actions: assign(({ event }) => ({
+            characterId: event.characterId,
+            sessionKeyState: event.sessionKeyState || undefined,
+          })),
+        },
         GAME_DATA_ERROR: {
           target: 'error',
           actions: assign(({ event }) => ({
@@ -162,6 +154,12 @@ export const appInitializerMachine = createMachine({
         CHARACTER_DIED: 'characterDead',
       },
       always: [
+        {
+          target: 'noCharacter',
+          guard: ({ context }) => 
+            !context.characterId || 
+            context.characterId === '0x0000000000000000000000000000000000000000000000000000000000000000',
+        },
         {
           target: 'checkingSessionKey',
         },
