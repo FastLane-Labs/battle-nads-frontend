@@ -8,12 +8,10 @@ import { useWalletConnectionStatus } from '../../hooks/wallet/useWalletConnectio
 const Login: React.FC = () => {
   const { login, ready, authenticated } = usePrivy();
   const { 
-    isWalletLocked, 
     isWrongNetwork, 
     networkSwitching, 
     connectionError, 
-    retryConnection,
-    promptWalletUnlock
+    retryConnection
   } = useWalletConnectionStatus();
   
   const [isConnecting, setIsConnecting] = useState(false);
@@ -23,13 +21,6 @@ const Login: React.FC = () => {
     
     try {
       setIsConnecting(true);
-      
-      // Check if wallet is locked first
-      if (isWalletLocked) {
-        promptWalletUnlock();
-        return;
-      }
-      
       login();
     } catch (error) {
       console.error('Login failed:', error);
@@ -80,7 +71,7 @@ const Login: React.FC = () => {
               hasGlow={true}
               className="mt-4 relative"
             >
-              {authenticated ? 'Connected' : (isWalletLocked ? 'Unlock Wallet' : 'Connect Wallet')}
+              {authenticated ? 'Connected' : 'Connect Wallet'}
             </GameButton>
             
             {/* Connection Status Indicators - Prioritized */}

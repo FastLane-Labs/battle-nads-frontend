@@ -4,6 +4,8 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { usePrivy, useWallets, useSendTransaction, UnsignedTransactionRequest } from '@privy-io/react-auth';
 import { ethers, TransactionRequest, TransactionResponse } from 'ethers';
+import { getCharacterLocalStorageKey } from '../utils/getCharacterLocalStorageKey';
+import { useRouter } from 'next/navigation';
 
 type WalletType = 'injected' | 'embedded' | 'none';
 
@@ -60,6 +62,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const { ready, authenticated, login, logout: privyLogout } = usePrivy();
   const { wallets } = useWallets();
   const { sendTransaction } = useSendTransaction();
+  const router = useRouter();
   
   const [currentWallet, setCurrentWallet] = useState<WalletType>('none');
   const [address, setAddress] = useState<string | null>(null);
@@ -74,6 +77,59 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [networkSwitching, setNetworkSwitching] = useState(false);
   const [isWalletLocked, setIsWalletLocked] = useState(false);
   const [hasHadWallet, setHasHadWallet] = useState(false);
+
+  // Track previous wallet address to detect changes
+  const [previousAddress, setPreviousAddress] = useState<string | null>(null);
+
+  // Detect wallet address changes and trigger logout
+  useEffect(() => {
+    // Only process if we're authenticated
+    if (!authenticated || wallets.length === 0) {
+      // If not authenticated, clear previous address to avoid issues on next login
+      if (!authenticated && previousAddress) {
+        setPreviousAddress(null);
+      }
+      return;
+    }
+    
+    // Only track injected wallet changes, not embedded wallet
+    const currentInjectedWallet = wallets.find(w => w.connectorType === 'injected');
+    const currentInjectedAddress = currentInjectedWallet?.address;
+    
+    // If we have a previous address and it's different from current injected wallet, logout
+    if (previousAddress && currentInjectedAddress && previousAddress !== currentInjectedAddress) {
+      console.log('[WalletProvider] Injected wallet address changed, logging out', {
+        previousAddress,
+        currentInjectedAddress
+      });
+      
+      // Clear cached data for the old wallet
+      const characterKey = getCharacterLocalStorageKey(previousAddress);
+      if (characterKey && typeof window !== 'undefined') {
+        localStorage.removeItem(characterKey);
+      }
+      
+      // Clear wallet state immediately
+      setInjectedWallet(null);
+      setEmbeddedWallet(null);
+      setProvider(null);
+      setSigner(null);
+      setSessionKey(null);
+      setPreviousAddress(null);
+      
+      // Small delay to ensure state is cleared before logout
+      setTimeout(() => {
+        privyLogout();
+        router.push('/');
+      }, 100);
+      return; // Don't update previous address after logout
+    }
+    
+    // Update previous address only if we have a current injected address
+    if (currentInjectedAddress && currentInjectedAddress !== previousAddress) {
+      setPreviousAddress(currentInjectedAddress);
+    }
+  }, [authenticated, wallets, previousAddress, privyLogout, router]);
 
   useEffect(() => {
     async function setupWallet() {
@@ -208,7 +264,31 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, [ready, authenticated, wallets, error, hasHadWallet]);
 
   const connectMetamask = async () => {
+    console.log('[WalletProvider] connectMetamask called', { 
+      authenticated, 
+      currentWallet,
+      ready 
+    });
+    
+    // If already authenticated with a different wallet, disconnect first
+    if (authenticated && currentWallet !== 'injected') {
+      console.log('[WalletProvider] Disconnecting from current wallet before switching to MetaMask');
+      
+      // Clear any cached character data for the current wallet
+      if (address) {
+        const characterKey = getCharacterLocalStorageKey(address);
+        if (characterKey && typeof window !== 'undefined') {
+          localStorage.removeItem(characterKey);
+        }
+      }
+      
+      await privyLogout();
+      // Small delay to ensure clean state before reconnecting
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
     if (ready && !authenticated) {
+      console.log('[WalletProvider] Initiating MetaMask login');
       login();
     }
   };
@@ -220,7 +300,31 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
 
   const connectPrivyEmbedded = async () => {
+    console.log('[WalletProvider] connectPrivyEmbedded called', { 
+      authenticated, 
+      currentWallet,
+      ready 
+    });
+    
+    // If already authenticated with a different wallet, disconnect first
+    if (authenticated && currentWallet !== 'embedded') {
+      console.log('[WalletProvider] Disconnecting from current wallet before switching to Privy embedded wallet');
+      
+      // Clear any cached character data for the current wallet
+      if (address) {
+        const characterKey = getCharacterLocalStorageKey(address);
+        if (characterKey && typeof window !== 'undefined') {
+          localStorage.removeItem(characterKey);
+        }
+      }
+      
+      await privyLogout();
+      // Small delay to ensure clean state before reconnecting
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
     if (ready && !authenticated) {
+      console.log('[WalletProvider] Initiating Privy embedded wallet login');
       login();
     }
   };
@@ -232,6 +336,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setSessionKey(null);
       setInjectedWallet(null);
       setEmbeddedWallet(null);
+      setPreviousAddress(null);
+      // Redirect to root after logout
+      router.push('/');
     }
   };
 

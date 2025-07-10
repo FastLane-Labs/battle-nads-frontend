@@ -23,18 +23,8 @@ const AppInitializer: React.FC = () => {
   const game = useSimplifiedGameState();
   const router = useRouter();
   const pathname = usePathname();
-  const { currentWallet, promptWalletUnlock } = useWallet();
+  const { currentWallet } = useWallet();
   const zeroCharacterId = "0x0000000000000000000000000000000000000000000000000000000000000000";
-  
-  // Debug logging
-  console.log('[AppInitializer] Current state:', {
-    authState: authState.state,
-    pathname,
-    characterId: game.characterId,
-    characterHealth: game.character?.health,
-    hasCharacter: authState.hasCharacter,
-    isLoading: authState.isLoading
-  });
   
   // Check onboarding status for current wallet
   const { hasSeenWelcome } = useWelcomeScreen(currentWallet !== 'none' ? currentWallet : undefined);
@@ -78,43 +68,6 @@ const AppInitializer: React.FC = () => {
       
     case AuthState.INITIALIZING:
       return renderWithNav(<LoadingScreen message="Initializing Wallet..." />, "Wallet Init Loading");
-      
-    case AuthState.WALLET_LOCKED:
-      return (
-        <>
-          <div 
-            className="min-h-screen w-full bg-cover bg-center bg-no-repeat flex items-center justify-center py-10"
-            style={{ backgroundImage: "url('/assets/bg/dark-smoky-bg.webp')" }}
-          >
-            <div className="max-w-[600px] w-full mx-auto px-4">
-              <div className="flex flex-col items-center space-y-8">
-                <img 
-                  src="/BattleNadsLogo.webp" 
-                  alt="Battle Nads Logo"
-                  className="max-w-[300px] md:max-w-[335px] mx-auto"
-                />
-                
-                <h2 className="text-center text-2xl md:text-3xl font-semibold uppercase mb-4 gold-text tracking-wider leading-10">
-                  Wallet Locked
-                </h2>
-                
-                <div className="flex flex-col items-center space-y-4">
-                  <GameButton
-                    variant="primary"
-                    onClick={promptWalletUnlock}
-                    withAnimation={true}
-                    hasGlow={true}
-                    className="mt-4"
-                  >
-                    Unlock Wallet
-                  </GameButton>
-                </div>
-              </div>
-            </div>
-          </div>
-          <OnboardingManager />
-        </>
-      );
       
     case AuthState.NO_WALLET:
       return (

@@ -22,7 +22,7 @@ const ZERO_CHARACTER_ID = "0x000000000000000000000000000000000000000000000000000
  * This is the single source of truth for authentication flow state
  */
 export function AuthStateProvider({ children, isCheckingContract = false }: AuthStateProviderProps) {
-  const { isInitialized: walletInitialized, currentWallet, isWalletLocked, injectedWallet } = useWallet();
+  const { isInitialized: walletInitialized, currentWallet, injectedWallet } = useWallet();
   const game = useSimplifiedGameState();
   const { hasSeenWelcome } = useWelcomeScreen(currentWallet !== 'none' ? currentWallet : undefined);
   
@@ -52,20 +52,7 @@ export function AuthStateProvider({ children, isCheckingContract = false }: Auth
       };
     }
     
-    // 3. Wallet locked
-    if (isWalletLocked) {
-      return {
-        state: AuthState.WALLET_LOCKED,
-        isInitialized: true,
-        hasWallet: false,
-        hasCharacter: false,
-        hasValidSessionKey: false,
-        isLoading: false,
-        walletAddress: injectedWallet?.address || null,
-      };
-    }
-    
-    // 4. No wallet connected
+    // 3. No wallet connected
     if (!game.hasWallet) {
       return {
         state: AuthState.NO_WALLET,
@@ -202,7 +189,6 @@ export function AuthStateProvider({ children, isCheckingContract = false }: Auth
     isCheckingContract,
     walletInitialized,
     game.isInitialized,
-    isWalletLocked,
     game.hasWallet,
     game.isLoading,
     game.error,

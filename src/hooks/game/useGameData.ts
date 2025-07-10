@@ -30,6 +30,7 @@ export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameData
 
   // Core dependencies
   const { injectedWallet } = useWallet();
+  // Owner is only the injected wallet - if we don't have one, we are logged out
   const owner = injectedWallet?.address || null;
   
   // Layer 1: Pure contract data
@@ -194,7 +195,7 @@ export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameData
     
     const messages: domain.EventMessage[] = [];
     
-    const currentAreaId = rawData?.character ? 
+    const currentAreaId = rawData?.character?.stats ? 
       createAreaID(
         Number(rawData.character.stats.depth),
         Number(rawData.character.stats.x),
@@ -376,7 +377,7 @@ export const useGameData = (options: UseGameDataOptions = {}): hooks.UseGameData
 
   // Optimistic chat management
   const addOptimisticChatMessage = useCallback((message: string) => {
-    if (!rawData?.character || !gameState) return;
+    if (!rawData?.character || !rawData?.character?.stats || !gameState) return;
 
     if (isMessageOptimistic(message, rawData.character.id.toString())) {
       return;
