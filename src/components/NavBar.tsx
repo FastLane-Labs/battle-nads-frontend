@@ -112,7 +112,7 @@ const NavBar: React.FC = () => {
                   <Text fontSize="xs" color="gray.500" ml={1}>Loading...</Text>
                 </Box>
               ) : (
-                !hasCharacter && (
+                !hasCharacter && pathname !== '/create' && (
                   <Link href="/create">
                     <Text
                       px={3}
