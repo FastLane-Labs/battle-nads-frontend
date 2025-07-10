@@ -90,7 +90,7 @@ export const stateToComponentMap: Record<AuthState, (props: any) => React.ReactN
   ),
   
   [AuthState.READY]: ({ gameProps }: { gameProps: any }) => {
-    if (!gameProps.character || !gameProps.worldSnapshot) {
+    if (!gameProps || !gameProps.character || !gameProps.gameState) {
       return <LoadingScreen message="Loading game data..." />;
     }
     return <GameContainer {...gameProps} />;

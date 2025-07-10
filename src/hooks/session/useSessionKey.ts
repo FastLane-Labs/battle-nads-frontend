@@ -39,11 +39,12 @@ export const useSessionKey = (characterId: string | null): hooks.UseSessionKeyRe
   }, [ownerAddress, embeddedWallet?.address]);
   
   // Get snapshot data directly from useContractPolling to avoid circular dependency
+  // Poll data with just owner address, but validate session key only when embedded wallet is available
   const { 
     data: snapshotData,
     isLoading: isSnapshotLoading, 
     error: snapshotError, 
-  } = useContractPolling(ownerAddress); // Pass owner address (now guaranteed string | null)
+  } = useContractPolling(ownerAddress); // Poll with owner address
 
   // Extract session key data from snapshot
   const rawSessionKeyData = snapshotData?.sessionKeyData;
@@ -199,7 +200,7 @@ export const useSessionKey = (characterId: string | null): hooks.UseSessionKeyRe
     // When embedded wallet address changes, invalidate the query to force refresh
     if (ownerAddress && embeddedWallet?.address) {
       queryClient.invalidateQueries({ 
-        queryKey: ['contractPolling', ownerAddress, embeddedWallet.address] 
+        queryKey: ['contractPolling', ownerAddress] 
       });
     }
   }, [embeddedWallet?.address, ownerAddress, queryClient]);
@@ -217,9 +218,22 @@ export const useSessionKey = (characterId: string | null): hooks.UseSessionKeyRe
   // Define refresh function using queryClient
   const refreshSessionKey = () => {
     if (ownerAddress) {
-      queryClient.invalidateQueries({ queryKey: ['contractPolling', ownerAddress, embeddedWallet?.address] });
+      queryClient.invalidateQueries({ queryKey: ['contractPolling', ownerAddress] });
     }
   };
+  
+  // Early return if we don't have the owner address
+  if (!ownerAddress) {
+    return {
+      sessionKeyData: null,
+      isLoading: false,
+      error: null,
+      refreshSessionKey: () => {},
+      sessionKeyState: SessionKeyState.IDLE,
+      needsUpdate: false,
+      currentBlock: 0,
+    };
+  }
 
   return {
     // Return the raw data used for validation (might be needed by UI)

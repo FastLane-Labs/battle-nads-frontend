@@ -1,7 +1,6 @@
 import { useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useBattleNadsClient } from '../contracts/useBattleNadsClient';
-import { useWallet } from '../../providers/WalletProvider';
 import { contract } from '../../types';
 import { POLL_INTERVAL } from '../../config/env';
 
@@ -35,7 +34,6 @@ export const clearContractPollingCache = () => {
 
 export const useContractPolling = (owner: string | null) => {
   const { client } = useBattleNadsClient();
-  const { embeddedWallet } = useWallet();
   
   // Use ref to persist rate limit state across renders without causing re-renders
   const rateLimitStateRef = useRef({
@@ -46,7 +44,7 @@ export const useContractPolling = (owner: string | null) => {
   });
 
   return useQuery<contract.PollFrontendDataReturn, Error>({
-    queryKey: ['contractPolling', owner, embeddedWallet?.address], // Shared cache for all hooks
+    queryKey: ['contractPolling', owner], // Shared cache for all hooks
     enabled: !!owner && !!client,
     staleTime: 0,
     gcTime: 0, // Disable all caching

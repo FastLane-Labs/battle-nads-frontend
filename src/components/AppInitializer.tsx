@@ -59,6 +59,7 @@ const AppInitializer: React.FC = () => {
           sessionKeyState: game.sessionKeyState || 'missing',
           onUpdate: async () => {
             try {
+              // The state machine will detect isUpdatingSessionKey and transition to updating state
               await game.updateSessionKey?.();
               return Promise.resolve();
             } catch (error) {
@@ -66,7 +67,7 @@ const AppInitializer: React.FC = () => {
               return Promise.reject(error);
             }
           },
-          isUpdating: game.isUpdatingSessionKey || false,
+          isUpdating: false, // Always false here since clicking will transition to SESSION_KEY_UPDATING state
         });
         
       case AuthState.READY:
