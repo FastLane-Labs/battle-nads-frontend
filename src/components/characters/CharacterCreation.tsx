@@ -1,14 +1,9 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { GameButton, StatIncrementControl, LoadingIndicator, GameModal, GameTooltip } from '@/components/ui';
+import { GameButton, StatIncrementControl, LoadingIndicator, GameTooltip } from '@/components/ui';
 import { 
-  Button, 
-  FormControl, 
-  FormLabel, 
-  Input, 
   useToast,
-  useDisclosure,
 } from '@chakra-ui/react';
 import { useRouter } from 'next/navigation';
 import { useWallet } from '@/providers/WalletProvider';
@@ -70,12 +65,10 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
   const [quickness, setQuickness] = useState(MIN_STAT_VALUE);
   const [sturdiness, setSturdiness] = useState(MIN_STAT_VALUE);
   const [luck, setLuck] = useState(MIN_STAT_VALUE);
-  const [transactionHash, setTransactionHash] = useState<string | null>(null);
   const [isNameInputFocused, setIsNameInputFocused] = useState(false);
   
   const router = useRouter();
   const toast = useToast();
-  const { isOpen, onOpen, onClose } = useDisclosure();
   const queryClient = useQueryClient();
 
   const { client } = useBattleNadsClient();
@@ -171,7 +164,6 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
     },
     onSuccess: async (result: ethers.TransactionResponse) => {
       console.log("Character creation transaction submitted, waiting for confirmation...", result.hash);
-      setTransactionHash(result.hash);
       
       toast({
         title: 'Transaction Sent',
@@ -251,40 +243,6 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
     },
   });
 
-  const getCharacterIdByTransactionHash = async (txHash: string): Promise<string | null> => {
-     if (!client) {
-        console.error("Client not ready for transaction lookup");
-        toast({ title: 'Error', description: 'Client not available for lookup', status: 'error', isClosable: true });
-        return null;
-     }
-     console.warn("getCharacterIdByTransactionHash not implemented on client yet");
-     toast({ title: 'Info', description: 'Transaction lookup not implemented yet.', status: 'info', isClosable: true });
-     return null; 
-  };
-  
-  const handleTransactionLookup = async () => {
-    if (!transactionHash) {
-      toast({ title: 'Error', description: 'Please enter a transaction hash', status: 'error', isClosable: true });
-      return;
-    }
-    try {
-      const foundCharacterId = await getCharacterIdByTransactionHash(transactionHash);
-      if (foundCharacterId && isValidCharacterId(foundCharacterId)) {
-        toast({ title: 'Success', description: `Found character ID: ${foundCharacterId}`, status: 'success', isClosable: true });
-        localStorage.setItem('battleNadsCharacterId', foundCharacterId);
-         router.push('/game');
-      } else if (foundCharacterId === null) {
-         // Function not implemented yet or lookup failed cleanly
-         // Toast already shown in getCharacterIdByTransactionHash
-      } else {
-        toast({ title: 'Error', description: 'Could not find valid character ID for this transaction', status: 'error', isClosable: true });
-      }
-    } catch (err: any) {
-      toast({ title: 'Lookup Error', description: err.message || 'Lookup failed', status: 'error', isClosable: true });
-    } finally {
-       onClose();
-    }
-  };
   
   const handleCreateCharacter = () => {
     if (!name) {
@@ -538,57 +496,8 @@ const CharacterCreation: React.FC<CharacterCreationProps> = ({ onCharacterCreate
             </GameButton>
           </GameTooltip>
           
-          <button
-            className={`border border-gray-600 text-gray-300 py-2 rounded 
-              ${createCharacterMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'hover:bg-white hover:bg-opacity-5'}`}
-            onClick={onOpen}
-            disabled={createCharacterMutation.isPending}
-          >
-            Already Created? Lookup by Transaction
-          </button>
         </div>
       </div>
-      
-      <GameModal 
-        isOpen={isOpen} 
-        onClose={onClose}
-        variant="transaction"
-        title="Look Up Character by Transaction"
-        footer={
-          <>
-            <Button 
-              bg="rgba(139, 69, 19, 0.8)"
-              color="gold"
-              mr={3} 
-              onClick={handleTransactionLookup}
-              _hover={{ bg: "rgba(139, 69, 19, 0.9)" }}
-            >
-              Look Up
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={onClose}
-              color="gray.300"
-              borderColor="gray.600"
-              _hover={{ bg: "rgba(255,255,255,0.05)" }}
-            >
-              Cancel
-            </Button>
-          </>
-        }
-      >
-        <FormControl>
-          <FormLabel color="gold">Transaction Hash</FormLabel>
-          <Input
-            placeholder="0x..."
-            value={transactionHash || ''}
-            onChange={(e) => setTransactionHash(e.target.value)}
-            bg="gray.800"
-            color="white"
-            borderColor="gray.600"
-          />
-        </FormControl>
-      </GameModal>
     </div>
   );
 };
