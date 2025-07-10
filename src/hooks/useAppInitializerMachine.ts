@@ -31,12 +31,18 @@ export function useAppInitializerMachine(isCheckingContract = false): AuthStateC
 
   // Handle wallet initialization
   useEffect(() => {
-    if (state.value === 'initializing' && 
-        walletInitialized && 
-        game.isInitialized && 
-        embeddedWallet?.address && 
-        injectedWallet?.address) {
-      send({ type: 'WALLET_INITIALIZED', hasEmbeddedWallet: true });
+    if (state.value === 'initializing') {
+      // If wallet is initialized but we have no wallets, transition to noWallet state
+      if (walletInitialized && game.isInitialized && !injectedWallet?.address) {
+        send({ type: 'WALLET_INITIALIZED', hasEmbeddedWallet: false });
+      }
+      // If we have both wallets, proceed to load game data
+      else if (walletInitialized && 
+               game.isInitialized && 
+               embeddedWallet?.address && 
+               injectedWallet?.address) {
+        send({ type: 'WALLET_INITIALIZED', hasEmbeddedWallet: true });
+      }
     }
   }, [walletInitialized, game.isInitialized, state.value, embeddedWallet?.address, injectedWallet?.address, send]);
   
