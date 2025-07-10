@@ -8,8 +8,7 @@ import GameContainer from './game/GameContainer';
 import DeathModal from './game/modals/DeathModal';
 import CharacterCreation from './characters/CharacterCreation';
 import { OnboardingManager } from './onboarding';
-import { Box } from '@chakra-ui/react';
-import NavBar from './NavBar';
+import AuthenticatedLayout from './layouts/AuthenticatedLayout';
 import { shouldShowNavBar } from '@/types/auth';
 
 interface Props {
@@ -101,19 +100,15 @@ export const stateToComponentMap: Record<AuthState, (props: any) => React.ReactN
 export const AppInitializerStateRenderer: React.FC<Props> = ({ authState, pathname, renderContent }) => {
   const content = renderContent(authState);
   
-  // Special case: NO_WALLET state doesn't show nav bar
+  // Special case: NO_WALLET state doesn't show nav bar or use AuthenticatedLayout
   if (authState === AuthState.NO_WALLET) {
     return <>{content}</>;
   }
   
-  // All other states show nav bar
+  // All other states use AuthenticatedLayout
   return (
-    <div className='h-screen'>
-      {shouldShowNavBar(authState) && <NavBar />}
-      <Box pt={shouldShowNavBar(authState) ? "64px" : "0"} className='h-full'>
-        {content}
-      </Box>
-      <OnboardingManager />
-    </div>
+    <AuthenticatedLayout showNavBar={shouldShowNavBar(authState)}>
+      {content}
+    </AuthenticatedLayout>
   );
 };
