@@ -10,6 +10,8 @@ import ErrorBoundary from './ErrorBoundary';
 import theme from './theme';
 import './globals.css';
 import React, { useEffect } from 'react';
+import { ContractCheckProvider } from '../contexts/ContractCheckContext';
+import { AuthStateWrapper } from '../components/AuthStateWrapper';
 
 export default function RootLayout({
   children,
@@ -46,15 +48,19 @@ export default function RootLayout({
       >
           <ErrorBoundary>
             <ReactQueryProvider>
-              <PrivyAuthProvider>
-                <WalletProvider>
-                  <OptimisticUpdatesProvider>
-                    <ChakraProvider theme={theme} toastOptions={{ defaultOptions: { position: 'bottom-right' } }} >
-                      {children}
-                    </ChakraProvider>
-                  </OptimisticUpdatesProvider>
-                </WalletProvider>
-              </PrivyAuthProvider>
+              <ChakraProvider theme={theme} toastOptions={{ defaultOptions: { position: 'bottom-right' } }} >
+                <ContractCheckProvider>
+                  <PrivyAuthProvider>
+                    <WalletProvider>
+                      <OptimisticUpdatesProvider>
+                        <AuthStateWrapper>
+                          {children}
+                        </AuthStateWrapper>
+                      </OptimisticUpdatesProvider>
+                    </WalletProvider>
+                  </PrivyAuthProvider>
+                </ContractCheckProvider>
+              </ChakraProvider>
             </ReactQueryProvider>
         </ErrorBoundary>
       </body>
