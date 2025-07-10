@@ -223,14 +223,17 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       const damageDone = raw.details.damageDone && Number(raw.details.damageDone) > 0 ? raw.details.damageDone : 0;
       const healthHealed = raw.details.healthHealed && Number(raw.details.healthHealed) > 0 ? raw.details.healthHealed : 0;
       const rawValue = damageDone || healthHealed;
-      const enhancement = calculateAbilityEnhancement(abilityId || 0, actor, rawValue, stage);
       
       // Determine target type
       const isSelfTargeted = isSelfTargetedAbility(raw, Boolean(isPlayerAttacker), Boolean(isPlayerDefender));
       const isTargeted = Boolean(target);
       
-      // Build enhancement text
-      const enhancementText = buildEnhancementText(enhancement, isTargeted, isSelfTargeted);
+      // Build enhancement text only if there's actual damage/healing
+      let enhancementText = "";
+      if (rawValue > 0) {
+        const enhancement = calculateAbilityEnhancement(abilityId || 0, actor, rawValue, stage);
+        enhancementText = buildEnhancementText(enhancement, isTargeted, isSelfTargeted);
+      }
 
       // Build message using the requested format: "You use Ability <Name> against <Target> with <Enhancement>"
       const verb = isActorPlayer ? "use" : "uses";
