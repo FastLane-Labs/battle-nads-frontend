@@ -13,5 +13,8 @@ export * from './session/useSessionFunding';
 // Contract hooks
 export * from './contracts/useBattleNadsClient';
 
+// App initialization hooks
+export * from './useAppInitializerMachine';
+
 // Other hooks
 // ... any other hooks you might add later 
