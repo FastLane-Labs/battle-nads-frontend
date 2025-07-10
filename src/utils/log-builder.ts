@@ -67,6 +67,17 @@ export function shouldFilterLogEvent(raw: LogEntryRaw, abilityName?: string): bo
 }
 
 export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerWeaponName?: string, currentAreaId?: bigint, playerCharacterName?: string): LogEntryRich {
+  // Debug logging for raw input
+  if (raw.details?.damageDone === 0 || raw.details?.healthHealed === 0) {
+    console.log('[enrichLog] Raw event with zero values:', {
+      type: LogType[raw.type] || raw.type,
+      damageDone: raw.details?.damageDone,
+      healthHealed: raw.details?.healthHealed,
+      displayMessage: raw.displayMessage,
+      rawDetails: raw.details
+    });
+  }
+  
   switch (raw.type) {
     case LogType.Combat: {
       if (!raw.attacker || !raw.defender) {
@@ -267,9 +278,19 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       const isActorPlayer = isPlayerAttacker;
       const actorName = formatActorName(actor, isActorPlayer || false, false);
       
+      const text = `${actorName} entered the area (${raw.areaId}).`;
+      
+      // Debug log for area entry
+      console.log('[enrichLog] EnteredArea text:', {
+        text,
+        actorName,
+        areaId: raw.areaId,
+        raw
+      });
+      
       return {
         ...raw,
-        text: `${actorName} entered the area (${raw.areaId}).`,
+        text,
       };
     }
 
