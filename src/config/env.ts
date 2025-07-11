@@ -6,13 +6,13 @@
 // Contract addresses
 export const ENTRYPOINT_ADDRESS =
   process.env.NEXT_PUBLIC_ENTRYPOINT_ADDRESS ||
-  "0x73421A6230D0a57435ef49C6190C80a5ca52D4aB";
+  "0x65711E4f2f36f239fBFaE54e4F70CA2382cbb344";
 
 export const SHMONAD_ADDRESS =
   process.env.NEXT_SHMONAD_ADDRESS ||
   "0x3a98250F98Dd388C211206983453837C8365BDc1"; 
 
-export const POLICY_ID = process.env.NEXT_PUBLIC_POLICY_ID || 61;
+export const POLICY_ID = process.env.NEXT_PUBLIC_POLICY_ID || 62;
 
 
 // RPC URLs - WebSocket and HTTP fallback
