@@ -4,17 +4,21 @@ import { useSimplifiedGameState } from '../hooks/game/useSimplifiedGameState';
 import { useAuthState } from '@/contexts/AuthStateContext';
 import { AuthState } from '@/types/auth';
 import { AppInitializerStateRenderer, stateToComponentMap } from './AppInitializerStateRenderer';
+import { useWelcomeScreen } from './onboarding/WelcomeScreen';
+import { useWallet } from '@/providers/WalletProvider';
 
 const AppInitializer: React.FC = () => {
   const authState = useAuthState();
   const game = useSimplifiedGameState();
   const router = useRouter();
   const pathname = usePathname();
+  const { currentWallet } = useWallet();
+  const { hasSeenWelcome } = useWelcomeScreen(currentWallet !== 'none' ? currentWallet : undefined);
 
   // Effect for redirection based on auth state and pathname
   useEffect(() => {
-    // Redirect to character creation when in NO_CHARACTER state
-    if (authState.state === AuthState.NO_CHARACTER && pathname !== '/create') {
+    // Only redirect to character creation if welcome screen has been seen
+    if (authState.state === AuthState.NO_CHARACTER && pathname !== '/create' && hasSeenWelcome) {
       router.push('/create');
     }
     
@@ -22,7 +26,7 @@ const AppInitializer: React.FC = () => {
     if (authState.state === AuthState.READY && pathname === '/create') {
       router.push('/');
     }
-  }, [authState.state, pathname, router]);
+  }, [authState.state, pathname, router, hasSeenWelcome]);
 
   // Render content based on current auth state using the declarative mapping
   const renderContent = (state: AuthState): React.ReactNode => {
