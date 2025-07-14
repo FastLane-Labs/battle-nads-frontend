@@ -312,76 +312,43 @@ Bards are the ultimate challenge class. The unique mechanic where missed attacks
 - Consider bard as a roleplay/challenge class, not competitive
 - Group play may be more viable than solo
 
-## Universal Leveling Tips
+## Basic Leveling Tips
 
-### Early Game (Levels 1-15)
+### General Guidance
 
-1. **Focus on your class's primary stat first**
-2. **Get enough vitality to survive** (minimum 8-10 points)
-3. **Don't neglect luck** - it affects multiple mechanics
-4. **Prioritize equipment upgrades** over minor stat increases
+- Focus on your class's primary stat (Strength for Warriors, etc.)
+- Maintain enough Vitality for survivability
+- Luck affects multiple systems - don't ignore it
+- Equipment upgrades often matter more than stats
 
-### Mid Game (Levels 16-35)
+### Key Points
 
-1. **Balance survivability stats** (Vitality/Sturdiness)
-2. **Optimize your class's secondary stats**
-3. **Consider your combat style** (offensive vs defensive)
-4. **Start specializing** based on preferred abilities
+- Stats have diminishing returns at high values
+- Equipment multiplies your stat effectiveness
+- Turn speed (from Quickness) has exponential scaling
+- Each class benefits from different stat priorities
 
-### Late Game (Levels 36-50)
+## Combat Mechanics Summary
 
-1. **Fine-tune secondary stats** for your playstyle
-2. **Maximize equipment synergy** with your build
-3. **Consider PvP implications** of your build
-4. **Experiment with hybrid builds** if comfortable
+### Status Effects
 
-### Stat Priority Guidelines
+- **Buffs**: ShieldWall (damage reduction), Evasion (+96 dodge), ChargedUp (2x damage)
+- **Debuffs**: Stunned (-64 dodge), Cursed (-80% healing), Poisoned (DoT)
+- **Ability States**: Praying and ChargingUp can be interrupted
 
-**For All Classes:**
+### Equipment Impact
 
-- **Luck is undervalued** - affects hit, crit, turn speed, and damage rolls
-- **Don't dump vitality** - health regeneration keeps you fighting longer
-- **Equipment multiplies stats** - weapon accuracy scales dexterity, armor scales sturdiness
-- **Turn speed is exponential** - small quickness investments have big impacts
+- Weapons scale with Strength (damage) and Dexterity (accuracy)
+- Armor scales with Sturdiness (defense) and affects dodge chance
+- Higher tier equipment provides significant advantages
 
-**Red Flags:**
+### Technical Notes
 
-- Completely ignoring any stat (even penalized ones)
-- Forgetting that luck affects turn speed thresholds
-- Underestimating the value of health regeneration
-- Not considering ability scaling when allocating points
-
-## Advanced Combat Considerations
-
-### Status Effects & Interactions
-
-- **Stunned**: Increases hit chance against you (+64 to enemy hit roll)
-- **ShieldWall**: Reduces incoming damage significantly (defensive buff)
-- **Evasion**: Increases dodge chance by +96 to evasion calculation
-- **Praying**: Active during healing cast, vulnerable to interruption
-- **ChargingUp**: Building power for enhanced attack, can be interrupted by stuns
-- **ChargedUp**: Doubles damage output after successful charge
-- **Cursed**: Reduces healing effectiveness by 80%
-- **Poisoned**: Deals percentage-based damage over time
-- **Stunned**: Prevents actions, -64 to dodge calculation
-- **ChargingUp**: Vulnerable to critical hits
-
-### Equipment Scaling
-
-- **Weapon Accuracy** multiplies with dexterity for hit chance
-- **Weapon Base/Bonus Damage** scales with strength
-- **Armor Factor** multiplies with sturdiness for defense
-- **Armor Flexibility** affects evasion capability
-- Higher-tier equipment significantly outweighs minor stat differences
-
-### Combat Optimization
-
-1. **Understand breakpoints** - some stats have threshold effects
-2. **Consider opponent types** - monsters vs players have different scaling
-3. **Timing matters** - ability cooldowns and combat duration
-4. **Positioning** - especially important for glass cannon classes
-5. **Resource management** - health, abilities, and combat stamina
+The combat system demonstrates blockchain's capability to handle:
+- Complex stat calculations on-chain
+- Multi-stage ability execution through the Task Manager
+- Fair, deterministic combat resolution without RNG exploitation
 
 ---
 
-*This guide documents the current combat mechanics implemented in the Battle Nads smart contract system.*
+*Battle Nads demonstrates how complex RPG mechanics can run entirely on-chain using FastLane's Task Manager and Gas Abstraction technologies.*
