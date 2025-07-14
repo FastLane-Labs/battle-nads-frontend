@@ -691,7 +691,7 @@ describe('log-builder', () => {
         details: {
           damageDone: 15,
           lootedWeaponID: 6, // Apply Poison ability ID (from Ability enum)
-          lootedArmorID: 3,  // Stage 3 of 6 (poison damage stages)
+          lootedArmorID: 3,  // Stage 3 of 13 (poison round 2 of 10)
           hit: true,
         },
         displayMessage: 'raw message',
@@ -712,7 +712,7 @@ describe('log-builder', () => {
       const result = enrichLog(rawLog, 1, undefined, undefined, 'TestPlayer');
 
       expect(result.text).toContain('uses Ability **Apply Poison** against');
-      expect(result.text).toContain('poison damage (Stage 3/6, Level 20)');
+      expect(result.text).toContain('poison damage (Round 2/10, Level 20)');
     });
 
     it('should handle self-targeted abilities correctly', () => {
