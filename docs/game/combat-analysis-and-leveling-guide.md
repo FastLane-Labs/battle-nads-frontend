@@ -134,8 +134,8 @@ adjustedHealthRegeneration = (vitality * VITALITY_REGEN_MODIFIER) * cooldown / D
 
 **Abilities:**
 
-- **ShieldBash**: Stuns target + high damage (scales with strength + dexterity + level)
-- **ShieldWall**: Temporary defense buff, reduces incoming damage by 75%
+- **ShieldBash**: Stuns target + high damage (scales with strength + dexterity + level) - 24 block cooldown (12 seconds)
+- **ShieldWall**: Temporary defense buff, reduces incoming damage by 75% - 24 block cooldown (12 seconds)
 
 **Optimal Build:**
 
@@ -172,8 +172,8 @@ Warriors excel at prolonged combat with high survivability and consistent damage
 
 **Abilities:**
 
-- **EvasiveManeuvers**: Temporary evasion buff (3 turns active, 18 turn cooldown)
-- **ApplyPoison**: DoT that deals percentage-based damage over 6 turns
+- **EvasiveManeuvers**: Temporary evasion buff - 18 block cooldown (9 seconds)
+- **ApplyPoison**: DoT that deals percentage-based damage over 10 turns - 64 block cooldown (32 seconds)
 
 **Optimal Build:**
 
@@ -211,8 +211,8 @@ Rogues are speed-based assassins that rely on landing critical hits and avoiding
 
 **Abilities:**
 
-- **Pray**: Powerful self/ally heal (scales with luck + sturdiness, 18+72 turn cooldown)
-- **Smite**: High damage + curse debuff (scales with luck + level)
+- **Pray**: Powerful self/ally heal (scales with luck + sturdiness) - 72 block cooldown (36 seconds)
+- **Smite**: High damage + curse debuff (scales with luck + level) - 24 block cooldown (12 seconds)
 
 **Optimal Build:**
 
@@ -249,8 +249,8 @@ Monks are the ultimate survivalists with unmatched healing capabilities. The com
 
 **Abilities:**
 
-- **ChargeUp**: 3-stage damage buff (interrupted by stuns, 72 turn total duration)
-- **Fireball**: Massive burst damage (scales with level + percentage of target's current health)
+- **ChargeUp**: 3-stage damage buff (interrupted by stuns) - 36 block cooldown (18 seconds)
+- **Fireball**: Massive burst damage (scales with level + percentage of target's current health) - 56 block cooldown (28 seconds)
 
 **Optimal Build:**
 
@@ -287,8 +287,8 @@ Sorcerers are glass cannons that rely on positioning and timing. The ChargeUp + 
 
 **Abilities:**
 
-- **SingSong**: Cosmetic/utility effect
-- **DoDance**: Cosmetic/utility effect
+- **SingSong**: No gameplay effect - 0 cooldown
+- **DoDance**: No gameplay effect - 0 cooldown
 
 **Optimal Build (Survival Focus):**
 
@@ -356,12 +356,14 @@ Bards are the ultimate challenge class. The unique mechanic where missed attacks
 ### Status Effects & Interactions
 
 - **Stunned**: Increases hit chance against you (+64 to enemy hit roll)
-- **Blocking (ShieldWall)**: Reduces damage by 75%, prevents crits
-- **Evasion**: Reduces enemy hit chance (-96 to their hit roll)
-- **Praying**: Halves damage dealt, doubles health regen, prevents crits
-- **Cursed**: Prevents health regeneration, reduces healing by 80%
-- **Poisoned**: Reduces health regen by 75%, DoT damage
-- **ChargedUp**: Doubles damage, prevents critical hits on your attacks
+- **ShieldWall**: Reduces incoming damage significantly (defensive buff)
+- **Evasion**: Increases dodge chance by +96 to evasion calculation
+- **Praying**: Active during healing cast, vulnerable to interruption
+- **ChargingUp**: Building power for enhanced attack, can be interrupted by stuns
+- **ChargedUp**: Doubles damage output after successful charge
+- **Cursed**: Reduces healing effectiveness by 80%
+- **Poisoned**: Deals percentage-based damage over time
+- **Stunned**: Prevents actions, -64 to dodge calculation
 - **ChargingUp**: Vulnerable to critical hits
 
 ### Equipment Scaling
@@ -383,4 +385,3 @@ Bards are the ultimate challenge class. The unique mechanic where missed attacks
 ---
 
 *This guide documents the current combat mechanics implemented in the Battle Nads smart contract system.*
- 
