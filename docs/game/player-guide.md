@@ -30,7 +30,7 @@ Battle Nads is a blockchain-based tactical RPG where players create characters, 
 2. **Character Creation**: Choose your character name and allocate 32 stat points across 6 attributes
 3. **Class Assignment**: Your class is randomly assigned (Warrior, Rogue, Monk, Sorcerer, or Bard)
 4. **Session Key**: Automatically created if using Privy wallet, manual setup for others
-5. **Spawn Delay**: Your character will spawn after 8 blocks (~2-3 minutes)
+5. **Spawn Delay**: Your character will spawn after 8 blocks (~4 seconds)
 
 ### Minimum Requirements
 
@@ -368,14 +368,37 @@ When your character dies:
 
 ### Session Key System
 
-Session keys enable gasless gameplay by pre-authorizing transactions:
+Session keys enable gasless gameplay through Privy's managed wallet system:
 
-#### How It Works
+#### How the System Works
 
-- **All game actions are sponsored** by your session key balance
-- **Movement, combat, and abilities** are paid from session key, not your wallet  
-- **Task Manager automates combat** - no manual transactions needed
-- **Combat runs automatically** - once started, the system handles all turns
+```
+Your Wallet (MetaMask, etc.)
+    ↓
+Privy Authentication
+    ↓
+Creates Managed Wallet (Session Key)
+    ↓
+Character Creation (One Transaction):
+    • Deposits 0.1 MON → Game buy-in
+    • Bonds shMON → Task execution
+    • Sends MON → Session key for gas
+    ↓
+Gameplay Actions via Session Key:
+    • Movement → Gas from session key
+    • Combat → Gas from session key
+    • Abilities → Gas from session key
+```
+
+#### Transaction Flow for Actions
+
+When you initiate an action (movement, combat, ability):
+
+1. **Session key sponsors the transaction** - No wallet popup
+2. **shMON is deducted** from your bonded balance for Task scheduling
+3. **Gas is partially refunded** to session key (efficient gas usage)
+4. **Task Manager executes** the action through execution services
+5. **Unused gas is redirected** through paymaster contracts
 
 #### Key Benefits
 
@@ -449,6 +472,48 @@ Battle Nads uses a sophisticated task system for autonomous character operation:
 - **Scheduling**: Tasks are scheduled for future block execution
 - **Priority**: Task execution follows priority and gas availability
 - **Failure Handling**: Failed tasks may be rescheduled or cancelled
+
+### Combat & Ability Demonstration
+
+Battle Nads showcases advanced Task Manager capabilities through combat:
+
+#### Combat Automation Example
+
+```
+Player initiates attack
+    ↓
+Session key sends transaction (gas paid)
+    ↓
+Task Manager creates combat task
+    ↓
+shMON deducted from bonded balance
+    ↓
+Combat task executes every turn:
+    • Calculate damage
+    • Update health
+    • Check for death
+    • Schedule next turn
+    ↓
+Task continues until combat ends
+```
+
+#### Multi-Stage Ability Example (Sorcerer's ChargeUp)
+
+```
+Stage 1: Begin charging (6 blocks)
+    ↓
+Stage 2: Charging complete (buff applied)
+    ↓
+Stage 3: Buff active (26 blocks)
+    ↓
+Stage 4: Buff expires (cooldown begins)
+```
+
+Each stage is a separate task execution, demonstrating:
+- **Complex state management** entirely on-chain
+- **Timed effects** using block-based scheduling
+- **Interruption handling** (stuns can break charge)
+- **Gas efficiency** through Task Manager optimization
 
 ### Task Management
 

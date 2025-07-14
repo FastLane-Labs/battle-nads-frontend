@@ -2,10 +2,11 @@
 
 ## 🚀 Get Playing in 5 Minutes
 
-### Step 1: Connect Your Wallet
+### Step 1: Connect Your Wallet via Privy
 1. Click **Connect Wallet** on the homepage
-2. Choose your preferred wallet (MetaMask, WalletConnect, etc.)
-3. Ensure you're connected to the **Monad network**
+2. Choose your external wallet (MetaMask, Coinbase, Rainbow, Phantom, etc.)
+3. Privy will create a managed wallet (session key) for you
+4. Ensure you're connected to the **Monad network**
 
 ### Step 2: Get MON Tokens
 You need approximately **0.15 MON** to start:
@@ -17,7 +18,7 @@ You need approximately **0.15 MON** to start:
 - Purchase from supported exchanges
 - Use faucets if available on testnet
 
-### Step 3: Create Your Character
+### Step 3: Create Your Character (One Click!)
 1. Navigate to **Create Character**
 2. Choose your character name
 3. **Allocate 32 stat points** across 6 attributes:
@@ -31,32 +32,25 @@ You need approximately **0.15 MON** to start:
 **Recommended First Build (Balanced Fighter):**
 - Strength: 6, Vitality: 6, Dexterity: 5, Quickness: 5, Sturdiness: 5, Luck: 5
 
-4. Your character class will be **randomly assigned** from:
-   - **Warrior** - Tank/DPS hybrid
-   - **Rogue** - High damage assassin
-   - **Monk** - Support and healing
-   - **Sorcerer** - Magical burst damage
-   - **Bard** - Challenge mode
+4. **One-Click Character Creation** handles everything:
+   - Deposits 0.1 MON for character buy-in
+   - Bonds shMON for Task Manager operations
+   - Funds session key with MON for gas
+   - Randomly assigns your class (Warrior, Rogue, Monk, Sorcerer, or Bard)
 
-### Step 4: Session Key (Automatic with Privy)
-- **Privy wallets**: Session key is created automatically
-- **Other wallets**: You'll be prompted to create one manually
-- **Benefits**: All actions sponsored by session key - no wallet popups
-- **Important**: Session key balance pays for movement and combat
-
-### Step 5: Enter the Game
-1. Wait **8 blocks (~4 minutes)** for your character to spawn
+### Step 4: Enter the Game
+1. Wait **8 blocks (~4 seconds)** for your character to spawn
 2. You'll start at **Depth 1** in a random safe location
 3. Your character begins with basic equipment for your class
 
-### Step 6: First Actions
+### Step 5: First Actions
 1. **Check your stats** - Review health, equipment, and abilities
 2. **Practice movement** - Use directional buttons to explore
 3. **Find a weak enemy** - Look for monsters at your level
 4. **Try combat** - Click **Attack** to engage in your first battle
 5. **Use abilities** - Each class has 2 special abilities
 
-### Step 7: Basic Survival
+### Step 6: Basic Survival
 - **Monitor your health** - Red bar shows current HP
 - **Watch your balance** - Keep enough MON bonded for actions
 - **Don't venture too deep** - Stay at appropriate depth for your level
