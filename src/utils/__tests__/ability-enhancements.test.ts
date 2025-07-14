@@ -55,9 +55,9 @@ describe('ability-enhancements', () => {
     it('should handle Apply Poison with stage information', () => {
       const result = calculateAbilityEnhancement(Ability.ApplyPoison, mockCharacter, 25, 3);
 
-      expect(result.description).toBe('poison damage (Stage 3/6, Level 15)');
+      expect(result.description).toBe('poison damage (Round 2/10, Level 15)');
       expect(result.stage).toBe(3);
-      expect(result.totalStages).toBe(6);
+      expect(result.totalStages).toBe(13);
     });
 
     it('should handle buff abilities', () => {
