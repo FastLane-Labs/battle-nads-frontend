@@ -34,14 +34,6 @@ Battle Nads is a technology demonstration showcasing FastLane Labs' blockchain i
 2. **Game Economy Guide** for economic optimization
 3. All guides for comprehensive mastery
 
-## 📱 Interactive Features
-
-These guides are designed to work alongside the game's interactive onboarding system:
-
-- **In-game tutorials** reference these guides for detailed explanations
-- **Interactive calculators** complement the written strategy guides
-- **Combat simulator** helps test concepts from the PvP manual
-
 ---
 
 *For technical documentation and development resources, see the parent `/docs` directory.*
