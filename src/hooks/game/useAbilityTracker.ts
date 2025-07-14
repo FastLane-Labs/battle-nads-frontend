@@ -12,7 +12,7 @@ const ABILITY_STAGE_DURATIONS: Record<domain.Ability, { charging: number; action
   [domain.Ability.ShieldWall]: { charging: 3, action: 3, cooldown: 24 },
   // Rogue abilities  
   [domain.Ability.EvasiveManeuvers]: { charging: 2, action: 2, cooldown: 18 },
-  [domain.Ability.ApplyPoison]: { charging: 6, action: 4, cooldown: 64 },
+  [domain.Ability.ApplyPoison]: { charging: 5, action: 40, cooldown: 16 }, // Stage 1: 5 blocks, Stages 2-11: 40 blocks total, Stage 12: 16 blocks
   // Monk abilities
   [domain.Ability.Pray]: { charging: 8, action: 4, cooldown: 72 },
   [domain.Ability.Smite]: { charging: 3, action: 1, cooldown: 24 },

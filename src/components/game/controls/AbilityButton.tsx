@@ -56,7 +56,7 @@ const ABILITY_COOLDOWN_DURATIONS: { [key in domain.Ability]?: number } = {
   [domain.Ability.ShieldBash]: 12,       // 24 blocks * 0.5s
   [domain.Ability.ShieldWall]: 12,       // 24 blocks * 0.5s
   [domain.Ability.EvasiveManeuvers]: 9,  // 18 blocks * 0.5s
-  [domain.Ability.ApplyPoison]: 32,      // 64 blocks * 0.5s
+  [domain.Ability.ApplyPoison]: 30.5,    // 61 blocks * 0.5s (5 windup + 40 poison + 16 cooldown)
   [domain.Ability.Pray]: 36,             // 72 blocks * 0.5s
   [domain.Ability.Smite]: 12,            // 24 blocks * 0.5s
   [domain.Ability.Fireball]: 28,         // 56 blocks * 0.5s

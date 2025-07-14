@@ -16,7 +16,7 @@ const ABILITY_COOLDOWN_BLOCKS: Record<domain.Ability, number> = {
     [domain.Ability.ShieldBash]: 6,
     [domain.Ability.ShieldWall]: 42,
     [domain.Ability.EvasiveManeuvers]: 40, 
-    [domain.Ability.ApplyPoison]: 61,
+    [domain.Ability.ApplyPoison]: 61, // Total: 5 (windup) + 40 (poison rounds) + 16 (cooldown) = 61 blocks
     [domain.Ability.Pray]: 49,
     [domain.Ability.Smite]: 26,
     [domain.Ability.Fireball]: 23,
