@@ -126,19 +126,32 @@ Battle Nads uses a sophisticated economic model based on shMON (staked MON) toke
 
 ### Stat Allocation Strategy
 
-You have 14 points to distribute across 6 attributes. Consider these builds:
+You have 14 points to distribute across 6 attributes. Since your class is randomly assigned, here are recommended builds for each class:
 
-#### Balanced Fighter (Recommended for beginners)
+#### Warrior (Tank/DPS)
 
-- Strength: 3, Vitality: 3, Dexterity: 2, Quickness: 2, Sturdiness: 2, Luck: 2
+- Strength: 4, Vitality: 3, Dexterity: 2, Quickness: 2, Sturdiness: 2, Luck: 1
+- Focus on Strength and Vitality to maximize health and damage
 
-#### Glass Cannon
+#### Rogue (High Damage)
 
-- Strength: 4, Vitality: 2, Dexterity: 4, Quickness: 3, Sturdiness: 1, Luck: 1
+- Strength: 2, Vitality: 1, Dexterity: 4, Quickness: 3, Sturdiness: 1, Luck: 3
+- Prioritize Dexterity and Quickness for hit chance and turn frequency
 
-#### Tank Build
+#### Monk (Support)
 
-- Strength: 2, Vitality: 4, Dexterity: 2, Quickness: 1, Sturdiness: 4, Luck: 1
+- Strength: 2, Vitality: 2, Dexterity: 2, Quickness: 2, Sturdiness: 3, Luck: 3
+- Balanced build with emphasis on Sturdiness and Luck
+
+#### Sorcerer (Magic DPS)
+
+- Strength: 1, Vitality: 2, Dexterity: 3, Quickness: 3, Sturdiness: 2, Luck: 3
+- Focus on magical stats while maintaining survivability
+
+#### Bard (Challenge Mode)
+
+- Strength: 2, Vitality: 3, Dexterity: 2, Quickness: 2, Sturdiness: 3, Luck: 2
+- Balanced approach to offset stat penalties
 
 ### Level Progression
 
@@ -252,10 +265,11 @@ Battle Nads features a 3D dungeon system:
 **First 4 Staircase Locations:**
 
 - Depth 1→2: (25, 25) - Always at center
-- Depth 2→3: (35, 15) - Southeast quadrant  
+- Depth 2→3: (35, 15) - Southeast quadrant
 - Depth 3→4: (15, 35) - Northwest quadrant
 - Depth 4→5: (14, 14) - Southwest quadrant
-- Further depths follow a pattern with increasing distance from center
+
+**Hint:** Further depths follow a pattern - explore to discover it!
 
 ### Exploration Mechanics
 
@@ -276,7 +290,7 @@ Battle Nads features a 3D dungeon system:
 
 1. **Safe Exploration**: Move cautiously in new areas to avoid overwhelming encounters
 2. **Level Appropriate Zones**: Stay in areas matching your character level
-3. **Finding Staircases**: Learn the staircase pattern to efficiently navigate between depths
+3. **Finding Staircases**: Memorize the first few locations, then discover the pattern
 4. **Boss Preparation**: Prepare thoroughly before approaching boss locations (bosses spawn at staircase coordinates)
 5. **Escape Routes**: Always plan retreat paths before engaging in combat
 
@@ -288,15 +302,12 @@ Battle Nads features a 3D dungeon system:
 2. Use `moveUp()` to go deeper (higher depth number) or `moveDown()` to go shallower
 3. You'll arrive at the same coordinates on the new depth level
 
-**Finding Staircase Coordinates:**
+**Navigation Tips:**
 
-- **Depth 1**: Staircase at (25, 25) - center of the map
-- **Other Depths**: Use the pattern:
-  - Depth % 4 = 2: Southwest (subtract from 25,25)
-  - Depth % 4 = 3: Northeast (add to 25,25)  
-  - Depth % 4 = 0: Southeast (add X, subtract Y)
-  - Depth % 4 = 1: Northwest (subtract X, add Y)
-  - Distance increases with depth: 10 + (depth ÷ 4)
+- Start by memorizing the first 4 staircase locations
+- Observe the pattern as you explore deeper levels
+- Boss monsters often guard staircase locations
+- Hint: The pattern involves corners and increasing distances
 
 ## Equipment System
 
