@@ -38,11 +38,12 @@ You need approximately **0.15 MON** to start:
    - **Sorcerer** - Magical burst damage
    - **Bard** - Challenge mode (not recommended for new players)
 
-### Step 4: Set Up Session Key (Optional but Recommended)
+### Step 4: Set Up Session Key (Highly Recommended)
 1. After character creation, you'll be prompted to create a session key
-2. **Benefits**: Gasless transactions, automated gameplay
+2. **Benefits**: All actions sponsored by session key - no wallet popups
 3. **Cost**: Small upfront MON deposit for gas coverage
-4. Click **Create Session Key** and follow prompts
+4. **Important**: Session key balance pays for movement and combat
+5. Click **Create Session Key** and follow prompts
 
 ### Step 5: Enter the Game
 1. Wait **8 blocks (~4 minutes)** for your character to spawn
@@ -65,7 +66,9 @@ You need approximately **0.15 MON** to start:
 ## ⚠️ Important First-Time Tips
 
 ### Combat Basics
-- Combat is **turn-based** and **automated**
+- Combat is **turn-based** and **fully automated**
+- **No transaction spam needed** - Task Manager handles all turns
+- **Just click attack once** - combat continues automatically
 - Higher **Quickness** = more frequent turns
 - **Equipment matters** - upgrade when possible
 - **Class abilities** have cooldowns - use strategically

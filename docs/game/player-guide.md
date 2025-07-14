@@ -369,12 +369,25 @@ When your character dies:
 
 Session keys enable gasless gameplay by pre-authorizing transactions:
 
+#### How It Works
+
+- **All game actions are sponsored** by your session key balance
+- **Movement, combat, and abilities** are paid from session key, not your wallet  
+- **Task Manager automates combat** - no manual transactions needed
+- **Combat runs automatically** - once started, the system handles all turns
+
 #### Key Benefits
 
 - **Gasless Transactions**: Play without paying gas for each action
 - **Automated Gameplay**: Characters can act autonomously
 - **Cost Efficiency**: Bulk gas payment reduces per-transaction costs
 - **User Experience**: Seamless gameplay without constant wallet interactions
+
+#### Important Notes
+
+- **Low session key balance** may cause combat tasks to fail
+- **The UI will indicate** if tasks are broken due to insufficient balance
+- **Refund your session key** when balance runs low to continue playing
 
 #### Session Key Setup
 
@@ -414,6 +427,13 @@ Understanding gas costs helps optimize your gameplay:
 ### Automated Gameplay
 
 Battle Nads uses a sophisticated task system for autonomous character operation:
+
+#### How Combat Automation Works
+
+- **Combat is fully automated** - you only need to initiate the first attack
+- **The Task Manager handles all turns** - no need to spam transactions
+- **Abilities execute automatically** when used - multi-stage abilities continue without intervention
+- **Only manual action needed**: Starting combat or movement between areas
 
 #### Task Types
 
@@ -580,9 +600,11 @@ As an early alpha product:
 #### Gameplay Issues
 
 - **Movement Restrictions**: Cannot move while in combat
-- **Task Failures**: Check bonded balance for task execution
+- **Task Failures**: Check bonded balance and session key balance
 - **Combat Delays**: Combat actions are automated, expect delays
 - **Balance Depletion**: Monitor bonded balance to prevent character deletion
+- **Combat Task Broken**: UI will indicate - refund session key or bonded balance
+- **No Transaction Spam Needed**: Combat runs automatically via Task Manager
 
 #### Technical Problems
 
