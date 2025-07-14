@@ -237,6 +237,23 @@ echo "NEXT_PUBLIC_ENABLE_WEBSOCKET=true" >> .env.local
 
 **Current Status:** Infrastructure ready, disabled by default for stability
 
+## Documentation Maintenance
+
+When updating game mechanics or documentation:
+
+1. Update the relevant documentation files in `docs/game/`
+2. Verify cross-references between guides remain accurate
+3. Ensure documentation reflects Battle Nads as a technology demo, not an esports game
+4. Update any embedded calculations or formulas to match smart contracts
+
+### Documentation Writing Style
+
+Game documentation should follow these principles:
+- **Tech demo focus** - Emphasize blockchain capabilities being demonstrated
+- **Accessibility first** - Clear language for all skill levels
+- **Practical advice** - Basic strategies without elaborate optimization
+- **Avoid esports language** - No competitive gaming terminology or elaborate checklists
+
 ## Commands
 
 ### Development
