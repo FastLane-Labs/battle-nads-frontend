@@ -372,33 +372,49 @@ Session keys enable gasless gameplay through Privy's managed wallet system:
 
 #### How the System Works
 
-```
-Your Wallet (MetaMask, etc.)
-    ↓
-Privy Authentication
-    ↓
-Creates Managed Wallet (Session Key)
-    ↓
-Character Creation (One Transaction):
-    • Deposits 0.1 MON → Game buy-in
-    • Bonds shMON → Task execution
-    • Sends MON → Session key for gas
-    ↓
-Gameplay Actions via Session Key:
-    • Movement → Gas from session key
-    • Combat → Gas from session key
-    • Abilities → Gas from session key
+```mermaid
+flowchart TD
+    A[Your Wallet<br/>MetaMask, Coinbase, etc.] --> B[Privy Authentication]
+    B --> C[Creates Managed Wallet<br/>Session Key]
+    C --> D[Character Creation<br/>One Transaction]
+    D --> E[Gameplay Actions via Session Key]
+    
+    D -.-> D1[Deposits 0.1 MON<br/>Game buy-in]
+    D -.-> D2[Bonds shMON<br/>Task execution]
+    D -.-> D3[Sends MON<br/>Session key gas]
+    
+    E -.-> E1[Movement<br/>Gas from session key]
+    E -.-> E2[Combat<br/>Gas from session key]
+    E -.-> E3[Abilities<br/>Gas from session key]
+    
+    style A fill:#2c3e50,stroke:#34495e,color:#fff
+    style C fill:#27ae60,stroke:#229954,color:#fff
+    style D fill:#3498db,stroke:#2874a6,color:#fff
+    style E fill:#e74c3c,stroke:#c0392b,color:#fff
 ```
 
 #### Transaction Flow for Actions
 
-When you initiate an action (movement, combat, ability):
-
-1. **Session key sponsors the transaction** - No wallet popup
-2. **shMON is deducted** from your bonded shMON for Task scheduling
-3. **Gas is partially refunded** to session key (efficient gas usage)
-4. **Task Manager executes** the action through execution services
-5. **Unused gas is redirected** through paymaster contracts
+```mermaid
+sequenceDiagram
+    participant P as Player
+    participant SK as Session Key
+    participant TM as Task Manager
+    participant ES as Execution Service
+    participant BC as Blockchain
+    
+    P->>SK: Initiate action (move/combat/ability)
+    Note over SK: No wallet popup needed
+    SK->>TM: Send sponsored transaction
+    TM->>TM: Deduct shMON from bonded balance
+    TM->>ES: Schedule task for execution
+    ES->>BC: Execute on-chain action
+    BC-->>SK: Partial gas refund
+    ES-->>TM: Report unused gas
+    TM-->>P: Action complete
+    
+    Note over ES: Can be off-chain service<br/>or smart contract<br/>(Paymaster/Atlas)
+```
 
 #### Key Benefits
 
@@ -479,37 +495,50 @@ Battle Nads showcases advanced Task Manager capabilities through combat:
 
 #### Combat Automation Example
 
-```
-Player initiates attack
-    ↓
-Session key sends transaction (gas paid)
-    ↓
-Task Manager creates combat task
-    ↓
-shMON deducted from bonded shMON
-    ↓
-Combat task executes every turn:
-    • Calculate damage
-    • Update health
-    • Check for death
-    • Schedule next turn
-    ↓
-Task continues until combat ends
+```mermaid
+flowchart TD
+    A[Player initiates attack] --> B[Session key sends transaction<br/>Gas paid from session key]
+    B --> C[Task Manager creates combat task]
+    C --> D[shMON deducted from bonded shMON]
+    D --> E[Combat task executes every turn]
+    E --> F{Combat<br/>ended?}
+    F -->|No| E
+    F -->|Yes| G[Combat complete]
+    
+    E -.-> E1[Calculate damage]
+    E -.-> E2[Update health]
+    E -.-> E3[Check for death]
+    E -.-> E4[Schedule next turn]
+    
+    style A fill:#9b59b6,stroke:#8e44ad,color:#fff
+    style C fill:#3498db,stroke:#2874a6,color:#fff
+    style D fill:#e67e22,stroke:#d35400,color:#fff
+    style E fill:#27ae60,stroke:#229954,color:#fff
+    style G fill:#34495e,stroke:#2c3e50,color:#fff
 ```
 
 #### Multi-Stage Ability Example (Sorcerer's ChargeUp)
 
-```
-Stage 1: Begin charging (6 blocks)
-    ↓
-Stage 2: Charging complete (buff applied)
-    ↓
-Stage 3: Buff active (26 blocks)
-    ↓
-Stage 4: Buff expires (cooldown begins)
+```mermaid
+flowchart TD
+    A[Ability Activated] --> B[Stage 1: Begin charging<br/>6 blocks]
+    B --> C{Stunned?}
+    C -->|Yes| H[Charge interrupted<br/>Enter cooldown]
+    C -->|No| D[Stage 2: Charging complete<br/>Buff applied]
+    D --> E[Stage 3: Buff active<br/>26 blocks]
+    E --> F[Stage 4: Buff expires<br/>Cooldown begins]
+    F --> G[Ready to use again]
+    
+    style A fill:#9b59b6,stroke:#8e44ad,color:#fff
+    style B fill:#f39c12,stroke:#e67e22,color:#fff
+    style D fill:#27ae60,stroke:#229954,color:#fff
+    style E fill:#3498db,stroke:#2874a6,color:#fff
+    style F fill:#95a5a6,stroke:#7f8c8d,color:#fff
+    style H fill:#e74c3c,stroke:#c0392b,color:#fff
 ```
 
 Each stage is a separate task execution, demonstrating:
+
 - **Complex state management** entirely on-chain
 - **Timed effects** using block-based scheduling
 - **Interruption handling** (stuns can break charge)
@@ -592,6 +621,7 @@ Battle Nads isn't just a game—it's a groundbreaking demonstration of blockchai
 #### Gasless Gaming Through FastLane
 
 The game showcases **FastLane's Gas Abstraction** technology:
+
 - **Session Keys**: Play without paying for every transaction
 - **Automated Execution**: Your character acts autonomously through the Task Manager
 - **Seamless Experience**: No wallet popups or gas fee interruptions during gameplay
@@ -599,6 +629,7 @@ The game showcases **FastLane's Gas Abstraction** technology:
 #### Priority Access with Liquid-Priority RPC
 
 Battle Nads integrates with FastLane's innovative RPC service:
+
 - **ShMON-Based Priority**: More ShMON = faster, more reliable gameplay
 - **Congestion Resistance**: Stay connected even when the network is busy
 - **Performance Scaling**: Your commitment directly improves your gaming experience
@@ -642,6 +673,7 @@ Battle Nads operates within the FastLane Labs ecosystem on Monad:
 ### Early Alpha Considerations
 
 As an early alpha product:
+
 - Expect frequent updates and balance changes
 - Character and currency resets may occur
 - Community feedback drives development
@@ -696,4 +728,4 @@ As an early alpha product:
 
 ---
 
-*This guide covers the essential systems every Battle Nads player should understand. The game is complex and constantly evolving, so stay engaged with the community and keep learning as you play.* 
+*This guide covers the essential systems every Battle Nads player should understand. The game is complex and constantly evolving, so stay engaged with the community and keep learning as you play.*

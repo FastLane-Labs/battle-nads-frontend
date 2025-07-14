@@ -32,9 +32,22 @@ Your bonded shMON enables automatic defense when attacked:
 
 ### Economic Flow
 
-When a player dies:
-- 75% goes to the victor
-- 25% distributed to all shMON holders as yield
+```mermaid
+flowchart LR
+    A[Player Dies] --> B[Character Balance Lost]
+    B --> C[75% to Victor]
+    B --> D[25% to Yield Pool]
+    D --> E[All shMON Holders]
+    
+    C --> F[Victor's Character Balance]
+    E --> G[Proportional Distribution]
+    
+    style A fill:#e74c3c,stroke:#c0392b,color:#fff
+    style B fill:#95a5a6,stroke:#7f8c8d,color:#fff
+    style C fill:#27ae60,stroke:#229954,color:#fff
+    style D fill:#3498db,stroke:#2874a6,color:#fff
+    style E fill:#9b59b6,stroke:#8e44ad,color:#fff
+```
 
 This creates:
 - Risk/reward gameplay mechanics
