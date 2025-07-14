@@ -45,7 +45,7 @@ export const ABILITY_METADATA: Record<Ability, AbilityMetadata> = {
   },
   [Ability.ApplyPoison]: {
     name: 'Apply Poison',
-    description: 'Hurl a vial of deadly poison at the target, causing damage over time.',
+    description: 'Hurl a vial of deadly poison at the target, dealing damage over 10 rounds (2% health + 1 per round).',
     requiresTarget: true,
   },
 

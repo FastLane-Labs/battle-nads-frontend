@@ -87,15 +87,64 @@ export function calculateAbilityEnhancement(
     
     case Ability.ApplyPoison: {
       // Multi-stage ability with damage over time
-      const totalStages = 6; // Damage stages before cooldown
+      // Stage 1: Windup (5 blocks)
+      // Stages 2-11: Apply poison damage for 10 rounds (4 blocks each)
+      // Stage 12: Cooldown period (16 blocks)
+      // Stage 13: Resets to stage 0
       
+      if (stage === 1) {
+        // Windup stage
+        return {
+          baseValue: 0,
+          enhancedValue: 0,
+          bonus: 0,
+          description: `preparing poison attack (Level ${level})`,
+          stage: 1,
+          totalStages: 13,
+        };
+      } else if (stage && stage >= 2 && stage <= 11) {
+        // Poison damage rounds (2-11)
+        const poisonRound = stage - 1; // Round 1-10
+        const isFirstRound = stage === 2;
+        const isLastRound = stage === 11;
+        
+        let description = '';
+        if (isFirstRound) {
+          description = `applying poison (Round ${poisonRound}/10, Level ${level})`;
+        } else if (isLastRound) {
+          description = `final poison damage and removing effect (Round ${poisonRound}/10, Level ${level})`;
+        } else {
+          description = `poison damage (Round ${poisonRound}/10, Level ${level})`;
+        }
+        
+        return {
+          baseValue: rawValue,
+          enhancedValue: rawValue,
+          bonus: 0,
+          description,
+          stage,
+          totalStages: 13,
+        };
+      } else if (stage === 12) {
+        // Cooldown stage
+        return {
+          baseValue: 0,
+          enhancedValue: 0,
+          bonus: 0,
+          description: `recovering from poison ability (Level ${level})`,
+          stage: 12,
+          totalStages: 13,
+        };
+      }
+      
+      // Default/unknown stage
       return {
         baseValue: rawValue,
         enhancedValue: rawValue,
         bonus: 0,
-        description: `poison damage (Stage ${stage || 1}/${totalStages}, Level ${level})`,
-        stage: stage || 1,
-        totalStages,
+        description: `poison effect (Level ${level})`,
+        stage: stage || 0,
+        totalStages: 13,
       };
     }
     
