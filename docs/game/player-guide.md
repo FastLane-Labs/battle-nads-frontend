@@ -52,35 +52,45 @@ Each class provides unique stat bonuses and abilities:
 #### Warrior
 
 - **Bonuses**: +3 Strength, +2 Vitality, -1 Quickness
-- **Abilities**: Shield Bash, Shield Wall
+- **Abilities**:
+  - Shield Bash (Offensive): Stuns + deals damage, auto-initiates combat
+  - Shield Wall (Defensive): Reduces incoming damage to 1/4
 - **Playstyle**: Tank/DPS hybrid, excellent survivability
 - **Health Bonus**: +30 per level + 50 base
 
 #### Rogue
 
 - **Bonuses**: +3 Dexterity, +2 Quickness, +1 Luck, -1 Strength
-- **Abilities**: Evasive Maneuvers, Apply Poison
+- **Abilities**:
+  - Apply Poison (Offensive): DoT over 13 stages, auto-initiates combat
+  - Evasive Maneuvers (Defensive): Increases dodge chance
 - **Playstyle**: High damage, poison specialist
 - **Health Penalty**: -20 per level - 100 base
 
 #### Monk (Cleric)
 
 - **Bonuses**: +2 Sturdiness, +2 Luck, -1 Dexterity
-- **Abilities**: Pray, Smite
+- **Abilities**:
+  - Smite (Offensive): Curses + deals damage, auto-initiates combat
+  - Pray (Support): Heals self or allies, reduces your damage output
 - **Playstyle**: Support and healing specialist
 - **Health Bonus**: +20 per level
 
 #### Sorcerer (Mage)
 
 - **Bonuses**: -1 Strength, -1 Vitality, -1 Sturdiness
-- **Abilities**: Charge Up, Fireball
+- **Abilities**:
+  - Fireball (Offensive): High damage attack, auto-initiates combat
+  - Charge Up (Defensive): +50% damage on next attacks
 - **Playstyle**: Magical damage specialist
 - **Health Penalty**: -30 per level - 50 base
 
 #### Bard
 
 - **Bonuses**: -1 to all stats
-- **Abilities**: Sing Song, Do Dance
+- **Abilities**:
+  - Do Dance (Offensive): Damage ability, auto-initiates combat
+  - Sing Song (Support): Healing song
 - **Playstyle**: Unique mechanics, high risk/reward
 - **Health Penalty**: -40 per level - 100 base
 
@@ -189,16 +199,51 @@ Damage = Offense - Defense (minimum 1)
 
 ### Combat States & Effects
 
-#### Status Effects
+#### Status Effects & Combat Modifiers
 
-For detailed status effect mechanics and durations, see the [Combat Analysis Guide](combat-analysis-and-leveling-guide.md#status-effects).
+For detailed mechanics, see the [Combat Analysis Guide](combat-analysis-and-leveling-guide.md#status-effects).
 
-**Common Effects:**
-- **Poisoned**: DoT that affects regeneration
-- **Blessed**: Combat performance boost
-- **Praying**: Doubles health regen
-- **Cursed**: Blocks regeneration
-- **Stunned**: Severe accuracy penalty
+**How Abilities Affect Combat:**
+
+**Defensive Modifiers:**
+- **Blocking** (Shield Wall): Damage reduced to 1/4 (Warrior) or 1/3 (others)
+- **Evading** (Evasive Maneuvers): Increased dodge chance
+- **Stunned** (Shield Bash target): Easier to hit
+
+**Offensive Modifiers:**
+- **Charged Up** (Charge Up): +50% damage + 10 flat damage
+- **Praying** (Pray): -33% damage output while healing
+- **Poisoned** (Apply Poison): 4 + (level/10) damage per turn
+- **Cursed** (Smite): Prevents health regeneration
+
+**Combat Flow:**
+1. Use ability → Status effect applied
+2. Regular attacks → Modified by active effects
+3. Effects persist until duration expires
+
+#### Ability Cooldowns
+
+**Warrior:**
+- Shield Bash: 24 blocks (12 seconds)
+- Shield Wall: 24 blocks (12 seconds)
+
+**Rogue:**
+- Evasive Maneuvers: 18 blocks (9 seconds)
+- Apply Poison: 64 blocks (32 seconds) - longest cooldown
+
+**Monk:**
+- Pray: 72 blocks (36 seconds) - plan usage carefully
+- Smite: 24 blocks (12 seconds)
+
+**Sorcerer:**
+- Charge Up: 36 blocks (18 seconds) - can be interrupted
+- Fireball: 56 blocks (28 seconds)
+
+**Bard:**
+- Sing Song: 0 blocks (no cooldown)
+- Do Dance: 0 blocks (no cooldown)
+
+**Tip:** Abilities with longer cooldowns are generally more powerful!
 
 #### Boss Encounters
 
@@ -513,9 +558,45 @@ Battle Nads uses a sophisticated task system for autonomous character operation:
 - **Priority**: Task execution follows priority and gas availability
 - **Failure Handling**: Failed tasks may be rescheduled or cancelled
 
-### Combat & Ability Demonstration
+### Combat & Ability System
 
-Battle Nads showcases advanced Task Manager capabilities through combat:
+#### Understanding Abilities
+
+**Offensive Abilities (Auto-Initiate Combat):**
+- **Shield Bash** (Warrior): Windup → Stun + Damage
+- **Apply Poison** (Rogue): Windup → DoT over 11+ stages
+- **Smite** (Monk): Windup → Curse + Damage
+- **Fireball** (Sorcerer): Windup → High Damage
+- **Do Dance** (Bard): Direct damage ability
+
+**Non-Offensive Abilities (Buffs/Support):**
+- **Shield Wall** (Warrior): Defense buff only
+- **Evasive Maneuvers** (Rogue): Evasion buff only
+- **Pray** (Monk): Healing only (can target allies)
+- **Charge Up** (Sorcerer): Damage buff for next attacks
+- **Sing Song** (Bard): Healing ability
+
+**Important:** 
+- Offensive abilities automatically force both you and your target into combat when used!
+- You must specify a target index for offensive abilities
+- Non-offensive abilities can be used anytime without a target
+
+#### Why You Might Not See Immediate Damage
+
+1. **Windup Stages**: Most offensive abilities have a windup phase
+   - Stage 1 is preparation (no damage)
+   - Damage occurs in later stages
+   - Each stage takes several blocks
+
+2. **Task Delays**: Abilities execute via scheduled tasks
+   - Not instant - requires block confirmations
+   - Multi-stage abilities take multiple task executions
+
+3. **Non-Offensive = No Damage**: Buff abilities never deal damage
+
+### Combat Task Automation
+
+Battle Nads showcases advanced Task Manager capabilities:
 
 #### Combat Automation Example
 
