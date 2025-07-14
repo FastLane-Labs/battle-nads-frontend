@@ -42,22 +42,6 @@ These guides are designed to work alongside the game's interactive onboarding sy
 - **Interactive calculators** complement the written strategy guides
 - **Combat simulator** helps test concepts from the PvP manual
 
-## 🔄 Maintenance
-
-When updating game mechanics:
-1. Update the relevant documentation files
-2. Verify cross-references between guides remain accurate
-3. Test interactive tutorials to ensure they match updated content
-4. Update any embedded calculations or formulas
-
-## 📝 Writing Style Guide
-
-All game documentation follows these principles:
-- **Accessibility first** - Clear language for all skill levels
-- **Actionable advice** - Practical steps and strategies
-- **Comprehensive coverage** - No gaps in essential information
-- **Regular updates** - Keep pace with game development
-
 ---
 
 *For technical documentation and development resources, see the parent `/docs` directory.*
