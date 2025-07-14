@@ -1,6 +1,6 @@
 # Battle Nads Game Documentation
 
-This folder contains all player-facing documentation for Battle Nads, organized by complexity and use case.
+Battle Nads is a technology demonstration showcasing FastLane Labs' blockchain infrastructure capabilities through a fully on-chain RPG.
 
 ## 📖 Documentation Structure
 
