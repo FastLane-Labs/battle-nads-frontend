@@ -8,8 +8,16 @@ Battle Nads uses **shMON** (staked MON) to demonstrate a functional blockchain g
 
 - **shMON** = Staked MON locked in the game
 - **Character Balance**: Earned by defeating enemies, lost on death
-- **Bonded Balance**: Minimum 0.05 shMON required for gameplay
+- **Bonded Balance**: Minimum 0.05 shMON required for auto-defense
 - **Yield Distribution**: 25% of defeated player balances boost yield for all holders
+
+### Auto-Defense Mechanism
+
+Your bonded shMON enables automatic defense when attacked:
+- Other players can attack you even when offline
+- Your character automatically defends using bonded shMON
+- Without sufficient bonded shMON, you cannot defend yourself
+- Keep bonded shMON funded to protect your earned character balance
 
 ### Cost Structure
 

@@ -68,7 +68,7 @@ You need approximately **0.15 MON** to start:
 
 ### Economic Management
 - **Death = loss of all balance** to the victor
-- Keep minimum **0.05 MON bonded** to prevent character deletion
+- Keep minimum **0.05 MON bonded** for auto-defense when attacked
 - Each action costs small amount of gas/MON
 - **Balance vs Risk** - don't risk more than you can afford to lose
 
