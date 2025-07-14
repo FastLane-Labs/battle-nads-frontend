@@ -3,7 +3,7 @@
 ## Table of Contents
 
 - [Combat System Overview](#combat-system-overview)
-- [Core Combat Mechanics](#core-combat-mechanics)
+- [Combat Mechanics Summary](#combat-mechanics-summary)
 - [Character Attributes](#character-attributes)
 - [Class Analysis & Strategies](#class-analysis--strategies)
 - [Universal Leveling Tips](#universal-leveling-tips)
@@ -22,93 +22,36 @@ Battle Nads features a turn-based combat system where characters engage in tacti
 - **Sturdiness**: Defense and health pool
 - **Luck**: Critical hits, turn speed, and damage/defense rolls
 
-## Core Combat Mechanics
+## Combat Mechanics Summary
 
-### Hit Calculation
+### Hit & Evasion
 
-```solidity
-uint256 toHit = (
-    ((HIT_MOD + attacker.dexterity) * (weapon.accuracy + BASE_ACCURACY))
-        + attacker.luck + attacker.quickness
-) / HIT_MOD;
+- **Dexterity** is the primary stat for landing hits
+- **Weapon accuracy** multiplies your hit chance
+- **Luck** and **Quickness** provide hit bonuses
+- **Armor flexibility** helps with evasion
 
-uint256 toEvade = (
-    ((EVADE_MOD + defender.dexterity + defender.luck) * (armor.flexibility + BASE_FLEXIBILITY))
-    + defender.quickness
-) / EVADE_MOD;
-```
+### Damage & Defense
 
-**Key Factors:**
+- **Strength** scales with weapon damage for offense
+- **Sturdiness** scales with armor for defense
+- **Dexterity** provides minor bonuses to both
+- **Luck** affects critical hits and bonus rolls
 
-- **Dexterity** is the primary hit stat (multiplied by weapon accuracy)
-- **Luck** and **Quickness** provide additive bonuses
-- **Armor flexibility** affects evasion capability
+### Turn Speed
 
-### Damage Calculation
+- **Quickness** determines how often you act
+- Base turn time: 8 blocks (4 seconds)
+- Minimum turn time: 3 blocks (1.5 seconds)
+- **Luck** can help reach speed thresholds
+- Faster turns = more attacks and abilities
 
-```solidity
-uint256 offense = (
-    (BASE_OFFENSE + attacker.strength) * weapon.baseDamage
-        + attacker.dexterity
-) / BASE_OFFENSE;
+### Health & Regeneration
 
-uint256 defense = (
-    (BASE_DEFENSE + defender.sturdiness) * armor.armorFactor
-        + defender.dexterity
-) / BASE_DEFENSE;
-```
-
-**Key Factors:**
-
-- **Strength** is the primary damage stat (multiplied by weapon damage)
-- **Sturdiness** is the primary defense stat (multiplied by armor factor)
-- **Dexterity** provides minor bonuses to both offense and defense
-- **Luck** affects bonus damage/defense rolls
-
-### Turn Speed (Cooldown)
-
-```solidity
-function _cooldown(BattleNadStats memory stats) internal pure returns (uint256 cooldown) {
-    uint256 quickness = uint256(stats.quickness) + 1;
-    uint256 baseline = QUICKNESS_BASELINE; // 4
-    cooldown = DEFAULT_TURN_TIME; // 8
-    
-    // Reduce cooldown based on quickness thresholds
-    do {
-        if (cooldown < 3) break;
-        if (quickness < baseline) {
-            if (quickness + uint256(stats.luck) > baseline) {
-                --cooldown;
-            }
-            break;
-        }
-        --cooldown;
-        baseline = baseline * 3 / 2 + 1;
-    } while (cooldown > MIN_TURN_TIME); // 3
-}
-```
-
-**Key Factors:**
-
-- **Quickness** is the primary turn speed stat
-- **Luck** can help reach quickness thresholds
-- Faster turns = more actions = higher DPS and utility
-
-### Health System
-
-```solidity
-maxHealth = baseHealth + (vitality * VITALITY_HEALTH_MODIFIER) // 100
-    + (sturdiness * STURDINESS_HEALTH_MODIFIER); // 20
-
-// In-combat regeneration
-adjustedHealthRegeneration = (vitality * VITALITY_REGEN_MODIFIER) * cooldown / DEFAULT_TURN_TIME;
-```
-
-**Key Factors:**
-
-- **Vitality** provides 5x more health than **Sturdiness**
-- **Vitality** determines regeneration rate
-- Regeneration is normalized by turn speed to prevent quickness abuse
+- **Vitality** gives +100 health per point
+- **Sturdiness** gives +20 health per point
+- **Vitality** determines health regeneration rate
+- Regeneration continues during combat at reduced rate
 
 ## Character Attributes
 
