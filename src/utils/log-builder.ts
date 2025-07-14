@@ -196,10 +196,9 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       const isPlayerDefender = raw.defender?.name === "You" || 
                               (playerCharacterName && raw.defender?.name === playerCharacterName) ||
                               (playerCharacterName && isSamePlayer(raw.defender?.name || '', playerCharacterName));
-      const isCurrentArea = currentAreaId === undefined || raw.areaId === currentAreaId;
       
-      const isActorPlayer = isPlayerAttacker && isCurrentArea;
-      const isTargetPlayer = isPlayerDefender && isCurrentArea;
+      const isActorPlayer = isPlayerAttacker;
+      const isTargetPlayer = isPlayerDefender;
       
       const actorName = formatActorName(actor, isActorPlayer || false, false);
       const targetName = target ? formatActorName(target, isTargetPlayer || false) : "";
@@ -321,12 +320,16 @@ export function enrichLog(raw: LogEntryRaw, playerIndex?: number | null, playerW
       const actor = raw.actor || participantToCharacterLite(raw.attacker);
       const target = raw.target || participantToCharacterLite(raw.defender);
       
-      const isPlayerAttacker = playerIndex !== null && raw.attacker && Number(raw.attacker.index) === Number(playerIndex);
-      const isPlayerDefender = playerIndex !== null && raw.defender && Number(raw.defender.index) === Number(playerIndex);
-      const isCurrentArea = currentAreaId === undefined || raw.areaId === currentAreaId;
+      // Use same player detection as combat logs for consistency
+      const isPlayerAttacker = raw.attacker?.name === "You" || 
+                              (playerCharacterName && raw.attacker?.name === playerCharacterName) ||
+                              (playerCharacterName && isSamePlayer(raw.attacker?.name || '', playerCharacterName));
+      const isPlayerDefender = raw.defender?.name === "You" || 
+                              (playerCharacterName && raw.defender?.name === playerCharacterName) ||
+                              (playerCharacterName && isSamePlayer(raw.defender?.name || '', playerCharacterName));
       
-      const isActorPlayer = isPlayerAttacker && isCurrentArea;
-      const isTargetPlayer = isPlayerDefender && isCurrentArea;
+      const isActorPlayer = isPlayerAttacker;
+      const isTargetPlayer = isPlayerDefender;
       
       const actorName = formatActorName(actor, isActorPlayer || false, false);
       const targetName = formatActorName(target, isTargetPlayer || false, true);
