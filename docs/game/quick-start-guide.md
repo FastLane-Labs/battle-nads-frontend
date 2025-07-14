@@ -21,7 +21,7 @@ You need approximately **0.15 MON** to start:
 ### Step 3: Create Your Character (One Click!)
 1. Navigate to **Create Character**
 2. Choose your character name
-3. **Allocate 32 stat points** across 6 attributes:
+3. **Allocate 14 stat points** across 6 attributes:
    - **Strength** - Weapon damage
    - **Vitality** - Health and regeneration
    - **Dexterity** - Hit chance
@@ -29,8 +29,8 @@ You need approximately **0.15 MON** to start:
    - **Sturdiness** - Defense
    - **Luck** - Critical hits and bonuses
 
-**Recommended First Build (Balanced Fighter):**
-- Strength: 6, Vitality: 6, Dexterity: 5, Quickness: 5, Sturdiness: 5, Luck: 5
+**Recommended First Build (Balanced):**
+- Spread points evenly (2-3 per attribute) or focus on 2-3 key stats
 
 4. **One-Click Character Creation** handles everything:
    - Deposits 0.1 MON for character buy-in
