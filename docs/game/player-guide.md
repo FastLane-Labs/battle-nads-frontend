@@ -165,37 +165,19 @@ For detailed progression strategies:
 
 ## Combat System
 
-### Combat Mechanics
+### Combat Overview
 
-Combat in Battle Nads is turn-based with the following flow:
+Combat in Battle Nads is turn-based and fully automated after initiation.
 
-#### Initiative System
+#### Key Combat Concepts
 
-- Turn order based on: (Quickness + Luck) with random elements
-- Lower cooldown = more frequent turns
-- Base turn time: 8 blocks, minimum 3 blocks
+- **Turn Order**: Based on Quickness and Luck stats
+- **Hit Chance**: Influenced by Dexterity, weapon accuracy, and status effects
+- **Damage**: Determined by Strength, weapon damage, and armor
+- **Health**: Scales with level, Vitality, and Sturdiness
+- **Regeneration**: Vitality increases health recovery per turn
 
-#### Hit Calculation
-
-```txt
-To Hit = ((Dexterity + Weapon Accuracy) * Hit Modifier + Luck + Quickness) / Hit Modifier
-Defense = (Dexterity + Luck + Quickness) / Evasion Modifier
-Hit Chance = To Hit vs Defense roll
-```
-
-#### Damage Calculation
-
-```txt
-Offense = (Strength + Weapon Damage + Dexterity) / Base Offense
-Defense = (Sturdiness + Armor Rating) / Base Defense  
-Damage = Offense - Defense (minimum 1)
-```
-
-#### Health & Regeneration
-
-- **Max Health**: (1000 + Level * 50 + Vitality * 100 + Sturdiness * 20) for players
-- **Regeneration**: Vitality * 5 per turn
-- **Combat Healing**: Most healing effects are reduced during combat
+For detailed combat mechanics and formulas, see the [Combat Analysis Guide](combat-analysis-and-leveling-guide.md).
 
 ### Combat States & Effects
 
@@ -285,20 +267,15 @@ Battle Nads features a 3D dungeon system:
 #### Depth Progression (Moving Up/Down)
 
 - **Depth Changes**: You can only move up or down at specific "staircase" coordinates
-- **Location Requirement**: You must be at the exact staircase coordinates to change depth
-- **Staircase Locations**: Each depth level has a unique staircase location calculated by a formula
-- **Progressive Difficulty**: Deeper levels contain stronger monsters and better rewards
+- **Location Requirement**: Must be at exact staircase coordinates to change depth
+- **Staircase Locations**: Each depth has a unique staircase location
+- **Progressive Difficulty**: Deeper levels = stronger monsters and better rewards
 
-**How Depth Movement Works:**
+**How to Change Depths:**
 
-1. **Find the Staircase**: You must navigate to specific X,Y coordinates that contain the "staircase"
-2. **Staircase Formula**: 
-   - From Depth 1 to 2: Staircase is at coordinates (25, 25)
-   - Other depths: Based on formula using depth number and corner patterns
-3. **Movement Commands**: 
-   - `moveUp()` = Go deeper into dungeon (higher depth number)
-   - `moveDown()` = Go closer to surface (lower depth number)
-4. **Restrictions**: You can only change depth by 1 level at a time
+1. Navigate to your current depth's staircase coordinates
+2. Use `moveUp()` to go deeper or `moveDown()` to go shallower
+3. You can only change by 1 depth level at a time
 
 **First 4 Staircase Locations:**
 
