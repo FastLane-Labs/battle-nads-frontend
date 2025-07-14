@@ -31,19 +31,18 @@ You need approximately **0.15 MON** to start:
 **Recommended First Build (Balanced Fighter):**
 - Strength: 6, Vitality: 6, Dexterity: 5, Quickness: 5, Sturdiness: 5, Luck: 5
 
-4. Select your **character class**:
-   - **Warrior** - Tank/DPS hybrid (recommended for beginners)
+4. Your character class will be **randomly assigned** from:
+   - **Warrior** - Tank/DPS hybrid
    - **Rogue** - High damage assassin
    - **Monk** - Support and healing
    - **Sorcerer** - Magical burst damage
-   - **Bard** - Challenge mode (not recommended for new players)
+   - **Bard** - Challenge mode
 
-### Step 4: Set Up Session Key (Highly Recommended)
-1. After character creation, you'll be prompted to create a session key
-2. **Benefits**: All actions sponsored by session key - no wallet popups
-3. **Cost**: Small upfront MON deposit for gas coverage
-4. **Important**: Session key balance pays for movement and combat
-5. Click **Create Session Key** and follow prompts
+### Step 4: Session Key (Automatic with Privy)
+- **Privy wallets**: Session key is created automatically
+- **Other wallets**: You'll be prompted to create one manually
+- **Benefits**: All actions sponsored by session key - no wallet popups
+- **Important**: Session key balance pays for movement and combat
 
 ### Step 5: Enter the Game
 1. Wait **8 blocks (~4 minutes)** for your character to spawn

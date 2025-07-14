@@ -28,8 +28,9 @@ Battle Nads is a blockchain-based tactical RPG where players create characters, 
 
 1. **Buy-in Requirement**: You need approximately 0.15 MON tokens (0.1 for buy-in + 0.05 minimum bonded)
 2. **Character Creation**: Choose your character name and allocate 32 stat points across 6 attributes
-3. **Session Key Setup**: Optionally create a session key for gasless transactions
-4. **Spawn Delay**: Your character will spawn after 8 blocks (~2-3 minutes)
+3. **Class Assignment**: Your class is randomly assigned (Warrior, Rogue, Monk, Sorcerer, or Bard)
+4. **Session Key**: Automatically created if using Privy wallet, manual setup for others
+5. **Spawn Delay**: Your character will spawn after 8 blocks (~2-3 minutes)
 
 ### Minimum Requirements
 
