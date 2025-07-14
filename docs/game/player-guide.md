@@ -26,17 +26,13 @@ Battle Nads is a blockchain-based tactical RPG where players create characters, 
 
 ### Creating Your First Character
 
-1. **Buy-in Requirement**: You need approximately 0.15 MON tokens (0.1 for buy-in + 0.05 minimum bonded)
-2. **Character Creation**: Choose your character name and allocate 14 stat points across 6 attributes
-3. **Class Assignment**: Your class is randomly assigned (Warrior, Rogue, Monk, Sorcerer, or Bard)
-4. **Session Key**: Automatically created if using Privy wallet, manual setup for others
-5. **Spawn Delay**: Your character will spawn after 8 blocks (~4 seconds)
+For detailed step-by-step character creation instructions, see the [Quick Start Guide](quick-start-guide.md#step-3-create-your-character-one-click).
 
-### Minimum Requirements
-
-- **MON Tokens**: ~0.15 MON for character creation
-- **Gas Budget**: Additional MON for transaction fees if not using session keys
-- **Task Maintenance**: Characters require ongoing MON for automated task execution
+**Key Requirements:**
+- ~0.15 MON tokens (0.1 for buy-in + 0.05 minimum bonded)
+- Character spawns after 8 blocks (~4 seconds)
+- Class is randomly assigned
+- Session key automatically created with Privy wallet
 
 ## Core Game Systems
 
@@ -94,33 +90,24 @@ Each class provides unique stat bonuses and abilities:
 
 Battle Nads uses a sophisticated economic model based on shMON (staked MON) tokens:
 
-#### Key Economic Concepts
+Battle Nads uses a sophisticated economic model based on shMON (staked MON) tokens. For comprehensive economic mechanics and strategies, see the [Game Economy Guide](game-economy-guide.md).
 
-- **Buy-in Amount**: 0.1 shMON required to create a character
-- **Bonded Balance**: Minimum 0.05 shMON required for auto-defense when attacked
-- **Yield Boosting**: 25% of defeated player balances boost yield for all holders
-- **Balance Distribution**: 75% to players, 20% to monsters, 5% system fees
-
-#### Player Balance Management
-
-- Characters earn shMON by defeating other players and monsters
-- Death redistributes your balance to the victor and monster pool
-- Higher level players give more balance when defeated
-- Level differences affect balance distribution ratios
-
-#### Task Cost Economics
-
-- Each automated action (combat turn, spawn, ability) costs gas
-- Estimated task costs: ~0.003-0.005 MON per action
-- Characters need enough bonded balance to maintain their task schedule
-- Low balance characters risk deletion if they can't pay for tasks
+**Key Points:**
+- **Buy-in**: 0.1 shMON to create character
+- **Bonded Balance**: Min 0.05 shMON for auto-defense
+- **Yield Boost**: 25% of defeats boost holder yields
+- **Task Costs**: ~0.003-0.005 MON per action
+- **Death Impact**: Balance redistributed to victor
 
 ### Economic Strategies
 
-1. **Efficient Leveling**: Balance aggressive play with survival
-2. **Balance Management**: Keep enough bonded MON for extended gameplay
-3. **Target Selection**: Choose fights wisely based on risk/reward
-4. **Death Timing**: Sometimes retreating (ascending) is more profitable than risking death
+For detailed economic analysis and strategies, see the [Game Economy Guide](game-economy-guide.md).
+
+**Key Points:**
+- Balance aggressive play with survival
+- Maintain sufficient bonded MON
+- Choose fights based on risk/reward
+- Strategic retreating can be profitable
 
 ## Character Creation & Progression
 
@@ -153,20 +140,18 @@ You have 14 points to distribute across 6 attributes. Since your class is random
 - Strength: 2, Vitality: 3, Dexterity: 2, Quickness: 2, Sturdiness: 3, Luck: 2
 - Balanced approach to offset stat penalties
 
-### Level Progression
+### Level & Equipment Progression
 
-- **Experience Gain**: Defeating enemies grants XP based on their level
-- **PvP Bonus**: Defeating players gives 3x experience bonus
-- **Level Scaling**: Higher levels increase health, combat effectiveness
-- **Max Level**: 50 (game balance prevents excessive level gaps)
-- **Stat Points**: Gain 1 allocatable stat point per level
+For detailed progression strategies:
+- **Leveling Guide**: See [Combat Analysis & Leveling Guide](combat-analysis-and-leveling-guide.md#leveling-progression)
+- **Equipment Guide**: See [Equipment Progression Guide](equipment-progression-guide.md)
 
-### Equipment Progression
-
-- **Starting Gear**: Each character begins with class-appropriate weapon and armor
-- **Loot System**: Defeating enemies has a chance to drop better equipment
-- **Equipment Scaling**: Higher level enemies drop better gear
-- **Inventory Limits**: Limited inventory space requires strategic equipment management
+**Quick Reference:**
+- XP from enemy defeats (3x for PvP)
+- Max level: 50
+- +1 stat point per level
+- Better loot from higher level enemies
+- Limited inventory requires strategy
 
 ## Combat System
 
@@ -206,24 +191,32 @@ Damage = Offense - Defense (minimum 1)
 
 #### Status Effects
 
-- **Poisoned**: Damage over time, affects regeneration
-- **Blessed**: Enhanced combat performance
-- **Praying**: Doubles health regeneration
-- **Cursed**: Prevents health regeneration
+For detailed status effect mechanics and durations, see the [Combat Analysis Guide](combat-analysis-and-leveling-guide.md#status-effects).
+
+**Common Effects:**
+- **Poisoned**: DoT that affects regeneration
+- **Blessed**: Combat performance boost
+- **Praying**: Doubles health regen
+- **Cursed**: Blocks regeneration
 - **Stunned**: Severe accuracy penalty
 
 #### Boss Encounters
 
-- **Boss Spawning**: Bosses appear at specific depth change coordinates
-- **Aggro Range**: Bosses have extended aggro range (64 vs 12-22 for normal monsters)
-- **Rewards**: Bosses typically offer superior loot and experience
+- **Boss Spawning**: Bosses appear at staircase coordinates
+- **Aggro Range**: Bosses check all 64 slots in their area (guaranteed aggro)
+- **Rewards**: Superior loot and experience rewards
+- **Strategy**: Clear the area before approaching staircase locations
 
 ### Combat Strategies
 
-1. **Positioning**: Be aware of area occupancy limits (max 63 combatants per area)
-2. **Target Selection**: Choose fights based on level, equipment, and current health
-3. **Ability Timing**: Use class abilities strategically for maximum effect
-4. **Retreat Options**: Know when to disengage or ascend to avoid death
+For advanced combat strategies and detailed mechanics, see the [Combat Analysis Guide](combat-analysis-and-leveling-guide.md).
+
+**Essential Tips:**
+- Each area has 64 slots for all entities
+- Combat triggers when monsters are within aggro range slots
+- Select targets based on level and equipment
+- Time abilities for maximum effect
+- Know when to retreat
 
 ## Movement & Exploration
 
@@ -242,7 +235,7 @@ Battle Nads features a 3D dungeon system:
 - **Adjacent Movement**: Can only move to adjacent tiles (no diagonal movement)
 - **Single Axis**: Can only change one coordinate per move (X, Y, or Depth)
 - **Combat Restriction**: Cannot move while in combat
-- **Area Capacity**: Maximum 63 total combatants per area
+- **Area Capacity**: Maximum 64 slots per area (players + monsters)
 
 #### Depth Progression (Moving Up/Down)
 
@@ -279,20 +272,38 @@ Battle Nads features a 3D dungeon system:
 - **Spawn Criteria**: Locations with fewer than 16 total occupants preferred
 - **Spawn Delay**: 8 blocks after character creation
 
-#### Aggro System
+#### Aggro System (Slot-Based Mechanics)
 
-- **Aggro Range**: 12 + current depth (max 22) for existing monsters
-- **Level Scaling**: High-level players generate less aggro
-- **Boss Aggro**: Bosses have fixed 64-tile aggro range
-- **Spawn Chance**: 18/128 chance to spawn new monster when moving
+**How Areas Work:**
+- Each map location (x,y) contains 64 slots (0-63)
+- Players and monsters occupy different slots within the same area
+- Multiple entities can exist at the same coordinates
+
+**Aggro Range = Number of Slots Checked:**
+- **Normal Monsters**: 12 + current depth (max 22 slots)
+- **Boss Monsters**: Check all 64 slots in the area
+- **Level Scaling**: Higher level players may have reduced aggro
+
+**When You Enter an Area:**
+1. You occupy a random slot (e.g., slot 25)
+2. System checks next N slots based on aggro range
+3. If monster found → Combat starts
+4. If empty slot found → 18/128 chance to spawn new monster
+
+**Example:** At position (20,23) with aggro range 13:
+- You're at slot 25
+- Checks slots 26-38 in circular order
+- Monster at slot 30 = AGGRO!
+- Empty slot 35 = Possible spawn location
 
 ### Navigation Strategies
 
-1. **Safe Exploration**: Move cautiously in new areas to avoid overwhelming encounters
+1. **Safe Exploration**: Each area has 64 slots - you might avoid monsters even in occupied areas
 2. **Level Appropriate Zones**: Stay in areas matching your character level
 3. **Finding Staircases**: Memorize the first few locations, then discover the pattern
-4. **Boss Preparation**: Prepare thoroughly before approaching boss locations (bosses spawn at staircase coordinates)
+4. **Boss Preparation**: Bosses at staircases check all 64 slots (guaranteed aggro)
 5. **Escape Routes**: Always plan retreat paths before engaging in combat
+6. **Slot Awareness**: Remember multiple players/monsters can occupy the same coordinates
 
 ### Depth Navigation Guide
 
@@ -336,10 +347,13 @@ Battle Nads features a 3D dungeon system:
 
 ### Equipment Strategy
 
-1. **Balanced Upgrades**: Upgrade weapons and armor proportionally
-2. **Level Appropriate Gear**: Use equipment that matches your character level
-3. **Class Synergy**: Choose equipment that complements your class abilities
-4. **Inventory Optimization**: Keep only essential backup equipment
+For comprehensive equipment strategies and progression paths, see the [Equipment Progression Guide](equipment-progression-guide.md).
+
+**Quick Tips:**
+- Balance weapon and armor upgrades
+- Match equipment to your character level
+- Choose gear that complements your class
+- Optimize limited inventory space
 
 ## Death & Revival
 
@@ -697,44 +711,13 @@ As an early alpha product:
 
 ## Troubleshooting
 
-### Common Issues
+For comprehensive troubleshooting and solutions to common issues, see the [FAQ & Troubleshooting Guide](faq-troubleshooting.md).
 
-#### Character Creation Problems
-
-- **Insufficient Funds**: Ensure you have enough MON for buy-in + gas
-- **Invalid Stats**: Verify stat allocation totals exactly 14 points
-- **Spawn Delays**: Characters spawn after 8 blocks, be patient
-- **Gas Estimation**: Use estimateBuyInAmountInMON() for accurate costs
-
-#### Gameplay Issues
-
-- **Movement Restrictions**: Cannot move while in combat
-- **Task Failures**: Check bonded shMON and session key balance
-- **Combat Delays**: Combat actions are automated, expect delays
-- **Balance Depletion**: Keep bonded shMON funded for auto-defense
-- **Combat Task Broken**: UI will indicate - refund session key or bonded balance
-- **No Transaction Spam Needed**: Combat runs automatically via Task Manager
-
-#### Technical Problems
-
-- **Transaction Failures**: Check gas limits and session key status
-- **Session Key Expiry**: Renew expired session keys
-- **Network Issues**: Verify blockchain network status
-- **Contract Interaction**: Ensure proper contract addresses and ABIs
-
-### Support Resources
-
-1. **Game Documentation**: Comprehensive guides and references
-2. **Community Forums**: Player discussions and support
-3. **Developer Channels**: Official announcements and updates
-4. **Technical Support**: Direct assistance for complex issues
-
-### Best Practices
-
-1. **Start Small**: Begin with conservative strategies until you understand the game
-2. **Stay Informed**: Keep up with game updates and community discussions
-3. **Risk Management**: Never invest more than you can afford to lose
-4. **Continuous Learning**: Study combat logs and other players' strategies
+**Quick Help:**
+- Character creation issues → [FAQ: Character Creation](faq-troubleshooting.md#1-character-creation-issues)
+- Gameplay problems → [FAQ: Gameplay Issues](faq-troubleshooting.md#2-gameplay--mechanics)
+- Technical difficulties → [FAQ: Technical Issues](faq-troubleshooting.md#3-wallet--transaction-issues)
+- Best practices → [FAQ: Tips for Success](faq-troubleshooting.md#6-tips-for-success)
 
 ---
 
