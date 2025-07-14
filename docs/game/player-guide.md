@@ -249,14 +249,13 @@ Battle Nads features a 3D dungeon system:
    - `moveDown()` = Go closer to surface (lower depth number)
 4. **Restrictions**: You can only change depth by 1 level at a time
 
-**Example Staircase Locations:**
+**First 4 Staircase Locations:**
 
-- Depth 1→2: (25, 25) - The main entrance staircase
-- Depth 2→3: (15, 15) - Southwest corner pattern  
-- Depth 3→4: (35, 35) - Northeast corner pattern
-- Depth 4→5: (35, 15) - Southeast corner pattern
-- Depth 5→6: (15, 35) - Northwest corner pattern
-- Pattern repeats every 4 levels with increasing distance from center
+- Depth 1→2: (25, 25) - Always at center
+- Depth 2→3: (35, 15) - Southeast quadrant  
+- Depth 3→4: (15, 35) - Northwest quadrant
+- Depth 4→5: (14, 14) - Southwest quadrant
+- Further depths follow a pattern with increasing distance from center
 
 ### Exploration Mechanics
 
