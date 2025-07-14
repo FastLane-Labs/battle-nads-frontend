@@ -89,9 +89,9 @@ Each class provides unique stat bonuses and abilities:
 
 - **Bonuses**: -1 to all stats
 - **Abilities**:
-  - Do Dance (Offensive): Damage ability, auto-initiates combat
-  - Sing Song (Support): Healing song
-- **Playstyle**: Unique mechanics, high risk/reward
+  - Do Dance: Currently no gameplay effect
+  - Sing Song: Currently no gameplay effect
+- **Playstyle**: Challenge mode with stat penalties
 - **Health Penalty**: -40 per level - 100 base
 
 ## Economic System
@@ -567,14 +567,16 @@ Battle Nads uses a sophisticated task system for autonomous character operation:
 - **Apply Poison** (Rogue): Windup → DoT over 11+ stages
 - **Smite** (Monk): Windup → Curse + Damage
 - **Fireball** (Sorcerer): Windup → High Damage
-- **Do Dance** (Bard): Direct damage ability
 
 **Non-Offensive Abilities (Buffs/Support):**
 - **Shield Wall** (Warrior): Defense buff only
 - **Evasive Maneuvers** (Rogue): Evasion buff only
 - **Pray** (Monk): Healing only (can target allies)
 - **Charge Up** (Sorcerer): Damage buff for next attacks
-- **Sing Song** (Bard): Healing ability
+
+**No Effect (Bard):**
+- **Sing Song**: Currently no gameplay effect
+- **Do Dance**: Currently no gameplay effect
 
 **Important:** 
 - Offensive abilities automatically force both you and your target into combat when used!
