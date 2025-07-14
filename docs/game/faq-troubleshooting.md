@@ -11,11 +11,11 @@
 - **Insufficient MON balance** - Need ~0.15 MON total (0.1 buy-in + 0.05 bonded + gas)
 - **Wrong network** - Ensure you're connected to Monad network
 - **Gas limit too low** - Character creation requires ~850,000 gas
-- **Stat allocation error** - Must allocate exactly 32 points across all attributes
+- **Stat allocation error** - Must allocate exactly 14 points across all attributes
 
 #### Q: My character isn't spawning after creation
 
-**A:** Character spawning takes **8 blocks (~4 minutes)**. This is normal - the blockchain needs time to process your character creation and find a safe spawn location.
+**A:** Character spawning takes **8 blocks (~4 seconds)**. This is normal - the blockchain needs time to process your character creation and find a safe spawn location.
 
 #### Q: "Invalid character name" error
 
