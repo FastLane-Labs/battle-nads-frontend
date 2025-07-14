@@ -97,7 +97,7 @@ Battle Nads uses a sophisticated economic model based on shMON (staked MON) toke
 #### Key Economic Concepts
 
 - **Buy-in Amount**: 0.1 shMON required to create a character
-- **Bonded Balance**: Minimum 0.05 shMON must stay bonded for task execution
+- **Bonded Balance**: Minimum 0.05 shMON required for auto-defense when attacked
 - **Yield Boosting**: 25% of defeated player balances boost yield for all holders
 - **Balance Distribution**: 75% to players, 20% to monsters, 5% system fees
 
@@ -395,7 +395,7 @@ Gameplay Actions via Session Key:
 When you initiate an action (movement, combat, ability):
 
 1. **Session key sponsors the transaction** - No wallet popup
-2. **shMON is deducted** from your bonded balance for Task scheduling
+2. **shMON is deducted** from your bonded shMON for Task scheduling
 3. **Gas is partially refunded** to session key (efficient gas usage)
 4. **Task Manager executes** the action through execution services
 5. **Unused gas is redirected** through paymaster contracts
@@ -468,7 +468,7 @@ Battle Nads uses a sophisticated task system for autonomous character operation:
 
 #### Task Economics
 
-- **Task Costs**: Each task execution costs MON from your bonded balance
+- **Task Costs**: Each task execution costs MON from your bonded shMON
 - **Scheduling**: Tasks are scheduled for future block execution
 - **Priority**: Task execution follows priority and gas availability
 - **Failure Handling**: Failed tasks may be rescheduled or cancelled
@@ -486,7 +486,7 @@ Session key sends transaction (gas paid)
     ↓
 Task Manager creates combat task
     ↓
-shMON deducted from bonded balance
+shMON deducted from bonded shMON
     ↓
 Combat task executes every turn:
     • Calculate damage
@@ -519,15 +519,16 @@ Each stage is a separate task execution, demonstrating:
 
 Players need to understand task implications:
 
-#### Bonded Balance Requirements
+#### Bonded shMON Requirements
 
-- Characters need sufficient bonded MON to maintain task schedule
-- Low balance characters risk task cancellation and character deletion
-- Recommended balance: Minimum 0.05 shMON + 32x estimated task costs
+- Characters need sufficient bonded shMON for auto-defense
+- Without bonded shMON, your character cannot defend when attacked
+- Low bonded shMON = defenseless character that others can freely attack
+- Recommended: Keep well above 0.05 shMON for continuous protection
 
 #### Task Monitoring
 
-1. **Balance Tracking**: Monitor your bonded balance regularly
+1. **Balance Tracking**: Monitor your bonded shMON regularly
 2. **Task Costs**: Understand approximate costs for different actions
 3. **Failure Recovery**: Know how to handle task scheduling failures
 4. **Emergency Funding**: Have backup MON available for emergency funding
@@ -666,9 +667,9 @@ As an early alpha product:
 #### Gameplay Issues
 
 - **Movement Restrictions**: Cannot move while in combat
-- **Task Failures**: Check bonded balance and session key balance
+- **Task Failures**: Check bonded shMON and session key balance
 - **Combat Delays**: Combat actions are automated, expect delays
-- **Balance Depletion**: Monitor bonded balance to prevent character deletion
+- **Balance Depletion**: Keep bonded shMON funded for auto-defense
 - **Combat Task Broken**: UI will indicate - refund session key or bonded balance
 - **No Transaction Spam Needed**: Combat runs automatically via Task Manager
 
