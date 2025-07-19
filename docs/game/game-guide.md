@@ -1,38 +1,39 @@
 # Battle Nads: The Complete Guide
 
-Welcome to the world of Battle Nads, where heroes venture through an endless dungeon, battling monsters and collecting treasures in a fully on-chain tactical RPG.
+Welcome to the world of Battle Nads, where heroes venture through a 50-floor dungeon, battling monsters and collecting treasures in a fully on-chain tactical RPG.
 
 ## Quick Navigation
 
 - [Starting Your Adventure](#starting-your-adventure)
 - [Creating Your Hero](#creating-your-hero)
 - [Exploring the Dungeon](#exploring-the-dungeon)
-- [Combat & Abilities](#combat--abilities)
-- [Death & Rebirth](#death--rebirth)
-- [Treasures & Equipment](#treasures--equipment)
+- [Combat & Abilities](#combat-abilities)
+- [Death & Rebirth](#death-rebirth)
+- [Treasures & Equipment](#treasures-equipment)
 - [The shMON Economy](#the-shmon-economy)
 - [Advanced Features](#advanced-features)
+- [shMON Staking & RPC](#shmon-staking-enhanced-rpc)
 
 ---
 
 ## Starting Your Adventure
 
-Battle Nads drops you into an infinite dungeon where every step could lead to glory or doom. Your heroes explore a three-dimensional world, battle monsters automatically, and collect shMON tokens along the way.
+Battle Nads drops you into a 50-floor dungeon where every step could lead to glory or doom. Your heroes explore a three-dimensional world, initiate combat strategically, and collect shMON tokens along the way.
 
 ### What Makes Battle Nads Special
 
-- **Endless Dungeon**: An infinite 3D world to explore
-- **Automated Combat**: Heroes fight on their own when monsters appear
+- **50-Floor Dungeon**: Explore depths from 1 to 50
+- **Strategic Combat**: You choose when to attack, then defend automatically
 - **Five Unique Classes**: Each with distinct abilities and playstyles
-- **No Gas Fees**: Play without worrying about transaction costs
+- **Gas Abstracted**: Transaction costs handled via session keys (requires management)
 - **True Ownership**: Your heroes and items exist fully on-chain
 
 ### First Steps
 
 1. Connect your wallet (or let the game create one for you)
-2. Create your first hero by choosing a class
+2. Create your first hero (class assigned randomly)
 3. Start exploring by clicking movement arrows
-4. Watch your hero battle monsters automatically
+4. Choose when to engage monsters in combat
 5. Collect shMON tokens and equipment
 
 ---
@@ -41,21 +42,23 @@ Battle Nads drops you into an infinite dungeon where every step could lead to gl
 
 ### Connecting to Battle Nads
 
-You have two options to start playing:
+The game uses a dual-wallet system for security and convenience:
 
-**Easy Mode - Embedded Wallet**
-- Click "Connect Wallet" and choose email/social login
-- The game creates a wallet for you automatically
-- Perfect for new players or quick sessions
+**How It Works:**
+1. Connect with your external wallet (MetaMask, Rainbow, etc.)
+2. Sign a message to verify ownership
+3. The game creates an embedded wallet managed by Privy
+4. Your embedded wallet handles all game transactions
 
-**Power User Mode - External Wallet**
-- Use MetaMask, Rainbow, or any Web3 wallet
-- Full control over your assets
-- Direct blockchain interaction
+**Character Creation Process:**
+- Fund your embedded wallet with MON tokens
+- Stake MON to receive shMON (liquid staking token)
+- Bond shMON to your character for auto-defense
+- Start playing with gasless transactions
 
-### Choosing Your Class
+### Understanding Classes
 
-Each hero class offers a unique playstyle:
+Classes are randomly assigned when you create a hero. Each class offers a unique playstyle:
 
 **⚔️ Warrior**
 - High health and armor
@@ -94,7 +97,7 @@ When you create a hero, they spawn with:
 - **Damage**: Base attack power
 - **Armor**: Reduces incoming damage
 - **Speed**: Currently decorative (all heroes move the same)
-- **shMON**: Your starting funds (10,000)
+- **shMON**: [Liquid staking token](https://shmonad.xyz) used for in-game currency and RPC staking
 
 ---
 
@@ -107,15 +110,16 @@ Battle Nads' dungeon exists in three dimensions:
 - **Y-axis**: North ← → South  
 - **Z-axis**: Up ← → Down (depth levels)
 
-Each location can hold up to 64 heroes. When you move, you're exploring an infinite procedurally generated world.
+Each location can hold up to 64 heroes. The dungeon spans 50 floors from depth 1 to the deepest level at depth 50.
 
 ### Movement & Monster Encounters
 
 **How Movement Works:**
 1. Click any directional arrow to move
-2. Your hero walks to the new location
-3. If monsters lurk there, combat begins automatically
-4. Win the battle to claim that spot
+2. Your hero enters the new location (64 slots available)
+3. If monsters spawn in your slot, combat begins automatically
+4. Combat proceeds automatically once initiated
+5. Movement is always possible (for state cleanup/recovery, but only allowed when not in combat)
 
 **Monster Spawning:**
 - Moving to a new location may spawn monsters
@@ -127,11 +131,25 @@ Each location can hold up to 64 heroes. When you move, you're exploring an infin
 - Special locations contain staircases
 - Use them to move between depth levels
 - Deeper levels = better rewards but harder monsters
-- Surface level (Z: 0) is safest for new heroes
+- Boss monsters guard each staircase
+
+**First 4 Staircase Locations:**
+- Depth 1→2: **(25, 25)** - Center of the map
+- Depth 2→3: **(35, 15)** - Southeast quadrant
+- Depth 3→4: **(15, 35)** - Northwest quadrant
+- Depth 4→5: **(14, 14)** - Southwest quadrant
+
+### Player Interactions
+
+**When Multiple Players Share a Location:**
+- Attack other players for 3x experience rewards (PvP)
+- Monks can heal allies in the same area
+- Up to 64 entities can occupy one location
+- Combat happens when entities share the same slot position within a location
 
 ### Navigation Tips
 
-- Start by exploring horizontally (X/Y axes) at depth 0
+- Start by exploring horizontally (X/Y axes) at depth 1
 - Build strength before venturing deeper
 - Remember your path - respawning puts you back at origin
 - Watch for other heroes' movements in the activity feed
@@ -140,13 +158,14 @@ Each location can hold up to 64 heroes. When you move, you're exploring an infin
 
 ## Combat & Abilities
 
-### Automated Battle System
+### Strategic Combat System
 
 When you encounter monsters:
-1. Combat starts automatically
-2. Heroes and monsters take turns attacking
-3. Your abilities activate based on cooldowns
-4. Battle continues until one side falls
+1. You choose whether to attack (no retreat for spawned monsters)
+2. Once you initiate combat, defense is automatic
+3. Heroes and monsters take turns attacking
+4. Your abilities activate based on cooldowns
+5. Battle continues until one side falls
 
 ### Understanding Abilities
 
@@ -196,9 +215,9 @@ Each class has two unique abilities that define their combat style:
 Death isn't the end in Battle Nads:
 
 **When You Fall:**
-- Your hero respawns at origin (0, 0, 0)
-- You lose 10% of your shMON (minimum 100)
-- Equipment remains with you
+- Your hero respawns at origin (25, 25, 1)
+- You lose your entire character balance (shMON earned in-game)
+- Your bonded balance remains safe
 - A monument marks where you died
 
 **Death Monuments:**
@@ -222,27 +241,23 @@ Sometimes death can be tactical:
 ### Finding Gear
 
 Equipment drops from defeated monsters:
-- **Weapons**: Increase your damage output
-- **Armor**: Boost your defense rating
-- **Accessories**: Provide various bonuses
+- **Weapons**: 64 different types with varying damage
+- **Armor**: 64 different types with varying defense
+- Each equipment type has level requirements
 
-### Equipment Rarity
+### Equipment System
 
-Items come in different quality tiers:
-- Common (Gray)
-- Uncommon (Green)  
-- Rare (Blue)
-- Epic (Purple)
-- Legendary (Orange)
+- Different equipment types offer different stat bonuses
+- Higher-level equipment requires character progression
+- Equipment persists through death
+- Stats vary by equipment type, not rarity tiers
 
-Higher rarity = better stats = greater power
-
-### Managing Your Inventory
+### Managing Your Equipment
 
 - Equip items through your character screen
 - Compare stats before swapping gear
-- Some items are class-specific
-- Inventory space is limited - choose wisely
+- Check level requirements before equipping
+- Your equipment determines your combat effectiveness
 
 ---
 
@@ -250,19 +265,19 @@ Higher rarity = better stats = greater power
 
 ### Understanding shMON
 
-shMON (short for "sharing MON") is the lifeblood of Battle Nads:
-- Start with 10,000 shMON
-- Earn more by defeating monsters
-- Lose 10% when you die
-- Required for advanced features
+shMON is a [liquid staking token](https://shmonad.xyz) that powers Battle Nads:
+- **Character Balance**: Earned by defeating monsters (lost on death)
+- **Bonded Balance**: Protected funds for auto-defense (survives death)
+- **Staking Rewards**: Stake at [shmonad.xyz](https://shmonad.xyz) for RPC benefits
+- **Dual Purpose**: In-game currency and infrastructure token
 
 ### Token Distribution
 
 When a hero dies:
-- 10% of their shMON distributes to all living heroes
-- Distribution happens automatically
-- Creates a shared economy
-- Encourages both cooperation and competition
+- Their entire character balance is lost
+- A portion may be dropped for other players (varies by game mode)
+- Bonded balance remains with the account
+- Creates risk/reward dynamics
 
 ### Spending shMON
 
@@ -311,11 +326,53 @@ Advanced players can control multiple heroes:
 
 ---
 
+## shMON Staking & Enhanced RPC
+
+**Stake Your shMON for Better Performance**
+
+Visit [shmonad.xyz](https://shmonad.xyz) to stake your shMON tokens and unlock:
+
+- **Higher RPC throughput** - More requests per second based on your stake
+- **Priority block propagation** - Receive blocks earlier for latency-sensitive operations
+- **Regional optimization** - Faster read requests through distributed nodes
+- **Bandwidth guarantees** - Dedicated throughput instead of "best effort" service
+
+**How It Works:**
+1. Stake shMON at [shmonad.xyz](https://shmonad.xyz)
+2. Higher stake = higher bandwidth allocation
+3. Supports 90%+ of Monad validators in the FastLane network
+4. Future features include on-chain usage proofs and automated enforcement
+
+**Performance Benefits:**
+- Reduced latency for game actions
+- More reliable connection during peak times
+- Priority access to blockchain data
+- Better sync for multi-hero management
+
+For technical details about the RPC architecture, see the [full explanation thread](https://x.com/ThogardPvP/status/1945533868439998938).
+
+### Professional Gaming Setup
+
+For competitive players seeking optimal performance:
+
+**RPC Configuration:**
+- Use shMON-staked RPC endpoints for guaranteed bandwidth
+- Consider direct peering for ultra-low latency
+- Monitor your usage to avoid overage fees
+
+**Connection Optimization:**
+- Stable internet connection (wired preferred)
+- Low-latency regions closer to validators
+- Browser performance mode enabled
+- Hardware wallet for faster transaction signing
+
+---
+
 ## Tips for New Adventurers
 
 **Starting Out:**
-- Choose Warrior or Monk for easier survival
-- Stay at depth 0 until you're stronger
+- Hope for Warrior or Monk class for easier survival
+- Stay at depth 1 until you're stronger
 - Watch the activity feed to learn from others
 - Don't fear death - it's part of the journey
 
