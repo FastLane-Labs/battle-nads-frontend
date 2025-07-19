@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Box, Flex, Image, useColorMode } from '@chakra-ui/react';
+import { Box, Flex, Image, useColorMode, Button } from '@chakra-ui/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useWallet } from '@/providers/WalletProvider';
@@ -67,6 +67,11 @@ const NavBar: React.FC = () => {
             </Link>
           </Box>
 
+          <Link href="/guide">
+            <Button variant="ghost" size="sm" colorScheme="purple">
+              Game Guide
+            </Button>
+          </Link>
         </Flex>
 
         <Flex justifyContent="flex-end" alignItems="center">
