@@ -6,6 +6,7 @@ Battle Nads is a technology demonstration showcasing FastLane Labs' blockchain i
 
 ### New Player Resources
 
+- **[Game Guide](game-guide.md)** - Complete single-page guide covering all game mechanics
 - **[Quick Start Guide](quick-start-guide.md)** - Essential 5-minute setup guide
 - **[FAQ & Troubleshooting](faq-troubleshooting.md)** - Common issues and solutions
 
